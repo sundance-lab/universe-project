@@ -702,7 +702,7 @@ document.addEventListener('DOMContentLoaded', () => {
             planetEl.style.boxShadow = `0 0 ${newPlanet.size / 3}px rgba(255, 255, 255, 0.3)`;
             
             planetEl.addEventListener('click', (e) => { 
-                e.stopPropagation(); =
+                e.stopPropagation(); 
                 currentPlanetDisplayedInPanel = newPlanet; 
 
                 const planetName = `Planet ${newPlanet.id.split('-')[1]}`;

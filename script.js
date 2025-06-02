@@ -86,6 +86,7 @@ document.addEventListener('DOMContentLoaded', () => {
     let MAX_ROTATION_SPEED_RAD_PER_FRAME = 0.01; 
     const FIXED_COLORS = { universeBg: "#100520", galaxyIconFill: "#7f00ff", galaxyIconBorder: "#da70d6", solarSystemBaseColor: "#ffd700", sunFill: "#FFD700", sunBorder: "#FFA500", connectionLine: "rgba(255, 255, 255, 0.3)"};
     let gameSessionData = { universe: { diameter: null }, galaxies: [], activeGalaxyId: null, activeSolarSystemId: null, solarSystemView: { zoomLevel: 1.0, currentPanX: 0, currentPanY: 0, planets: [], systemId: null }, isInitialized: false, panning: { isActive: false, startX: 0, startY: 0, initialPanX: 0, initialPanY: 0, targetElement: null, viewportElement: null, dataObject: null }};
+    let renderPending = false;
     
     function updateDerivedConstants() {
         MAX_PLANET_DISTANCE = (SUN_ICON_SIZE * BASE_MAX_PLANET_DISTANCE_FACTOR) * currentMaxPlanetDistanceMultiplier;
@@ -988,9 +989,15 @@ window.addEventListener('mousemove', (e) => {
         rotationLatitude += deltaY * 0.005;  // Vertical drag
         // Clamp vertical rotation so you can't flip upside down
         rotationLatitude = Math.max(-Math.PI / 2, Math.min(Math.PI / 2, rotationLatitude));
-        renderPlanetVisual(currentPlanetDisplayedInPanel, rotationLongitude, rotationLatitude);
         lastDragX = e.clientX;
         lastDragY = e.clientY;
+        if (!renderPending) {
+            renderPending = true;
+            requestAnimationFrame(() => {
+                renderPlanetVisual(currentPlanetDisplayedInPanel, rotationLongitude, rotationLatitude);
+                renderPending = false;
+            });
+        }
     }
 });
 

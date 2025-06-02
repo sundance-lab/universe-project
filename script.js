@@ -531,7 +531,7 @@ document.addEventListener('DOMContentLoaded', () => {
     // This texture will be drawn onto the planet's sphere in the visual panel.
     function createTerrestrialTexture(planetData, textureSize = 512) {
         const canvas = document.createElement('canvas'); // Offscreen canvas
-        canvas.width = textureSize * 2; // Make width:height 2:1 for full cylindrical map
+        canvas.width = textureSize * 2; // Make width:height 2:1 for full cylindrical map (equirectangular projection)
         canvas.height = textureSize;
         const ctx = canvas.getContext('2d');
 
@@ -540,7 +540,8 @@ document.addEventListener('DOMContentLoaded', () => {
         ctx.fillRect(0, 0, canvas.width, canvas.height);
 
         // Apply a blur filter to the landmasses to make them seamless and fluid
-        ctx.filter = `blur(${textureSize * 0.02}px)`; // Blur proportional to texture size for consistent look
+        // Blur radius proportional to texture size for consistent look
+        ctx.filter = `blur(${textureSize * 0.02}px)`; 
 
         ctx.fillStyle = planetData.grassColor;
 
@@ -562,7 +563,8 @@ document.addEventListener('DOMContentLoaded', () => {
             const numAddBlobs = Math.floor(1 + Math.random() * 3); // 1-3 additional blobs per landmass
             for (let i = 0; i < numAddBlobs; i++) {
                 const angleOffset = (Math.random() * 2 * Math.PI);
-                const radialOffset = landmassDrawRadius * (0.5 + Math.random() * 0.5); // Offset from the main blob's center
+                // Offset from the main blob's center, scaling by its radius
+                const radialOffset = landmassDrawRadius * (0.5 + Math.random() * 0.5); 
                 const blobRadius = landmassDrawRadius * (0.3 + Math.random() * 0.3); // Smaller radius for sub-blobs
 
                 ctx.beginPath();
@@ -783,48 +785,53 @@ document.addEventListener('DOMContentLoaded', () => {
             ctx.save();
             ctx.beginPath();
             ctx.arc(centerX, centerY, radius, 0, Math.PI * 2);
-            ctx.clip(); // Clip drawing to the circle for the planet's boundary
+            ctx.clip(); // Clip drawing to the planet circle
 
             const textureCanvas = planetData.textureCanvas;
             const textureWidth = textureCanvas.width;
             const textureHeight = textureCanvas.height;
 
-            // Number of vertical strips to draw to simulate sphere curvature
-            const numStrips = 80; // More strips = smoother result
-            const stripSourceWidth = textureWidth / numStrips;
+            // Calculate the horizontal pixel offset for the texture based on the current rotation angle.
+            // A full rotation (2 * PI radians) corresponds to the full width of the texture.
+            let texturePixelOffset = (currentRotationAngle / (2 * Math.PI)) * textureWidth;
+            
+            // Ensure the offset wraps around correctly for continuous scrolling feedback
+            texturePixelOffset = texturePixelOffset % textureWidth;
+            if (texturePixelOffset > 0) texturePixelOffset -= textureWidth; // Adjust to make the "wrapping from right" logic simpler
 
-            for (let i = 0; i < numStrips; i++) {
-                // Calculate the longitude represented by this strip's center
-                // Varies from -PI to PI across the texture
-                let longitude = (i / numStrips) * (2 * Math.PI) - Math.PI;
+            // Draw the texture multiple times to create a seamless scrolling effect
+            // We draw the texture, shifted by the rotation offset, and stretched to fit the sphere's diameter.
+            // Drawing three copies ensures it wraps around smoothly as 'texturePixelOffset' changes.
+            ctx.drawImage(
+                textureCanvas,
+                0, 0, textureWidth, textureHeight, // Source: entire texture
+                centerX - radius + texturePixelOffset, // Destination X: starts from leftmost visible point, shifted by rotation
+                centerY - radius,                     // Destination Y: top of the sphere
+                radius * 2,                           // Destination width: stretch to full sphere diameter
+                radius * 2                            // Destination height: stretch to full sphere diameter
+            );
 
-                // Adjust for the current rotation of the planet
-                longitude = (longitude - currentRotationAngle);
-                
-                // Normalize longitude to -PI to PI to ensure correct cosine calculation for perspective
-                longitude = (longitude + Math.PI * 3) % (2 * Math.PI);
-                if (longitude > Math.PI) longitude -= (2 * Math.PI);
+            // Draw a copy to the right for seamless wrapping
+            ctx.drawImage(
+                textureCanvas,
+                0, 0, textureWidth, textureHeight,
+                centerX - radius + texturePixelOffset + textureWidth, 
+                centerY - radius,
+                radius * 2, radius * 2
+            );
 
-                // Calculate the perspective-adjusted width of the strip on screen
-                // cosine of angle from center of sphere gives perspective scaling
-                const effectiveStripWidth = stripSourceWidth * Math.cos(longitude);
+            // Draw a copy to the left for seamless wrapping (when rotating right)
+            ctx.drawImage(
+                textureCanvas,
+                0, 0, textureWidth, textureHeight,
+                centerX - radius + texturePixelOffset - textureWidth, 
+                centerY - radius,
+                radius * 2, radius * 2
+            );
 
-                // Determine the x-position for drawing this strip on the canvas
-                // It should map from longitude to the x-coordinate on the projected sphere
-                const xOnCanvas = centerX + (i / numStrips) * (2 * radius) - radius; // Basic linear mapping
+            ctx.restore(); // Restore context to remove clipping
 
-                ctx.drawImage(
-                    textureCanvas,
-                    i * stripSourceWidth, 0, stripSourceWidth, textureHeight, // Source rectangle (strip from texture)
-                    centerX + radius * Math.sin(longitude), // X position on rendered circle
-                    centerY - radius, // Y position (top of circle)
-                    effectiveStripWidth, radius * 2 // Destination width (perspective), Destination height (full diameter)
-                );
-            }
-
-            ctx.restore(); // Restore canvas state (removes clipping path)
-
-            // Apply shading (fixed relative to viewer) over the entire rendered sphere
+            // Apply shading over the entire planet (both water and land)
             const shadeGradient = ctx.createRadialGradient(
                 lightDrawX, lightDrawY, radius * 0.1, 
                 centerX, centerY, radius * 1.8 

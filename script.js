@@ -810,8 +810,8 @@ renderPlanetVisual(newPlanet, rotationLongitude, rotationLatitude);
 
             // Calculate the horizontal pixel offset for the texture based on the current rotation angle.
             // A full rotation (2 * PI radians) corresponds to the full width of the texture.
-            let texturePixelOffset = (currentRotationAngle / (2 * Math.PI)) * textureWidth;
-            
+// Calculate the horizontal pixel offset for the texture based on the current longitude rotation angle.
+let texturePixelOffset = (longitude / (2 * Math.PI)) * textureWidth;            
             // Ensure the offset wraps around correctly for continuous scrolling feedback
             texturePixelOffset = texturePixelOffset % textureWidth;
             if (texturePixelOffset > 0) texturePixelOffset -= textureWidth; // Adjust to make the "wrapping from right" logic simpler

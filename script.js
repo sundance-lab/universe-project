@@ -758,65 +758,30 @@ fetch(`https://save-api.nicholasgutteridge512.workers.dev/?key=$`)
     renderSolarSystemScreen(false);
   }
 
-function generateSegmentData(planetData) {
-    const minTotalSegments = 30;
-    const maxTotalSegments = 80;
-    const targetTotalSegments = Math.floor(Math.random() * (maxTotalSegments - minTotalSegments + 1)) + minTotalSegments;
-
-    const minDividersPerAxis = 5; // Min 4 segments along axis
-    const maxDividersPerAxis = 10; // Max 9 segments along axis
-
-    let numLatDividers = Math.floor(Math.random() * (maxDividersPerAxis - minDividersPerAxis + 1)) + minDividersPerAxis;
-    let numLonDividers = Math.floor(Math.random() * (maxDividersPerAxis - minDividersPerAxis + 1)) + minDividersPerAxis;
-
-    let currentSegmentCount = (numLatDividers - 1) * (numLonDividers - 1);
-
-    // Adjust dividers to be within target total segment range
-    let attempts = 0;
-    while ((currentSegmentCount < minTotalSegments || currentSegmentCount > maxTotalSegments) && attempts < 100) {
-        if (currentSegmentCount < minTotalSegments) {
-            if (numLatDividers < maxDividersPerAxis) numLatDividers++;
-            else if (numLonDividers < maxDividersPerAxis) numLonDividers++;
-            else break;
-        } else if (currentSegmentCount > maxTotalSegments) {
-            if (numLatDividers > minDividersPerAxis +1) numLatDividers--; // Keep at least 2 bands
-            else if (numLonDividers > minDividersPerAxis +1) numLonDividers--; // Keep at least 2 slices
-            else break;
-        }
-        currentSegmentCount = (numLatDividers - 1) * (numLonDividers - 1);
-        attempts++;
+// Place this function in place of the old generateSegmentData(planetData)
+function generateRandomSquigglySegments(planetData, numSegments = 40) {
+    // Generate random seed points on the sphere (phi: latitude, theta: longitude)
+    const seeds = [];
+    for (let i = 0; i < numSegments; i++) {
+        seeds.push({
+            phi: Math.acos(2 * Math.random() - 1), // 0 to PI
+            theta: Math.random() * 2 * Math.PI,    // 0 to 2PI
+            id: i
+        });
     }
 
-    const latBandStarts = [0];
-    for (let i = 0; i < numLatDividers - 2; i++) { // -2 because 0 and PI are fixed
-        latBandStarts.push(Math.random() * Math.PI);
+    // Perlin/simplex noise setup (optional: for squiggliness)
+    function noise(phi, theta) {
+        // Simple fast pseudo-noise: can be improved with proper perlin/simplex implementation
+        return Math.sin(13 * phi + 17 * theta) * Math.cos(23 * phi - 19 * theta);
     }
-    latBandStarts.sort((a, b) => a - b);
-    latBandStarts.push(Math.PI); // Ensure coverage from pole to pole
-
-    const lonSliceStarts = [0];
-    for (let i = 0; i < numLonDividers - 2; i++) { // -2 because 0 and 2*PI are fixed
-        lonSliceStarts.push(Math.random() * 2 * Math.PI);
-    }
-    lonSliceStarts.sort((a, b) => a - b);
-    lonSliceStarts.push(2 * Math.PI); // Ensure full wraparound coverage
 
     planetData.segmentsData = {
+        seeds,
         map: new Map(),
-        numLatDividers: numLatDividers,
-        numLonDividers: numLonDividers,
-        latBandStarts: latBandStarts,
-        lonSliceStarts: lonSliceStarts
+        numSegments
     };
-
-    // Initialize segments - (numLatDividers-1) bands by (numLonDividers-1) slices
-    for (let i = 0; i < numLatDividers - 1; i++) {
-        for (let j = 0; j < numLonDividers - 1; j++) {
-            planetData.segmentsData.map.set(`${i},${j}`, { isPink: false });
-        }
-    }
 }
-
 function drawSegmentLines(ctx, planetData, currentLon, currentLat, sphereRadius, centerX, centerY) {
     if (!planetData.segmentsData || planetData.segmentsData.latBandStarts.length < 2 || planetData.segmentsData.lonSliceStarts.length < 2) return;
 

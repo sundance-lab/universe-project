@@ -718,8 +718,9 @@ document.addEventListener('DOMContentLoaded', () => {
                 planetVisualPanel.style.transform = 'translate(-50%, -50%)';
                 planetVisualPanel.style.transition = ''; 
 
-                currentRotationAngleInPanel = 0; // Reset rotation when a new planet is selected
-                renderPlanetVisual(newPlanet, currentRotationAngleInPanel);
+                rotationLongitude = 0;
+                rotationLatitude = 0;
+                renderPlanetVisual(newPlanet, rotationLongitude, rotationLatitude);                renderPlanetVisual(newPlanet, currentRotationAngleInPanel);
             });
             solarSystemContent.appendChild(planetEl);
             newPlanet.element = planetEl;
@@ -997,25 +998,6 @@ window.addEventListener('mouseup', () => {
     }
 });
 
-function planetInertiaStep() {
-    if (!isPlanetRotating) return;
-    // Apply velocity to rotation angle
-    currentRotationAngleInPanel += planetRotationVelocity * 0.016; // ~60FPS
-
-    // Slow down (friction)
-    planetRotationVelocity *= 0.94; // Lower = more friction
-
-    renderPlanetVisual(currentPlanetDisplayedInPanel, currentRotationAngleInPanel);
-
-    // Stop if velocity is very low
-    if (Math.abs(planetRotationVelocity) > 0.001) {
-        requestAnimationFrame(planetInertiaStep);
-    } else {
-        isPlanetRotating = false;
-        planetRotationVelocity = 0;
-    }
-}
-    
     function initializeGame(isForcedRegeneration = false) {loadCustomizationSettings(); if (!isForcedRegeneration && loadGameState()) {setActiveScreen(mainScreen); if (universeCircle && gameSessionData.universe.diameter) {universeCircle.style.width = `${gameSessionData.universe.diameter}px`;universeCircle.style.height = `${gameSessionData.universe.diameter}px`;universeCircle.style.backgroundColor = FIXED_COLORS.universeBg;} else {generateUniverseLayout(); }renderMainScreen(); preGenerateAllGalaxyContents(); } else {generateUniverseLayout();generateGalaxies(); setActiveScreen(mainScreen); renderMainScreen();preGenerateAllGalaxyContents(); if(gameSessionData.galaxies.every(g => g.layoutGenerated)) {saveGameState();}}gameSessionData.isInitialized = true;}
     window.addEventListener('resize', () => { const currentScreenIdBeforeResize = document.querySelector('.screen.active')?.id;localStorage.removeItem('galaxyGameSaveData'); gameSessionData.universe = { diameter: null };gameSessionData.galaxies = [];gameSessionData.activeGalaxyId = null;gameSessionData.activeSolarSystemId = null;gameSessionData.solarSystemView = { zoomLevel: 1.0, currentPanX: 0, currentPanY: 0, planets: [], systemId: null };gameSessionData.isInitialized = false;if (universeCircle) universeCircle.innerHTML = '';if (galaxyZoomContent) {const canvas = galaxyZoomContent.querySelector('#solar-system-lines-canvas');galaxyZoomContent.innerHTML = ''; if(canvas) galaxyZoomContent.appendChild(canvas); }if (solarSystemContent) solarSystemContent.innerHTML = '';if (orbitCtx && solarSystemOrbitCanvasEl) orbitCtx.clearRect(0,0,solarSystemOrbitCanvasEl.width,solarSystemOrbitCanvasEl.height); if (animationFrameId) { cancelAnimationFrame(animationFrameId); animationFrameId = null; }lastAnimationTime = null; 
     loadCustomizationSettings(); initializeGame(true);  if (currentScreenIdBeforeResize) { const screenToActivate = document.getElementById(currentScreenIdBeforeResize) || mainScreen; setActiveScreen(screenToActivate);  } else { setActiveScreen(mainScreen); }});

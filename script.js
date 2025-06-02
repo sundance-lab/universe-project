@@ -718,10 +718,9 @@ document.addEventListener('DOMContentLoaded', () => {
 
                 rotationLongitude = 0;
                 rotationLatitude = 0;
-                renderPlanetVisual(newPlanet, rotationLongitude, rotationLatitude);                renderPlanetVisual(newPlanet, currentRotationAngleInPanel);
+                renderPlanetVisual(newPlanet, rotationLongitude, rotationLatitude);            
             });
-renderPlanetVisual(newPlanet, rotationLongitude, rotationLatitude);                
-renderPlanetVisual(newPlanet, currentRotationAngleInPanel);
+renderPlanetVisual(newPlanet, rotationLongitude, rotationLatitude);      
         }
 
         if (solarSystemTitleText) {

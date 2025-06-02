@@ -801,36 +801,36 @@ document.addEventListener('DOMContentLoaded', () => {
 
             // Draw the texture multiple times to create a seamless scrolling effect
             // We draw the texture, shifted by the rotation offset, and stretched to fit the sphere's diameter.
-            // Drawing three copies ensures it wraps around smoothly as 'texturePixelOffset' changes.
-            ctx.drawImage(
-                textureCanvas,
-                0, 0, textureWidth, textureHeight, // Source: entire texture
-                centerX - radius + texturePixelOffset, // Destination X: starts from leftmost visible point, shifted by rotation
-                centerY - radius,                     // Destination Y: top of the sphere
-                radius * 2,                           // Destination width: stretch to full sphere diameter
-                radius * 2                            // Destination height: stretch to full sphere diameter
-            );
+ctx.save();
+ctx.beginPath();
+ctx.arc(centerX, centerY, radius, 0, Math.PI * 2);
+ctx.clip();
 
-            // Draw a copy to the right for seamless wrapping
-            ctx.drawImage(
-                textureCanvas,
-                0, 0, textureWidth, textureHeight,
-                centerX - radius + texturePixelOffset + textureWidth, 
-                centerY - radius,
-                radius * 2, radius * 2
-            );
+const steps = Math.ceil(radius * 2); // How many vertical stripes across the sphere
+for (let i = 0; i < steps; i++) {
+    // Normalized horizontal position [-1, 1]
+    const nx = (i / (steps - 1)) * 2 - 1;
+    // Angle on the sphere: -π to π (left to right)
+    const sphereAngle = Math.asin(nx);
 
-            // Draw a copy to the left for seamless wrapping (when rotating right)
-            ctx.drawImage(
-                textureCanvas,
-                0, 0, textureWidth, textureHeight,
-                centerX - radius + texturePixelOffset - textureWidth, 
-                centerY - radius,
-                radius * 2, radius * 2
-            );
+    // Texture longitude (0...1), with rotation
+    let texU = ((sphereAngle / Math.PI) + 0.5 + (currentRotationAngle / (2 * Math.PI))) % 1;
+    if (texU < 0) texU += 1;
 
-            ctx.restore(); // Restore context to remove clipping
+    // Compute x position on the canvas
+    const x = centerX + nx * radius;
 
+    // Compute source x in texture
+    const sx = Math.floor(texU * textureWidth);
+
+    // Draw a vertical strip
+    ctx.drawImage(
+        textureCanvas,
+        sx, 0, 1, textureHeight, // source: 1px wide vertical strip
+        x, centerY - radius, 1, radius * 2 // dest: 1px wide vertical strip
+    );
+}
+ctx.restore();
             // Apply shading over the entire planet (both water and land)
             const shadeGradient = ctx.createRadialGradient(
                 lightDrawX, lightDrawY, radius * 0.1, 

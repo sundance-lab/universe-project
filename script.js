@@ -476,6 +476,11 @@
                 const gal = gameSessionData.galaxies.find(g => g.id === galaxyId);
                 if (!gal){ switchToMainView(); return; }
                 gameSessionData.activeGalaxyId = galaxyId;
+                if (backToGalaxyButton) {
+    backToGalaxyButton.textContent = gal.customName
+        ? `Back to ${gal.customName}`
+        : `Back to Galaxy ${gal.id.split('-')[1]}`;
+}
                 gameSessionData.activeSolarSystemId = null; 
                 gal.currentZoom = gal.currentZoom || 1.0; 
                 gal.currentPanX = gal.currentPanX || 0; 
@@ -611,7 +616,7 @@
                 }
                 if (activeSysView && solarSystemScreen.classList.contains('active') && activeSysView.planets) {
                     activeSysView.planets.forEach(planet => {
-                        planet.currentOrbitalAngle += planet.orbitalSpeed;
+                        planet.currentOrbitalAngle += planet.orbitalSpeed * 3;
                         planet.currentAxialAngle += planet.axialSpeed;
                         if (planet.element) {
                             const planetScreenX = planet.distance * Math.cos(planet.currentOrbitalAngle);

@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Galaxies Reimagined - V1.3.10.2 (System Naming & Pre-loading)</title>
+    <title>Galaxies Reimagined - V1.3.10.2 (Final Refinements)</title>
     <style>
         * { margin: 0; padding: 0; box-sizing: border-box; }
         body {font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background-color: #000; color: #fff; display: flex; justify-content: center; align-items: center; min-height: 100vh; overflow: hidden; }
@@ -11,10 +11,12 @@
         .screen {width: 100%; height: 100%; position: absolute; top: 0; left: 0; display: flex; justify-content: center; align-items: center; visibility: hidden; opacity: 0; transition: opacity 0.3s ease-in-out, visibility 0s linear 0.3s; overflow: hidden; }
         .screen.active {visibility: visible; opacity: 1; transition-delay: 0s; z-index: 1; }
         .screen.active.panning-active { z-index: 2;}
-        .screen-title {position: absolute;top: 15px;left: 20px;color: rgba(230, 230, 255, 0.9);font-size: 1.7em;font-weight: 700;text-shadow: 1px 1px 2px rgba(0, 0, 0, 0.7);pointer-events: none;z-index: 100;user-select: none; -webkit-user-select: none;}
-        .editable-title-container { position: absolute; top: 15px; left: 20px; z-index: 100;} /* Container for title */
-        .editable-title-text { color: rgba(230, 230, 255, 0.9);font-size: 1.7em;font-weight: 700;text-shadow: 1px 1px 2px rgba(0, 0, 0, 0.7); cursor: text; border-bottom: 1px dashed rgba(230, 230, 255, 0.3); display: inline-block; pointer-events: all;}
+        
+        .editable-title-container { position: absolute; top: 15px; left: 20px; z-index: 100;}
+        .editable-title-text { color: rgba(230, 230, 255, 0.9);font-size: 1.7em;font-weight: 700;text-shadow: 1px 1px 2px rgba(0, 0, 0, 0.7); cursor: text; display: inline-block; pointer-events: all; user-select: none; -webkit-user-select: none;}
         .editable-title-input { font-size: 1.7em; font-weight: 700; color: #fff; background-color: rgba(0,0,0,0.7); border: 1px solid #fff; padding: 0px 5px; width: auto; display:none; line-height: 1.2; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;}
+        /* Generic title for non-editable ones */
+        .screen-title-static {position: absolute;top: 15px;left: 20px;color: rgba(230, 230, 255, 0.9);font-size: 1.7em;font-weight: 700;text-shadow: 1px 1px 2px rgba(0, 0, 0, 0.7);pointer-events: none;z-index: 100;user-select: none; -webkit-user-select: none;}
 
 
         #main-screen { background-color: #000; } 
@@ -53,6 +55,7 @@
             position: absolute;
             border-radius: 50%;
             z-index: 4;
+            cursor: pointer; /* Make planets clickable too */
         }
         #solar-system-orbit-canvas {
             position: absolute;
@@ -77,6 +80,9 @@
         #regenerate-universe-btn:hover { background-color: #e74c3c;}
         #customize-generation-btn {position: fixed; top: 105px; left: 15px; z-index: 301; background-color: #2980b9; border: 1px solid #2471a3;}
         #customize-generation-btn:hover { background-color: #3498db;}
+        #pause-resume-solar-system-btn {position: fixed; top: 150px; left: 15px; z-index: 301; background-color: #f39c12; border: 1px solid #d35400; display:none; }
+        #pause-resume-solar-system-btn:hover { background-color: #f1c40f;}
+
 
         .modal-overlay { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background-color: rgba(0,0,0,0.7); display: none; justify-content: center; align-items: center; z-index: 1000;}
         .modal-overlay.visible { display: flex; }
@@ -98,7 +104,7 @@
     <div class="screen-container">
         <div id="main-screen" class="screen active">
              <div id="main-screen-title-container" class="editable-title-container">
-                 <span id="main-screen-title-text" class="screen-title">Universe</span>
+                 <span id="main-screen-title-text" class="screen-title-static">Universe</span>
              </div>
              <div id="universe-circle"></div>
         </div>
@@ -124,6 +130,7 @@
         <div id="zoom-controls"><button id="zoom-out-btn">-</button><button id="zoom-in-btn">+</button></div>
         <button id="regenerate-universe-btn" class="control-button">Generate New Universe</button>
         <button id="customize-generation-btn" class="control-button">Customize Generation</button>
+        <button id="pause-resume-solar-system-btn" class="control-button">Pause Planets</button>
     </div>
 
     <div id="customization-modal" class="modal-overlay">
@@ -135,7 +142,7 @@
             <label for="min-ss-input">Min Solar Systems per Galaxy (10-500):</label>
             <input type="number" id="min-ss-input" min="10" max="500">
 
-            <label for="max-ss-input">Max Solar Systems per Galaxy (Min Solar Systems-1000):</label>
+            <label for="max-ss-input">Max Solar Systems per Galaxy (Min Systems-1000):</label>
             <input type="number" id="max-ss-input" min="10" max="1000">
             
             <label for="ss-spread-input">Solar System Spread Multiplier (0.5-3.0):</label>
@@ -161,7 +168,7 @@
     </div>
 
     <script>
-console.log("Script V1.3.10.2 (System Naming & Pre-loading) Loaded.");
+        console.log("Script V1.3.10.2 (Final Refinements) Loaded.");
 
         document.addEventListener('DOMContentLoaded', () => {
             console.log("DOM fully loaded (V1.3.10.2).");
@@ -198,11 +205,15 @@ console.log("Script V1.3.10.2 (System Naming & Pre-loading) Loaded.");
             const minPlanetsInput = document.getElementById('min-planets-input');
             const maxPlanetsInput = document.getElementById('max-planets-input');
             const showOrbitsInput = document.getElementById('show-orbits-input');
+            const pauseResumeSolarSystemButton = document.getElementById('pause-resume-solar-system-btn');
+
 
             let linesCtx; 
             let solarSystemOrbitCanvasEl;
             let orbitCtx;
             let animationFrameId = null;
+            let isSolarSystemPaused = false;
+
 
             const DEFAULT_NUM_GALAXIES = 3;
             const DEFAULT_MIN_SS_COUNT_CONST = 200;
@@ -290,9 +301,7 @@ console.log("Script V1.3.10.2 (System Naming & Pre-loading) Loaded.");
                         galaxies: gameSessionData.galaxies, 
                     };
                     localStorage.setItem('galaxyGameSaveData', JSON.stringify(stateToSave));
-                } catch (error) {
-                    // console.error("Error saving game state:", error);
-                }
+                } catch (error) {}
             }
 
             function loadGameState() {
@@ -310,14 +319,11 @@ console.log("Script V1.3.10.2 (System Naming & Pre-loading) Loaded.");
                                 gal.customName = gal.customName || null; 
                                 gal.generationParams = gal.generationParams || {densityFactor:0.8+Math.random()*0.4};
                                 gal.solarSystems = gal.solarSystems || [];
-
-                                // Ensure solar systems also have customName if loaded
                                 if (gal.solarSystems && Array.isArray(gal.solarSystems)) {
                                     gal.solarSystems.forEach(ss => {
                                         ss.customName = ss.customName || null;
                                     });
                                 }
-
                                 gal.lineConnections = gal.lineConnections || [];
                             });
                             return true;
@@ -351,6 +357,14 @@ console.log("Script V1.3.10.2 (System Naming & Pre-loading) Loaded.");
                  if (customizeGenerationButton) {
                     customizeGenerationButton.style.display = (screenToShow === mainScreen || screenToShow === galaxyDetailScreen || screenToShow === solarSystemScreen) ? 'block' : 'none';
                 }
+                if (pauseResumeSolarSystemButton) {
+                    pauseResumeSolarSystemButton.style.display = (screenToShow === solarSystemScreen) ? 'block' : 'none';
+                    if (screenToShow === solarSystemScreen) {
+                         isSolarSystemPaused = false; 
+                         pauseResumeSolarSystemButton.textContent = "Pause Planets";
+                    }
+                }
+
                 if (screenToShow === solarSystemScreen) { startSolarSystemAnimation(); } 
                 else { if (animationFrameId) { cancelAnimationFrame(animationFrameId); animationFrameId = null; } }
             }
@@ -374,16 +388,16 @@ console.log("Script V1.3.10.2 (System Naming & Pre-loading) Loaded.");
             
             function generateSolarSystemsForGalaxy(galaxyId) { 
                 const gal = gameSessionData.galaxies.find(g => g.id === galaxyId); 
-                if(!gal || !galaxyViewport) {return;} // Allow re-generation if forced
-                if (gal.layoutGenerated && !gameSessionData.isForceRegenerating) return; // Skip if already done unless forced
+                if(!gal || !galaxyViewport) {return;}
+                if (gal.layoutGenerated && !gameSessionData.isForceRegenerating) return; 
 
-                const pd=galaxyViewport.offsetWidth > 0 ? galaxyViewport.offsetWidth : (gameSessionData.universe.diameter || 500) ; // Fallback if viewport not rendered
+                const pd=galaxyViewport.offsetWidth > 0 ? galaxyViewport.offsetWidth : (gameSessionData.universe.diameter || 500) ; 
                 const pr=pd/2; 
-                if(pd<=0||isNaN(pr)||pr<=0){ gal.layoutGenerated=true; saveGameState(); return } 
+                if(pd<=0||isNaN(pr)||pr<=0){ gal.layoutGenerated=true; if (!gameSessionData.isForceRegenerating) saveGameState(); return } 
                 gal.solarSystems=[]; gal.lineConnections=[]; const tpr=[]; 
                 const numSystemsToAssign = Math.floor(Math.random() * (currentMaxSSCount - currentMinSSCount + 1)) + currentMinSSCount; 
                 for(let i=0;i<numSystemsToAssign;i++){ const sysId=`${gal.id}-ss-${i+1}`; const pos=getNonOverlappingPositionInCircle(pr,SOLAR_SYSTEM_BASE_ICON_SIZE,tpr); if(pos&&!isNaN(pos.x)&&!isNaN(pos.y)){ gal.solarSystems.push({id:sysId, customName:null, x:pos.x,y:pos.y,iconSize:SOLAR_SYSTEM_BASE_ICON_SIZE}); tpr.push({x:pos.x,y:pos.y,width:SOLAR_SYSTEM_BASE_ICON_SIZE,height:SOLAR_SYSTEM_BASE_ICON_SIZE})} } 
-                if (gal.solarSystems.length < 2) { gal.layoutGenerated = true; saveGameState(); return; } 
+                if (gal.solarSystems.length < 2) { gal.layoutGenerated = true; if (!gameSessionData.isForceRegenerating) saveGameState(); return; } 
                 const allSystemCoords = gal.solarSystems.map(ss => ({ ...ss, centerX: ss.x + ss.iconSize / 2, centerY: ss.y + ss.iconSize / 2 })); 
                 const systemConnectionCounts = {}; 
                 const currentGalaxyDiameter = pd; 
@@ -495,35 +509,21 @@ console.log("Script V1.3.10.2 (System Naming & Pre-loading) Loaded.");
                     } 
                 }); 
                 gal.layoutGenerated = true; 
-                if (!gameSessionData.isForceRegenerating) { // Only save if not part of a mass regeneration call
-                     saveGameState();
-                }
+                if (!gameSessionData.isForceRegenerating) { saveGameState(); }
             }
 
             async function preGenerateAllGalaxyContents() {
-                console.log("Pre-generating all galaxy contents...");
-                gameSessionData.isForceRegenerating = true; // Set flag to prevent individual saves
-                for (const gal of gameSessionData.galaxies) {
-                    if (!gal.layoutGenerated) {
-                        // Ensure galaxyViewport has dimensions before generating
-                        // This is a bit tricky as it might not be visible. We can use a default or expected size.
-                       
-                        // A small delay can help if the viewport isn't immediately ready
-                        // but direct generation is often fine if using default values.
-                        await new Promise(resolve => setTimeout(resolve, 0)); // Allow possible render tick
-                        generateSolarSystemsForGalaxy(gal.id);
-                    }
-                }
+                gameSessionData.isForceRegenerating = true; 
+                for (const gal of gameSessionData.galaxies) { if (!gal.layoutGenerated) { await new Promise(resolve => setTimeout(resolve, 0)); generateSolarSystemsForGalaxy(gal.id); } }
                 gameSessionData.isForceRegenerating = false;
-                saveGameState(); // Save once after all are done
-                console.log("Finished pre-generating galaxy contents.");
+                saveGameState();
             }
             
             function renderMainScreen() { 
                 if (mainScreenTitleText) mainScreenTitleText.textContent = "Universe";
                 if(!universeCircle)return;
                 universeCircle.innerHTML='';
-                gameSessionData.galaxies.forEach(gal=>{const el=document.createElement('div');el.className='galaxy-icon';el.style.width=`${GALAXY_ICON_SIZE}px`;el.style.height=`${GALAXY_ICON_SIZE}px`;el.style.left=`${gal.x}px`;el.style.top=`${gal.y}px`;el.style.backgroundColor=FIXED_COLORS.galaxyIconFill;el.style.border=`3px solid ${FIXED_COLORS.galaxyIconBorder}`;el.dataset.galaxyId=gal.id;el.addEventListener('click',()=>switchToGalaxyDetailView(gal.id));universeCircle.appendChild(el)});
+                gameSessionData.galaxies.forEach(gal=>{const el=document.createElement('div');el.className='galaxy-icon';el.style.width=`${GALAXY_ICON_SIZE}px`;el.style.height=`${GALAXY_ICON_SIZE}px`;el.style.left=`${gal.x}px`;el.style.top=`${gal.y}px`;el.style.backgroundColor=FIXED_COLORS.galaxyIconFill;el.style.border=`3px solid ${FIXED_COLORS.galaxyIconBorder}`; el.title = gal.customName || `Galaxy ${gal.id.split('-')[1]}`; el.dataset.galaxyId=gal.id;el.addEventListener('click',()=>switchToGalaxyDetailView(gal.id));universeCircle.appendChild(el)});
             }
             function drawGalaxyLines(galaxy) { if(!solarSystemLinesCanvasEl||!galaxyZoomContent)return;if(galaxyZoomContent.offsetWidth>0&&solarSystemLinesCanvasEl.width!==galaxyZoomContent.offsetWidth)solarSystemLinesCanvasEl.width=galaxyZoomContent.offsetWidth;if(galaxyZoomContent.offsetHeight>0&&solarSystemLinesCanvasEl.height!==galaxyZoomContent.offsetHeight)solarSystemLinesCanvasEl.height=galaxyZoomContent.offsetHeight;if(!linesCtx)linesCtx=solarSystemLinesCanvasEl.getContext('2d');linesCtx.clearRect(0,0,solarSystemLinesCanvasEl.width,solarSystemLinesCanvasEl.height);if(!galaxy||!galaxy.lineConnections||!galaxy.solarSystems)return;linesCtx.strokeStyle=FIXED_COLORS.connectionLine;linesCtx.lineWidth=0.5;linesCtx.setLineDash([]);const spos={};galaxy.solarSystems.forEach(ss=>{spos[ss.id]={x:ss.x+ss.iconSize/2,y:ss.y+ss.iconSize/2}});galaxy.lineConnections.forEach(conn=>{const f=spos[conn.fromId],t=spos[conn.toId];if(f&&t){linesCtx.beginPath();linesCtx.moveTo(f.x,f.y);linesCtx.lineTo(t.x,t.y);linesCtx.stroke()}})}
             
@@ -535,7 +535,30 @@ console.log("Script V1.3.10.2 (System Naming & Pre-loading) Loaded.");
                 galaxyViewport.style.height=(gameSessionData.universe.diameter||500)+`px`;
                 const icons=galaxyZoomContent.querySelectorAll('.solar-system-icon');
                 icons.forEach(i=>i.remove());
-                gal.solarSystems.forEach(ss=>{const solarSystemObject = gal.solarSystems.find(s => s.id === ss.id); const el=document.createElement('div');el.className='solar-system-icon';const ds=ss.iconSize*gal.currentZoom,off=(ds-ss.iconSize)/2;el.style.width=`${ds}px`;el.style.height=`${ds}px`;el.style.left=`${ss.x-off}px`;el.style.top=`${ss.y-off}px`;el.dataset.solarSystemId=ss.id; if(solarSystemObject && solarSystemObject.customName) { el.title = solarSystemObject.customName; } el.addEventListener('click',e=>{e.stopPropagation();switchToSolarSystemView(ss.id)});galaxyZoomContent.appendChild(el)});
+
+                const zoomScaleDampening = 0.7; // 0.1 = very little scaling, 1.0 = full scaling
+                const effectiveZoomForIconSize = GALAXY_VIEW_MIN_ZOOM + ((gal.currentZoom - GALAXY_VIEW_MIN_ZOOM) * zoomScaleDampening);
+
+                gal.solarSystems.forEach(ss=>{
+                    const solarSystemObject = gal.solarSystems.find(s => s.id === ss.id); 
+                    const el=document.createElement('div');
+                    el.className='solar-system-icon';
+                    
+                    let desiredSizeInParent = (ss.iconSize * effectiveZoomForIconSize) / gal.currentZoom;
+                    if (gal.currentZoom === 0) desiredSizeInParent = 0; 
+                    desiredSizeInParent = Math.max(0.5, desiredSizeInParent); // Min visual size
+
+                    el.style.width=`${desiredSizeInParent}px`;
+                    el.style.height=`${desiredSizeInParent}px`;
+                    const centerOffset = desiredSizeInParent / 2;
+                    el.style.left=`${ss.x + (ss.iconSize/2) - centerOffset}px`; // Place relative to original center
+                    el.style.top=`${ss.y + (ss.iconSize/2) - centerOffset}px`;
+
+                    el.dataset.solarSystemId=ss.id; 
+                    if(solarSystemObject && solarSystemObject.customName) { el.title = solarSystemObject.customName; } 
+                    el.addEventListener('click',e=>{e.stopPropagation();switchToSolarSystemView(ss.id)});
+                    galaxyZoomContent.appendChild(el)
+                });
                 if(solarSystemLinesCanvasEl.parentNode!==galaxyZoomContent||galaxyZoomContent.firstChild!==solarSystemLinesCanvasEl)galaxyZoomContent.insertBefore(solarSystemLinesCanvasEl,galaxyZoomContent.firstChild);
                 drawGalaxyLines(gal);
                 galaxyZoomContent.style.transition=isInteractive?'none':'transform 0.1s ease-out';
@@ -570,7 +593,6 @@ console.log("Script V1.3.10.2 (System Naming & Pre-loading) Loaded.");
                 solarSystemContent.style.transition = isInteractive ? 'none': 'transform 0.1s ease-out';
                 solarSystemContent.style.transform = `translate(${panX}px,${panY}px)scale(${zoom})`;
                 
-                // Solar System Naming - find the solar system object
                 const activeGalaxy = gameSessionData.galaxies.find(g => gameSessionData.activeSolarSystemId && gameSessionData.activeSolarSystemId.startsWith(g.id));
                 let solarSystemObject = null;
                 if(activeGalaxy && activeGalaxy.solarSystems) {
@@ -579,14 +601,13 @@ console.log("Script V1.3.10.2 (System Naming & Pre-loading) Loaded.");
                 if(solarSystemTitleText) {
                      solarSystemTitleText.textContent = (solarSystemObject && solarSystemObject.customName) ? solarSystemObject.customName : `System ${gameSessionData.activeSolarSystemId.substring(gameSessionData.activeSolarSystemId.lastIndexOf('-')+1)}`;
                 }
-                
-                if(isInteractive || !animationFrameId) { drawAllOrbits(); }
+                if(!isInteractive) drawAllOrbits(); // Redraw orbits if zoom changed or initial render
             }
 
             function switchToMainView() { gameSessionData.activeGalaxyId=null;gameSessionData.activeSolarSystemId=null;setActiveScreen(mainScreen); }
             
             function makeTitleEditable(titleTextElement, titleInputElement, onSaveCallback) {
-                titleTextElement.ondblclick = () => { // Changed to double click
+                titleTextElement.ondblclick = () => { 
                     titleTextElement.style.display = 'none';
                     titleInputElement.style.display = 'inline-block';
                     titleInputElement.value = titleTextElement.textContent;
@@ -596,12 +617,9 @@ console.log("Script V1.3.10.2 (System Naming & Pre-loading) Loaded.");
 
                 const saveName = () => {
                     const newName = titleInputElement.value.trim();
-                    if (newName) {
-                        onSaveCallback(newName); // Callback handles actual data update and save
-                        titleTextElement.textContent = newName;
-                    } else {
-                        titleTextElement.textContent = onSaveCallback(null); // Let callback revert to default if empty
-                    }
+                    const defaultName = onSaveCallback(newName || null); 
+                    titleTextElement.textContent = newName || defaultName;
+                    
                     titleInputElement.style.display = 'none';
                     titleTextElement.style.display = 'inline-block';
                 };
@@ -630,9 +648,10 @@ console.log("Script V1.3.10.2 (System Naming & Pre-loading) Loaded.");
 
                 setActiveScreen(galaxyDetailScreen); 
                 makeTitleEditable(galaxyDetailTitleText, galaxyDetailTitleInput, (newName) => {
-                    gal.customName = newName || null; // Set to null if newName is falsy (empty), to allow default naming
+                    gal.customName = newName || null; 
                     saveGameState();
-                    return gal.customName || `Galaxy ${gal.id.split('-')[1]}`; // Return what should be displayed
+                    renderMainScreen(); // Update galaxy icon tooltips
+                    return gal.customName || `Galaxy ${gal.id.split('-')[1]}`; 
                 });
 
                 if (galaxyViewport && gameSessionData.universe.diameter) { galaxyViewport.style.width = `${gameSessionData.universe.diameter}px`; galaxyViewport.style.height = `${gameSessionData.universe.diameter}px`; }
@@ -646,7 +665,6 @@ console.log("Script V1.3.10.2 (System Naming & Pre-loading) Loaded.");
                 if(activeGalaxy && activeGalaxy.solarSystems) {
                     solarSystemObject = activeGalaxy.solarSystems.find(ss => ss.id === solarSystemId);
                 }
-
 
                 gameSessionData.solarSystemView.zoomLevel = 0.5; 
                 gameSessionData.solarSystemView.currentPanX = 0;
@@ -720,16 +738,21 @@ console.log("Script V1.3.10.2 (System Naming & Pre-loading) Loaded.");
                 makeTitleEditable(solarSystemTitleText, solarSystemTitleInput, (newName) => {
                     if (solarSystemObject) {
                         solarSystemObject.customName = newName || null;
-                         saveGameState(); // Save the entire game state as galaxy's solar system array has changed
+                         saveGameState(); 
+                         renderGalaxyDetailScreen(); // Update tooltips on galaxy view
                          return solarSystemObject.customName || `System ${solarSystemId.substring(solarSystemId.lastIndexOf('-')+1)}`;
                     }
                     return `System ${solarSystemId.substring(solarSystemId.lastIndexOf('-')+1)}`;
                 });
-                renderSolarSystemScreen(false); // Includes drawAllOrbits
+                renderSolarSystemScreen(false); 
             }
 
             function animateSolarSystem() {
                 const activeSysView = gameSessionData.solarSystemView;
+                if (isSolarSystemPaused) { 
+                    animationFrameId = requestAnimationFrame(animateSolarSystem); 
+                    return; 
+                }
                 if (activeSysView && solarSystemScreen.classList.contains('active') && activeSysView.planets) {
                     activeSysView.planets.forEach(planet => {
                         planet.currentRotationAngle += planet.rotationSpeed;
@@ -852,7 +875,7 @@ console.log("Script V1.3.10.2 (System Naming & Pre-loading) Loaded.");
             function panMouseUp(){if(!gameSessionData.panning.isActive)return;if(gameSessionData.panning.viewportElement)gameSessionData.panning.viewportElement.classList.remove('dragging');const pS=gameSessionData.panning;pS.isActive=!1;if(pS.targetElement)pS.targetElement.style.transition='';if(galaxyDetailScreen.classList.contains('active'))renderGalaxyDetailScreen(!1);else if(solarSystemScreen.classList.contains('active'))renderSolarSystemScreen(!1);pS.targetElement=null;pS.viewportElement=null;pS.dataObject=null}
             
             function regenerateCurrentUniverseState(fromModal = false){
-                if (!fromModal && !confirm("Are you sure you want to generate a new universe with current settings? This will erase the current persistent layout.")) {
+                if (!fromModal && !confirm("Regenerate universe with current settings? This will clear the currently saved layout.")) {
                     return;
                 }
                 localStorage.removeItem('galaxyGameSaveData');
@@ -874,7 +897,7 @@ console.log("Script V1.3.10.2 (System Naming & Pre-loading) Loaded.");
                 if (orbitCtx && solarSystemOrbitCanvasEl) orbitCtx.clearRect(0,0,solarSystemOrbitCanvasEl.width,solarSystemOrbitCanvasEl.height);
 
                 if (animationFrameId) { cancelAnimationFrame(animationFrameId); animationFrameId = null; }
-                initializeGame(true); // Pass true to indicate forced regeneration
+                initializeGame(true); 
             }
 
             if (regenerateUniverseButton) {
@@ -931,11 +954,20 @@ console.log("Script V1.3.10.2 (System Naming & Pre-loading) Loaded.");
                     saveCustomizationSettings();
                     customizationModal.classList.remove('visible');
                     
-                    if (confirm("Apply new settings and regenerate the universe? This will erase the current persistent layout.")) {
-                       regenerateCurrentUniverseState(true); 
+                    regenerateCurrentUniverseState(true); 
+                });
+            }
+
+            if(pauseResumeSolarSystemButton) {
+                pauseResumeSolarSystemButton.addEventListener('click', () => {
+                    isSolarSystemPaused = !isSolarSystemPaused;
+                    pauseResumeSolarSystemButton.textContent = isSolarSystemPaused ? "Resume Planets" : "Pause Planets";
+                    if (!isSolarSystemPaused && !animationFrameId && solarSystemScreen.classList.contains('active')) {
+                        startSolarSystemAnimation(); 
                     }
                 });
             }
+
 
             function initializeGame(isForcedRegeneration = false) {
                 console.log("Initializing game...");
@@ -943,7 +975,7 @@ console.log("Script V1.3.10.2 (System Naming & Pre-loading) Loaded.");
                 loadCustomizationSettings(); 
 
                 if (!isForcedRegeneration && loadGameState()) {
-                    setActiveScreen(mainScreen); // Activate before pre-generating
+                    setActiveScreen(mainScreen); 
                     if (universeCircle && gameSessionData.universe.diameter) {
                         universeCircle.style.width = `${gameSessionData.universe.diameter}px`;
                         universeCircle.style.height = `${gameSessionData.universe.diameter}px`;
@@ -952,15 +984,13 @@ console.log("Script V1.3.10.2 (System Naming & Pre-loading) Loaded.");
                         generateUniverseLayout(); 
                     }
                     renderMainScreen(); 
-                    preGenerateAllGalaxyContents(); // Load existing galaxy data, then pre-generate if needed
+                    preGenerateAllGalaxyContents(); 
                 } else {
                     generateUniverseLayout();
                     generateGalaxies();    
-                    setActiveScreen(mainScreen); // Activate before pre-generating
+                    setActiveScreen(mainScreen); 
                     renderMainScreen();
-                    preGenerateAllGalaxyContents(); // Pre-generate for newly created galaxies and THEN save
-                    // Initial save is handled by preGenerateAllGalaxyContents if it calls generateSolarSystemsForGalaxy
-                    // which in turn calls saveGameState. Or if all galaxies were already generated, call directly.
+                    preGenerateAllGalaxyContents(); 
                     if(gameSessionData.galaxies.every(g => g.layoutGenerated)) {
                         saveGameState();
                     }
@@ -973,17 +1003,13 @@ console.log("Script V1.3.10.2 (System Naming & Pre-loading) Loaded.");
             window.addEventListener('resize', () => { 
                 console.log("Window resized. Clearing persistent layout for regeneration."); 
                 const currentScreenIdBeforeResize = document.querySelector('.screen.active')?.id;
-
-
                 localStorage.removeItem('galaxyGameSaveData'); 
-
                 gameSessionData.universe = { diameter: null };
                 gameSessionData.galaxies = [];
                 gameSessionData.activeGalaxyId = null;
                 gameSessionData.activeSolarSystemId = null;
                 gameSessionData.solarSystemView = { zoomLevel: 1.0, currentPanX: 0, currentPanY: 0, planets: [], systemId: null };
                 gameSessionData.isInitialized = false;
-                
                 if (universeCircle) universeCircle.innerHTML = '';
                 if (galaxyZoomContent) {
                     const canvas = galaxyZoomContent.querySelector('#solar-system-lines-canvas');
@@ -992,23 +1018,15 @@ console.log("Script V1.3.10.2 (System Naming & Pre-loading) Loaded.");
                 }
                 if (solarSystemContent) solarSystemContent.innerHTML = '';
                 if (orbitCtx && solarSystemOrbitCanvasEl) orbitCtx.clearRect(0,0,solarSystemOrbitCanvasEl.width,solarSystemOrbitCanvasEl.height);
-
-                 if (animationFrameId) {
-                    cancelAnimationFrame(animationFrameId);
-                    animationFrameId = null;
-                }
+                 if (animationFrameId) { cancelAnimationFrame(animationFrameId); animationFrameId = null; }
                 loadCustomizationSettings(); 
-                initializeGame(true); // true to force regeneration based on new size
-                
-
-                if (currentScreenIdBeforeResize) {
+                initializeGame(true); 
+                 if (currentScreenIdBeforeResize) {
                      const screenToActivate = document.getElementById(currentScreenIdBeforeResize) || mainScreen;
-                     setActiveScreen(screenToActivate); // Attempt to restore, default to main if specific view isn't valid after regen
+                     setActiveScreen(screenToActivate); 
                  } else {
                      setActiveScreen(mainScreen);
                  }
-
-
             });
             if(backToMainButton) backToMainButton.addEventListener('click', switchToMainView);
             if(backToGalaxyButton) backToGalaxyButton.addEventListener('click', () => { if(gameSessionData.activeGalaxyId && gameSessionData.galaxies.find(g => g.id === gameSessionData.activeGalaxyId)) {switchToGalaxyDetailView(gameSessionData.activeGalaxyId);} else {switchToMainView();} });

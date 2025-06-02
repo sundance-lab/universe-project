@@ -747,7 +747,7 @@ renderPlanetVisual(newPlanet, rotationLongitude, rotationLatitude);
     function renderPlanetVisual(planetData, longitude = 0, latitude = 0) {
         if (!planetVisualCanvas) return;
 
-        const ctx = planetVisualCanvas.getContext('2d');
+        const ctx = planetVisualCanvas.getContext('2d', { willReadFrequently: true });
         const canvasWidth = planetVisualCanvas.width;
         const canvasHeight = planetVisualCanvas.height;
         const centerX = canvasWidth / 2;

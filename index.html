@@ -869,8 +869,21 @@
             if(backToGalaxyButton) backToGalaxyButton.addEventListener('click', () => { if(gameSessionData.activeGalaxyId && gameSessionData.galaxies.find(g => g.id === gameSessionData.activeGalaxyId)) {switchToGalaxyDetailView(gameSessionData.activeGalaxyId);} else {switchToMainView();} });
             if(zoomInButton) zoomInButton.addEventListener('click', (e) => handleZoom('in', e));
             if(zoomOutButton) zoomOutButton.addEventListener('click', (e) => handleZoom('out', e));
-            if(galaxyViewport) {galaxyViewport.addEventListener('wheel', (e) => { if(galaxyDetailScreen.classList.contains('active')) {e.preventDefault(); handleZoom(e.deltaY < 0 ? 'in' : 'out', e);}}, {passive: false});galaxyViewport.addEventListener('mousedown', (e) => { if(galaxyDetailScreen.classList.contains('active')){ const gal = gameSessionData.galaxies.find(g => g.id === gameSessionData.activeGalaxyId); if(gal) startPan(e, galaxyViewport, galaxyZoomContent, gal); }}});}
-            if(solarSystemScreen) { solarSystemScreen.addEventListener('wheel', (e) => { if(solarSystemScreen.classList.contains('active')) { e.preventDefault(); if(!e.target.closest('button')) handleZoom(e.deltaY < 0 ? 'in' : 'out', e); }}, {passive: false});solarSystemScreen.addEventListener('mousedown', (e) => { if(solarSystemScreen.classList.contains('active')) { startPan(e, solarSystemScreen, solarSystemContent, gameSessionData.solarSystemView); }}});
+ if(galaxyViewport) {
+                galaxyViewport.addEventListener('wheel', (e) => { 
+                    if(galaxyDetailScreen.classList.contains('active')) {
+                        e.preventDefault(); 
+                        handleZoom(e.deltaY < 0 ? 'in' : 'out', e);
+                    }
+                }, {passive: false});
+
+                galaxyViewport.addEventListener('mousedown', (e) => { 
+                    if(galaxyDetailScreen.classList.contains('active')){ 
+                        const gal = gameSessionData.galaxies.find(g => g.id === gameSessionData.activeGalaxyId); 
+                        if(gal) startPan(e, galaxyViewport, galaxyZoomContent, gal); 
+                    }
+                });
+            }            if(solarSystemScreen) { solarSystemScreen.addEventListener('wheel', (e) => { if(solarSystemScreen.classList.contains('active')) { e.preventDefault(); if(!e.target.closest('button')) handleZoom(e.deltaY < 0 ? 'in' : 'out', e); }}, {passive: false});solarSystemScreen.addEventListener('mousedown', (e) => { if(solarSystemScreen.classList.contains('active')) { startPan(e, solarSystemScreen, solarSystemContent, gameSessionData.solarSystemView); }}});
             window.addEventListener('mousemove', panMouseMove);
             window.addEventListener('mouseup', panMouseUp);
             if(galaxyZoomContent) { galaxyZoomContent.addEventListener('click', function(event) { if (gameSessionData.panning.isActive && !event.target.classList.contains('solar-system-icon')) { return; } if (event.target.classList.contains('solar-system-icon')) { const ssId = event.target.dataset.solarSystemId; if (ssId) { switchToSolarSystemView(ssId); event.stopPropagation(); return; } } }); }

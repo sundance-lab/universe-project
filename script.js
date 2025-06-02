@@ -529,19 +529,23 @@ document.addEventListener('DOMContentLoaded', () => {
 
     // Function to create a 2D texture map for terrestrial planets (water and grass regions)
     // This texture will be drawn onto the planet's sphere in the visual panel.
- function drawSeamlessCircle(ctx, x, y, r, canvasWidth, canvasHeight) {
-    // Draw main circle
-drawSeamlessCircle(ctx, textureX, textureY, landmassDrawRadius, canvas.width, canvas.height);
-    // Draw on left edge if needed
-    if (x - r < 0) {
-drawSeamlessCircle(ctx, textureX, textureY, landmassDrawRadius, canvas.width, canvas.height);
+     function drawSeamlessCircle(ctx, x, y, r, canvasWidth, canvasHeight) {
+        ctx.beginPath();
+        ctx.arc(x, y, r, 0, Math.PI * 2);
+        ctx.fill();
+        if (x - r < 0) {
+            ctx.beginPath();
+            ctx.arc(x + canvasWidth, y, r, 0, Math.PI * 2);
+            ctx.fill();
+        }
+        if (x + r > canvasWidth) {
+            ctx.beginPath();
+            ctx.arc(x - canvasWidth, y, r, 0, Math.PI * 2);
+            ctx.fill();
+        }
     }
-    // Draw on right edge if needed
-    if (x + r > canvasWidth) {
-drawSeamlessCircle(ctx, textureX, textureY, landmassDrawRadius, canvas.width, canvas.height);
-    }
-}
-    
+    // --- end seamless helper ---
+
     function createTerrestrialTexture(planetData, textureSize = 512) {
         const canvas = document.createElement('canvas'); // Offscreen canvas
         canvas.width = textureSize * 2; // Make width:height 2:1 for full cylindrical map (equirectangular projection)
@@ -553,7 +557,6 @@ drawSeamlessCircle(ctx, textureX, textureY, landmassDrawRadius, canvas.width, ca
         ctx.fillRect(0, 0, canvas.width, canvas.height);
 
         // Apply a blur filter to the landmasses to make them seamless and fluid
-        // Blur radius proportional to texture size for consistent look
         ctx.filter = `blur(${textureSize * 0.02}px)`; 
 
         ctx.fillStyle = planetData.grassColor;
@@ -567,12 +570,10 @@ drawSeamlessCircle(ctx, textureX, textureY, landmassDrawRadius, canvas.width, ca
 
             const landmassDrawRadius = lm.baseSize * canvas.height; // Scale normalized size to texture height
 
-            // Draw a base circle for the landmass
-            ctx.beginPath();
-            ctx.arc(textureX, textureY, landmassDrawRadius, 0, Math.PI * 2);
-            ctx.fill();
+            // SEAMLESS: Draw main landmass blob
+            drawSeamlessCircle(ctx, textureX, textureY, landmassDrawRadius, canvas.width, canvas.height);
 
-            // Add additional, smaller blobs around the main landmass to create more organic shapes
+            // Additional, smaller blobs for organic landmass shapes
             const numAddBlobs = Math.floor(1 + Math.random() * 3); // 1-3 additional blobs per landmass
             for (let i = 0; i < numAddBlobs; i++) {
                 const angleOffset = (Math.random() * 2 * Math.PI);
@@ -580,19 +581,21 @@ drawSeamlessCircle(ctx, textureX, textureY, landmassDrawRadius, canvas.width, ca
                 const radialOffset = landmassDrawRadius * (0.5 + Math.random() * 0.5); 
                 const blobRadius = landmassDrawRadius * (0.3 + Math.random() * 0.3); // Smaller radius for sub-blobs
 
-                ctx.beginPath();
-                ctx.arc(
+                // SEAMLESS: Draw each additional blob
+                drawSeamlessCircle(
+                    ctx,
                     textureX + radialOffset * Math.cos(angleOffset),
                     textureY + radialOffset * Math.sin(angleOffset),
                     blobRadius,
-                    0, Math.PI * 2
+                    canvas.width,
+                    canvas.height
                 );
-                ctx.fill();
             }
         });
 
         ctx.filter = 'none'; // Reset canvas filter after drawing landmasses
         return canvas; // Return the generated texture canvas
+    }
     }
 
 

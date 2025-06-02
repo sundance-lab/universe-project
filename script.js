@@ -54,8 +54,6 @@ document.addEventListener('DOMContentLoaded', () => {
     let rotationLongitude = 0;
     let rotationLatitude = 0;
     let lastDragX = 0, lastDragY = 0;
-    let planetRotationVelocity = 0;
-    let isPlanetRotating = false;
     let lastPlanetDragTime = 0;
     let currentPlanetDisplayedInPanel = null; 
 
@@ -722,8 +720,8 @@ document.addEventListener('DOMContentLoaded', () => {
                 rotationLatitude = 0;
                 renderPlanetVisual(newPlanet, rotationLongitude, rotationLatitude);                renderPlanetVisual(newPlanet, currentRotationAngleInPanel);
             });
-            solarSystemContent.appendChild(planetEl);
-            newPlanet.element = planetEl;
+renderPlanetVisual(newPlanet, rotationLongitude, rotationLatitude);                
+renderPlanetVisual(newPlanet, currentRotationAngleInPanel);
         }
 
         if (solarSystemTitleText) {

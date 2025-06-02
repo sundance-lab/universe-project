@@ -616,7 +616,7 @@ backToGalaxyButton.textContent = gal.customName
                 }
                 if (activeSysView && solarSystemScreen.classList.contains('active') && activeSysView.planets) {
                     activeSysView.planets.forEach(planet => {
-                        planet.currentOrbitalAngle += planet.orbitalSpeed * 3;
+                        planet.currentOrbitalAngle += planet.orbitalSpeed * .5;
                         planet.currentAxialAngle += planet.axialSpeed;
                         if (planet.element) {
                             const planetScreenX = planet.distance * Math.cos(planet.currentOrbitalAngle);

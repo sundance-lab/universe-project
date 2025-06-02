@@ -50,6 +50,12 @@ document.addEventListener('DOMContentLoaded', () => {
     let lastAnimationTime = null; // For frame-rate independent animation
     let isSolarSystemPaused = false;
 
+    // Variables for draggable planet visual in panel
+    let isDraggingPlanetVisual = false;
+    let dragStartX = 0;
+    let currentRotationAngleInPanel = 0; // Current rotation of the planet in the visual panel
+    let currentPlanetDisplayedInPanel = null; // Stores the planet data currently shown in the visual panel
+
     const DEFAULT_NUM_GALAXIES = 3;
     const DEFAULT_MIN_SS_COUNT_CONST = 200;
     const DEFAULT_MAX_SS_COUNT_CONST = 300;
@@ -248,7 +254,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 let minCurrentDist = Infinity; 
                 for (const unconnId of unconnectedSet) { 
                     const currentUnconnSys = allSystemCoords.find(s => s.id === unconnId); 
-                    for (const connId of connectedSet) {
+                    for (const connId of connectedSet) { 
                         const currentConnSys = allSystemCoords.find(s => s.id === connId); 
                         const dist = getDistance(currentUnconnSys, currentConnSys); 
                         if (dist < minCurrentDist) { 
@@ -594,7 +600,10 @@ document.addEventListener('DOMContentLoaded', () => {
                 newPlanet.type = 'terrestrial';
                 newPlanet.waterColor = `hsl(${200 + Math.random()*40}, ${70 + Math.random()*10}%, ${30 + Math.random()*10}%)`;
                 newPlanet.grassColor = `hsl(${100 + Math.random()*40}, ${60 + Math.random()*10}%, ${30 + Math.random()*10}%)`;
-                newPlanet.landmassData = generateTerrestrialLandmasses(Math.floor(2 + Math.random()*3), planetSize / 2); // 2-4 landmasses
+                
+                // Terrestrial planets need dynamically generated, random landmass data
+                const canvasRadius = planetVisualCanvas.width / 2; // Use visual canvas size for landmass scale
+                newPlanet.landmassData = generateTerrestrialLandmasses(Math.floor(2 + Math.random()*3), canvasRadius * (planetSize / MAX_PLANET_SIZE)); 
             } else {
                 newPlanet.type = 'normal';
                 const hue = Math.random() * 360, saturation = 40 + Math.random() * 40, lightnessBase = 50 + Math.random() * 10; 
@@ -612,17 +621,14 @@ document.addEventListener('DOMContentLoaded', () => {
                 const darkerColor = `hsl(${newPlanet.color.hue}, ${newPlanet.color.saturation}%, ${newPlanet.color.lightness - 35}%)`; 
                 planetEl.style.background = `radial-gradient(circle at 20% 20%, ${lighterColor}, ${darkerColor})`;
             } else { // terrestrial
-                // Simple representation for the small icon: 1-2 green blobs on a blue background
-                const randomAngle1 = Math.random() * 360;
-                const randomPos1 = 15 + Math.random() * 40; // Position percentage
-                const randomSize1 = 20 + Math.random() * 30; // Size percentage
-                let backgroundStyle = `radial-gradient(circle at ${randomPos1}% ${randomPos1}%, ${newPlanet.grassColor} ${randomSize1}%, transparent ${randomSize1 + 20}%), ${newPlanet.waterColor}`;
+                const randomPos = 15 + Math.random() * 40; // Position percentage
+                const randomSize = 20 + Math.random() * 30; // Size percentage
+                let backgroundStyle = `radial-gradient(circle at ${randomPos}% ${randomPos}%, ${newPlanet.grassColor} ${randomSize}%, transparent ${randomSize + 20}%), ${newPlanet.waterColor}`;
                 
-                if (Math.random() < 0.5) { // Add a second blob
-                    const randomAngle2 = Math.random() * 360;
+                if (Math.random() < 0.5) { 
                     const randomPos2 = 15 + Math.random() * 40;
                     const randomSize2 = 20 + Math.random() * 30;
-                    backgroundStyle = `radial-gradient(circle at ${90 - randomPos1}% ${90 - randomPos1}%, ${newPlanet.grassColor} ${randomSize1}%, transparent ${randomSize1 + 20}%), ` + backgroundStyle;
+                    backgroundStyle = `radial-gradient(circle at ${90 - randomPos}% ${90 - randomPos}% , ${newPlanet.grassColor} ${randomSize2}%, transparent ${randomSize2 + 20}%), ` + backgroundStyle;
                 }
                 planetEl.style.background = backgroundStyle;
             }
@@ -632,8 +638,10 @@ document.addEventListener('DOMContentLoaded', () => {
             planetEl.addEventListener('click', (e) => { 
                 e.stopPropagation(); 
 
-                // Show planet visual panel
-                planetVisualTitle.textContent = `Planet ${newPlanet.id.split('-')[1]} Visual`;
+                currentPlanetDisplayedInPanel = newPlanet; // Store the planet data
+
+                // Update and show planet visual panel
+                planetVisualTitle.textContent = `Planet ${newPlanet.id.split('-')[1]} Visual`; // Set title to planet name
                 planetVisualName.textContent = `Planet ${newPlanet.id.split('-')[1]}`;
                 planetVisualSize.textContent = Math.round(newPlanet.size);
                 planetVisualPanel.classList.add('visible');
@@ -643,8 +651,9 @@ document.addEventListener('DOMContentLoaded', () => {
                 planetVisualPanel.style.transform = 'translate(-50%, -50%)';
                 planetVisualPanel.style.transition = ''; 
 
-                // Render the planet on the visual panel canvas
-                renderPlanetVisual(newPlanet);
+                // Reset rotation for new planet and render
+                currentRotationAngleInPanel = 0;
+                renderPlanetVisual(newPlanet, currentRotationAngleInPanel);
             });
             solarSystemContent.appendChild(planetEl);
             newPlanet.element = planetEl;
@@ -669,7 +678,7 @@ document.addEventListener('DOMContentLoaded', () => {
         renderSolarSystemScreen(false); 
     }
 
-    function renderPlanetVisual(planetData) {
+    function renderPlanetVisual(planetData, currentRotationAngle = 0) {
         if (!planetVisualCanvas) return;
 
         const ctx = planetVisualCanvas.getContext('2d');
@@ -680,18 +689,20 @@ document.addEventListener('DOMContentLoaded', () => {
 
         ctx.clearRect(0, 0, canvasWidth, canvasHeight);
 
-        const radius = Math.min(canvasWidth, canvasHeight) * 0.4;
-        const lightSourceX = centerX - radius * 0.4;
-        const lightSourceY = centerY - radius * 0.4;
+        const radius = Math.min(canvasWidth, canvasHeight) * 0.4; // Scale planet to fit well
+        const lightSourceAngle = currentRotationAngle + Math.PI / 4; // Light comes from specific angle, affected by rotation
 
         if (planetData.type === 'normal') {
             const hue = planetData.color.hue;
             const saturation = planetData.color.saturation;
             const lightness = planetData.color.lightness;
 
+            const lightX = centerX + radius * Math.cos(lightSourceAngle);
+            const lightY = centerY + radius * Math.sin(lightSourceAngle);
+
             const gradient = ctx.createRadialGradient(
-                lightSourceX, lightSourceY, radius * 0.1,
-                centerX, centerY, radius * 1.8
+                lightX, lightY, radius * 0.1, // Inner circle for light source
+                centerX, centerY, radius * 1.8 // Outer circle for shadow
             );
 
             const lighterColor = `hsl(${hue}, ${saturation}%, ${Math.min(100, lightness + 15)}%)`;
@@ -705,6 +716,7 @@ document.addEventListener('DOMContentLoaded', () => {
             ctx.fillStyle = gradient;
             ctx.fill();
 
+            // Add a subtle ambient glow
             ctx.shadowColor = `hsl(${hue}, ${saturation}%, ${lightness + 5}%)`;
             ctx.shadowBlur = radius * 0.1;
             ctx.shadowOffsetX = 0;
@@ -719,22 +731,31 @@ document.addEventListener('DOMContentLoaded', () => {
             ctx.fillStyle = planetData.waterColor;
             ctx.fill();
 
+            // Store current context state before rotation
+            ctx.save(); 
+            ctx.translate(centerX, centerY); // Move origin to center of planet
+            ctx.rotate(currentRotationAngle); // Apply rotation
+
             // Draw landmasses
             ctx.fillStyle = planetData.grassColor;
             planetData.landmassData.forEach(landmassPoints => {
                 if (landmassPoints.length < 2) return;
                 ctx.beginPath();
-                ctx.moveTo(centerX + landmassPoints[0][0], centerY + landmassPoints[0][1]);
+                ctx.moveTo(landmassPoints[0][0], landmassPoints[0][1]);
                 for (let i = 1; i < landmassPoints.length; i++) {
-                    ctx.lineTo(centerX + landmassPoints[i][0], centerY + landmassPoints[i][1]);
+                    ctx.lineTo(landmassPoints[i][0], landmassPoints[i][1]);
                 }
                 ctx.closePath();
                 ctx.fill();
             });
 
+            ctx.restore(); // Restore context to before rotation (origin back to top-left of canvas)
+
             // Apply shading (simulating light source)
             const shadeGradient = ctx.createRadialGradient(
-                lightSourceX, lightSourceY, radius * 0.1,
+                centerX + radius * Math.cos(lightSourceAngle + Math.PI), // Shade opposite to light source
+                centerY + radius * Math.sin(lightSourceAngle + Math.PI), 
+                radius * 0.1,
                 centerX, centerY, radius * 1.8
             );
             shadeGradient.addColorStop(0, 'rgba(0,0,0,0)');
@@ -762,9 +783,12 @@ document.addEventListener('DOMContentLoaded', () => {
         }
         if (activeSysView && solarSystemScreen.classList.contains('active') && activeSysView.planets) {
             activeSysView.planets.forEach(planet => {
-                // Orbital speed 5x slower (original logic used 0.5 multiplier, now 0.1 effectively)
-                planet.currentOrbitalAngle += planet.orbitalSpeed * deltaTime * (0.5 / 5) * 60; // Multiply by 60 for a reasonable base speed
-                planet.currentAxialAngle += planet.axialSpeed * deltaTime * 60; 
+                // Orbital speed 5x slower (original speed * 0.5 was the reference point)
+                // If base speed is 0.005-0.01, and effective speed was base * 0.5,
+                // now effective speed is base * (0.5 / 5) = base * 0.1
+                // Multiply by 60 to convert from per-frame to per-second equivalent
+                planet.currentOrbitalAngle += planet.orbitalSpeed * 6 * deltaTime;
+                planet.currentAxialAngle += planet.axialSpeed * 60 * deltaTime; // Axial speed is not slowed down, so full 60x multiplier
 
                 if (planet.element) {
                     const planetScreenX = planet.distance * Math.cos(planet.currentOrbitalAngle);
@@ -806,13 +830,13 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     }
 
-    let isVisualPanelDragging = false;
+    let isPanelDragging = false;
     let visualPanelOffset = { x: 0, y: 0 };
 
     if (planetVisualPanelHeader) {
         planetVisualPanelHeader.addEventListener('mousedown', (e) => {
             if (e.button !== 0) return; 
-            isVisualPanelDragging = true;
+            isPanelDragging = true;
             planetVisualPanelHeader.classList.add('dragging');
             
             planetVisualPanel.style.transition = 'none';
@@ -831,18 +855,61 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     }
 
+    if (planetVisualPanelHeader) {
+        planetVisualPanelHeader.addEventListener('mousedown', (e) => {
+            if (e.button !== 0) return; 
+            isPanelDragging = true;
+            planetVisualPanelHeader.classList.add('dragging');
+            
+            planetVisualPanel.style.transition = 'none';
+
+            const rect = planetVisualPanel.getBoundingClientRect();
+            visualPanelOffset.x = e.clientX - rect.left;
+            visualPanelOffset.y = e.clientY - rect.top;
+
+            planetVisualPanel.style.left = `${rect.left}px`;
+            planetVisualPanel.style.top = `${rect.top}px`;
+            planetVisualPanel.style.transform = 'none'; 
+            planetVisualPanel.style.right = 'auto'; 
+            planetVisualPanel.style.bottom = 'auto';
+
+            e.preventDefault(); 
+        });
+    }
+
+    // Event listeners for dragging planet visual within its panel
+    planetVisualCanvas.addEventListener('mousedown', (e) => {
+        if (e.button !== 0 || !currentPlanetDisplayedInPanel) return;
+        isDraggingPlanetVisual = true;
+        dragStartX = e.clientX;
+        // Apply dragging class to canvas to change cursor
+        planetVisualCanvas.classList.add('dragging'); 
+        e.preventDefault();
+    });
+
     window.addEventListener('mousemove', (e) => {
-        if (isVisualPanelDragging) {
+        if (isPanelDragging) {
             planetVisualPanel.style.left = `${e.clientX - visualPanelOffset.x}px`;
             planetVisualPanel.style.top = `${e.clientY - visualPanelOffset.y}px`;
+        }
+        if (isDraggingPlanetVisual && currentPlanetDisplayedInPanel) {
+            const deltaX = e.clientX - dragStartX;
+            const rotationSpeed = 0.01; // Adjust sensitivity
+            currentRotationAngleInPanel += (deltaX * rotationSpeed);
+            renderPlanetVisual(currentPlanetDisplayedInPanel, currentRotationAngleInPanel);
+            dragStartX = e.clientX; // Update drag start for continuous movement
         }
     });
 
     window.addEventListener('mouseup', () => {
-        if (isVisualPanelDragging) {
-            isVisualPanelDragging = false;
+        if (isPanelDragging) {
+            isPanelDragging = false;
             planetVisualPanelHeader.classList.remove('dragging');
-            planetVisualPanel.style.transition = '';
+            planetVisualPanel.style.transition = ''; 
+        }
+        if (isDraggingPlanetVisual) {
+            isDraggingPlanetVisual = false;
+            planetVisualCanvas.classList.remove('dragging'); // Remove dragging cursor
         }
     });
 

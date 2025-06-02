@@ -508,7 +508,7 @@
                 allSystemCoords.forEach(ss1 => { 
                     const desiredConnections = getWeightedNumberOfConnections(); 
                     let currentConnections = systemConnectionCounts[ss1.id] || 0; 
-                    let connectionsToAdd = Math.min(desiredConnections, MAX_CONNECTIONS_PER_SYS_MODAL_CLOSETEM - currentConnections); 
+                    let connectionsToAdd = Math.min(desiredConnections, MAX_CONNECTIONS_PER_SYSTEM - currentConnections); 
                     if (connectionsToAdd <= 0) return; 
                     let potentialTargets = allSystemCoords.filter(ss2 => ss1.id !== ss2.id).map(ss2 => ({ ...ss2, distance: getDistance(ss1, ss2) })).sort((a, b) => a.distance - b.distance); 
                     const limitedPotentialTargets = potentialTargets.filter(ss2 => ss2.distance <= actualMaxEuclideanConnectionDistance); 

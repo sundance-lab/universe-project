@@ -529,6 +529,19 @@ document.addEventListener('DOMContentLoaded', () => {
 
     // Function to create a 2D texture map for terrestrial planets (water and grass regions)
     // This texture will be drawn onto the planet's sphere in the visual panel.
+ function drawSeamlessCircle(ctx, x, y, r, canvasWidth, canvasHeight) {
+    // Draw main circle
+drawSeamlessCircle(ctx, textureX, textureY, landmassDrawRadius, canvas.width, canvas.height);
+    // Draw on left edge if needed
+    if (x - r < 0) {
+drawSeamlessCircle(ctx, textureX, textureY, landmassDrawRadius, canvas.width, canvas.height);
+    }
+    // Draw on right edge if needed
+    if (x + r > canvasWidth) {
+drawSeamlessCircle(ctx, textureX, textureY, landmassDrawRadius, canvas.width, canvas.height);
+    }
+}
+    
     function createTerrestrialTexture(planetData, textureSize = 512) {
         const canvas = document.createElement('canvas'); // Offscreen canvas
         canvas.width = textureSize * 2; // Make width:height 2:1 for full cylindrical map (equirectangular projection)

@@ -72,11 +72,11 @@
         .back-button:active { transform: scale(.95); }
         
         .control-button {padding: 8px 12px; font-size: 0.9em; color: white; border-radius: 5px; cursor: pointer; margin: 5px;}
-        #regenerate-universe-btn {position: fixed; top: 60px; left: 15px; z-index: 301; background-color: #c0392b; border: 1px solid #a93226;}
+        #regenerate-universe-btn {position: fixed; top: 60px; left: 15px; z-index: 301; background-color: #c0392b; border: 1.1px solid #a93226;}
         #regenerate-universe-btn:hover { background-color: #e74c3c;}
-        #customize-generation-btn {position: fixed; top: 105px; left: 15px; z-index: 301; background-color: #2980b9; border: 1px solid #2471a3;}
+        #customize-generation-btn {position: fixed; top: 105px; left: 15px; z-index: 301; background-color: #2980b9; border: 1.1px solid #2471a3;}
         #customize-generation-btn:hover { background-color: #3498db;}
-        #pause-resume-solar-system-btn {position: fixed; top: 150px; left: 15px; z-index: 301; background-color: #f39c12; border: 1px solid #d35400; display:none; }
+        #pause-resume-solar-system-btn {position: fixed; top: 150px; left: 15px; z-index: 301; background-color: #f39c12; border: 1.1px solid #d35400; display:none; }
         #pause-resume-solar-system-btn:hover { background-color: #f1c40f;}
 
         .modal-overlay { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background-color: rgba(0,0,0,0.7); display: none; justify-content: center; align-items: center; z-index: 1000;}

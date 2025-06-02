@@ -667,6 +667,9 @@ document.addEventListener('DOMContentLoaded', () => {
                 
                 newPlanet.landmassData = generateLandmassData(Math.floor(4 + Math.random()*4)); // 4-7 primary landmasses
                 newPlanet.textureCanvas = createTerrestrialTexture(newPlanet, 256); // Create and store the texture canvas (256px height)
+                newPlanet.textureCanvas = createTerrestrialTexture(newPlanet, 256);
+                const texCtx = newPlanet.textureCanvas.getContext('2d', { willReadFrequently: true });
+                newPlanet.textureData = texCtx.getImageData(0, 0, newPlanet.textureCanvas.width, newPlanet.textureCanvas.height);
             } else {
                 newPlanet.type = 'normal';
                 const hue = Math.random() * 360, saturation = 40 + Math.random() * 40, lightnessBase = 50 + Math.random() * 10; 
@@ -857,7 +860,13 @@ for (let i = 0; i < steps; i++) {
         let sx = Math.floor(texU * textureWidth);
         let sy = Math.floor(texV * textureHeight);
 
-const imageData = texCtx.getImageData(sx, sy, 1, 1).data;
+const idx = (sy * textureWidth + sx) * 4;
+const imageData = [
+    planetData.textureData.data[idx],
+    planetData.textureData.data[idx + 1],
+    planetData.textureData.data[idx + 2],
+    planetData.textureData.data[idx + 3]
+];
 ctx.fillStyle = `rgba(${imageData[0]},${imageData[1]},${imageData[2]},${imageData[3] / 255})`;
 ctx.fillRect(centerX + nx * radius, centerY + ny * radius, 1, 1);
             }

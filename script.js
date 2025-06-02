@@ -823,6 +823,7 @@ ctx.beginPath();
 ctx.arc(centerX, centerY, radius, 0, Math.PI * 2);
 ctx.clip();
 
+const texCtx = textureCanvas.getContext('2d');
 const steps = Math.ceil(radius * 2);
 for (let i = 0; i < steps; i++) {
     for (let j = 0; j < steps; j++) {

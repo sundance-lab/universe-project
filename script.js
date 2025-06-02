@@ -856,8 +856,8 @@ for (let i = 0; i < steps; i++) {
         let sy = Math.floor(texV * textureHeight);
 
         // Get pixel color from texture
-        const imageData = textureCanvas.getContext('2d').getImageData(sx, sy, 1, 1).data;
-        ctx.fillStyle = `rgba(${imageData[0]},${imageData[1]},${imageData[2]},${imageData[3] / 255})`;
+        const texCtx = textureCanvas.getContext('2d'); // Place this before the loops (once)
+        const imageData = texCtx.getImageData(sx, sy, 1, 1).data;        ctx.fillStyle = `rgba(${imageData[0]},${imageData[1]},${imageData[2]},${imageData[3] / 255})`;
         ctx.fillRect(centerX + nx * radius, centerY + ny * radius, 1, 1);
     }
 }

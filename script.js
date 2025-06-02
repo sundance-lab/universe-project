@@ -531,13 +531,13 @@ document.addEventListener('DOMContentLoaded', () => {
     // This texture will be drawn onto the planet's sphere in the visual panel.
     function createTerrestrialTexture(planetData, textureSize = 512) {
         const canvas = document.createElement('canvas'); // Offscreen canvas
-        canvas.width = textureSize;
+        canvas.width = textureSize * 2; // Make width:height 2:1 for full cylindrical map
         canvas.height = textureSize;
         const ctx = canvas.getContext('2d');
 
         // Draw water background for the entire texture
         ctx.fillStyle = planetData.waterColor;
-        ctx.fillRect(0, 0, textureSize, textureSize);
+        ctx.fillRect(0, 0, canvas.width, canvas.height);
 
         // Apply a blur filter to the landmasses to make them seamless and fluid
         ctx.filter = `blur(${textureSize * 0.02}px)`; // Blur proportional to texture size for consistent look
@@ -548,10 +548,10 @@ document.addEventListener('DOMContentLoaded', () => {
         planetData.landmassData.forEach(lm => {
             // Convert spherical coordinates (lon, lat) to 2D texture coordinates (x, y)
             // lon maps to X, lat maps to Y. We normalize them to 0-1 range first.
-            const textureX = (lm.lon + Math.PI) / (2 * Math.PI) * textureSize;
-            const textureY = (lm.lat + Math.PI / 2) / Math.PI * textureSize;
+            const textureX = (lm.lon + Math.PI) / (2 * Math.PI) * canvas.width;
+            const textureY = (lm.lat + Math.PI / 2) / Math.PI * canvas.height;
 
-            const landmassDrawRadius = lm.baseSize * textureSize; // Scale normalized size to texture size
+            const landmassDrawRadius = lm.baseSize * canvas.height; // Scale normalized size to texture height
 
             // Draw a base circle for the landmass
             ctx.beginPath();
@@ -646,9 +646,8 @@ document.addEventListener('DOMContentLoaded', () => {
                 newPlanet.waterColor = `hsl(${200 + Math.random()*40}, ${70 + Math.random()*10}%, ${30 + Math.random()*10}%)`;
                 newPlanet.grassColor = `hsl(${100 + Math.random()*40}, ${60 + Math.random()*10}%, ${30 + Math.random()*10}%)`;
                 
-                // Generate landmass data for the texture
                 newPlanet.landmassData = generateLandmassData(Math.floor(4 + Math.random()*4)); // 4-7 primary landmasses
-                newPlanet.textureCanvas = createTerrestrialTexture(newPlanet, 512); // Create and store the texture canvas
+                newPlanet.textureCanvas = createTerrestrialTexture(newPlanet, 256); // Create and store the texture canvas (256px height)
             } else {
                 newPlanet.type = 'normal';
                 const hue = Math.random() * 360, saturation = 40 + Math.random() * 40, lightnessBase = 50 + Math.random() * 10; 
@@ -737,15 +736,16 @@ document.addEventListener('DOMContentLoaded', () => {
 
         ctx.clearRect(0, 0, canvasWidth, canvasHeight);
 
-        const radius = Math.min(canvasWidth, canvasHeight) * 0.4;
+        const radius = Math.min(canvasWidth, canvasHeight) * 0.4; 
         
         // Define light source angle (fixed relative to viewer for consistent shading)
-        const lightSourceRelativeAngle = Math.PI / 4; 
+        const lightSourceLongitude = Math.PI / 4; // Angle from the front (e.g., 45 degrees left)
+        const lightSourceLatitude = Math.PI / 8; // Angle from the equator (e.g., 22.5 degrees up)
 
-        // Light source position in 3D-simulated space (relative to planet center)
-        const lightX3D = Math.cos(0) * Math.sin(lightSourceRelativeAngle); // Assuming light at equator for simplified Y
-        const lightY3D = Math.sin(0); 
-        const lightZ3D = Math.cos(0) * Math.cos(lightSourceRelativeAngle);
+        // Calculate 3D coordinates of the light source, if it were on the sphere's surface
+        const lightX3D = Math.cos(lightSourceLatitude) * Math.sin(lightSourceLongitude);
+        const lightY3D = Math.sin(lightSourceLatitude);
+        // We don't use lightZ3D for the gradient origin, but it determines highlight/shadow zones.
 
         // Convert 3D light source position to 2D canvas coordinates for gradient origin
         const lightDrawX = centerX + radius * lightX3D;
@@ -779,37 +779,52 @@ document.addEventListener('DOMContentLoaded', () => {
             ctx.fill();
             ctx.shadowBlur = 0; 
 
-        } else { // terrestrial
-            // Draw the planet's texture (water and landmasses)
-            // Save state, clip to a circle, translate to center, rotate, draw texture, restore state
+        } else { // terrestrial, using texture mapping for seamless appearance
             ctx.save();
             ctx.beginPath();
             ctx.arc(centerX, centerY, radius, 0, Math.PI * 2);
-            ctx.clip(); // Clip everything else to this circle
+            ctx.clip(); // Clip drawing to the circle for the planet's boundary
 
-            // Calculate offset for current rotation. The texture is 2*PI wide for longitude.
-            const textureRotationOffset = (currentRotationAngle % (2 * Math.PI)) / (2 * Math.PI) * planetData.textureCanvas.width;
+            const textureCanvas = planetData.textureCanvas;
+            const textureWidth = textureCanvas.width;
+            const textureHeight = textureCanvas.height;
 
-            // Draw the texture. We draw two copies to handle wrapping around the seam.
-            ctx.drawImage(
-                planetData.textureCanvas,
-                -radius - textureRotationOffset, // X position, offset by rotation
-                -radius,                         // Y position
-                radius * 2,                      // Width
-                radius * 2                       // Height
-            );
-            // Draw a second copy shifted to the right to handle wrapping around the 360-degree seam
-            ctx.drawImage(
-                planetData.textureCanvas,
-                -radius - textureRotationOffset + planetData.textureCanvas.width, // Shifted by full texture width
-                -radius,
-                radius * 2,
-                radius * 2
-            );
+            // Number of vertical strips to draw to simulate sphere curvature
+            const numStrips = 80; // More strips = smoother result
+            const stripSourceWidth = textureWidth / numStrips;
 
-            ctx.restore(); // Restore context to remove clipping and transformations
+            for (let i = 0; i < numStrips; i++) {
+                // Calculate the longitude represented by this strip's center
+                // Varies from -PI to PI across the texture
+                let longitude = (i / numStrips) * (2 * Math.PI) - Math.PI;
 
-            // Apply shading over the entire planet (both water and land)
+                // Adjust for the current rotation of the planet
+                longitude = (longitude - currentRotationAngle);
+                
+                // Normalize longitude to -PI to PI to ensure correct cosine calculation for perspective
+                longitude = (longitude + Math.PI * 3) % (2 * Math.PI);
+                if (longitude > Math.PI) longitude -= (2 * Math.PI);
+
+                // Calculate the perspective-adjusted width of the strip on screen
+                // cosine of angle from center of sphere gives perspective scaling
+                const effectiveStripWidth = stripSourceWidth * Math.cos(longitude);
+
+                // Determine the x-position for drawing this strip on the canvas
+                // It should map from longitude to the x-coordinate on the projected sphere
+                const xOnCanvas = centerX + (i / numStrips) * (2 * radius) - radius; // Basic linear mapping
+
+                ctx.drawImage(
+                    textureCanvas,
+                    i * stripSourceWidth, 0, stripSourceWidth, textureHeight, // Source rectangle (strip from texture)
+                    centerX + radius * Math.sin(longitude), // X position on rendered circle
+                    centerY - radius, // Y position (top of circle)
+                    effectiveStripWidth, radius * 2 // Destination width (perspective), Destination height (full diameter)
+                );
+            }
+
+            ctx.restore(); // Restore canvas state (removes clipping path)
+
+            // Apply shading (fixed relative to viewer) over the entire rendered sphere
             const shadeGradient = ctx.createRadialGradient(
                 lightDrawX, lightDrawY, radius * 0.1, 
                 centerX, centerY, radius * 1.8 
@@ -818,12 +833,12 @@ document.addEventListener('DOMContentLoaded', () => {
             shadeGradient.addColorStop(0.5, 'rgba(0,0,0,0)');     
             shadeGradient.addColorStop(1, 'rgba(0,0,0,0.6)');    
 
-            ctx.globalCompositeOperation = 'multiply'; // Blend as shadow
+            ctx.globalCompositeOperation = 'multiply'; 
             ctx.beginPath();
             ctx.arc(centerX, centerY, radius, 0, Math.PI * 2);
             ctx.fillStyle = shadeGradient;
             ctx.fill();
-            ctx.globalCompositeOperation = 'source-over'; // Reset blend mode
+            ctx.globalCompositeOperation = 'source-over'; 
         }
     }
 

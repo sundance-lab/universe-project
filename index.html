@@ -850,6 +850,60 @@
             window.addEventListener('mousemove', panMouseMove);
             window.addEventListener('mouseup', panMouseUp);
             if(galaxyZoomContent) { galaxyZoomContent.addEventListener('click', function(event) { if (gameSessionData.panning.isActive && !event.target.classList.contains('solar-system-icon')) { return; } if (event.target.classList.contains('solar-system-icon')) { const ssId = event.target.dataset.solarSystemId; if (ssId) { switchToSolarSystemView(ssId); event.stopPropagation(); return; } } }); }
+
+let isGalaxyPanning = false;
+let galaxyPanStart = { x: 0, y: 0 };
+let galaxyLastPan = { x: 0, y: 0 };
+
+if (galaxyViewport && galaxyZoomContent) {
+  galaxyViewport.addEventListener('mousedown', (e) => {
+    // Only left mouse button, only if the detail screen is active, and not on a solar system icon
+    if (
+      e.button !== 0 ||
+      !galaxyDetailScreen.classList.contains('active') ||
+      e.target.classList.contains('solar-system-icon') ||
+      e.target.closest('button')
+    ) return;
+
+    isGalaxyPanning = true;
+    galaxyPanStart.x = e.clientX;
+    galaxyPanStart.y = e.clientY;
+
+    // Get the current pan from the active galaxy object
+    const gal = gameSessionData.galaxies.find(g => g.id === gameSessionData.activeGalaxyId);
+    galaxyLastPan.x = gal?.currentPanX || 0;
+    galaxyLastPan.y = gal?.currentPanY || 0;
+
+    galaxyViewport.classList.add('dragging');
+  });
+
+  window.addEventListener('mousemove', (e) => {
+    if (!isGalaxyPanning) return;
+
+    const gal = gameSessionData.galaxies.find(g => g.id === gameSessionData.activeGalaxyId);
+    if (!gal) return;
+
+    // Calculate delta movement
+    const dx = e.clientX - galaxyPanStart.x;
+    const dy = e.clientY - galaxyPanStart.y;
+
+    gal.currentPanX = galaxyLastPan.x + dx;
+    gal.currentPanY = galaxyLastPan.y + dy;
+
+    // Clamp pan if needed, then re-render
+    if (typeof clampGalaxyPan === 'function') {
+      clampGalaxyPan(gal);
+    }
+    renderGalaxyDetailScreen(true);
+  });
+
+  window.addEventListener('mouseup', (e) => {
+    if (isGalaxyPanning) {
+      isGalaxyPanning = false;
+      galaxyViewport.classList.remove('dragging');
+    }
+  });
+}
             
             initializeGame();
         });

@@ -38,23 +38,21 @@ document.addEventListener('DOMContentLoaded', () => {
     const planetVisualPanel = document.getElementById('planet-visual-panel');
     const closePlanetVisualPanelBtn = document.getElementById('close-planet-visual-panel');
     const planetVisualPanelHeader = document.getElementById('planet-visual-panel-header');
-    const planetVisualTitle = document.getElementById('planet-visual-title'); // For the header title
-    const planetVisualName = document.getElementById('planet-visual-name');   // For planet name in body
-    const planetVisualSize = document.getElementById('planet-visual-size');   // For planet size in body
+    const planetVisualTitle = document.getElementById('planet-visual-title'); 
+    const planetVisualSize = document.getElementById('planet-visual-size'); 
     const planetVisualCanvas = document.getElementById('planet-visual-canvas');
 
     let linesCtx; 
     let solarSystemOrbitCanvasEl;
     let orbitCtx;
     let animationFrameId = null;
-    let lastAnimationTime = null; // For frame-rate independent animation
+    let lastAnimationTime = null; 
     let isSolarSystemPaused = false;
 
-    // Variables for draggable planet visual in panel
     let isDraggingPlanetVisual = false;
     let dragStartX = 0;
-    let currentRotationAngleInPanel = 0; // Current rotation of the planet in the visual panel
-    let currentPlanetDisplayedInPanel = null; // Stores the planet data currently shown in the visual panel
+    let currentRotationAngleInPanel = 0; 
+    let currentPlanetDisplayedInPanel = null; 
 
     const DEFAULT_NUM_GALAXIES = 3;
     const DEFAULT_MIN_SS_COUNT_CONST = 200;
@@ -515,16 +513,14 @@ document.addEventListener('DOMContentLoaded', () => {
         if (!gal.layoutGenerated) { setTimeout(() => { function attemptLayoutGeneration(retriesLeft = 5) { if (galaxyViewport && galaxyViewport.offsetWidth > 0) {generateSolarSystemsForGalaxy(galaxyId);renderGalaxyDetailScreen(false); } else if (retriesLeft > 0) {requestAnimationFrame(() => attemptLayoutGeneration(retriesLeft - 1));} else {gal.layoutGenerated = true; renderGalaxyDetailScreen(false); }}attemptLayoutGeneration(); }, 50); } else {renderGalaxyDetailScreen(false); }
     }
     
-    // Function to generate random landmass shapes (simple polygons or ellipses) for terrestrial planets
+    // Function to generate random landmass data (center longitude, latitude, and angular size) for terrestrial planets
     function generateTerrestrialLandmasses(numLandmasses, maxCanvasRadius) {
         const landmasses = [];
         for (let i = 0; i < numLandmasses; i++) {
             landmasses.push({
-                // Normalized position on a 2D map [-0.5 to 0.5 for x, y around center]
-                // Think of this as a flat projection that wraps around the sphere
-                x: (Math.random() - 0.5) * 2 * Math.PI, // Longitude: -PI to PI
-                y: (Math.random() - 0.5) * Math.PI,   // Latitude: -PI/2 to PI/2
-                size: (0.15 + Math.random() * 0.15) * maxCanvasRadius // Size relative to planet (visual radius)
+                lon: (Math.random() - 0.5) * 2 * Math.PI, // Longitude: -PI to PI
+                lat: (Math.random() - 0.5) * 0.8 * Math.PI, // Latitude: clamped to -0.4PI to 0.4PI to avoid poles
+                size: (0.15 + Math.random() * 0.15) * maxCanvasRadius // Size relative to planet visual radius
             });
         }
         return landmasses;
@@ -597,7 +593,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 
                 // Terrestrial planets need dynamically generated, random landmass data
                 const visualCanvasRadius = planetVisualCanvas.width / 2; 
-                newPlanet.landmassData = generateTerrestrialLandmasses(Math.floor(2 + Math.random()*3), visualCanvasRadius); // 2-4 landmasses
+                newPlanet.landmassData = generateTerrestrialLandmasses(Math.floor(2 + Math.random()*3), visualCanvasRadius); 
             } else {
                 newPlanet.type = 'normal';
                 const hue = Math.random() * 360, saturation = 40 + Math.random() * 40, lightnessBase = 50 + Math.random() * 10; 
@@ -615,6 +611,8 @@ document.addEventListener('DOMContentLoaded', () => {
                 const darkerColor = `hsl(${newPlanet.color.hue}, ${newPlanet.color.saturation}%, ${newPlanet.color.lightness - 35}%)`; 
                 planetEl.style.background = `radial-gradient(circle at 20% 20%, ${lighterColor}, ${darkerColor})`;
             } else { // terrestrial (simplified icon for system view)
+                // A very simplified representation: 1-2 green blobs on a blue background
+                // These static colors/positions are for the small icon only, not the detailed visual
                 const randomPos = 15 + Math.random() * 40; 
                 const randomSize = 20 + Math.random() * 30; 
                 let backgroundStyle = `radial-gradient(circle at ${randomPos}% ${randomPos}%, ${newPlanet.grassColor} ${randomSize}%, transparent ${randomSize + 20}%), ${newPlanet.waterColor}`;
@@ -632,21 +630,20 @@ document.addEventListener('DOMContentLoaded', () => {
             planetEl.addEventListener('click', (e) => { 
                 e.stopPropagation(); 
 
-                currentPlanetDisplayedInPanel = newPlanet; // Store the planet data
+                currentPlanetDisplayedInPanel = newPlanet; 
 
-                // Update and show planet visual panel
                 const planetName = `Planet ${newPlanet.id.split('-')[1]}`;
-                planetVisualTitle.textContent = planetName; // Set title to planet name only
-                planetVisualName.textContent = planetName;
+                planetVisualTitle.textContent = planetName; 
+                // Removed redundant "Name: Planet X" line. Now only in header.
+                // planetVisualName.textContent = planetName; 
                 planetVisualSize.textContent = Math.round(newPlanet.size);
                 planetVisualPanel.classList.add('visible');
-                // Center the visual panel
+                
                 planetVisualPanel.style.left = '50%';
                 planetVisualPanel.style.top = '50%';
                 planetVisualPanel.style.transform = 'translate(-50%, -50%)';
                 planetVisualPanel.style.transition = ''; 
 
-                // Reset rotation for new planet and render
                 currentRotationAngleInPanel = 0;
                 renderPlanetVisual(newPlanet, currentRotationAngleInPanel);
             });
@@ -684,14 +681,22 @@ document.addEventListener('DOMContentLoaded', () => {
 
         ctx.clearRect(0, 0, canvasWidth, canvasHeight);
 
-        const radius = Math.min(canvasWidth, canvasHeight) * 0.4; // Scale planet to fit well
+        const radius = Math.min(canvasWidth, canvasHeight) * 0.4; 
         
-        // Define light source angle relative to the canvas, which rotates with the simulated planet rotation
-        const lightSourceRelativeAngle = currentRotationAngle + Math.PI / 4; // Light comes from specific angle, affected by rotation
+        // Light source remains fixed relative to the viewer, but its position is calculated in 3D space
+        // The light affects shading based on its interaction with the rotating sphere.
+        const lightSourceLongitude = Math.PI / 4; // Angle from the front (e.g., 45 degrees left)
+        const lightSourceLatitude = Math.PI / 8; // Angle from the equator (e.g., 22.5 degrees up)
 
-        // Light source position for gradients
-        const lightX = centerX + radius * Math.cos(lightSourceRelativeAngle);
-        const lightY = centerY + radius * Math.sin(lightSourceRelativeAngle);
+        // Calculate 3D coordinates of the light source, if it were on the sphere's surface
+        const lightX3D = Math.cos(lightSourceLatitude) * Math.sin(lightSourceLongitude - currentRotationAngle);
+        const lightY3D = Math.sin(lightSourceLatitude);
+        const lightZ3D = Math.cos(lightSourceLatitude) * Math.cos(lightSourceLongitude - currentRotationAngle);
+
+        // Convert 3D light source position to 2D canvas coordinates for gradient origin
+        const lightDrawX = centerX + radius * lightX3D;
+        const lightDrawY = centerY + radius * lightY3D;
+
 
         if (planetData.type === 'normal') {
             const hue = planetData.color.hue;
@@ -699,8 +704,8 @@ document.addEventListener('DOMContentLoaded', () => {
             const lightness = planetData.color.lightness;
 
             const gradient = ctx.createRadialGradient(
-                lightX, lightY, radius * 0.1, // Inner circle for light source
-                centerX, centerY, radius * 1.8 // Outer circle for shadow
+                lightDrawX, lightDrawY, radius * 0.1, 
+                centerX, centerY, radius * 1.8 
             );
 
             const lighterColor = `hsl(${hue}, ${saturation}%, ${Math.min(100, lightness + 15)}%)`;
@@ -714,7 +719,6 @@ document.addEventListener('DOMContentLoaded', () => {
             ctx.fillStyle = gradient;
             ctx.fill();
 
-            // Add a subtle ambient glow
             ctx.shadowColor = `hsl(${hue}, ${saturation}%, ${lightness + 5}%)`;
             ctx.shadowBlur = radius * 0.1;
             ctx.shadowOffsetX = 0;
@@ -723,56 +727,63 @@ document.addEventListener('DOMContentLoaded', () => {
             ctx.shadowBlur = 0; 
 
         } else { // terrestrial
-            // Draw water base
+            // Draw spherical water base
             ctx.beginPath();
             ctx.arc(centerX, centerY, radius, 0, Math.PI * 2);
             ctx.fillStyle = planetData.waterColor;
             ctx.fill();
 
-            // Draw landmasses with simulated spherical projection
-            // Apply blur before drawing for softer edges
-            ctx.filter = `blur(${radius * 0.03}px)`; 
+            // Draw landmasses
             ctx.fillStyle = planetData.grassColor;
+            ctx.filter = `blur(${radius * 0.05}px)`; 
 
             planetData.landmassData.forEach(lm => {
-                // lm.x is original longitude, lm.y is original latitude
-                let currentLmLongitude = lm.x - currentRotationAngle; // Offset by current view rotation
+                let currentLmLongitude = lm.lon - currentRotationAngle;
 
-                // Normalize longitude to -PI to PI
+                // Normalize longitude to be within -PI to PI
                 currentLmLongitude = (currentLmLongitude + Math.PI * 3) % (2 * Math.PI) - Math.PI;
 
-                // Simple check for visibility: only draw if within ±PI/2 of facing the viewer
-                if (Math.abs(currentLmLongitude) < Math.PI / 2 + 0.1) { // Adding a small buffer
-                    const projectedX = radius * Math.sin(currentLmLongitude); // X position based on longitude & perspective
-                    const projectedY = radius * Math.sin(lm.y);            // Y position based on latitude
+                // Full 3D spherical projection calculations
+                const x_coord_on_sphere = radius * Math.cos(lm.lat) * Math.sin(currentLmLongitude);
+                const y_coord_on_sphere = radius * Math.sin(lm.lat);
+                const z_depth = radius * Math.cos(lm.lat) * Math.cos(currentLmLongitude);
 
-                    // Landmass size also shrinks with perspective
-                    const projectedRadius = lm.size * Math.cos(currentLmLongitude);
+                // Only draw if the landmass is mostly on the visible hemisphere
+                if (z_depth > -radius * 0.2) { // Allow slight visibility from the 'back' to smoothly transition
+                    // Scale factor for size and alpha based on depth
+                    const scaleFactor = (z_depth / radius) * 0.5 + 0.5; // Ranges from approx 0.5 (back) to 1.0 (front)
 
-                    if (projectedRadius > 0) {
-                        ctx.beginPath();
-                        ctx.arc(centerX + projectedX, centerY + projectedY, projectedRadius, 0, Math.PI * 2);
-                        ctx.fill();
-                    }
+                    ctx.beginPath();
+                    // Draw a circle for each landmass, scaled and positioned by projection
+                    ctx.arc(
+                        centerX + x_coord_on_sphere,
+                        centerY + y_coord_on_sphere,
+                        lm.size * scaleFactor, 
+                        0, Math.PI * 2
+                    );
+                    
+                    ctx.globalAlpha = Math.max(0, scaleFactor * 0.9); // Reduce alpha for parts further back
+                    ctx.fill();
+                    ctx.globalAlpha = 1.0; 
                 }
             });
-            ctx.filter = 'none'; // Reset blur after drawing landmasses
+            ctx.filter = 'none'; 
 
-            // Apply shading (simulating light source) over both water and land
+            // Apply shading over both water and land as global composite operation
             const shadeGradient = ctx.createRadialGradient(
-                lightX, lightY, radius * 0.1, // Point of light
-                centerX, centerY, radius * 1.8 // Extent of gradient
+                lightDrawX, lightDrawY, radius * 0.1, 
+                centerX, centerY, radius * 1.8 
             );
-            shadeGradient.addColorStop(0, 'rgba(255,255,255,0.1)'); // Highlight
-            shadeGradient.addColorStop(0.5, 'rgba(0,0,0,0)');     // Clear middle
-            shadeGradient.addColorStop(1, 'rgba(0,0,0,0.6)');    // Shadow
+            shadeGradient.addColorStop(0, 'rgba(255,255,255,0.1)'); 
+            shadeGradient.addColorStop(0.5, 'rgba(0,0,0,0)');     
+            shadeGradient.addColorStop(1, 'rgba(0,0,0,0.6)');    
 
-            ctx.globalCompositeOperation = 'multiply'; // Blend as shadow
+            ctx.globalCompositeOperation = 'multiply'; 
             ctx.beginPath();
             ctx.arc(centerX, centerY, radius, 0, Math.PI * 2);
             ctx.fillStyle = shadeGradient;
             ctx.fill();
-            ctx.globalCompositeOperation = 'source-over'; // Reset blend mode
+            ctx.globalCompositeOperation = 'source-over'; 
         }
     }
 
@@ -789,9 +800,10 @@ document.addEventListener('DOMContentLoaded', () => {
         }
         if (activeSysView && solarSystemScreen.classList.contains('active') && activeSysView.planets) {
             activeSysView.planets.forEach(planet => {
-                // Orbital speed 5x slower compared to original
-                // Original orbital speed was multiplied by 0.5 for animation, now it's (0.5 / 5) = 0.1
-                // So, 0.1 * 60 (for seconds) = 6.
+                // Orbital speed 5x slower compared to original.
+                // Orbital speed was previously `planet.orbitalSpeed * .5` per unknown frame rate.
+                // Now it's `planet.orbitalSpeed * (0.5 / 5) * 60 * deltaTime` for per-second consistency.
+                // So, `planet.orbitalSpeed * 6 * deltaTime`.
                 planet.currentOrbitalAngle += planet.orbitalSpeed * 6 * deltaTime;
                 planet.currentAxialAngle += planet.axialSpeed * 60 * deltaTime; 
 
@@ -806,13 +818,13 @@ document.addEventListener('DOMContentLoaded', () => {
             animationFrameId = requestAnimationFrame(animateSolarSystem);
         } else {
             if (animationFrameId) { cancelAnimationFrame(animationFrameId); animationFrameId = null; }
-            lastAnimationTime = null; // Reset for next animation start
+            lastAnimationTime = null; 
         }
     }
 
     function startSolarSystemAnimation() { 
         if (!animationFrameId && solarSystemScreen.classList.contains('active')) { 
-            lastAnimationTime = null; // Ensure fresh start for delta time
+            lastAnimationTime = null; 
             animateSolarSystem(); 
         } 
     }
@@ -880,7 +892,7 @@ document.addEventListener('DOMContentLoaded', () => {
             const rotationSpeed = 0.005; // Adjust sensitivity
             currentRotationAngleInPanel += (deltaX * rotationSpeed);
             renderPlanetVisual(currentPlanetDisplayedInPanel, currentRotationAngleInPanel);
-            dragStartX = e.clientX; // Update drag start for continuous movement
+            dragStartX = e.clientX; 
         }
     });
 
@@ -892,12 +904,12 @@ document.addEventListener('DOMContentLoaded', () => {
         }
         if (isDraggingPlanetVisual) {
             isDraggingPlanetVisual = false;
-            planetVisualCanvas.classList.remove('dragging'); // Remove dragging cursor
+            planetVisualCanvas.classList.remove('dragging'); 
         }
     });
 
     function initializeGame(isForcedRegeneration = false) {loadCustomizationSettings(); if (!isForcedRegeneration && loadGameState()) {setActiveScreen(mainScreen); if (universeCircle && gameSessionData.universe.diameter) {universeCircle.style.width = `${gameSessionData.universe.diameter}px`;universeCircle.style.height = `${gameSessionData.universe.diameter}px`;universeCircle.style.backgroundColor = FIXED_COLORS.universeBg;} else {generateUniverseLayout(); }renderMainScreen(); preGenerateAllGalaxyContents(); } else {generateUniverseLayout();generateGalaxies(); setActiveScreen(mainScreen); renderMainScreen();preGenerateAllGalaxyContents(); if(gameSessionData.galaxies.every(g => g.layoutGenerated)) {saveGameState();}}gameSessionData.isInitialized = true;}
-    window.addEventListener('resize', () => { const currentScreenIdBeforeResize = document.querySelector('.screen.active')?.id;localStorage.removeItem('galaxyGameSaveData'); gameSessionData.universe = { diameter: null };gameSessionData.galaxies = [];gameSessionData.activeGalaxyId = null;gameSessionData.activeSolarSystemId = null;gameSessionData.solarSystemView = { zoomLevel: 1.0, currentPanX: 0, currentPanY: 0, planets: [], systemId: null };gameSessionData.isInitialized = false;if (universeCircle) universeCircle.innerHTML = '';if (galaxyZoomContent) {const canvas = galaxyZoomContent.querySelector('#solar-system-lines-canvas');galaxyZoomContent.innerHTML = ''; if(canvas) galaxyZoomContent.appendChild(canvas); }if (solarSystemContent) solarSystemContent.innerHTML = '';if (orbitCtx && solarSystemOrbitCanvasEl) orbitCtx.clearRect(0,0,solarSystemOrbitCanvasEl.width,solarSystemOrbitCanvasEl.height); if (animationFrameId) { cancelAnimationFrame(animationFrameId); animationFrameId = null; }lastAnimationTime = null; // Reset for animation restart
+    window.addEventListener('resize', () => { const currentScreenIdBeforeResize = document.querySelector('.screen.active')?.id;localStorage.removeItem('galaxyGameSaveData'); gameSessionData.universe = { diameter: null };gameSessionData.galaxies = [];gameSessionData.activeGalaxyId = null;gameSessionData.activeSolarSystemId = null;gameSessionData.solarSystemView = { zoomLevel: 1.0, currentPanX: 0, currentPanY: 0, planets: [], systemId: null };gameSessionData.isInitialized = false;if (universeCircle) universeCircle.innerHTML = '';if (galaxyZoomContent) {const canvas = galaxyZoomContent.querySelector('#solar-system-lines-canvas');galaxyZoomContent.innerHTML = ''; if(canvas) galaxyZoomContent.appendChild(canvas); }if (solarSystemContent) solarSystemContent.innerHTML = '';if (orbitCtx && solarSystemOrbitCanvasEl) orbitCtx.clearRect(0,0,solarSystemOrbitCanvasEl.width,solarSystemOrbitCanvasEl.height); if (animationFrameId) { cancelAnimationFrame(animationFrameId); animationFrameId = null; }lastAnimationTime = null; 
     loadCustomizationSettings(); initializeGame(true);  if (currentScreenIdBeforeResize) { const screenToActivate = document.getElementById(currentScreenIdBeforeResize) || mainScreen; setActiveScreen(screenToActivate);  } else { setActiveScreen(mainScreen); }});
     if(backToMainButton) backToMainButton.addEventListener('click', switchToMainView);
     if(backToGalaxyButton) backToGalaxyButton.addEventListener('click', () => { if(gameSessionData.activeGalaxyId && gameSessionData.galaxies.find(g => g.id === gameSessionData.activeGalaxyId)) {switchToGalaxyDetailView(gameSessionData.activeGalaxyId);} else {switchToMainView();} });
@@ -922,7 +934,6 @@ let galaxyLastPan = { x: 0, y: 0 };
 
 if (galaxyViewport) {
   galaxyViewport.addEventListener('mousedown', (e) => {
-    // Only left mouse button, only if the detail screen is active, and not on a solar system icon
     if (
       e.button !== 0 ||
       !galaxyDetailScreen.classList.contains('active') ||
@@ -934,7 +945,6 @@ if (galaxyViewport) {
     galaxyPanStart.x = e.clientX;
     galaxyPanStart.y = e.clientY;
 
-    // Get the current pan from the active galaxy object
     const gal = gameSessionData.galaxies.find(g => g.id === gameSessionData.activeGalaxyId);
     galaxyLastPan.x = gal?.currentPanX || 0;
     galaxyLastPan.y = gal?.currentPanY || 0;
@@ -948,14 +958,12 @@ if (galaxyViewport) {
     const gal = gameSessionData.galaxies.find(g => g.id === gameSessionData.activeGalaxyId);
     if (!gal) return;
 
-    // Calculate delta movement
     const dx = e.clientX - galaxyPanStart.x;
     const dy = e.clientY - galaxyPanStart.y;
 
     gal.currentPanX = galaxyLastPan.x + dx;
     gal.currentPanY = galaxyLastPan.y + dy;
 
-    // Clamp pan if needed, then re-render
     if (typeof clampGalaxyPan === 'function') {
       clampGalaxyPan(gal);
     }

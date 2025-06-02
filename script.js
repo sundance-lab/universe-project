@@ -596,8 +596,6 @@ document.addEventListener('DOMContentLoaded', () => {
         ctx.filter = 'none'; // Reset canvas filter after drawing landmasses
         return canvas; // Return the generated texture canvas
     }
-    }
-
 
     function switchToSolarSystemView(solarSystemId) {
         gameSessionData.activeSolarSystemId = solarSystemId;

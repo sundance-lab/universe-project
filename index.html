@@ -408,7 +408,23 @@
                 }
             }
             function getDistance(sys1, sys2) { return Math.sqrt(Math.pow(sys1.centerX - sys2.centerX, 2) + Math.pow(sys1.centerY - sys2.centerY, 2)); }
-            function tryAddConnection(fromId, toId, currentConnectionsArray, currentCountsObject, allSystemsLookup, maxDistanceLimit) { if (!fromId || !toId || fromId === toId) return false; if ((currentCountsObject[fromId] || 0) >= MAX_CONNECTIONS_PER_SYSTEM || (currentCountsObject[toId] || 0) >= MAX_CONNECTIONS_PER_SYSTEM) { return false; } const key = [fromId, toId].sort().join('-'); if (currentConnectionsArray.some(conn => ([conn.fromId, conn.toId].sort().join('-') === key))) { return false; } if (maxDistanceLimit !== undefined && maxDistanceLimit !== null) { const sys1 = allSystemsLookup.find(s => s.id === fromId); const sys2 = allSystemsLookup.find(s => s.id === toId); if (sys1 && sys2 && getDistance(sys1, sys2) > maxDistanceLimit) { return false; } } return true;_MODAL_CLOSE
+            function tryAddConnection(fromId, toId, currentConnectionsArray, currentCountsObject, allSystemsLookup, maxDistanceLimit) {
+                if (!fromId || !toId || fromId === toId) return false;
+                if ((currentCountsObject[fromId] || 0) >= MAX_CONNECTIONS_PER_SYSTEM || (currentCountsObject[toId] || 0) >= MAX_CONNECTIONS_PER_SYSTEM) {
+                    return false;
+                }
+                const key = [fromId, toId].sort().join('-');
+                if (currentConnectionsArray.some(conn => ([conn.fromId, conn.toId].sort().join('-') === key))) {
+                    return false;
+                }
+                if (maxDistanceLimit !== undefined && maxDistanceLimit !== null) {
+                    const sys1 = allSystemsLookup.find(s => s.id === fromId);
+                    const sys2 = allSystemsLookup.find(s => s.id === toId);
+                    if (sys1 && sys2 && getDistance(sys1, sys2) > maxDistanceLimit) {
+                        return false;
+                    }
+                }
+                return true;
             }
             
             function generateSolarSystemsForGalaxy(galaxyId) { 

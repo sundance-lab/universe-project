@@ -703,7 +703,8 @@ document.addEventListener('DOMContentLoaded', () => {
             
             planetEl.addEventListener('click', (e) => { 
                 e.stopPropagation(); 
-
+                solarSystemContent.appendChild(planetEl);
+                newPlanet.element = planetEl; // (optional but keeps animation in sync)
                 currentPlanetDisplayedInPanel = newPlanet; 
 
                 const planetName = `Planet ${newPlanet.id.split('-')[1]}`;

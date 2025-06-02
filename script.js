@@ -54,6 +54,9 @@ document.addEventListener('DOMContentLoaded', () => {
     let currentRotationAngleInPanel = 0; 
     let planetRotationVelocity = 0;
     let isPlanetRotating = false;
+    let rotationLongitude = 0; // Horizontal rotation (was currentRotationAngleInPanel)
+    let rotationLatitude = 0;  // Vertical rotation (new!)
+    let lastDragX = 0, lastDragY = 0;
     let lastPlanetDragTime = 0;
     let currentPlanetDisplayedInPanel = null; 
 
@@ -744,7 +747,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
     // Renders the detailed visual of a planet on the planet-visual-canvas.
     // currentRotationAngle controls the horizontal rotation of the planet's surface.
-    function renderPlanetVisual(planetData, currentRotationAngle = 0) {
+    function renderPlanetVisual(planetData, longitude = 0, latitude = 0) {
         if (!planetVisualCanvas) return;
 
         const ctx = planetVisualCanvas.getContext('2d');
@@ -831,21 +834,38 @@ for (let i = 0; i < steps; i++) {
     const sphereAngle = Math.asin(nx);
 
     // Texture longitude (0...1), with rotation
-    let texU = ((sphereAngle / Math.PI) + 0.5 + (currentRotationAngle / (2 * Math.PI))) % 1;
-    if (texU < 0) texU += 1;
+  const steps = Math.ceil(radius * 2);
+    for (let i = 0; i < steps; i++) {
+        const nx = (i / (steps - 1)) * 2 - 1; // -1 to 1
+        for (let j = 0; j < steps; j++) {
+            const ny = (j / (steps - 1)) * 2 - 1; // -1 to 1
+            if (nx * nx + ny * ny > 1) continue; // outside the circle
 
-    // Compute x position on the canvas
-    const x = centerX + nx * radius;
+            // 3D sphere coordinates
+            let x = nx;
+            let y = ny;
+            let z = Math.sqrt(1 - x * x - y * y);
 
-    // Compute source x in texture
-    const sx = Math.floor(texU * textureWidth);
+            // Apply latitude (vertical) rotation
+            let ry = y * Math.cos(latitude) - z * Math.sin(latitude);
+            let rz = y * Math.sin(latitude) + z * Math.cos(latitude);
 
-    // Draw a vertical strip
-    ctx.drawImage(
-        textureCanvas,
-        sx, 0, 1, textureHeight, // source: 1px wide vertical strip
-        x, centerY - radius, 1, radius * 2 // dest: 1px wide vertical strip
-    );
+            // Apply longitude (horizontal) rotation
+            let rx = x * Math.cos(longitude) - rz * Math.sin(longitude);
+            let rz2 = x * Math.sin(longitude) + rz * Math.cos(longitude);
+
+            // Now, map (rx, ry, rz2) to sphere coordinates
+            let theta = Math.atan2(rx, rz2); // longitude
+            let phi = Math.acos(ry);         // latitude
+
+            // Convert to texture coordinates (U,V)
+            let texU = (theta / (2 * Math.PI)) + 0.5;
+            let texV = phi / Math.PI;
+
+            // Draw pixel at (canvasX, canvasY) using color from (texU, texV) in the texture
+            // (You'll need to sample the textureCanvas at those coords)
+        }
+    }
 }
 ctx.restore();
             // Apply shading over the entire planet (both water and land)
@@ -954,29 +974,26 @@ ctx.restore();
 planetVisualCanvas.addEventListener('mousedown', (e) => {
     if (e.button !== 0 || !currentPlanetDisplayedInPanel) return;
     isDraggingPlanetVisual = true;
-    dragStartX = e.clientX;
-    lastPlanetDragTime = performance.now();
-    planetRotationVelocity = 0;
+    lastDragX = e.clientX;
+    lastDragY = e.clientY;
     planetVisualCanvas.classList.add('dragging');
     e.preventDefault();
 });
 
 window.addEventListener('mousemove', (e) => {
     if (isDraggingPlanetVisual && currentPlanetDisplayedInPanel) {
-        const now = performance.now();
-        const deltaX = e.clientX - dragStartX;
-        const dt = (now - lastPlanetDragTime) / 1000 || 0.016; // seconds, fallback to ~60Hz
+        const deltaX = e.clientX - lastDragX;
+        const deltaY = e.clientY - lastDragY;
+        // Adjust sensitivity as you like
+        rotationLongitude += deltaX * 0.005;
+        rotationLatitude += deltaY * 0.005;
 
-        const rotationSpeed = 0.005; // Sensitivity
-        currentRotationAngleInPanel += (deltaX * rotationSpeed);
+        // Clamp latitude to [-π/2, π/2] so you can't flip the globe upside down
+        rotationLatitude = Math.max(-Math.PI / 2, Math.min(Math.PI / 2, rotationLatitude));
 
-        // Calculate velocity for inertia
-        planetRotationVelocity = (deltaX * rotationSpeed) / dt;
-
-        renderPlanetVisual(currentPlanetDisplayedInPanel, currentRotationAngleInPanel);
-
-        dragStartX = e.clientX;
-        lastPlanetDragTime = now;
+        renderPlanetVisual(currentPlanetDisplayedInPanel, rotationLongitude, rotationLatitude);
+        lastDragX = e.clientX;
+        lastDragY = e.clientY;
     }
 });
 

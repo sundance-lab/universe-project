@@ -515,23 +515,17 @@ document.addEventListener('DOMContentLoaded', () => {
         if (!gal.layoutGenerated) { setTimeout(() => { function attemptLayoutGeneration(retriesLeft = 5) { if (galaxyViewport && galaxyViewport.offsetWidth > 0) {generateSolarSystemsForGalaxy(galaxyId);renderGalaxyDetailScreen(false); } else if (retriesLeft > 0) {requestAnimationFrame(() => attemptLayoutGeneration(retriesLeft - 1));} else {gal.layoutGenerated = true; renderGalaxyDetailScreen(false); }}attemptLayoutGeneration(); }, 50); } else {renderGalaxyDetailScreen(false); }
     }
     
-    function generateTerrestrialLandmasses(numLandmasses, canvasRadius) {
+    // Function to generate random landmass shapes (simple polygons or ellipses) for terrestrial planets
+    function generateTerrestrialLandmasses(numLandmasses, maxCanvasRadius) {
         const landmasses = [];
         for (let i = 0; i < numLandmasses; i++) {
-            const centerX = (Math.random() - 0.5) * canvasRadius * 1.5; // Spread around center
-            const centerY = (Math.random() - 0.5) * canvasRadius * 1.5;
-            const segmentCount = Math.floor(4 + Math.random() * 4); // 4 to 7 segments
-            const baseRadius = canvasRadius * (0.15 + Math.random() * 0.25); // Size of landmass
-            const points = [];
-
-            for (let j = 0; j < segmentCount; j++) {
-                const angle = (Math.PI * 2 / segmentCount) * j + (Math.random() - 0.5) * (Math.PI / segmentCount);
-                const variation = (Math.random() - 0.5) * baseRadius * 0.6;
-                const x = centerX + (baseRadius + variation) * Math.cos(angle);
-                const y = centerY + (baseRadius + variation) * Math.sin(angle);
-                points.push([x, y]);
-            }
-            landmasses.push(points);
+            landmasses.push({
+                // Normalized position on a 2D map [-0.5 to 0.5 for x, y around center]
+                // Think of this as a flat projection that wraps around the sphere
+                x: (Math.random() - 0.5) * 2 * Math.PI, // Longitude: -PI to PI
+                y: (Math.random() - 0.5) * Math.PI,   // Latitude: -PI/2 to PI/2
+                size: (0.15 + Math.random() * 0.15) * maxCanvasRadius // Size relative to planet (visual radius)
+            });
         }
         return landmasses;
     }
@@ -602,8 +596,8 @@ document.addEventListener('DOMContentLoaded', () => {
                 newPlanet.grassColor = `hsl(${100 + Math.random()*40}, ${60 + Math.random()*10}%, ${30 + Math.random()*10}%)`;
                 
                 // Terrestrial planets need dynamically generated, random landmass data
-                const canvasRadius = planetVisualCanvas.width / 2; // Use visual canvas size for landmass scale
-                newPlanet.landmassData = generateTerrestrialLandmasses(Math.floor(2 + Math.random()*3), canvasRadius * (planetSize / MAX_PLANET_SIZE)); 
+                const visualCanvasRadius = planetVisualCanvas.width / 2; 
+                newPlanet.landmassData = generateTerrestrialLandmasses(Math.floor(2 + Math.random()*3), visualCanvasRadius); // 2-4 landmasses
             } else {
                 newPlanet.type = 'normal';
                 const hue = Math.random() * 360, saturation = 40 + Math.random() * 40, lightnessBase = 50 + Math.random() * 10; 
@@ -620,9 +614,9 @@ document.addEventListener('DOMContentLoaded', () => {
                 const lighterColor = `hsl(${newPlanet.color.hue}, ${newPlanet.color.saturation}%, ${newPlanet.color.lightness + 35}%)`;
                 const darkerColor = `hsl(${newPlanet.color.hue}, ${newPlanet.color.saturation}%, ${newPlanet.color.lightness - 35}%)`; 
                 planetEl.style.background = `radial-gradient(circle at 20% 20%, ${lighterColor}, ${darkerColor})`;
-            } else { // terrestrial
-                const randomPos = 15 + Math.random() * 40; // Position percentage
-                const randomSize = 20 + Math.random() * 30; // Size percentage
+            } else { // terrestrial (simplified icon for system view)
+                const randomPos = 15 + Math.random() * 40; 
+                const randomSize = 20 + Math.random() * 30; 
                 let backgroundStyle = `radial-gradient(circle at ${randomPos}% ${randomPos}%, ${newPlanet.grassColor} ${randomSize}%, transparent ${randomSize + 20}%), ${newPlanet.waterColor}`;
                 
                 if (Math.random() < 0.5) { 
@@ -641,8 +635,9 @@ document.addEventListener('DOMContentLoaded', () => {
                 currentPlanetDisplayedInPanel = newPlanet; // Store the planet data
 
                 // Update and show planet visual panel
-                planetVisualTitle.textContent = `Planet ${newPlanet.id.split('-')[1]} Visual`; // Set title to planet name
-                planetVisualName.textContent = `Planet ${newPlanet.id.split('-')[1]}`;
+                const planetName = `Planet ${newPlanet.id.split('-')[1]}`;
+                planetVisualTitle.textContent = planetName; // Set title to planet name only
+                planetVisualName.textContent = planetName;
                 planetVisualSize.textContent = Math.round(newPlanet.size);
                 planetVisualPanel.classList.add('visible');
                 // Center the visual panel
@@ -690,15 +685,18 @@ document.addEventListener('DOMContentLoaded', () => {
         ctx.clearRect(0, 0, canvasWidth, canvasHeight);
 
         const radius = Math.min(canvasWidth, canvasHeight) * 0.4; // Scale planet to fit well
-        const lightSourceAngle = currentRotationAngle + Math.PI / 4; // Light comes from specific angle, affected by rotation
+        
+        // Define light source angle relative to the canvas, which rotates with the simulated planet rotation
+        const lightSourceRelativeAngle = currentRotationAngle + Math.PI / 4; // Light comes from specific angle, affected by rotation
+
+        // Light source position for gradients
+        const lightX = centerX + radius * Math.cos(lightSourceRelativeAngle);
+        const lightY = centerY + radius * Math.sin(lightSourceRelativeAngle);
 
         if (planetData.type === 'normal') {
             const hue = planetData.color.hue;
             const saturation = planetData.color.saturation;
             const lightness = planetData.color.lightness;
-
-            const lightX = centerX + radius * Math.cos(lightSourceAngle);
-            const lightY = centerY + radius * Math.sin(lightSourceAngle);
 
             const gradient = ctx.createRadialGradient(
                 lightX, lightY, radius * 0.1, // Inner circle for light source
@@ -725,43 +723,51 @@ document.addEventListener('DOMContentLoaded', () => {
             ctx.shadowBlur = 0; 
 
         } else { // terrestrial
-            // Draw water
+            // Draw water base
             ctx.beginPath();
             ctx.arc(centerX, centerY, radius, 0, Math.PI * 2);
             ctx.fillStyle = planetData.waterColor;
             ctx.fill();
 
-            // Store current context state before rotation
-            ctx.save(); 
-            ctx.translate(centerX, centerY); // Move origin to center of planet
-            ctx.rotate(currentRotationAngle); // Apply rotation
-
-            // Draw landmasses
+            // Draw landmasses with simulated spherical projection
+            // Apply blur before drawing for softer edges
+            ctx.filter = `blur(${radius * 0.03}px)`; 
             ctx.fillStyle = planetData.grassColor;
-            planetData.landmassData.forEach(landmassPoints => {
-                if (landmassPoints.length < 2) return;
-                ctx.beginPath();
-                ctx.moveTo(landmassPoints[0][0], landmassPoints[0][1]);
-                for (let i = 1; i < landmassPoints.length; i++) {
-                    ctx.lineTo(landmassPoints[i][0], landmassPoints[i][1]);
+
+            planetData.landmassData.forEach(lm => {
+                // lm.x is original longitude, lm.y is original latitude
+                let currentLmLongitude = lm.x - currentRotationAngle; // Offset by current view rotation
+
+                // Normalize longitude to -PI to PI
+                currentLmLongitude = (currentLmLongitude + Math.PI * 3) % (2 * Math.PI) - Math.PI;
+
+                // Simple check for visibility: only draw if within ±PI/2 of facing the viewer
+                if (Math.abs(currentLmLongitude) < Math.PI / 2 + 0.1) { // Adding a small buffer
+                    const projectedX = radius * Math.sin(currentLmLongitude); // X position based on longitude & perspective
+                    const projectedY = radius * Math.sin(lm.y);            // Y position based on latitude
+
+                    // Landmass size also shrinks with perspective
+                    const projectedRadius = lm.size * Math.cos(currentLmLongitude);
+
+                    if (projectedRadius > 0) {
+                        ctx.beginPath();
+                        ctx.arc(centerX + projectedX, centerY + projectedY, projectedRadius, 0, Math.PI * 2);
+                        ctx.fill();
+                    }
                 }
-                ctx.closePath();
-                ctx.fill();
             });
+            ctx.filter = 'none'; // Reset blur after drawing landmasses
 
-            ctx.restore(); // Restore context to before rotation (origin back to top-left of canvas)
-
-            // Apply shading (simulating light source)
+            // Apply shading (simulating light source) over both water and land
             const shadeGradient = ctx.createRadialGradient(
-                centerX + radius * Math.cos(lightSourceAngle + Math.PI), // Shade opposite to light source
-                centerY + radius * Math.sin(lightSourceAngle + Math.PI), 
-                radius * 0.1,
-                centerX, centerY, radius * 1.8
+                lightX, lightY, radius * 0.1, // Point of light
+                centerX, centerY, radius * 1.8 // Extent of gradient
             );
-            shadeGradient.addColorStop(0, 'rgba(0,0,0,0)');
-            shadeGradient.addColorStop(1, 'rgba(0,0,0,0.5)'); // Darker shade
+            shadeGradient.addColorStop(0, 'rgba(255,255,255,0.1)'); // Highlight
+            shadeGradient.addColorStop(0.5, 'rgba(0,0,0,0)');     // Clear middle
+            shadeGradient.addColorStop(1, 'rgba(0,0,0,0.6)');    // Shadow
 
-            ctx.globalCompositeOperation = 'multiply'; // Blend current drawing with existing planet
+            ctx.globalCompositeOperation = 'multiply'; // Blend as shadow
             ctx.beginPath();
             ctx.arc(centerX, centerY, radius, 0, Math.PI * 2);
             ctx.fillStyle = shadeGradient;
@@ -783,12 +789,11 @@ document.addEventListener('DOMContentLoaded', () => {
         }
         if (activeSysView && solarSystemScreen.classList.contains('active') && activeSysView.planets) {
             activeSysView.planets.forEach(planet => {
-                // Orbital speed 5x slower (original speed * 0.5 was the reference point)
-                // If base speed is 0.005-0.01, and effective speed was base * 0.5,
-                // now effective speed is base * (0.5 / 5) = base * 0.1
-                // Multiply by 60 to convert from per-frame to per-second equivalent
+                // Orbital speed 5x slower compared to original
+                // Original orbital speed was multiplied by 0.5 for animation, now it's (0.5 / 5) = 0.1
+                // So, 0.1 * 60 (for seconds) = 6.
                 planet.currentOrbitalAngle += planet.orbitalSpeed * 6 * deltaTime;
-                planet.currentAxialAngle += planet.axialSpeed * 60 * deltaTime; // Axial speed is not slowed down, so full 60x multiplier
+                planet.currentAxialAngle += planet.axialSpeed * 60 * deltaTime; 
 
                 if (planet.element) {
                     const planetScreenX = planet.distance * Math.cos(planet.currentOrbitalAngle);
@@ -855,28 +860,6 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     }
 
-    if (planetVisualPanelHeader) {
-        planetVisualPanelHeader.addEventListener('mousedown', (e) => {
-            if (e.button !== 0) return; 
-            isPanelDragging = true;
-            planetVisualPanelHeader.classList.add('dragging');
-            
-            planetVisualPanel.style.transition = 'none';
-
-            const rect = planetVisualPanel.getBoundingClientRect();
-            visualPanelOffset.x = e.clientX - rect.left;
-            visualPanelOffset.y = e.clientY - rect.top;
-
-            planetVisualPanel.style.left = `${rect.left}px`;
-            planetVisualPanel.style.top = `${rect.top}px`;
-            planetVisualPanel.style.transform = 'none'; 
-            planetVisualPanel.style.right = 'auto'; 
-            planetVisualPanel.style.bottom = 'auto';
-
-            e.preventDefault(); 
-        });
-    }
-
     // Event listeners for dragging planet visual within its panel
     planetVisualCanvas.addEventListener('mousedown', (e) => {
         if (e.button !== 0 || !currentPlanetDisplayedInPanel) return;
@@ -894,7 +877,7 @@ document.addEventListener('DOMContentLoaded', () => {
         }
         if (isDraggingPlanetVisual && currentPlanetDisplayedInPanel) {
             const deltaX = e.clientX - dragStartX;
-            const rotationSpeed = 0.01; // Adjust sensitivity
+            const rotationSpeed = 0.005; // Adjust sensitivity
             currentRotationAngleInPanel += (deltaX * rotationSpeed);
             renderPlanetVisual(currentPlanetDisplayedInPanel, currentRotationAngleInPanel);
             dragStartX = e.clientX; // Update drag start for continuous movement

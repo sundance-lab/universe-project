@@ -1,5 +1,4 @@
-    <script>
-        console.log("Script V1.3.10.2 (Full Enhancements) Loaded.");
+    console.log("Script V1.3.10.2 (Full Enhancements) Loaded.");
 
         document.addEventListener('DOMContentLoaded', () => {
             const mainScreen = document.getElementById('main-screen');
@@ -721,4 +720,3 @@ if (galaxyViewport && galaxyZoomContent) {
             
             initializeGame();
         });
-    </script>

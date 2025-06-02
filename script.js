@@ -248,7 +248,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 let minCurrentDist = Infinity; 
                 for (const unconnId of unconnectedSet) { 
                     const currentUnconnSys = allSystemCoords.find(s => s.id === unconnId); 
-                    for (const connId = of connectedSet) { 
+                    for (const connId of connectedSet) {
                         const currentConnSys = allSystemCoords.find(s => s.id === connId); 
                         const dist = getDistance(currentUnconnSys, currentConnSys); 
                         if (dist < minCurrentDist) { 

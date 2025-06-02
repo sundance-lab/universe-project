@@ -51,7 +51,9 @@ document.addEventListener('DOMContentLoaded', () => {
 
     let isDraggingPlanetVisual = false;
     let dragStartX = 0;
-    let currentRotationAngleInPanel = 0; 
+    let rotationLongitude = 0;
+    let rotationLatitude = 0;
+    let lastDragX = 0, lastDragY = 0;
     let planetRotationVelocity = 0;
     let isPlanetRotating = false;
     let rotationLongitude = 0; // Horizontal rotation (was currentRotationAngleInPanel)
@@ -984,14 +986,14 @@ window.addEventListener('mousemove', (e) => {
     if (isDraggingPlanetVisual && currentPlanetDisplayedInPanel) {
         const deltaX = e.clientX - lastDragX;
         const deltaY = e.clientY - lastDragY;
-        // Adjust sensitivity as you like
+
         rotationLongitude += deltaX * 0.005;
         rotationLatitude += deltaY * 0.005;
-
-        // Clamp latitude to [-π/2, π/2] so you can't flip the globe upside down
+        // Clamp vertical tilt so you can't flip the planet
         rotationLatitude = Math.max(-Math.PI / 2, Math.min(Math.PI / 2, rotationLatitude));
 
         renderPlanetVisual(currentPlanetDisplayedInPanel, rotationLongitude, rotationLatitude);
+
         lastDragX = e.clientX;
         lastDragY = e.clientY;
     }

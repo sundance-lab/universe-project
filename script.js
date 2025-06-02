@@ -631,32 +631,48 @@ document.addEventListener('DOMContentLoaded', () => {
         renderSolarSystemScreen(false); 
     }
 
-    function animateSolarSystem() {
-        const activeSysView = gameSessionData.solarSystemView;
-        if (isSolarSystemPaused) { 
-            animationFrameId = requestAnimationFrame(animateSolarSystem); 
-            return; 
-        }
-        if (activeSysView && solarSystemScreen.classList.contains('active') && activeSysView.planets) {
-            activeSysView.planets.forEach(planet => {
-                planet.currentOrbitalAngle += planet.orbitalSpeed * .1; // Orbital speed 5x slower (.5 / 5 = .1)
-                planet.currentAxialAngle += planet.axialSpeed;
-                if (planet.element) {
-                    const planetScreenX = planet.distance * Math.cos(planet.currentOrbitalAngle);
-                    const planetScreenY = planet.distance * Math.sin(planet.currentOrbitalAngle);
-                    planet.element.style.left = `calc(50% + ${planetScreenX}px - ${planet.size / 2}px)`;
-                    planet.element.style.top = `calc(50% + ${planetScreenY}px - ${planet.size / 2}px)`;
-                   planet.element.style.transform = `translate(-50%, -50%) rotate(${planet.currentAxialAngle}rad)`; // Center transform for rotation
+   let lastAnimationTime = null;
 
-                }
-            });
-            animationFrameId = requestAnimationFrame(animateSolarSystem);
-        } else {
-            if (animationFrameId) { cancelAnimationFrame(animationFrameId); animationFrameId = null; }
-        }
+function animateSolarSystem(now) {
+    if (!now) now = performance.now();
+    if (lastAnimationTime === null) lastAnimationTime = now;
+    const delta = (now - lastAnimationTime) / 1000; // Time since last frame in seconds
+    lastAnimationTime = now;
+
+    const activeSysView = gameSessionData.solarSystemView;
+    if (isSolarSystemPaused) {
+        animationFrameId = requestAnimationFrame(animateSolarSystem);
+        return;
     }
+    if (activeSysView && solarSystemScreen.classList.contains('active') && activeSysView.planets) {
+        activeSysView.planets.forEach(planet => {
+            // The factor '5' here preserves your previous visual speed (since before you used .1 as the step)
+            planet.currentOrbitalAngle += planet.orbitalSpeed * delta * 5;
+            planet.currentAxialAngle  += planet.axialSpeed * delta * 1;
+            if (planet.element) {
+                const planetScreenX = planet.distance * Math.cos(planet.currentOrbitalAngle);
+                const planetScreenY = planet.distance * Math.sin(planet.currentOrbitalAngle);
+                planet.element.style.left = `calc(50% + ${planetScreenX}px - ${planet.size / 2}px)`;
+                planet.element.style.top  = `calc(50% + ${planetScreenY}px - ${planet.size / 2}px)`;
+                planet.element.style.transform = `translate(-50%, -50%) rotate(${planet.currentAxialAngle}rad)`;
+            }
+        });
+        animationFrameId = requestAnimationFrame(animateSolarSystem);
+    } else {
+        if (animationFrameId) {
+            cancelAnimationFrame(animationFrameId);
+            animationFrameId = null;
+        }
+        lastAnimationTime = null;
+    }
+}
 
-    function startSolarSystemAnimation() { if (!animationFrameId && solarSystemScreen.classList.contains('active')) { animateSolarSystem(); } }
+    function startSolarSystemAnimation() {
+    if (!animationFrameId && solarSystemScreen.classList.contains('active')) {
+        lastAnimationTime = null;
+        animateSolarSystem();
+    }
+}
     function clampSolarSystemPan(dataObject, viewportWidth, viewportHeight) { if (!dataObject || !viewportWidth || !viewportHeight) { if (dataObject) { dataObject.currentPanX = 0; dataObject.currentPanY = 0; } return; } const zm = dataObject.zoomLevel; const explorableRadius = SOLAR_SYSTEM_EXPLORABLE_RADIUS; const scaledExplorableRadius = explorableRadius * zm; const panSlackX = scaledExplorableRadius - viewportWidth / 2; const panSlackY = scaledExplorableRadius - viewportHeight / 2; const panLimitX = Math.abs(panSlackX); const panLimitY = Math.abs(panSlackY); dataObject.currentPanX = Math.max(-panLimitX, Math.min(panLimitX, dataObject.currentPanX)); dataObject.currentPanY = Math.max(-panLimitY, Math.min(panLimitY, dataObject.currentPanY)); }
     function clampGalaxyPan(galaxy) { if(!galaxy || !galaxyViewport) return; const vw = galaxyViewport.offsetWidth; const vh = galaxyViewport.offsetHeight; const zm = galaxy.currentZoom; if(zm <= GALAXY_VIEW_MIN_ZOOM){ galaxy.currentPanX=0; galaxy.currentPanY=0; } else { const panLimitX = (vw * zm - vw) / 2; const panLimitY = (vh * zm - vh) / 2; galaxy.currentPanX = Math.max(-panLimitX, Math.min(panLimitX, galaxy.currentPanX)); galaxy.currentPanY = Math.max(-panLimitY, Math.min(panLimitY, galaxy.currentPanY)); } }
     function handleZoom(direction,mouseEvent=null){let targetData, viewportElement, currentClampFunction, currentRenderFunction, hardcodedMinZoom, hardcodedMaxZoom, currentZoomProp, currentPanXProp, currentPanYProp, isSolarView=false;if(galaxyDetailScreen.classList.contains('active')){const g=gameSessionData.galaxies.find(gl=>gl.id===gameSessionData.activeGalaxyId); if(!g)return;targetData=g; viewportElement=galaxyViewport; currentClampFunction=clampGalaxyPan; currentRenderFunction=renderGalaxyDetailScreen; hardcodedMinZoom=GALAXY_VIEW_MIN_ZOOM; hardcodedMaxZoom=GALAXY_VIEW_MAX_ZOOM;currentZoomProp='currentZoom'; currentPanXProp='currentPanX'; currentPanYProp='currentPanY';} else if(solarSystemScreen.classList.contains('active')){isSolarView = true;targetData=gameSessionData.solarSystemView; viewportElement=solarSystemScreen; currentClampFunction=clampSolarSystemPan; currentRenderFunction=renderSolarSystemScreen; hardcodedMinZoom=SOLAR_SYSTEM_VIEW_MIN_ZOOM; hardcodedMaxZoom=SOLAR_SYSTEM_VIEW_MAX_ZOOM;currentZoomProp='zoomLevel'; currentPanXProp='currentPanX'; currentPanYProp='currentPanY';} else return;const oldZoom=targetData[currentZoomProp];let newCalculatedZoom =oldZoom+(direction==='in'?(ZOOM_STEP*oldZoom):-(ZOOM_STEP*oldZoom)); let finalMinZoomForClamping = hardcodedMinZoom;if (isSolarView) {const viewportWidth = viewportElement.offsetWidth;const viewportHeight = viewportElement.offsetHeight;let dynamicMinZoomBasedOnExplorable = 0; if (SOLAR_SYSTEM_EXPLORABLE_RADIUS > 0 && (viewportWidth > 0 || viewportHeight > 0)) {const minZoomToCoverWidth = viewportWidth > 0 ? viewportWidth / (SOLAR_SYSTEM_EXPLORABLE_RADIUS * 2) : 0;const minZoomToCoverHeight = viewportHeight > 0 ? viewportHeight / (SOLAR_SYSTEM_EXPLORABLE_RADIUS * 2) : 0;dynamicMinZoomBasedOnExplorable = Math.max(minZoomToCoverWidth, minZoomToCoverHeight);}finalMinZoomForClamping = Math.max(hardcodedMinZoom, dynamicMinZoomBasedOnExplorable);}newCalculatedZoom=Math.max(finalMinZoomForClamping, Math.min(hardcodedMaxZoom, newCalculatedZoom)); if (Math.abs(oldZoom - newCalculatedZoom) < 0.0001) return; targetData[currentZoomProp]=newCalculatedZoom; if(mouseEvent){ const rect=viewportElement.getBoundingClientRect();const mX=mouseEvent.clientX-rect.left;const mY=mouseEvent.clientY-rect.top;const oPX=targetData[currentPanXProp]||0; const oPY=targetData[currentPanYProp]||0; const worldX = (mX - viewportElement.offsetWidth/2 - oPX) / oldZoom;const worldY = (mY - viewportElement.offsetHeight/2 - oPY) / oldZoom;targetData[currentPanXProp] = (mX - viewportElement.offsetWidth/2) - (worldX * newCalculatedZoom);targetData[currentPanYProp] = (mY - viewportElement.offsetHeight/2) - (worldY * newCalculatedZoom);}if(isSolarView) currentClampFunction(targetData, viewportElement.offsetWidth, viewportElement.offsetHeight);else currentClampFunction(targetData); currentRenderFunction(true);if (isSolarView) { const activeSysView = gameSessionData.solarSystemView;activeSysView.planets.forEach(planet => {if (planet.element) {const planetScreenX = planet.distance * Math.cos(planet.currentOrbitalAngle);const planetScreenY = planet.distance * Math.sin(planet.currentOrbitalAngle);planet.element.style.left = `calc(50% + ${planetScreenX}px - ${planet.size / 2}px)`;planet.element.style.top = `calc(50% + ${planetScreenY}px - ${planet.size / 2}px)`;planet.element.style.transform = `translate(-50%, -50%) rotate(${planet.currentAxialAngle}rad)`;}});drawAllOrbits(); }}

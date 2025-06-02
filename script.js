@@ -855,19 +855,7 @@ for (let i = 0; i < steps; i++) {
         let sx = Math.floor(texU * textureWidth);
         let sy = Math.floor(texV * textureHeight);
 
-        // Get pixel color from texture
-        const texCtx = textureCanvas.getContext('2d'); // Put this before the loops!
-                for (let i = 0; i < steps; i++) {
-                    for (let j = 0; j < steps; j++) {
-        // ... existing code ...
-        const imageData = texCtx.getImageData(sx, sy, 1, 1).data;
-        ctx.fillStyle = `rgba(${imageData[0]},${imageData[1]},${imageData[2]},${imageData[3] / 255})`;
-        ctx.fillRect(centerX + nx * radius, centerY + ny * radius, 1, 1);
-    }
-}
-        ctx.fillRect(centerX + nx * radius, centerY + ny * radius, 1, 1);
-    }
-}
+
 ctx.restore();
             // Apply shading over the entire planet (both water and land)
             const shadeGradient = ctx.createRadialGradient(

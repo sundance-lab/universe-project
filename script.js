@@ -553,7 +553,7 @@ document.addEventListener('DOMContentLoaded', () => {
         const canvas = document.createElement('canvas'); // Offscreen canvas
         canvas.width = textureSize * 2; // Make width:height 2:1 for full cylindrical map (equirectangular projection)
         canvas.height = textureSize;
-        const ctx = canvas.getContext('2d');
+        const ctx = canvas.getContext('2d', { willReadFrequently: true });
 
         // Draw water background for the entire texture
         ctx.fillStyle = planetData.waterColor;

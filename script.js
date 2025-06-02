@@ -760,7 +760,9 @@ renderPlanetVisual(newPlanet, rotationLongitude, rotationLatitude);
         ctx.clearRect(0, 0, canvasWidth, canvasHeight);
 
         const radius = Math.min(canvasWidth, canvasHeight) * 0.4; 
-        
+          const steps = isDraggingPlanetVisual
+        ? Math.ceil(radius * 0.7)   // Lower quality during drag (tweak as needed)
+        : Math.ceil(radius * 2);    // Full quality when not dragging
         // Define light source angle (fixed relative to viewer for consistent shading)
         const lightSourceLongitude = Math.PI / 4; // Angle from the front (e.g., 45 degrees left)
         const lightSourceLatitude = Math.PI / 8; // Angle from the equator (e.g., 22.5 degrees up)
@@ -812,16 +814,11 @@ renderPlanetVisual(newPlanet, rotationLongitude, rotationLatitude);
             const textureWidth = textureCanvas.width;
             const textureHeight = textureCanvas.height;
 
-            // Calculate the horizontal pixel offset for the texture based on the current rotation angle.
-            // A full rotation (2 * PI radians) corresponds to the full width of the texture.
-// Calculate the horizontal pixel offset for the texture based on the current longitude rotation angle.
 let texturePixelOffset = (longitude / (2 * Math.PI)) * textureWidth;            
-            // Ensure the offset wraps around correctly for continuous scrolling feedback
+            
             texturePixelOffset = texturePixelOffset % textureWidth;
-            if (texturePixelOffset > 0) texturePixelOffset -= textureWidth; // Adjust to make the "wrapping from right" logic simpler
+            if (texturePixelOffset > 0) texturePixelOffset -= textureWidth; ler
 
-            // Draw the texture multiple times to create a seamless scrolling effect
-            // We draw the texture, shifted by the rotation offset, and stretched to fit the sphere's diameter.
 ctx.save();
 ctx.beginPath();
 ctx.arc(centerX, centerY, radius, 0, Math.PI * 2);

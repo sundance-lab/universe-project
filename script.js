@@ -730,7 +730,6 @@ fetch(`https://save-api.nicholasgutteridge512.workers.dev/?key=$`)
         rotationLongitude = 0;
         rotationLatitude = 0;
 
-        // Reset segmentsData when opening panel for new planet
         if (newPlanet.segmentsData) {
             newPlanet.segmentsData.map.forEach(seg => seg.isPink = false);
         }
@@ -760,89 +759,113 @@ fetch(`https://save-api.nicholasgutteridge512.workers.dev/?key=$`)
   }
 
 function generateSegmentData(planetData) {
-    let numSegmentsToCreate = Math.floor(Math.random() * (80 - 30 + 1)) + 30;
-    let numLatDivisions = Math.max(5, Math.floor(Math.sqrt(numSegmentsToCreate)));
-    let numLonDivisions = Math.ceil(numSegmentsToCreate / numLatDivisions);
+    const totalSegments = Math.floor(Math.random() * (80 - 30 + 1)) + 30; // 30 to 80 segments
+    let numLat = Math.max(3, Math.round(Math.sqrt(totalSegments * (0.8 + Math.random() * 0.4))));
+    let numLon = Math.max(3, Math.round(totalSegments / numLat));
+
+    // Generate random latitude band divisions
+    const latBandStarts = [0];
+    for (let i = 0; i < numLat - 1; i++) {
+        latBandStarts.push(Math.random() * Math.PI);
+    }
+    latBandStarts.sort((a, b) => a - b);
+    latBandStarts.push(Math.PI);
+
+    // Generate random longitude slice divisions
+    const lonSliceStarts = [0];
+    for (let i = 0; i < numLon - 1; i++) {
+        lonSliceStarts.push(Math.random() * 2 * Math.PI);
+    }
+    lonSliceStarts.sort((a, b) => a - b);
+    lonSliceStarts.push(2 * Math.PI);
 
     planetData.segmentsData = {
         map: new Map(),
-        numLat: numLatDivisions,
-        numLon: numLonDivisions,
-        totalActual: numLatDivisions * numLonDivisions
+        numLat: numLat,
+        numLon: numLon,
+        latBandStarts: latBandStarts,
+        lonSliceStarts: lonSliceStarts
     };
 
-    for (let i = 0; i < numLatDivisions; i++) {
-        for (let j = 0; j < numLonDivisions; j++) {
+    for (let i = 0; i < numLat; i++) {
+        for (let j = 0; j < numLon; j++) {
             planetData.segmentsData.map.set(`${i},${j}`, { isPink: false });
         }
     }
 }
 
 function drawSegmentLines(ctx, planetData, currentLon, currentLat, sphereRadius, centerX, centerY) {
-    if (!planetData.segmentsData) return;
+    if (!planetData.segmentsData || planetData.segmentsData.latBandStarts.length < 2 || planetData.segmentsData.lonSliceStarts.length < 2) return;
 
-    const { numLat, numLon } = planetData.segmentsData;
+    const { latBandStarts, lonSliceStarts, numLat, numLon } = planetData.segmentsData;
 
     ctx.strokeStyle = 'rgba(255, 255, 255, 0.4)';
     ctx.lineWidth = 1;
 
-    for (let i = 0; i <= numLat; i++) { // Latitude lines
-        const phi = i * Math.PI / numLat; // 0 to PI
+    // Draw Latitude lines
+    for (let i = 0; i < latBandStarts.length; i++) {
+        const phi = latBandStarts[i];
         ctx.beginPath();
         let firstPoint = true;
-        for (let j = 0; j <= numLon; j++) {
-            const thetaRaw = j * 2 * Math.PI / numLon; // 0 to 2PI
-            const theta = thetaRaw - Math.PI; // -PI to PI
+        for (let j = 0; j < lonSliceStarts.length; j++) {
+            const theta = lonSliceStarts[j] - Math.PI; // Convert to -PI to PI for rotation logic
 
-            // Transform spherical to Cartesian (x, y, z) for radius 1 sphere
             let x = Math.sin(phi) * Math.sin(theta);
-            let y = -Math.cos(phi); // Y is vertical, so cos(phi) changes with latitude
-            let z = Math.sin(phi) * Math.cos(theta); // Z is depth
+            let y = -Math.cos(phi);
+            let z = Math.sin(phi) * Math.cos(theta);
 
             // Apply current rotation
-            // Rotate around Y-axis (longitude)
-            let rotatedX_lon = x * Math.cos(currentLon) + z * Math.sin(currentLon);
-            let rotatedZ_lon = -x * Math.sin(currentLon) + z * Math.cos(currentLon);
+            let rotatedX_lat = x;
+            let rotatedY_lat = y * Math.cos(currentLat) - z * Math.sin(currentLat);
+            let rotatedZ_lat = y * Math.sin(currentLat) + z * Math.cos(currentLat);
             
-            // Rotate around X-axis (latitude)
-            let rotatedY = y * Math.cos(currentLat) - rotatedZ_lon * Math.sin(currentLat);
-            let rotatedZ = y * Math.sin(currentLat) + rotatedZ_lon * Math.cos(currentLat);
-            let rotatedX = rotatedX_lon;
+            let rotatedX = rotatedX_lat * Math.cos(currentLon) + rotatedZ_lat * Math.sin(currentLon);
+            let rotatedZ = -rotatedX_lat * Math.sin(currentLon) + rotatedZ_lat * Math.cos(currentLon);
+            let rotatedY = rotatedY_lat;
 
+            if (rotatedZ < -1) continue;
 
-            if (rotatedZ < -1) continue; // Don't draw points behind the sphere (normalized depth)
-            
-            const canvasX = centerX + rotatedX * sphereRadius + (Math.random() - 0.5) * 0.5; // Jitter
-            const canvasY = centerY + rotatedY * sphereRadius + (Math.random() - 0.5) * 0.5; // Jitter
+            const jitterX = (Math.random() - 0.5) * 0.7; // Increased jitter
+            const jitterY = (Math.random() - 0.5) * 0.7;
+
+            const canvasX = centerX + rotatedX * sphereRadius + jitterX;
+            const canvasY = centerY + rotatedY * sphereRadius + jitterY;
 
             if (firstPoint) { ctx.moveTo(canvasX, canvasY); firstPoint = false; } else { ctx.lineTo(canvasX, canvasY); }
         }
         ctx.stroke();
     }
 
-    for (let j = 0; j <= numLon; j++) { // Longitude lines
-        const thetaRaw = j * 2 * Math.PI / numLon;
-        const theta = thetaRaw - Math.PI;
+    // Draw Longitude lines
+    for (let j = 0; j < lonSliceStarts.length; j++) {
+        const thetaRaw = lonSliceStarts[j];
+        const theta = thetaRaw - Math.PI; // Convert to -PI to PI
         ctx.beginPath();
         let firstPoint = true;
-        for (let i = 0; i <= numLat; i++) {
-            const phi = i * Math.PI / numLat;
+        for (let i = 0; i < latBandStarts.length; i++) {
+            const phi = latBandStarts[i];
 
             let x = Math.sin(phi) * Math.sin(theta);
             let y = -Math.cos(phi);
             let z = Math.sin(phi) * Math.cos(theta);
-            
-            let rotatedX_lon = x * Math.cos(currentLon) + z * Math.sin(currentLon);
-            let rotatedZ_lon = -x * Math.sin(currentLon) + z * Math.cos(currentLon);
-            
-            let rotatedY = y * Math.cos(currentLat) - rotatedZ_lon * Math.sin(currentLat);
-            let rotatedZ = y * Math.sin(currentLat) + rotatedZ_lon * Math.cos(currentLat);
-            let rotatedX = rotatedX_lon;
 
-            if (rotatedZ < -1) continue; // Don't draw points behind the sphere
+            // Apply current rotation
+            let rotatedX_lat = x;
+            let rotatedY_lat = y * Math.cos(currentLat) - z * Math.sin(currentLat);
+            let rotatedZ_lat = y * Math.sin(currentLat) + z * Math.cos(currentLat);
+            
+            let rotatedX = rotatedX_lat * Math.cos(currentLon) + rotatedZ_lat * Math.sin(currentLon);
+            let rotatedZ = -rotatedX_lat * Math.sin(currentLon) + rotatedZ_lat * Math.cos(currentLon);
+            let rotatedY = rotatedY_lat;
 
-            const canvasX = centerX + rotatedX * sphereRadius + (Math.random() - 0.5) * 0.5; // Jitter
-            const canvasY = centerY + rotatedY * sphereRadius + (Math.random() - 0.5) * 0.5; // Jitter
+
+            if (rotatedZ < -1) continue;
+
+            const jitterX = (Math.random() - 0.5) * 0.7;
+            const jitterY = (Math.random() - 0.5) * 0.7;
+
+            const canvasX = centerX + rotatedX * sphereRadius + jitterX;
+            const canvasY = centerY + rotatedY * sphereRadius + jitterY;
 
             if (firstPoint) { ctx.moveTo(canvasX, canvasY); firstPoint = false; } else { ctx.lineTo(canvasX, canvasY); }
         }
@@ -863,87 +886,29 @@ function drawSegmentLines(ctx, planetData, currentLon, currentLat, sphereRadius,
 
     const radius = Math.min(canvasWidth, canvasHeight) * 0.4;
     const steps = isDraggingPlanetVisual
-    ? Math.ceil(radius * 0.7)
+    ? Math.ceil(radius * 1.0)
     : Math.ceil(radius * 2);
 
+    // Light source vector
     const lightSourceLongitude = Math.PI / 4;
     const lightSourceLatitude = Math.PI / 8;
 
-    const lightX3D = Math.cos(lightSourceLatitude) * Math.sin(lightSourceLongitude);
-    const lightY3D = Math.sin(lightSourceLatitude);
+    const lightVecX = Math.cos(lightSourceLatitude) * Math.cos(lightSourceLongitude);
+    const lightVecY = Math.sin(lightSourceLatitude);
+    const lightVecZ = Math.cos(lightSourceLatitude) * Math.sin(lightSourceLongitude); // Pointing towards camera
 
-    const lightDrawX = centerX + radius * lightX3D;
-    const lightDrawY = centerY + radius * lightY3D;
+    const lightDrawX = centerX + radius * lightVecX;
+    const lightDrawY = centerY + radius * lightVecY;
 
     if (!planetData.segmentsData) {
         generateSegmentData(planetData);
     }
 
-    if (planetData.type === 'normal') {
-      const hue = planetData.color.hue;
-      const saturation = planetData.color.saturation;
-      const lightness = planetData.color.lightness;
-
-      const gradient = ctx.createRadialGradient(
-        lightDrawX, lightDrawY, radius * 0.1,
-        centerX, centerY, radius * 1.8
-      );
-
-      const lighterColor = `hsl(${hue}, ${saturation}%, ${Math.min(100, lightness + 15)}%)`;
-      const darkerColor = `hsl(${hue}, ${saturation}%, ${Math.max(0, lightness - 15)}%)`;
-
-      gradient.addColorStop(0, lighterColor);
-      gradient.addColorStop(1, darkerColor);
-
-      ctx.beginPath();
-      ctx.arc(centerX, centerY, radius, 0, Math.PI * 2);
-      ctx.fillStyle = gradient;
-      ctx.fill();
-
-      ctx.shadowColor = `hsl(${hue}, ${saturation}%, ${lightness + 5}%)`;
-      ctx.shadowBlur = radius * 0.1;
-      ctx.shadowOffsetX = 0;
-      ctx.shadowOffsetY = 0;
-      ctx.fill();
-      ctx.shadowBlur = 0;
-
-        // Apply pink to segments if needed for normal planets
-        const { numLat, numLon } = planetData.segmentsData;
-        planetData.segmentsData.map.forEach((segment, key) => {
-            if (segment.isPink) {
-                const [latBand, lonBand] = key.split(',').map(Number);
-                
-                // Approximate segment bounds in 2D for drawing a pink overlay
-                // This is a simplified projection for flat segments
-                const phiStart = latBand * Math.PI / numLat;
-                const phiEnd = (latBand + 1) * Math.PI / numLat;
-                const thetaStartRaw = lonBand * 2 * Math.PI / numLon;
-                const thetaEndRaw = (lonBand + 1) * 2 * Math.PI / numLon;
-
-                // Project 4 corners of the segment (or a simplified rect)
-                // This would need proper 3D to 2D projection considering rotation
-                // For simplicity, we just draw over the sphere.
-                // A better approach would be to draw a Path2D polygon.
-
-                // For normal planets, the effect is less complex than terrestrial because no texture mapping
-                // We'll iterate through the sphere's pixels just like terrestrial, but override with color.
-                // The pixel loop below can be adapted for normal planets (copy the terrestrial loop below).
-                // However, the original prompt implies a texture for terrestrial.
-                // For normal, a direct fill with an adjusted hue (tinted pink) could be an alternative.
-
-                // To keep it consistent, we'll use the same pixel-based approach as terrestrial.
-                // Re-rendering a segment with pink over a gradient is just changing the HSL lightness/saturation.
-                // For now, let's just make it pink.
-            }
-        });
-    }
-
-    // Terrestrial AND Normal planet rendering using pixel-based spherical projection
-    // This is the core rendering logic for both types to support segments.
+    // Main pixel rendering loop for both normal and terrestrial planets
     ctx.save();
     ctx.beginPath();
     ctx.arc(centerX, centerY, radius, 0, Math.PI * 2);
-    ctx.clip(); // Clip drawing to the planet circle
+    ctx.clip();
 
     let textureData = null;
     let textureWidth = 0;
@@ -961,38 +926,40 @@ function drawSegmentLines(ctx, planetData, currentLon, currentLat, sphereRadius,
         for (let j = 0; j < steps; j++) {
             const nx = (i / (steps - 1)) * 2 - 1;
             const ny = (j / (steps - 1)) * 2 - 1;
-            if (nx * nx + ny * ny > 1) continue; // Outside the circle
+            if (nx * nx + ny * ny > 1) continue;
 
-            // 3D sphere coordinates before rotation (normalized, assuming radius 1 for calculation)
             let x = nx;
             let y = ny;
             let z = Math.sqrt(1 - x * x - y * y);
 
-            // Apply vertical (latitude) rotation
-            let yRotatedLat = y * Math.cos(latitude) - z * Math.sin(latitude);
-            let zRotatedLat = y * Math.sin(latitude) + z * Math.cos(latitude);
-
-            // Apply horizontal (longitude) rotation
-            let xRotatedLon = x * Math.cos(longitude) - zRotatedLat * Math.sin(longitude);
-            let zRotatedLon = x * Math.sin(longitude) + zRotatedLat * Math.cos(longitude);
-
-            // Convert to spherical coordinates (theta=longitude, phi=latitude) on the UNROTATED texture map.
-            // These are the coordinates for sampling the static texture.
-            let theta = Math.atan2(xRotatedLon, zRotatedLon); // Range -PI to PI
-            let phi = Math.acos(yRotatedLat); // Range 0 to PI
+            let rotatedX_lat = x;
+            let rotatedY_lat = y * Math.cos(latitude) - z * Math.sin(latitude);
+            let rotatedZ_lat = y * Math.sin(latitude) + z * Math.cos(latitude);
+            
+            let rotatedX = rotatedX_lat * Math.cos(longitude) + rotatedZ_lat * Math.sin(longitude);
+            let rotatedZ = -rotatedX_lat * Math.sin(longitude) + rotatedZ_lat * Math.cos(longitude);
+            let rotatedY = rotatedY_lat;
 
             let r, g, b, a;
 
-            if (planetData.type === 'terrestrial') {
-                // Map to texture coordinates (0 to 1)
-                let texU = (theta / (2 * Math.PI)) + 0.5; // Scale longitude to 0-1
-                let texV = phi / Math.PI; // Scale latitude to 0-1
+            // Calculate current pixel's normal vector on the sphere (same as its position vector)
+            const normalX = rotatedX;
+            const normalY = rotatedY;
+            const normalZ = rotatedZ; // Depth in front/back of sphere
 
-                // Sample the texture
+            // Lighting calculation
+            const ambientLight = 0.25; // Minimum light for the dark side
+            const diffuseLight = 0.75;
+            const dotProduct = normalX * lightVecX + normalY * lightVecY + normalZ * lightVecZ;
+            const lightIntensity = Math.max(0, dotProduct) * diffuseLight + ambientLight; // Max(0, dot) for diffuse, add ambient
+            
+            if (planetData.type === 'terrestrial') {
+                let texU = (Math.atan2(rotatedX, rotatedZ) / (2 * Math.PI)) + 0.5;
+                let texV = Math.acos(rotatedY) / Math.PI;
+
                 let sx = Math.floor(texU * textureWidth);
                 let sy = Math.floor(texV * textureHeight);
 
-                // Clamp texture coordinates to avoid issues at edges
                 sx = Math.max(0, Math.min(textureWidth - 1, sx));
                 sy = Math.max(0, Math.min(textureHeight - 1, sy));
 
@@ -1006,43 +973,56 @@ function drawSegmentLines(ctx, planetData, currentLon, currentLat, sphereRadius,
                 const saturation = planetData.color.saturation;
                 const lightness = planetData.color.lightness;
 
-                // Simple shading for normal planets
-                // Calculate luminance based on light source direction
-                const lightIntensity = Math.abs(xRotatedLon * lightX3D + yRotatedLat * lightY3D + zRotatedLon * 0.5); // Simplified cosine angle with light source
+                const currentLightness = lightness * lightIntensity;
                 
-                const currentLightness = lightness + (lightIntensity * 20 - 10); // Adjust lightness based on light
-                const color = `hsl(${hue}, ${saturation}%, ${Math.max(0, Math.min(100, currentLightness))}%)`;
-                
-                // Convert HSL to RGB for direct setting
                 const hslToRgb = (h, s, l) => {
                     s /= 100;
                     l /= 100;
                     let c = (1 - Math.abs(2 * l - 1)) * s,
                         x = c * (1 - Math.abs(((h / 60) % 2) - 1)),
                         m = l - c / 2,
-                        r = 0,
-                        g = 0,
-                        b = 0;
-                    if (0 <= h && h < 60) {r = c; g = x; b = 0;}
-                    else if (60 <= h && h < 120) {r = x; g = c; b = 0;}
-                    else if (120 <= h && h < 180) {r = 0; g = c; b = x;}
-                    else if (180 <= h && h < 240) {r = 0; g = x; b = c;}
-                    else if (240 <= h && h < 300) {r = x; g = 0; b = c;}
-                    else if (300 <= h && h < 360) {r = c; g = 0; b = x;}
-                    r = Math.round((r + m) * 255);
-                    g = Math.round((g + m) * 255);
-                    b = Math.round((b + m) * 255);
-                    return [r, g, b];
+                        r_val = 0,
+                        g_val = 0,
+                        b_val = 0;
+                    if (0 <= h && h < 60) {r_val = c; g_val = x; b_val = 0;}
+                    else if (60 <= h && h < 120) {r_val = x; g_val = c; b_val = 0;}
+                    else if (120 <= h && h < 180) {r_val = 0; g_val = c; b_val = x;}
+                    else if (180 <= h && h < 240) {r_val = 0; g_val = x; b_val = c;}
+                    else if (240 <= h && h < 300) {r_val = x; g_val = 0; b_val = c;}
+                    else if (300 <= h && h < 360) {r_val = c; g_val = 0; b_val = x;}
+                    r_val = Math.round((r_val + m) * 255);
+                    g_val = Math.round((g_val + m) * 255);
+                    b_val = Math.round((b_val + m) * 255);
+                    return [r_val, g_val, b_val];
                 };
                 [r, g, b] = hslToRgb(hue, saturation, Math.max(0, Math.min(100, currentLightness)));
                 a = 255;
             }
 
-            // Check if this pixel's segment is pink
-            const latBand = Math.floor( (phi / Math.PI) * planetData.segmentsData.numLat );
-            const lonBand = Math.floor( ( (theta + Math.PI) / (2 * Math.PI) ) * planetData.segmentsData.numLon );
-            const segment = planetData.segmentsData.map.get(`${latBand},${lonBand}`);
+            // Determine which segment this pixel belongs to for 'pink' coloring
+            // Convert rotated spherical coordinates back to texture map's 0-PI / 0-2PI range
+            const phi_unrotated = Math.acos(rotatedY); // 0 to PI
+            const theta_unrotated = (Math.atan2(rotatedX, rotatedZ) + 2 * Math.PI) % (2 * Math.PI); // 0 to 2PI
 
+            let latBandIndex = -1;
+            for (let k = 0; k < planetData.segmentsData.latBandStarts.length - 1; k++) {
+                if (phi_unrotated >= planetData.segmentsData.latBandStarts[k] && phi_unrotated < planetData.segmentsData.latBandStarts[k + 1]) {
+                    latBandIndex = k;
+                    break;
+                }
+            }
+            if (latBandIndex === -1 && phi_unrotated === Math.PI) latBandIndex = planetData.segmentsData.numLat - 1; // Handle edge case at South Pole
+
+            let lonBandIndex = -1;
+            for (let k = 0; k < planetData.segmentsData.lonSliceStarts.length - 1; k++) {
+                if (theta_unrotated >= planetData.segmentsData.lonSliceStarts[k] && theta_unrotated < planetData.segmentsData.lonSliceStarts[k + 1]) {
+                    lonBandIndex = k;
+                    break;
+                }
+            }
+            if (lonBandIndex === -1 && theta_unrotated === 2 * Math.PI) lonBandIndex = planetData.segmentsData.numLon - 1; // Handle edge case at 2PI longitude
+
+            const segment = planetData.segmentsData.map.get(`${latBandIndex},${lonBandIndex}`);
             if (segment && segment.isPink) {
                 r = 255; g = 105; b = 180; // Bright Pink
             }
@@ -1051,23 +1031,7 @@ function drawSegmentLines(ctx, planetData, currentLon, currentLat, sphereRadius,
             ctx.fillRect(centerX + nx * radius, centerY + ny * radius, 1, 1);
         }
     }
-    ctx.restore(); // Restore clip from previous save()
-
-    // Apply shading over the entire planet (both water and land/color)
-    const shadeGradient = ctx.createRadialGradient(
-      lightDrawX, lightDrawY, radius * 0.1,
-      centerX, centerY, radius * 1.8
-    );
-    shadeGradient.addColorStop(0, 'rgba(255,255,255,0.1)'); // Highlight
-    shadeGradient.addColorStop(0.5, 'rgba(0,0,0,0)');
-    shadeGradient.addColorStop(1, 'rgba(0,0,0,0.6)');
-
-    ctx.globalCompositeOperation = 'multiply';
-    ctx.beginPath();
-    ctx.arc(centerX, centerY, radius, 0, Math.PI * 2);
-    ctx.fillStyle = shadeGradient;
-    ctx.fill();
-    ctx.globalCompositeOperation = 'source-over';
+    ctx.restore();
 
     // Draw segment lines on top of the rendered planet
     drawSegmentLines(ctx, planetData, longitude, latitude, radius, centerX, centerY);
@@ -1171,9 +1135,8 @@ window.addEventListener('mousemove', (e) => {
   if (isDraggingPlanetVisual && currentPlanetDisplayedInPanel && planetVisualPanel.classList.contains('visible')) {
     const deltaX = e.clientX - lastDragX;
     const deltaY = e.clientY - lastDragY;
-    rotationLongitude += deltaX * 0.005; // Horizontal drag
-    rotationLatitude += deltaY * 0.005; // Vertical drag
-    // Clamp vertical rotation so you can't flip upside down
+    rotationLongitude += deltaX * 0.005;
+    rotationLatitude += deltaY * 0.005;
     rotationLatitude = Math.max(-0.49 * Math.PI, Math.min(0.49 * Math.PI, rotationLatitude));
     lastDragX = e.clientX;
     lastDragY = e.clientY;
@@ -1196,30 +1159,41 @@ planetVisualCanvas.addEventListener('click', (e) => {
 
     const radius = Math.min(planetVisualCanvas.width, planetVisualCanvas.height) * 0.4;
 
-    if (clickX * clickX + clickY * clickY > radius * radius) return; // Clicked outside the sphere
+    if (clickX * clickX + clickY * clickY > radius * radius) return;
 
-    // Convert 2D click point to 3D point on the unrotated sphere (normalized to radius 1)
     const normalizedClickX = clickX / radius;
     const normalizedClickY = clickY / radius;
     const zUnrotated = Math.sqrt(1 - normalizedClickX * normalizedClickX - normalizedClickY * normalizedClickY);
 
-    // Apply inverse rotation to get the point's original spherical coordinates
-    // We reverse latitude then longitude.
-    // Unrotate latitude
+    let xRevLat = normalizedClickX;
     let yRevLat = normalizedClickY * Math.cos(-rotationLatitude) - zUnrotated * Math.sin(-rotationLatitude);
-    let zRevLatTemp = normalizedClickY * Math.sin(-rotationLatitude) + zUnrotated * Math.cos(-rotationLatitude);
+    let zRevLat = normalizedClickY * Math.sin(-rotationLatitude) + zUnrotated * Math.cos(-rotationLatitude);
+    
+    let xSph = xRevLat * Math.cos(-rotationLongitude) - zRevLat * Math.sin(-rotationLongitude);
+    let zSph = xRevLat * Math.sin(-rotationLongitude) + zRevLat * Math.cos(-rotationLongitude);
 
-    // Unrotate longitude
-    let xRevLon = normalizedClickX * Math.cos(-rotationLongitude) - zRevLatTemp * Math.sin(-rotationLongitude);
-    let zRevLonTemp = normalizedClickX * Math.sin(-rotationLongitude) + zRevLatTemp * Math.cos(-rotationLongitude);
+    const phi = Math.acos(yRevLat);
+    const theta = (Math.atan2(xSph, zSph) + 2 * Math.PI) % (2 * Math.PI); // 0 to 2PI
 
-    const theta = Math.atan2(xRevLon, zRevLonTemp); // Longitude (-PI to PI)
-    const phi = Math.acos(yRevLat); // Latitude (0 to PI)
+    let latBandIndex = -1;
+    for (let k = 0; k < currentPlanetDisplayedInPanel.segmentsData.latBandStarts.length - 1; k++) {
+        if (phi >= currentPlanetDisplayedInPanel.segmentsData.latBandStarts[k] && phi < currentPlanetDisplayedInPanel.segmentsData.latBandStarts[k + 1]) {
+            latBandIndex = k;
+            break;
+        }
+    }
+    if (latBandIndex === -1 && phi === Math.PI) latBandIndex = currentPlanetDisplayedInPanel.segmentsData.numLat - 1;
 
-    const latBand = Math.floor( (phi / Math.PI) * currentPlanetDisplayedInPanel.segmentsData.numLat );
-    const lonBand = Math.floor( ( (theta + Math.PI) / (2 * Math.PI) ) * currentPlanetDisplayedInPanel.segmentsData.numLon );
+    let lonBandIndex = -1;
+    for (let k = 0; k < currentPlanetDisplayedInPanel.segmentsData.lonSliceStarts.length - 1; k++) {
+        if (theta >= currentPlanetDisplayedInPanel.segmentsData.lonSliceStarts[k] && theta < currentPlanetDisplayedInPanel.segmentsData.lonSliceStarts[k + 1]) {
+            lonBandIndex = k;
+            break;
+        }
+    }
+     if (lonBandIndex === -1 && theta === 2 * Math.PI) lonBandIndex = currentPlanetDisplayedInPanel.segmentsData.numLon - 1;
 
-    const segment = currentPlanetDisplayedInPanel.segmentsData.map.get(`${latBand},${lonBand}`);
+    const segment = currentPlanetDisplayedInPanel.segmentsData.map.get(`${latBandIndex},${lonBandIndex}`);
     if (segment) {
         segment.isPink = !segment.isPink;
         renderPlanetVisual(currentPlanetDisplayedInPanel, rotationLongitude, rotationLatitude);

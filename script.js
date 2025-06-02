@@ -513,18 +513,73 @@ document.addEventListener('DOMContentLoaded', () => {
         if (!gal.layoutGenerated) { setTimeout(() => { function attemptLayoutGeneration(retriesLeft = 5) { if (galaxyViewport && galaxyViewport.offsetWidth > 0) {generateSolarSystemsForGalaxy(galaxyId);renderGalaxyDetailScreen(false); } else if (retriesLeft > 0) {requestAnimationFrame(() => attemptLayoutGeneration(retriesLeft - 1));} else {gal.layoutGenerated = true; renderGalaxyDetailScreen(false); }}attemptLayoutGeneration(); }, 50); } else {renderGalaxyDetailScreen(false); }
     }
     
-    // Function to generate random landmass data (center longitude, latitude, and angular size) for terrestrial planets
-    function generateTerrestrialLandmasses(numLandmasses, maxCanvasRadius) {
+    // Function to generate random landmass data (center longitude, latitude, and base size) for terrestrial planets.
+    // These data points will be used to draw amorphous blobs on the planet's texture map.
+    function generateLandmassData(numLandmasses) {
         const landmasses = [];
         for (let i = 0; i < numLandmasses; i++) {
             landmasses.push({
                 lon: (Math.random() - 0.5) * 2 * Math.PI, // Longitude: -PI to PI
-                lat: (Math.random() - 0.5) * 0.8 * Math.PI, // Latitude: clamped to -0.4PI to 0.4PI to avoid poles
-                size: (0.15 + Math.random() * 0.15) * maxCanvasRadius // Size relative to planet visual radius
+                lat: (Math.random() - 0.5) * 0.8 * Math.PI, // Latitude: approx -63 to +63 degrees for better distribution
+                baseSize: (0.15 + Math.random() * 0.25) // Normalized size, will be scaled to texture (0.15 to 0.40 fraction of texture size)
             });
         }
         return landmasses;
     }
+
+    // Function to create a 2D texture map for terrestrial planets (water and grass regions)
+    // This texture will be drawn onto the planet's sphere in the visual panel.
+    function createTerrestrialTexture(planetData, textureSize = 512) {
+        const canvas = document.createElement('canvas'); // Offscreen canvas
+        canvas.width = textureSize;
+        canvas.height = textureSize;
+        const ctx = canvas.getContext('2d');
+
+        // Draw water background for the entire texture
+        ctx.fillStyle = planetData.waterColor;
+        ctx.fillRect(0, 0, textureSize, textureSize);
+
+        // Apply a blur filter to the landmasses to make them seamless and fluid
+        ctx.filter = `blur(${textureSize * 0.02}px)`; // Blur proportional to texture size for consistent look
+
+        ctx.fillStyle = planetData.grassColor;
+
+        // Draw landmasses onto the texture canvas
+        planetData.landmassData.forEach(lm => {
+            // Convert spherical coordinates (lon, lat) to 2D texture coordinates (x, y)
+            // lon maps to X, lat maps to Y. We normalize them to 0-1 range first.
+            const textureX = (lm.lon + Math.PI) / (2 * Math.PI) * textureSize;
+            const textureY = (lm.lat + Math.PI / 2) / Math.PI * textureSize;
+
+            const landmassDrawRadius = lm.baseSize * textureSize; // Scale normalized size to texture size
+
+            // Draw a base circle for the landmass
+            ctx.beginPath();
+            ctx.arc(textureX, textureY, landmassDrawRadius, 0, Math.PI * 2);
+            ctx.fill();
+
+            // Add additional, smaller blobs around the main landmass to create more organic shapes
+            const numAddBlobs = Math.floor(1 + Math.random() * 3); // 1-3 additional blobs per landmass
+            for (let i = 0; i < numAddBlobs; i++) {
+                const angleOffset = (Math.random() * 2 * Math.PI);
+                const radialOffset = landmassDrawRadius * (0.5 + Math.random() * 0.5); // Offset from the main blob's center
+                const blobRadius = landmassDrawRadius * (0.3 + Math.random() * 0.3); // Smaller radius for sub-blobs
+
+                ctx.beginPath();
+                ctx.arc(
+                    textureX + radialOffset * Math.cos(angleOffset),
+                    textureY + radialOffset * Math.sin(angleOffset),
+                    blobRadius,
+                    0, Math.PI * 2
+                );
+                ctx.fill();
+            }
+        });
+
+        ctx.filter = 'none'; // Reset canvas filter after drawing landmasses
+        return canvas; // Return the generated texture canvas
+    }
+
 
     function switchToSolarSystemView(solarSystemId) {
         gameSessionData.activeSolarSystemId = solarSystemId;
@@ -585,15 +640,15 @@ document.addEventListener('DOMContentLoaded', () => {
                                 currentAxialAngle: initialAxialAngle, axialSpeed: axialSpeed, 
                                 element: null };
 
-            // 50% chance for terrestrial style
+            // 50% chance for terrestrial style, otherwise 'normal'
             if(Math.random() < 0.5) {
                 newPlanet.type = 'terrestrial';
                 newPlanet.waterColor = `hsl(${200 + Math.random()*40}, ${70 + Math.random()*10}%, ${30 + Math.random()*10}%)`;
                 newPlanet.grassColor = `hsl(${100 + Math.random()*40}, ${60 + Math.random()*10}%, ${30 + Math.random()*10}%)`;
                 
-                // Terrestrial planets need dynamically generated, random landmass data
-                const visualCanvasRadius = planetVisualCanvas.width / 2; 
-                newPlanet.landmassData = generateTerrestrialLandmasses(Math.floor(2 + Math.random()*3), visualCanvasRadius); 
+                // Generate landmass data for the texture
+                newPlanet.landmassData = generateLandmassData(Math.floor(4 + Math.random()*4)); // 4-7 primary landmasses
+                newPlanet.textureCanvas = createTerrestrialTexture(newPlanet, 512); // Create and store the texture canvas
             } else {
                 newPlanet.type = 'normal';
                 const hue = Math.random() * 360, saturation = 40 + Math.random() * 40, lightnessBase = 50 + Math.random() * 10; 
@@ -606,13 +661,14 @@ document.addEventListener('DOMContentLoaded', () => {
             planetEl.style.width = `${newPlanet.size}px`;
             planetEl.style.height = `${newPlanet.size}px`;
 
+            // Set the background style for the small solar system icon based on planet type
             if (newPlanet.type === 'normal') {
                 const lighterColor = `hsl(${newPlanet.color.hue}, ${newPlanet.color.saturation}%, ${newPlanet.color.lightness + 35}%)`;
                 const darkerColor = `hsl(${newPlanet.color.hue}, ${newPlanet.color.saturation}%, ${newPlanet.color.lightness - 35}%)`; 
                 planetEl.style.background = `radial-gradient(circle at 20% 20%, ${lighterColor}, ${darkerColor})`;
             } else { // terrestrial (simplified icon for system view)
-                // A very simplified representation: 1-2 green blobs on a blue background
-                // These static colors/positions are for the small icon only, not the detailed visual
+                // For the small icon, we just create a simple representation of water and some blobs.
+                // This doesn't use the texture canvas directly, as it's too small to show detail.
                 const randomPos = 15 + Math.random() * 40; 
                 const randomSize = 20 + Math.random() * 30; 
                 let backgroundStyle = `radial-gradient(circle at ${randomPos}% ${randomPos}%, ${newPlanet.grassColor} ${randomSize}%, transparent ${randomSize + 20}%), ${newPlanet.waterColor}`;
@@ -634,8 +690,6 @@ document.addEventListener('DOMContentLoaded', () => {
 
                 const planetName = `Planet ${newPlanet.id.split('-')[1]}`;
                 planetVisualTitle.textContent = planetName; 
-                // Removed redundant "Name: Planet X" line. Now only in header.
-                // planetVisualName.textContent = planetName; 
                 planetVisualSize.textContent = Math.round(newPlanet.size);
                 planetVisualPanel.classList.add('visible');
                 
@@ -644,7 +698,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 planetVisualPanel.style.transform = 'translate(-50%, -50%)';
                 planetVisualPanel.style.transition = ''; 
 
-                currentRotationAngleInPanel = 0;
+                currentRotationAngleInPanel = 0; // Reset rotation when a new planet is selected
                 renderPlanetVisual(newPlanet, currentRotationAngleInPanel);
             });
             solarSystemContent.appendChild(planetEl);
@@ -670,6 +724,8 @@ document.addEventListener('DOMContentLoaded', () => {
         renderSolarSystemScreen(false); 
     }
 
+    // Renders the detailed visual of a planet on the planet-visual-canvas.
+    // currentRotationAngle controls the horizontal rotation of the planet's surface.
     function renderPlanetVisual(planetData, currentRotationAngle = 0) {
         if (!planetVisualCanvas) return;
 
@@ -681,22 +737,19 @@ document.addEventListener('DOMContentLoaded', () => {
 
         ctx.clearRect(0, 0, canvasWidth, canvasHeight);
 
-        const radius = Math.min(canvasWidth, canvasHeight) * 0.4; 
+        const radius = Math.min(canvasWidth, canvasHeight) * 0.4;
         
-        // Light source remains fixed relative to the viewer, but its position is calculated in 3D space
-        // The light affects shading based on its interaction with the rotating sphere.
-        const lightSourceLongitude = Math.PI / 4; // Angle from the front (e.g., 45 degrees left)
-        const lightSourceLatitude = Math.PI / 8; // Angle from the equator (e.g., 22.5 degrees up)
+        // Define light source angle (fixed relative to viewer for consistent shading)
+        const lightSourceRelativeAngle = Math.PI / 4; 
 
-        // Calculate 3D coordinates of the light source, if it were on the sphere's surface
-        const lightX3D = Math.cos(lightSourceLatitude) * Math.sin(lightSourceLongitude - currentRotationAngle);
-        const lightY3D = Math.sin(lightSourceLatitude);
-        const lightZ3D = Math.cos(lightSourceLatitude) * Math.cos(lightSourceLongitude - currentRotationAngle);
+        // Light source position in 3D-simulated space (relative to planet center)
+        const lightX3D = Math.cos(0) * Math.sin(lightSourceRelativeAngle); // Assuming light at equator for simplified Y
+        const lightY3D = Math.sin(0); 
+        const lightZ3D = Math.cos(0) * Math.cos(lightSourceRelativeAngle);
 
         // Convert 3D light source position to 2D canvas coordinates for gradient origin
         const lightDrawX = centerX + radius * lightX3D;
         const lightDrawY = centerY + radius * lightY3D;
-
 
         if (planetData.type === 'normal') {
             const hue = planetData.color.hue;
@@ -727,63 +780,50 @@ document.addEventListener('DOMContentLoaded', () => {
             ctx.shadowBlur = 0; 
 
         } else { // terrestrial
-            // Draw spherical water base
+            // Draw the planet's texture (water and landmasses)
+            // Save state, clip to a circle, translate to center, rotate, draw texture, restore state
+            ctx.save();
             ctx.beginPath();
             ctx.arc(centerX, centerY, radius, 0, Math.PI * 2);
-            ctx.fillStyle = planetData.waterColor;
-            ctx.fill();
+            ctx.clip(); // Clip everything else to this circle
 
-            // Draw landmasses
-            ctx.fillStyle = planetData.grassColor;
-            ctx.filter = `blur(${radius * 0.05}px)`; 
+            // Calculate offset for current rotation. The texture is 2*PI wide for longitude.
+            const textureRotationOffset = (currentRotationAngle % (2 * Math.PI)) / (2 * Math.PI) * planetData.textureCanvas.width;
 
-            planetData.landmassData.forEach(lm => {
-                let currentLmLongitude = lm.lon - currentRotationAngle;
+            // Draw the texture. We draw two copies to handle wrapping around the seam.
+            ctx.drawImage(
+                planetData.textureCanvas,
+                -radius - textureRotationOffset, // X position, offset by rotation
+                -radius,                         // Y position
+                radius * 2,                      // Width
+                radius * 2                       // Height
+            );
+            // Draw a second copy shifted to the right to handle wrapping around the 360-degree seam
+            ctx.drawImage(
+                planetData.textureCanvas,
+                -radius - textureRotationOffset + planetData.textureCanvas.width, // Shifted by full texture width
+                -radius,
+                radius * 2,
+                radius * 2
+            );
 
-                // Normalize longitude to be within -PI to PI
-                currentLmLongitude = (currentLmLongitude + Math.PI * 3) % (2 * Math.PI) - Math.PI;
+            ctx.restore(); // Restore context to remove clipping and transformations
 
-                // Full 3D spherical projection calculations
-                const x_coord_on_sphere = radius * Math.cos(lm.lat) * Math.sin(currentLmLongitude);
-                const y_coord_on_sphere = radius * Math.sin(lm.lat);
-                const z_depth = radius * Math.cos(lm.lat) * Math.cos(currentLmLongitude);
-
-                // Only draw if the landmass is mostly on the visible hemisphere
-                if (z_depth > -radius * 0.2) { // Allow slight visibility from the 'back' to smoothly transition
-                    // Scale factor for size and alpha based on depth
-                    const scaleFactor = (z_depth / radius) * 0.5 + 0.5; // Ranges from approx 0.5 (back) to 1.0 (front)
-
-                    ctx.beginPath();
-                    // Draw a circle for each landmass, scaled and positioned by projection
-                    ctx.arc(
-                        centerX + x_coord_on_sphere,
-                        centerY + y_coord_on_sphere,
-                        lm.size * scaleFactor, 
-                        0, Math.PI * 2
-                    );
-                    
-                    ctx.globalAlpha = Math.max(0, scaleFactor * 0.9); // Reduce alpha for parts further back
-                    ctx.fill();
-                    ctx.globalAlpha = 1.0; 
-                }
-            });
-            ctx.filter = 'none'; 
-
-            // Apply shading over both water and land as global composite operation
+            // Apply shading over the entire planet (both water and land)
             const shadeGradient = ctx.createRadialGradient(
                 lightDrawX, lightDrawY, radius * 0.1, 
                 centerX, centerY, radius * 1.8 
             );
-            shadeGradient.addColorStop(0, 'rgba(255,255,255,0.1)'); 
+            shadeGradient.addColorStop(0, 'rgba(255,255,255,0.1)'); // Highlight
             shadeGradient.addColorStop(0.5, 'rgba(0,0,0,0)');     
             shadeGradient.addColorStop(1, 'rgba(0,0,0,0.6)');    
 
-            ctx.globalCompositeOperation = 'multiply'; 
+            ctx.globalCompositeOperation = 'multiply'; // Blend as shadow
             ctx.beginPath();
             ctx.arc(centerX, centerY, radius, 0, Math.PI * 2);
             ctx.fillStyle = shadeGradient;
             ctx.fill();
-            ctx.globalCompositeOperation = 'source-over'; 
+            ctx.globalCompositeOperation = 'source-over'; // Reset blend mode
         }
     }
 

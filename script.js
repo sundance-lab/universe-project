@@ -825,45 +825,42 @@ ctx.beginPath();
 ctx.arc(centerX, centerY, radius, 0, Math.PI * 2);
 ctx.clip();
 
-const steps = Math.ceil(radius * 2); // How many vertical stripes across the sphere
+const steps = Math.ceil(radius * 2);
 for (let i = 0; i < steps; i++) {
-    // Normalized horizontal position [-1, 1]
-    const nx = (i / (steps - 1)) * 2 - 1;
-    // Angle on the sphere: -π to π (left to right)
-    const sphereAngle = Math.asin(nx);
+    for (let j = 0; j < steps; j++) {
+        const nx = (i / (steps - 1)) * 2 - 1;
+        const ny = (j / (steps - 1)) * 2 - 1;
+        if (nx * nx + ny * ny > 1) continue; // Outside the circle
 
-    // Texture longitude (0...1), with rotation
-  const steps = Math.ceil(radius * 2);
-    for (let i = 0; i < steps; i++) {
-        const nx = (i / (steps - 1)) * 2 - 1; // -1 to 1
-        for (let j = 0; j < steps; j++) {
-            const ny = (j / (steps - 1)) * 2 - 1; // -1 to 1
-            if (nx * nx + ny * ny > 1) continue; // outside the circle
+        // 3D sphere coordinates before rotation
+        let x = nx;
+        let y = ny;
+        let z = Math.sqrt(1 - x * x - y * y);
 
-            // 3D sphere coordinates
-            let x = nx;
-            let y = ny;
-            let z = Math.sqrt(1 - x * x - y * y);
+        // Apply vertical (latitude) rotation
+        let y2 = y * Math.cos(latitude) - z * Math.sin(latitude);
+        let z2 = y * Math.sin(latitude) + z * Math.cos(latitude);
 
-            // Apply latitude (vertical) rotation
-            let ry = y * Math.cos(latitude) - z * Math.sin(latitude);
-            let rz = y * Math.sin(latitude) + z * Math.cos(latitude);
+        // Apply horizontal (longitude) rotation
+        let x2 = x * Math.cos(longitude) - z2 * Math.sin(longitude);
+        let z3 = x * Math.sin(longitude) + z2 * Math.cos(longitude);
 
-            // Apply longitude (horizontal) rotation
-            let rx = x * Math.cos(longitude) - rz * Math.sin(longitude);
-            let rz2 = x * Math.sin(longitude) + rz * Math.cos(longitude);
+        // Convert to spherical coordinates
+        let theta = Math.atan2(x2, z3);
+        let phi = Math.acos(y2);
 
-            // Now, map (rx, ry, rz2) to sphere coordinates
-            let theta = Math.atan2(rx, rz2); // longitude
-            let phi = Math.acos(ry);         // latitude
+        // Map to texture coordinates
+        let texU = (theta / (2 * Math.PI)) + 0.5;
+        let texV = phi / Math.PI;
 
-            // Convert to texture coordinates (U,V)
-            let texU = (theta / (2 * Math.PI)) + 0.5;
-            let texV = phi / Math.PI;
+        // Sample the texture
+        let sx = Math.floor(texU * textureWidth);
+        let sy = Math.floor(texV * textureHeight);
 
-            // Draw pixel at (canvasX, canvasY) using color from (texU, texV) in the texture
-            // (You'll need to sample the textureCanvas at those coords)
-        }
+        // Get pixel color from texture
+        const imageData = textureCanvas.getContext('2d').getImageData(sx, sy, 1, 1).data;
+        ctx.fillStyle = `rgba(${imageData[0]},${imageData[1]},${imageData[2]},${imageData[3] / 255})`;
+        ctx.fillRect(centerX + nx * radius, centerY + ny * radius, 1, 1);
     }
 }
 ctx.restore();

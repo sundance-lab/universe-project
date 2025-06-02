@@ -817,7 +817,7 @@ renderPlanetVisual(newPlanet, rotationLongitude, rotationLatitude);
 let texturePixelOffset = (longitude / (2 * Math.PI)) * textureWidth;            
             
             texturePixelOffset = texturePixelOffset % textureWidth;
-            if (texturePixelOffset > 0) texturePixelOffset -= textureWidth; ler
+            if (texturePixelOffset > 0) texturePixelOffset -= textureWidth; 
 
 ctx.save();
 ctx.beginPath();

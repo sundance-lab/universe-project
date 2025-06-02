@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Galaxies Reimagined - V1.3.10.2 (Persistent Layout)</title>
+    <title>Galaxies Reimagined - V1.3.10.2 (Customizable Generation)</title>
     <style>
         * { margin: 0; padding: 0; box-sizing: border-box; }
         body {font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background-color: #000; color: #fff; display: flex; justify-content: center; align-items: center; min-height: 100vh; overflow: hidden; }
@@ -57,7 +57,7 @@
             pointer-events: none;
             z-index: 3;
         }
-        .controls-overlay { position: fixed; top: 0; left:0; width: 100%; height: 100%; z-index: 200; pointer-events: none; } /* Ensure it covers screen to place buttons */
+        .controls-overlay { position: fixed; top:0; left:0; width:100%; height:auto; z-index: 200; pointer-events: none; }
         .controls-overlay > * { pointer-events: all; }
         #zoom-controls { position: fixed; bottom: 15px; right: 15px; display: none; gap: 8px; z-index: 201; }
         #zoom-controls.visible { display: flex; }
@@ -66,8 +66,25 @@
         .back-button { position: fixed; bottom: 15px; left: 15px; padding: 10px 20px; font-size: 1.1em; font-weight: 700; cursor: pointer; background-color: #2c2c2c; color: #fff; border: 2px solid #4f4f4f; border-radius: 8px; transition: background-color .2s, transform .1s; z-index: 201; }
         .back-button:hover { background-color: #4f4f4f; }
         .back-button:active { transform: scale(.95); }
-        #regenerate-universe-btn {position: fixed; top: 60px; left: 15px; z-index: 301; padding: 8px 12px; font-size: 0.9em; background-color: #c0392b; color: white; border: 1px solid #a93226; border-radius: 5px; cursor: pointer;}
+        
+        .control-button {padding: 8px 12px; font-size: 0.9em; color: white; border-radius: 5px; cursor: pointer; margin: 5px;}
+        #regenerate-universe-btn {position: fixed; top: 60px; left: 15px; z-index: 301; background-color: #c0392b; border: 1px solid #a93226;}
         #regenerate-universe-btn:hover { background-color: #e74c3c;}
+        #customize-generation-btn {position: fixed; top: 105px; left: 15px; z-index: 301; background-color: #2980b9; border: 1px solid #2471a3;}
+        #customize-generation-btn:hover { background-color: #3498db;}
+
+        .modal-overlay { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background-color: rgba(0,0,0,0.7); display: none; justify-content: center; align-items: center; z-index: 1000;}
+        .modal-overlay.visible { display: flex; }
+        .modal-content { background-color: #2c3e50; padding: 25px; border-radius: 8px; box-shadow: 0 5px 15px rgba(0,0,0,0.5); min-width: 350px; max-width: 90%;}
+        .modal-content h2 { margin-top: 0; margin-bottom: 20px; color: #ecf0f1; }
+        .modal-content label { display: block; margin-bottom: 5px; color: #bdc3c7; font-size: 0.9em;}
+        .modal-content input[type="number"] { width: 100%; padding: 8px; margin-bottom: 15px; border-radius: 4px; border: 1px solid #7f8c8d; background-color: #34495e; color: #ecf0f1; font-size: 1em;}
+        .modal-actions { text-align: right; margin-top: 20px; }
+        .modal-actions button { padding: 10px 18px; margin-left: 10px; border-radius: 5px; border: none; cursor: pointer; font-weight: bold;}
+        #apply-customization-btn { background-color: #27ae60; color: white;}
+        #apply-customization-btn:hover { background-color: #2ecc71;}
+        #cancel-customization-btn { background-color: #7f8c8d; color: #2c3e50;}
+        #cancel-customization-btn:hover { background-color: #95a5a6;}
     </style>
 </head>
 <body>
@@ -77,13 +94,37 @@
         <div id="solar-system-screen" class="screen"><div class="screen-title" id="solar-system-title">Solar System</div><div id="solar-system-content">
         </div><button class="back-button" id="back-to-galaxy">&larr; Galaxy</button></div>
     </div>
+
     <div class="controls-overlay">
         <div id="zoom-controls"><button id="zoom-out-btn">-</button><button id="zoom-in-btn">+</button></div>
-        <button id="regenerate-universe-btn">Generate New Universe</button>
+        <button id="regenerate-universe-btn" class="control-button">Generate New Universe</button>
+        <button id="customize-generation-btn" class="control-button">Customize Generation...</button>
+    </div>
+
+    <div id="customization-modal" class="modal-overlay">
+        <div class="modal-content">
+            <h2>Customize Generation</h2>
+            <label for="num-galaxies-input">Number of Galaxies (1-10):</label>
+            <input type="number" id="num-galaxies-input" min="1" max="10">
+
+            <label for="min-ss-input">Min Solar Systems per Galaxy (e.g., 50-500):</label>
+            <input type="number" id="min-ss-input" min="10" max="1000">
+
+            <label for="max-ss-input">Max Solar Systems per Galaxy (e.g., 100-1000):</label>
+            <input type="number" id="max-ss-input" min="10" max="2000">
+            
+            <label for="ss-spread-input">Solar System Spread Multiplier (0.5-3.0):</label>
+            <input type="number" id="ss-spread-input" min="0.1" max="5.0" step="0.1">
+
+            <div class="modal-actions">
+                <button id="cancel-customization-btn">Cancel</button>
+                <button id="apply-customization-btn">Apply & Regenerate</button>
+            </div>
+        </div>
     </div>
 
     <script>
-        console.log("Script V1.3.10.2 (Persistent Layout) Loaded.");
+        console.log("Script V1.3.10.2 (Customizable Generation) Loaded.");
 
         document.addEventListener('DOMContentLoaded', () => {
             console.log("DOM fully loaded (V1.3.10.2).");
@@ -105,22 +146,86 @@
             const zoomInButton = document.getElementById('zoom-in-btn');
             const zoomOutButton = document.getElementById('zoom-out-btn');
             const regenerateUniverseButton = document.getElementById('regenerate-universe-btn');
+            const customizeGenerationButton = document.getElementById('customize-generation-btn');
+            const customizationModal = document.getElementById('customization-modal');
+            const applyCustomizationButton = document.getElementById('apply-customization-btn');
+            const cancelCustomizationButton = document.getElementById('cancel-customization-btn');
+            const numGalaxiesInput = document.getElementById('num-galaxies-input');
+            const minSSInput = document.getElementById('min-ss-input');
+            const maxSSInput = document.getElementById('max-ss-input');
+            const ssSpreadInput = document.getElementById('ss-spread-input');
 
             let linesCtx; 
             let solarSystemOrbitCanvasEl;
             let orbitCtx;
             let animationFrameId = null;
 
-            const GALAXY_ICON_SIZE = 60; const SOLAR_SYSTEM_BASE_ICON_SIZE = 2.5; const SUN_ICON_SIZE = 60; const NUM_GALAXIES = 3; const MAX_PLACEMENT_ATTEMPTS = 150; const DEFAULT_MIN_SS_COUNT = 200; const DEFAULT_MAX_SS_COUNT = 300; const GALAXY_VIEW_MIN_ZOOM = 1.0; const GALAXY_VIEW_MAX_ZOOM = 5.0; const SOLAR_SYSTEM_VIEW_MIN_ZOOM = 0.05; const SOLAR_SYSTEM_VIEW_MAX_ZOOM = 10.0; const ZOOM_STEP = 0.2;
-            const MAX_CONNECTIONS_PER_SYSTEM = 3; 
-            const MAX_NEIGHBOR_CANDIDATES_FOR_ADDITIONAL_CONNECTIONS = 5;
-            const MAX_EUCLIDEAN_CONNECTION_DISTANCE_PERCENT = 0.07; 
-            const MAX_FORCED_CONNECTION_DISTANCE_PERCENT = 0.20;
-            const MIN_PLANETS_PER_SYSTEM = 0; const MAX_PLANETS_PER_SYSTEM = 3; const MIN_PLANET_SIZE = 5; const MAX_PLANET_SIZE = 15; const MIN_PLANET_DISTANCE = SUN_ICON_SIZE * 1.5; const MAX_PLANET_DISTANCE = SUN_ICON_SIZE * 8; const ORBIT_CANVAS_SIZE = MAX_PLANET_DISTANCE * 2.2; const SOLAR_SYSTEM_EXPLORABLE_RADIUS = 3000; 
+            const DEFAULT_NUM_GALAXIES = 3;
+            const DEFAULT_MIN_SS_COUNT_CONST = 200;
+            const DEFAULT_MAX_SS_COUNT_CONST = 300;
+            const DEFAULT_MAX_PLANET_DISTANCE_MULTIPLIER = 1.0;
+            const BASE_MAX_PLANET_DISTANCE_FACTOR = 8; 
+
+            let currentNumGalaxies = DEFAULT_NUM_GALAXIES;
+            let currentMinSSCount = DEFAULT_MIN_SS_COUNT_CONST;
+            let currentMaxSSCount = DEFAULT_MAX_SS_COUNT_CONST;
+            let currentMaxPlanetDistanceMultiplier = DEFAULT_MAX_PLANET_DISTANCE_MULTIPLIER;
+
+            const GALAXY_ICON_SIZE = 60; const SOLAR_SYSTEM_BASE_ICON_SIZE = 2.5; const SUN_ICON_SIZE = 60; const MAX_PLACEMENT_ATTEMPTS = 150; const GALAXY_VIEW_MIN_ZOOM = 1.0; const GALAXY_VIEW_MAX_ZOOM = 5.0; const SOLAR_SYSTEM_VIEW_MIN_ZOOM = 0.05; const SOLAR_SYSTEM_VIEW_MAX_ZOOM = 10.0; const ZOOM_STEP = 0.2;
+            const MAX_CONNECTIONS_PER_SYSTEM = 3; const MAX_NEIGHBOR_CANDIDATES_FOR_ADDITIONAL_CONNECTIONS = 5; const MAX_EUCLIDEAN_CONNECTION_DISTANCE_PERCENT = 0.07; const MAX_FORCED_CONNECTION_DISTANCE_PERCENT = 0.20;
+            const MIN_PLANETS_PER_SYSTEM = 0; const MAX_PLANETS_PER_SYSTEM = 3; const MIN_PLANET_SIZE = 5; const MAX_PLANET_SIZE = 15; const MIN_PLANET_DISTANCE = SUN_ICON_SIZE * 1.5; 
+            let MAX_PLANET_DISTANCE = (SUN_ICON_SIZE * BASE_MAX_PLANET_DISTANCE_FACTOR) * currentMaxPlanetDistanceMultiplier; 
+            let ORBIT_CANVAS_SIZE = MAX_PLANET_DISTANCE * 2.2; 
+            const SOLAR_SYSTEM_EXPLORABLE_RADIUS = 3000; 
             const MIN_ORBITAL_SEPARATION = 20; const MIN_ROTATION_SPEED_RAD_PER_FRAME = 0.005; const MAX_ROTATION_SPEED_RAD_PER_FRAME = 0.01; 
             const FIXED_COLORS = { universeBg: "#100520", galaxyIconFill: "#7f00ff", galaxyIconBorder: "#da70d6", solarSystemBaseColor: "#ffd700", sunFill: "#FFD700", sunBorder: "#FFA500", connectionLine: "rgba(255, 255, 255, 0.3)"};
             let gameSessionData = { universe: { diameter: null }, galaxies: [], activeGalaxyId: null, activeSolarSystemId: null, solarSystemView: { zoomLevel: 1.0, currentPanX: 0, currentPanY: 0, planets: [], systemId: null }, isInitialized: false, panning: { isActive: false, startX: 0, startY: 0, initialPanX: 0, initialPanY: 0, targetElement: null, viewportElement: null, dataObject: null }};
             
+            function updateDerivedConstants() {
+                MAX_PLANET_DISTANCE = (SUN_ICON_SIZE * BASE_MAX_PLANET_DISTANCE_FACTOR) * currentMaxPlanetDistanceMultiplier;
+                ORBIT_CANVAS_SIZE = MAX_PLANET_DISTANCE * 2.2;
+                console.log("Derived constants updated: MAX_PLANET_DISTANCE=", MAX_PLANET_DISTANCE, "ORBIT_CANVAS_SIZE=", ORBIT_CANVAS_SIZE);
+            }
+
+            function saveCustomizationSettings() {
+                const settings = {
+                    numGalaxies: currentNumGalaxies,
+                    minSS: currentMinSSCount,
+                    maxSS: currentMaxSSCount,
+                    spread: currentMaxPlanetDistanceMultiplier
+                };
+                localStorage.setItem('galaxyCustomizationSettings', JSON.stringify(settings));
+                console.log("Customization settings saved:", settings);
+            }
+
+            function loadCustomizationSettings() {
+                const savedSettingsString = localStorage.getItem('galaxyCustomizationSettings');
+                if (savedSettingsString) {
+                    try {
+                        const loadedSettings = JSON.parse(savedSettingsString);
+                        currentNumGalaxies = parseInt(loadedSettings.numGalaxies, 10) || DEFAULT_NUM_GALAXIES;
+                        currentMinSSCount = parseInt(loadedSettings.minSS, 10) || DEFAULT_MIN_SS_COUNT_CONST;
+                        currentMaxSSCount = parseInt(loadedSettings.maxSS, 10) || DEFAULT_MAX_SS_COUNT_CONST;
+                        currentMaxPlanetDistanceMultiplier = parseFloat(loadedSettings.spread) || DEFAULT_MAX_PLANET_DISTANCE_MULTIPLIER;
+                        console.log("Customization settings loaded:", loadedSettings);
+                    } catch (e) {
+                        console.error("Error parsing customization settings, using defaults.", e);
+                        resetToDefaultCustomization();
+                    }
+                } else {
+                    console.log("No custom settings found, using defaults.");
+                    resetToDefaultCustomization();
+                }
+                updateDerivedConstants();
+            }
+            
+            function resetToDefaultCustomization() {
+                currentNumGalaxies = DEFAULT_NUM_GALAXIES;
+                currentMinSSCount = DEFAULT_MIN_SS_COUNT_CONST;
+                currentMaxSSCount = DEFAULT_MAX_SS_COUNT_CONST;
+                currentMaxPlanetDistanceMultiplier = DEFAULT_MAX_PLANET_DISTANCE_MULTIPLIER;
+            }
+
             function saveGameState() {
                 try {
                     const stateToSave = {
@@ -180,6 +285,10 @@
                 if (regenerateUniverseButton) {
                      regenerateUniverseButton.style.display = (screenToShow === mainScreen || screenToShow === galaxyDetailScreen || screenToShow === solarSystemScreen) ? 'block' : 'none';
                 }
+                 if (customizeGenerationButton) {
+                    customizeGenerationButton.style.display = (screenToShow === mainScreen || screenToShow === galaxyDetailScreen || screenToShow === solarSystemScreen) ? 'block' : 'none';
+                }
+
 
                 if (screenToShow === solarSystemScreen) {
                     startSolarSystemAnimation();
@@ -192,7 +301,19 @@
             }
 
             function generateUniverseLayout() { const smd=Math.min(window.innerWidth,window.innerHeight);gameSessionData.universe.diameter=Math.max(300,smd*0.85);if(universeCircle){universeCircle.style.width=`${gameSessionData.universe.diameter}px`;universeCircle.style.height=`${gameSessionData.universe.diameter}px`;universeCircle.style.backgroundColor=FIXED_COLORS.universeBg;} }
-            function generateGalaxies() { if(!gameSessionData.universe.diameter)return;gameSessionData.galaxies=[];const pr=gameSessionData.universe.diameter/2,tpr=[];for(let i=0;i<NUM_GALAXIES;i++){const id=`galaxy-${i+1}`,pos=getNonOverlappingPositionInCircle(pr,GALAXY_ICON_SIZE,tpr);if(pos&&!isNaN(pos.x)&&!isNaN(pos.y)){gameSessionData.galaxies.push({id,x:pos.x,y:pos.y,solarSystems:[],lineConnections:[],layoutGenerated:false,currentZoom:1.0,currentPanX:0,currentPanY:0,generationParams:{densityFactor:0.8+Math.random()*0.4}});tpr.push({x:pos.x,y:pos.y,width:GALAXY_ICON_SIZE,height:GALAXY_ICON_SIZE})}}}
+            function generateGalaxies() { 
+                if(!gameSessionData.universe.diameter)return;
+                gameSessionData.galaxies=[];
+                const pr=gameSessionData.universe.diameter/2;
+                const tpr=[];
+                for(let i=0;i<currentNumGalaxies;i++){ 
+                    const id=`galaxy-${i+1}`,pos=getNonOverlappingPositionInCircle(pr,GALAXY_ICON_SIZE,tpr);
+                    if(pos&&!isNaN(pos.x)&&!isNaN(pos.y)){
+                        gameSessionData.galaxies.push({id,x:pos.x,y:pos.y,solarSystems:[],lineConnections:[],layoutGenerated:false,currentZoom:1.0,currentPanX:0,currentPanY:0,generationParams:{densityFactor:0.8+Math.random()*0.4}});
+                        tpr.push({x:pos.x,y:pos.y,width:GALAXY_ICON_SIZE,height:GALAXY_ICON_SIZE})
+                    }
+                }
+            }
             function getDistance(sys1, sys2) { return Math.sqrt(Math.pow(sys1.centerX - sys2.centerX, 2) + Math.pow(sys1.centerY - sys2.centerY, 2)); }
             function tryAddConnection(fromId, toId, currentConnectionsArray, currentCountsObject, allSystemsLookup, maxDistanceLimit) { if (!fromId || !toId || fromId === toId) return false; if ((currentCountsObject[fromId] || 0) >= MAX_CONNECTIONS_PER_SYSTEM || (currentCountsObject[toId] || 0) >= MAX_CONNECTIONS_PER_SYSTEM) { return false; } const key = [fromId, toId].sort().join('-'); if (currentConnectionsArray.some(conn => ([conn.fromId, conn.toId].sort().join('-') === key))) { return false; } if (maxDistanceLimit !== undefined && maxDistanceLimit !== null) { const sys1 = allSystemsLookup.find(s => s.id === fromId); const sys2 = allSystemsLookup.find(s => s.id === toId); if (sys1 && sys2 && getDistance(sys1, sys2) > maxDistanceLimit) { return false; } } return true; }
             
@@ -202,7 +323,7 @@
                 const pd=galaxyViewport.offsetWidth, pr=pd/2; 
                 if(pd<=0||isNaN(pr)||pr<=0){ gal.layoutGenerated=true; saveGameState(); return } 
                 gal.solarSystems=[]; gal.lineConnections=[]; const tpr=[]; 
-                const numSystemsToAssign = Math.floor(Math.random() * (DEFAULT_MAX_SS_COUNT - DEFAULT_MIN_SS_COUNT + 1)) + DEFAULT_MIN_SS_COUNT; 
+                const numSystemsToAssign = Math.floor(Math.random() * (currentMaxSSCount - currentMinSSCount + 1)) + currentMinSSCount; 
                 for(let i=0;i<numSystemsToAssign;i++){ const sysId=`${gal.id}-ss-${i+1}`; const pos=getNonOverlappingPositionInCircle(pr,SOLAR_SYSTEM_BASE_ICON_SIZE,tpr); if(pos&&!isNaN(pos.x)&&!isNaN(pos.y)){ gal.solarSystems.push({id:sysId,x:pos.x,y:pos.y,iconSize:SOLAR_SYSTEM_BASE_ICON_SIZE}); tpr.push({x:pos.x,y:pos.y,width:SOLAR_SYSTEM_BASE_ICON_SIZE,height:SOLAR_SYSTEM_BASE_ICON_SIZE}); } } 
                 if (gal.solarSystems.length < 2) { gal.layoutGenerated = true; saveGameState(); return; } 
                 const allSystemCoords = gal.solarSystems.map(ss => ({ ...ss, centerX: ss.x + ss.iconSize / 2, centerY: ss.y + ss.iconSize / 2 })); 
@@ -549,9 +670,90 @@
             function panMouseMove(event){if(!gameSessionData.panning.isActive)return;const pS=gameSessionData.panning,dX=event.clientX-pS.startX,dY=event.clientY-pS.startY;pS.dataObject.currentPanX=pS.initialPanX+dX;pS.dataObject.currentPanY=pS.initialPanY+dY;if(pS.viewportElement===galaxyViewport){clampGalaxyPan(pS.dataObject);renderGalaxyDetailScreen(true)}else if(pS.viewportElement===solarSystemScreen){clampSolarSystemPan(pS.dataObject,pS.viewportElement.offsetWidth,pS.viewportElement.offsetHeight);renderSolarSystemScreen(true); if(solarSystemScreen.classList.contains('active')) { drawAllOrbits(); } }}
             function panMouseUp(){if(!gameSessionData.panning.isActive)return;if(gameSessionData.panning.viewportElement)gameSessionData.panning.viewportElement.classList.remove('dragging');const pS=gameSessionData.panning;pS.isActive=!1;if(pS.targetElement)pS.targetElement.style.transition='';if(galaxyDetailScreen.classList.contains('active'))renderGalaxyDetailScreen(!1);else if(solarSystemScreen.classList.contains('active'))renderSolarSystemScreen(!1);pS.targetElement=null;pS.viewportElement=null;pS.dataObject=null}
             
+
+            function regenerateCurrentUniverseState(){
+                console.log("Regenerating universe with current settings.");
+                localStorage.removeItem('galaxyGameSaveData');
+                
+                gameSessionData.universe = { diameter: null };
+                gameSessionData.galaxies = [];
+                gameSessionData.activeGalaxyId = null;
+                gameSessionData.activeSolarSystemId = null;
+                gameSessionData.solarSystemView = { zoomLevel: 1.0, currentPanX: 0, currentPanY: 0, planets: [], systemId: null };
+                gameSessionData.isInitialized = false;
+
+                if (universeCircle) universeCircle.innerHTML = '';
+                if (galaxyZoomContent) {
+                    const canvas = galaxyZoomContent.querySelector('#solar-system-lines-canvas');
+                    galaxyZoomContent.innerHTML = ''; 
+                    if(canvas) galaxyZoomContent.appendChild(canvas); 
+                }
+                if (solarSystemContent) solarSystemContent.innerHTML = '';
+                if (orbitCtx && solarSystemOrbitCanvasEl) orbitCtx.clearRect(0,0,solarSystemOrbitCanvasEl.width,solarSystemOrbitCanvasEl.height);
+
+                if (animationFrameId) { cancelAnimationFrame(animationFrameId); animationFrameId = null; }
+                
+                initializeGame(); 
+            }
+
+            if (regenerateUniverseButton) {
+                regenerateUniverseButton.addEventListener('click', () => {
+                    if (confirm("Are you sure you want to generate a new universe with current settings? This will erase the current persistent layout.")) {
+                        regenerateCurrentUniverseState();                    
+                    }
+                });
+            }
+
+            if (customizeGenerationButton) {
+                customizeGenerationButton.addEventListener('click', () => {
+                    numGalaxiesInput.value = currentNumGalaxies;
+                    minSSInput.value = currentMinSSCount;
+                    maxSSInput.value = currentMaxSSCount;
+                    ssSpreadInput.value = currentMaxPlanetDistanceMultiplier.toFixed(1);
+                    customizationModal.classList.add('visible');
+                });
+            }
+
+            if (cancelCustomizationButton) {
+                cancelCustomizationButton.addEventListener('click', () => {
+                    customizationModal.classList.remove('visible');
+                });
+            }
+
+            if (applyCustomizationButton) {
+                applyCustomizationButton.addEventListener('click', () => {
+                    const numGal = parseInt(numGalaxiesInput.value, 10);
+                    const minSS = parseInt(minSSInput.value, 10);
+                    const maxSS = parseInt(maxSSInput.value, 10);
+                    const spread = parseFloat(ssSpreadInput.value);
+
+                    if (isNaN(numGal) || numGal < 1 || numGal > 10 ||
+                        isNaN(minSS) || minSS < 10 || minSS > 1000 ||
+                        isNaN(maxSS) || maxSS < 10 || maxSS > 2000 || maxSS < minSS ||
+                        isNaN(spread) || spread < 0.1 || spread > 5.0) {
+                        alert("Invalid input values. Please check ranges and ensure Max SS >= Min SS.");
+                        return;
+                    }
+
+                    currentNumGalaxies = numGal;
+                    currentMinSSCount = minSS;
+                    currentMaxSSCount = maxSS;
+                    currentMaxPlanetDistanceMultiplier = spread;
+                    
+                    updateDerivedConstants();
+                    saveCustomizationSettings();
+                    customizationModal.classList.remove('visible');
+                    
+                    if (confirm("Apply new settings and regenerate the universe? This will erase the current persistent layout.")) {
+                        regenerateCurrentUniverseState();
+                    }
+                });
+            }
+
             function initializeGame() {
                 console.log("Initializing game...");
                 if (!mainScreen) { return; }
+                loadCustomizationSettings(); // Load custom settings or defaults first
 
                 if (loadGameState()) {
                     console.log("Loaded game state. Rendering from saved data.");
@@ -560,9 +762,9 @@
                         universeCircle.style.height = `${gameSessionData.universe.diameter}px`;
                         universeCircle.style.backgroundColor = FIXED_COLORS.universeBg;
                     } else {
-                        generateUniverseLayout(); // Creates and sizes universeCircle DOM
+                        generateUniverseLayout(); 
                     }
-                    renderMainScreen(); // Populates galaxies into universeCircle
+                    renderMainScreen(); 
                     setActiveScreen(mainScreen);
                 } else {
                     console.log("No valid saved game state. Generating new layout.");
@@ -576,45 +778,14 @@
                 console.log("Game initialized.");
             }
 
-            if (regenerateUniverseButton) {
-                regenerateUniverseButton.addEventListener('click', () => {
-                    if (confirm("Are you sure you want to generate a new universe? This will erase the current persistent layout.")) {
-                        console.log("User initiated universe regeneration.");
-                        localStorage.removeItem('galaxyGameSaveData');
-                        
-                        gameSessionData.universe = { diameter: null };
-                        gameSessionData.galaxies = [];
-                        gameSessionData.activeGalaxyId = null;
-                        gameSessionData.activeSolarSystemId = null;
-                        gameSessionData.solarSystemView = { zoomLevel: 1.0, currentPanX: 0, currentPanY: 0, planets: [], systemId: null };
-                        gameSessionData.isInitialized = false;
-
-                        if (universeCircle) universeCircle.innerHTML = '';
-                        if (galaxyZoomContent) {
-                            const canvas = galaxyZoomContent.querySelector('#solar-system-lines-canvas');
-                            galaxyZoomContent.innerHTML = ''; 
-                            if(canvas) galaxyZoomContent.appendChild(canvas); 
-                        }
-                        if (solarSystemContent) solarSystemContent.innerHTML = '';
-                        if (orbitCtx && solarSystemOrbitCanvasEl) orbitCtx.clearRect(0,0,solarSystemOrbitCanvasEl.width,solarSystemOrbitCanvasEl.height);
-
-                        if (animationFrameId) {
-                            cancelAnimationFrame(animationFrameId);
-                            animationFrameId = null;
-                        }
-                        
-                        initializeGame(); 
-                    }
-                });
-            }
 
             window.addEventListener('resize', () => { 
-                console.log("Window resized."); 
+                console.log("Window resized. Clearing persistent layout for regeneration."); 
                 const currentActiveGalaxyId = gameSessionData.activeGalaxyId;
                 const currentActiveSSId = gameSessionData.activeSolarSystemId;
                 const currentScreen = document.querySelector('.screen.active');
 
-                localStorage.removeItem('galaxyGameSaveData'); // Clear saved state as layout is size-dependent
+                localStorage.removeItem('galaxyGameSaveData'); 
 
                 gameSessionData.universe = { diameter: null };
                 gameSessionData.galaxies = [];
@@ -636,17 +807,14 @@
                     cancelAnimationFrame(animationFrameId);
                     animationFrameId = null;
                 }
-
+                loadCustomizationSettings(); // Reload custom settings
                 initializeGame(); 
 
-                // Attempt to restore view (experimental - might need more robust state saving for current view)
-                if (currentScreen) {
-                    if (currentScreen.id === "galaxy-detail-screen" && currentActiveGalaxyId) {
-                        // switchToGalaxyDetailView(currentActiveGalaxyId); // This will regenerate solar systems
-                    } else if (currentScreen.id === "solar-system-screen" && currentActiveSSId) {
-                        // switchToSolarSystemView(currentActiveSSId);
-                    } else {
+                 if (currentScreen) {
+                    if (currentScreen.id === "main-screen") {
                          setActiveScreen(mainScreen);
+                    } else {
+                         setActiveScreen(mainScreen); // Default to main screen after resize/regen
                     }
                 } else {
                     setActiveScreen(mainScreen);

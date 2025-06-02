@@ -153,7 +153,6 @@ fetch('https://save-api.nicholasgutteridge512.workers.dev/', {
   headers: { 'Content-Type': 'application/json' },
   body: JSON.stringify({
     userId: 'sundance-lab',           // or use something unique per user/session
-    gameState: stateToSave
   })
 })
 .then(res => res.text())

@@ -144,9 +144,22 @@ document.addEventListener('DOMContentLoaded', () => {
                 galaxies: gameSessionData.galaxies, 
             };
             localStorage.setItem('galaxyGameSaveData', JSON.stringify(stateToSave));
+            
         } catch (error) {}
     }
 
+fetch('https://save-api.nicholasgutteridge512.workers.dev/', {
+  method: 'POST',
+  headers: { 'Content-Type': 'application/json' },
+  body: JSON.stringify({
+    userId: 'sundance-lab',           // or use something unique per user/session
+    gameState: stateToSave
+  })
+})
+.then(res => res.text())
+.then(msg => console.log('Server save:', msg))
+.catch(err => console.error('Server save failed:', err));
+    
     function loadGameState() {
         try {
             const savedStateString = localStorage.getItem('galaxyGameSaveData');
@@ -176,6 +189,27 @@ document.addEventListener('DOMContentLoaded', () => {
         return false;
     }
 
+const userId = 'sundance-lab';
+
+fetch(`https://save-api.nicholasgutteridge512.workers.dev/?key=${userId}`)
+  .then(res => {
+    if (!res.ok) throw new Error('Not found');
+    return res.json();
+  })
+  .then(data => {
+    // Your Worker returns { userId: ..., gameState: ... }
+    if (data && data.gameState) {
+      // Restore the game state
+      // For example:
+      // gameSessionData = data.gameState;
+      // or call your loadGameState function with the data
+      console.log('Loaded game state from server:', data.gameState);
+    }
+  })
+  .catch(err => {
+    console.log('Could not load from server:', err);
+  });
+    
     function checkOverlap(r1,r2){return!(r1.x+r1.width<r2.x||r2.x+r2.width<r1.x||r1.y+r1.height<r2.y||r2.y+r2.height<r1.y)}
     function getNonOverlappingPositionInCircle(pr,od,exR){let plr=pr-(od/2)-5;if(plr<0)plr=0;for(let i=0;i<MAX_PLACEMENT_ATTEMPTS;i++){const a=Math.random()*2*Math.PI,r=Math.sqrt(Math.random())*plr,cx=pr+r*Math.cos(a),cy=pr+r*Math.sin(a),x=cx-(od/2),y=cy-(od/2),nr={x,y,width:od,height:od};if(!exR.some(er=>checkOverlap(nr,er)))return{x,y}}return null}
     function getWeightedNumberOfConnections(){ const e=Math.random(); return e < .6 ? 1 : e < .9 ? 2 : 3; }

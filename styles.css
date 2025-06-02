@@ -1,0 +1,97 @@
+ <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body {font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background-color: #000; color: #fff; display: flex; justify-content: center; align-items: center; min-height: 100vh; overflow: hidden; }
+        .screen-container {width: 100vw; height: 100vh; position: relative; overflow: hidden; }
+        .screen {width: 100%; height: 100%; position: absolute; top: 0; left: 0; display: flex; justify-content: center; align-items: center; visibility: hidden; opacity: 0; transition: opacity 0.3s ease-in-out, visibility 0s linear 0.3s; overflow: hidden; }
+        .screen.active {visibility: visible; opacity: 1; transition-delay: 0s; z-index: 1; }
+        .screen.active.panning-active { z-index: 2;}
+        
+        .editable-title-container { position: absolute; top: 15px; left: 20px; z-index: 100;}
+        .editable-title-text { color: rgba(230, 230, 255, 0.9);font-size: 1.7em;font-weight: 700;text-shadow: 1px 1px 2px rgba(0, 0, 0, 0.7); cursor: text; display: inline-block; pointer-events: all; user-select: none; -webkit-user-select: none;}
+        .editable-title-input { font-size: 1.7em; font-weight: 700; color: #fff; background-color: rgba(0,0,0,0.7); border: 1px solid #fff; padding: 0px 5px; width: auto; display:none; line-height: 1.2; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;}
+        .screen-title-static {position: absolute;top: 15px;left: 20px;color: rgba(230, 230, 255, 0.9);font-size: 1.7em;font-weight: 700;text-shadow: 1px 1px 2px rgba(0, 0, 0, 0.7);pointer-events: none;z-index: 100;user-select: none; -webkit-user-select: none;}
+
+
+        #main-screen { background-color: #000; } 
+        #universe-circle {position: relative; border-radius: 50%; background-color: #100520; box-shadow: 0 0 30px rgba(100, 0, 150, 0.5); }
+        .galaxy-icon {position: absolute;border-radius: 50%;cursor: pointer;background-color: #7f00ff;border: 3px solid #da70d6;transition: transform 0.1s ease-out, box-shadow 0.2s ease-out;box-shadow: 0 0 10px #7f00ff;}
+        .galaxy-icon:hover {transform: scale(1.1);box-shadow: 0 0 20px #da70d6;}
+        #galaxy-detail-screen { background-color: #000; }
+        #galaxy-viewport { position: relative;border-radius: 50%;overflow: hidden; background-color: #100520; cursor: grab; }
+        #galaxy-viewport.dragging { cursor: grabbing;}
+        #galaxy-zoom-content { width: 100%;height: 100%;position: absolute;top: 0;left: 0;transform-origin: center center;}
+        #solar-system-lines-canvas {position: absolute;top: 0;left: 0;width: 100%;height: 100%;pointer-events: none;z-index: 1; }
+        .solar-system-icon {position: absolute;border-radius: 50%;background-color: #ffd700; cursor: pointer;z-index: 2; box-shadow: 0 0 5px #ffd700;}
+        
+        #solar-system-screen { cursor: grab; background-color: #080210; } 
+        #solar-system-screen.dragging { cursor: grabbing; }
+        #solar-system-content { 
+            width: 100%;
+            height: 100%;
+            position: absolute; 
+            top: 0; 
+            left: 0;
+            transform-origin: center center; 
+        }
+        .sun-icon {
+            position: absolute; 
+            left: 50%; 
+            top: 50%; 
+            transform: translate(-50%, -50%); 
+            border-radius: 50%;
+            background-color: #FFD700;
+            border: 2px solid #FFA500;
+            box-shadow: 0 0 15px #FFD700, 0 0 25px #FFA500, 0 0 35px #FF8C00;
+            z-index: 5;
+        }
+        .planet-icon {
+            position: absolute;
+            border-radius: 50%;
+            z-index: 4;
+            cursor: default; 
+            transform-origin: center center; 
+        }
+        .planet-icon.clickable-when-paused { cursor: pointer; }
+
+
+        #solar-system-orbit-canvas {
+            position: absolute;
+            top: 50%; 
+            left: 50%;
+            transform: translate(-50%, -50%); 
+            pointer-events: none;
+            z-index: 3;
+        }
+        .controls-overlay { position: fixed; top:0; left:0; width:100%; height:auto; z-index: 200; pointer-events: none; }
+        .controls-overlay > * { pointer-events: all; }
+        #zoom-controls { position: fixed; bottom: 15px; right: 15px; display: none; gap: 8px; z-index: 201; }
+        #zoom-controls.visible { display: flex; }
+        #zoom-controls button { width: 36px; height: 36px; font-size: 1.3em; font-weight: 700; background-color: rgba(44,44,44,.8); color: #fff; border: 1px solid #4f4f4f; border-radius: 50%; cursor: pointer; line-height: 34px; padding:0; }
+        #zoom-controls button:hover { background-color: rgba(79,79,79,.9); }
+        .back-button { position: fixed; bottom: 15px; left: 15px; padding: 10px 20px; font-size: 1.1em; font-weight: 700; cursor: pointer; background-color: #2c2c2c; color: #fff; border: 2px solid #4f4f4f; border-radius: 8px; transition: background-color .2s, transform .1s; z-index: 201; }
+        .back-button:hover { background-color: #4f4f4f; }
+        .back-button:active { transform: scale(.95); }
+        
+        .control-button {padding: 8px 12px; font-size: 0.9em; color: white; border-radius: 5px; cursor: pointer; margin: 5px;}
+        #regenerate-universe-btn {position: fixed; top: 60px; left: 15px; z-index: 301; background-color: #c0392b; border: 1px solid #a93226;}
+        #regenerate-universe-btn:hover { background-color: #e74c3c;}
+        #customize-generation-btn {position: fixed; top: 105px; left: 15px; z-index: 301; background-color: #2980b9; border: 1px solid #2471a3;}
+        #customize-generation-btn:hover { background-color: #3498db;}
+        #pause-resume-solar-system-btn {position: fixed; top: 150px; left: 15px; z-index: 301; background-color: #f39c12; border: 1px solid #d35400; display:none; }
+        #pause-resume-solar-system-btn:hover { background-color: #f1c40f;}
+
+        .modal-overlay { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background-color: rgba(0,0,0,0.7); display: none; justify-content: center; align-items: center; z-index: 1000;}
+        .modal-overlay.visible { display: flex; }
+        .modal-content { background-color: #2c3e50; padding: 25px; border-radius: 8px; box-shadow: 0 5px 15px rgba(0,0,0,0.5); min-width: 380px; max-width: 90%;}
+        .modal-content h2 { margin-top: 0; margin-bottom: 20px; color: #ecf0f1; }
+        .modal-content label { display: block; margin-bottom: 5px; color: #bdc3c7; font-size: 0.9em;}
+        .modal-content input[type="number"], .modal-content input[type="text"] { width: 100%; padding: 8px; margin-bottom: 15px; border-radius: 4px; border: 1px solid #7f8c8d; background-color: #34495e; color: #ecf0f1; font-size: 1em;}
+        .modal-content .checkbox-label { display: flex; align-items: center; margin-bottom:15px;}
+        .modal-content input[type="checkbox"] { margin-right: 10px; transform: scale(1.2);}
+        .modal-actions { text-align: right; margin-top: 20px; }
+        .modal-actions button { padding: 10px 18px; margin-left: 10px; border-radius: 5px; border: none; cursor: pointer; font-weight: bold;}
+        .modal-button-apply { background-color: #27ae60; color: white;}
+        .modal-button-apply:hover { background-color: #2ecc71;}
+        .modal-button-cancel { background-color: #7f8c8d; color: #2c3e50;}
+        .modal-button-cancel:hover { background-color: #95a5a6;}
+    </style>

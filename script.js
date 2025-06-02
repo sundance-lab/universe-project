@@ -477,9 +477,9 @@
                 if (!gal){ switchToMainView(); return; }
                 gameSessionData.activeGalaxyId = galaxyId;
                 if (backToGalaxyButton) {
-    backToGalaxyButton.textContent = gal.customName
-        ? `Back to ${gal.customName}`
-        : `Back to Galaxy ${gal.id.split('-')[1]}`;
+backToGalaxyButton.textContent = gal.customName
+    ? `← ${gal.customName}`
+    : `← Galaxy ${gal.id.split('-')[1]}`;
 }
                 gameSessionData.activeSolarSystemId = null; 
                 gal.currentZoom = gal.currentZoom || 1.0; 

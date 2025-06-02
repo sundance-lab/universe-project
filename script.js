@@ -35,13 +35,14 @@ document.addEventListener('DOMContentLoaded', () => {
     const showOrbitsInput = document.getElementById('show-orbits-input');
     const pauseResumeSolarSystemButton = document.getElementById('pause-resume-solar-system-btn');
 
-    const planetCustomizationModal = document.getElementById('planet-customization-modal');
-    const planetModalTitle = document.getElementById('planet-modal-title');
-    const planetOrbitalSpeedInput = document.getElementById('planet-orbital-speed-input');
-    const planetAxialSpeedInput = document.getElementById('planet-axial-speed-input');
-    const applyPlanetCustomizationButton = document.getElementById('apply-planet-customization-btn');
-    const cancelPlanetCustomizationButton = document.getElementById('cancel-planet-customization-btn');
-    let selectedPlanetForCustomization = null;
+    // Removed planet customization modal references and related variables
+    // const planetCustomizationModal = document.getElementById('planet-customization-modal');
+    // const planetModalTitle = document.getElementById('planet-modal-title');
+    // const planetOrbitalSpeedInput = document.getElementById('planet-orbital-speed-input');
+    // const planetAxialSpeedInput = document.getElementById('planet-axial-speed-input');
+    // const applyPlanetCustomizationButton = document.getElementById('apply-planet-customization-btn');
+    // const cancelPlanetCustomizationButton = document.getElementById('cancel-planet-customization-btn');
+    // let selectedPlanetForCustomization = null;
 
     const planetInfoPanel = document.getElementById('planet-info-panel');
     const closePlanetInfoPanelBtn = document.getElementById('close-planet-info-panel');
@@ -79,7 +80,8 @@ document.addEventListener('DOMContentLoaded', () => {
     let MAX_PLANET_DISTANCE = (SUN_ICON_SIZE * BASE_MAX_PLANET_DISTANCE_FACTOR) * currentMaxPlanetDistanceMultiplier; 
     let ORBIT_CANVAS_SIZE = MAX_PLANET_DISTANCE * 2.2; 
     const SOLAR_SYSTEM_EXPLORABLE_RADIUS = 3000; 
-    const MIN_ORBITAL_SEPARATION = 20; let MIN_ROTATION_SPEED_RAD_PER_FRAME = 0.005; let MAX_ROTATION_SPEED_RAD_PER_FRAME = 0.01; 
+    let MIN_ROTATION_SPEED_RAD_PER_FRAME = 0.001; // 5 times slower (0.005 / 5)
+    let MAX_ROTATION_SPEED_RAD_PER_FRAME = 0.002; // 5 times slower (0.01 / 5)
     const FIXED_COLORS = { universeBg: "#100520", galaxyIconFill: "#7f00ff", galaxyIconBorder: "#da70d6", solarSystemBaseColor: "#ffd700", sunFill: "#FFD700", sunBorder: "#FFA500", connectionLine: "rgba(255, 255, 255, 0.3)"};
     let gameSessionData = { universe: { diameter: null }, galaxies: [], activeGalaxyId: null, activeSolarSystemId: null, solarSystemView: { zoomLevel: 1.0, currentPanX: 0, currentPanY: 0, planets: [], systemId: null }, isInitialized: false, panning: { isActive: false, startX: 0, startY: 0, initialPanX: 0, initialPanY: 0, targetElement: null, viewportElement: null, dataObject: null }};
     
@@ -243,7 +245,7 @@ document.addEventListener('DOMContentLoaded', () => {
         let connectedSet = new Set(); 
         let unconnectedSet = new Set(allSystemCoords.map(s => s.id)); 
         if (allSystemCoords.length > 0) { 
-            const firstSysId = allSystemCoords.id; 
+            const firstSysId = allSystemCoords[0].id; 
             connectedSet.add(firstSysId); 
             unconnectedSet.delete(firstSysId); 
             while (unconnectedSet.size > 0) { 
@@ -317,7 +319,7 @@ document.addEventListener('DOMContentLoaded', () => {
                     } 
                 } else { 
                     if (unconnectedSet.size > 0 && connectedSet.size === 0 && allSystemCoords.length > 0) { 
-                        const nextUnconnectedId = Array.from(unconnectedSet); 
+                        const nextUnconnectedId = Array.from(unconnectedSet)[0]; 
                         connectedSet.add(nextUnconnectedId); 
                         unconnectedSet.delete(nextUnconnectedId); 
                     } else { 
@@ -365,7 +367,7 @@ document.addEventListener('DOMContentLoaded', () => {
         if (mainScreenTitleText) mainScreenTitleText.textContent = "Universe";
         if(!universeCircle)return;
         universeCircle.innerHTML='';
-        gameSessionData.galaxies.forEach(gal=>{const el=document.createElement('div');el.className='galaxy-icon';el.style.width=`${GALAXY_ICON_SIZE}px`;el.style.height=`${GALAXY_ICON_SIZE}px`;el.style.left=`${gal.x}px`;el.style.top=`${gal.y}px`;el.style.backgroundColor=FIXED_COLORS.galaxyIconFill;el.style.border=`3px solid ${FIXED_COLORS.galaxyIconBorder}`; el.title = gal.customName || `Galaxy ${gal.id.split('-')}`; el.dataset.galaxyId=gal.id;el.addEventListener('click',()=>switchToGalaxyDetailView(gal.id));universeCircle.appendChild(el)});
+        gameSessionData.galaxies.forEach(gal=>{const el=document.createElement('div');el.className='galaxy-icon';el.style.width=`${GALAXY_ICON_SIZE}px`;el.style.height=`${GALAXY_ICON_SIZE}px`;el.style.left=`${gal.x}px`;el.style.top=`${gal.y}px`;el.style.backgroundColor=FIXED_COLORS.galaxyIconFill;el.style.border=`3px solid ${FIXED_COLORS.galaxyIconBorder}`; el.title = gal.customName || `Galaxy ${gal.id.split('-')[1]}`; el.dataset.galaxyId=gal.id;el.addEventListener('click',()=>switchToGalaxyDetailView(gal.id));universeCircle.appendChild(el)});
     }
     function drawGalaxyLines(galaxy) { if(!solarSystemLinesCanvasEl||!galaxyZoomContent)return;if(galaxyZoomContent.offsetWidth>0&&solarSystemLinesCanvasEl.width!==galaxyZoomContent.offsetWidth)solarSystemLinesCanvasEl.width=galaxyZoomContent.offsetWidth;if(galaxyZoomContent.offsetHeight>0&&solarSystemLinesCanvasEl.height!==galaxyZoomContent.offsetHeight)solarSystemLinesCanvasEl.height=galaxyZoomContent.offsetHeight;if(!linesCtx)linesCtx=solarSystemLinesCanvasEl.getContext('2d');linesCtx.clearRect(0,0,solarSystemLinesCanvasEl.width,solarSystemLinesCanvasEl.height);if(!galaxy||!galaxy.lineConnections||!galaxy.solarSystems)return;linesCtx.strokeStyle=FIXED_COLORS.connectionLine;linesCtx.lineWidth=0.5;linesCtx.setLineDash([]);const spos={};galaxy.solarSystems.forEach(ss=>{spos[ss.id]={x:ss.x+ss.iconSize/2,y:ss.y+ss.iconSize/2}});galaxy.lineConnections.forEach(conn=>{const f=spos[conn.fromId],t=spos[conn.toId];if(f&&t){linesCtx.beginPath();linesCtx.moveTo(f.x,f.y);linesCtx.lineTo(t.x,t.y);linesCtx.stroke()}})}
     
@@ -412,7 +414,7 @@ document.addEventListener('DOMContentLoaded', () => {
         galaxyZoomContent.style.transform=`translate(${gal.currentPanX}px,${gal.currentPanY}px)scale(${gal.currentZoom})`;
         
         if (galaxyDetailTitleText) {
-            galaxyDetailTitleText.textContent = gal.customName || `Galaxy ${gal.id.split('-')}`;
+            galaxyDetailTitleText.textContent = gal.customName || `Galaxy ${gal.id.split('-')[1]}`;
         }
     }
     
@@ -487,7 +489,7 @@ document.addEventListener('DOMContentLoaded', () => {
         if (backToGalaxyButton) {
             backToGalaxyButton.textContent = gal.customName
                 ? `← ${gal.customName}`
-                : `← Galaxy ${gal.id.split('-')}`;
+                : `← Galaxy ${gal.id.split('-')[1]}`;
         }
         gameSessionData.activeSolarSystemId = null; 
         gal.currentZoom = gal.currentZoom || 1.0; 
@@ -495,7 +497,7 @@ document.addEventListener('DOMContentLoaded', () => {
         gal.currentPanY = gal.currentPanY || 0;
 
         if (galaxyDetailTitleText) { 
-             galaxyDetailTitleText.textContent = gal.customName || `Galaxy ${gal.id.split('-')}`;
+             galaxyDetailTitleText.textContent = gal.customName || `Galaxy ${gal.id.split('-')[1]}`;
              galaxyDetailTitleText.style.display = 'inline-block';
         }
         if(galaxyDetailTitleInput) galaxyDetailTitleInput.style.display = 'none';
@@ -505,7 +507,7 @@ document.addEventListener('DOMContentLoaded', () => {
             gal.customName = newName || null; 
             saveGameState();
             renderMainScreen(); 
-            return gal.customName || `Galaxy ${gal.id.split('-')}`; 
+            return gal.customName || `Galaxy ${gal.id.split('-')[1]}`; 
         });
 
         if (galaxyViewport && gameSessionData.universe.diameter) { galaxyViewport.style.width = `${gameSessionData.universe.diameter}px`; galaxyViewport.style.height = `${gameSessionData.universe.diameter}px`; }
@@ -584,11 +586,11 @@ document.addEventListener('DOMContentLoaded', () => {
             planetEl.style.boxShadow = `0 0 ${newPlanet.size / 3}px rgba(255, 255, 255, 0.3)`;
             
             planetEl.addEventListener('click', (e) => { 
-                e.stopPropagation(); // Prevent clicks from bubbling up [2, 3, 4, 5]
-                selectedPlanetForCustomization = newPlanet;
+                e.stopPropagation(); 
+                // selectedPlanetForCustomization = newPlanet; // Removed since customization modal is gone
 
                 // Show planet info panel
-                planetInfoName.textContent = `Planet ${newPlanet.id.split('-')}`;
+                planetInfoName.textContent = `Planet ${newPlanet.id.split('-')[1]}`;
                 planetInfoSize.textContent = Math.round(newPlanet.size);
                 planetInfoPanel.classList.add('visible');
                 // Center the panel initially
@@ -597,12 +599,13 @@ document.addEventListener('DOMContentLoaded', () => {
                 planetInfoPanel.style.transform = 'translate(-50%, -50%)';
                 planetInfoPanel.style.transition = ''; // Ensure transition is reset for initial placement
 
-                if (isSolarSystemPaused) {
-                    planetModalTitle.textContent = `Customize Planet ${newPlanet.id.split('-')}`;
-                    planetOrbitalSpeedInput.value = newPlanet.orbitalSpeed.toFixed(4);
-                    planetAxialSpeedInput.value = newPlanet.axialSpeed.toFixed(4);
-                    planetCustomizationModal.classList.add('visible');
-                }
+                // Removed planet customization modal opening logic
+                // if (isSolarSystemPaused) {
+                //     planetModalTitle.textContent = `Customize Planet ${newPlanet.id.split('-')[1]}`;
+                //     planetOrbitalSpeedInput.value = newPlanet.orbitalSpeed.toFixed(4);
+                //     planetAxialSpeedInput.value = newPlanet.axialSpeed.toFixed(4);
+                //     planetCustomizationModal.classList.add('visible');
+                // }
             });
             solarSystemContent.appendChild(planetEl);
             newPlanet.element = planetEl;
@@ -635,7 +638,7 @@ document.addEventListener('DOMContentLoaded', () => {
         }
         if (activeSysView && solarSystemScreen.classList.contains('active') && activeSysView.planets) {
             activeSysView.planets.forEach(planet => {
-                planet.currentOrbitalAngle += planet.orbitalSpeed * .5;
+                planet.currentOrbitalAngle += planet.orbitalSpeed * .1; // Orbital speed 5x slower (.5 / 5 = .1)
                 planet.currentAxialAngle += planet.axialSpeed;
                 if (planet.element) {
                     const planetScreenX = planet.distance * Math.cos(planet.currentOrbitalAngle);
@@ -658,7 +661,7 @@ document.addEventListener('DOMContentLoaded', () => {
     function handleZoom(direction,mouseEvent=null){let targetData, viewportElement, currentClampFunction, currentRenderFunction, hardcodedMinZoom, hardcodedMaxZoom, currentZoomProp, currentPanXProp, currentPanYProp, isSolarView=false;if(galaxyDetailScreen.classList.contains('active')){const g=gameSessionData.galaxies.find(gl=>gl.id===gameSessionData.activeGalaxyId); if(!g)return;targetData=g; viewportElement=galaxyViewport; currentClampFunction=clampGalaxyPan; currentRenderFunction=renderGalaxyDetailScreen; hardcodedMinZoom=GALAXY_VIEW_MIN_ZOOM; hardcodedMaxZoom=GALAXY_VIEW_MAX_ZOOM;currentZoomProp='currentZoom'; currentPanXProp='currentPanX'; currentPanYProp='currentPanY';} else if(solarSystemScreen.classList.contains('active')){isSolarView = true;targetData=gameSessionData.solarSystemView; viewportElement=solarSystemScreen; currentClampFunction=clampSolarSystemPan; currentRenderFunction=renderSolarSystemScreen; hardcodedMinZoom=SOLAR_SYSTEM_VIEW_MIN_ZOOM; hardcodedMaxZoom=SOLAR_SYSTEM_VIEW_MAX_ZOOM;currentZoomProp='zoomLevel'; currentPanXProp='currentPanX'; currentPanYProp='currentPanY';} else return;const oldZoom=targetData[currentZoomProp];let newCalculatedZoom =oldZoom+(direction==='in'?(ZOOM_STEP*oldZoom):-(ZOOM_STEP*oldZoom)); let finalMinZoomForClamping = hardcodedMinZoom;if (isSolarView) {const viewportWidth = viewportElement.offsetWidth;const viewportHeight = viewportElement.offsetHeight;let dynamicMinZoomBasedOnExplorable = 0; if (SOLAR_SYSTEM_EXPLORABLE_RADIUS > 0 && (viewportWidth > 0 || viewportHeight > 0)) {const minZoomToCoverWidth = viewportWidth > 0 ? viewportWidth / (SOLAR_SYSTEM_EXPLORABLE_RADIUS * 2) : 0;const minZoomToCoverHeight = viewportHeight > 0 ? viewportHeight / (SOLAR_SYSTEM_EXPLORABLE_RADIUS * 2) : 0;dynamicMinZoomBasedOnExplorable = Math.max(minZoomToCoverWidth, minZoomToCoverHeight);}finalMinZoomForClamping = Math.max(hardcodedMinZoom, dynamicMinZoomBasedOnExplorable);}newCalculatedZoom=Math.max(finalMinZoomForClamping, Math.min(hardcodedMaxZoom, newCalculatedZoom)); if (Math.abs(oldZoom - newCalculatedZoom) < 0.0001) return; targetData[currentZoomProp]=newCalculatedZoom; if(mouseEvent){ const rect=viewportElement.getBoundingClientRect();const mX=mouseEvent.clientX-rect.left;const mY=mouseEvent.clientY-rect.top;const oPX=targetData[currentPanXProp]||0; const oPY=targetData[currentPanYProp]||0; const worldX = (mX - viewportElement.offsetWidth/2 - oPX) / oldZoom;const worldY = (mY - viewportElement.offsetHeight/2 - oPY) / oldZoom;targetData[currentPanXProp] = (mX - viewportElement.offsetWidth/2) - (worldX * newCalculatedZoom);targetData[currentPanYProp] = (mY - viewportElement.offsetHeight/2) - (worldY * newCalculatedZoom);}if(isSolarView) currentClampFunction(targetData, viewportElement.offsetWidth, viewportElement.offsetHeight);else currentClampFunction(targetData); currentRenderFunction(true);if (isSolarView) { const activeSysView = gameSessionData.solarSystemView;activeSysView.planets.forEach(planet => {if (planet.element) {const planetScreenX = planet.distance * Math.cos(planet.currentOrbitalAngle);const planetScreenY = planet.distance * Math.sin(planet.currentOrbitalAngle);planet.element.style.left = `calc(50% + ${planetScreenX}px - ${planet.size / 2}px)`;planet.element.style.top = `calc(50% + ${planetScreenY}px - ${planet.size / 2}px)`;planet.element.style.transform = `translate(-50%, -50%) rotate(${planet.currentAxialAngle}rad)`;}});drawAllOrbits(); }}
     function startPan(event,viewportEl,contentEl,dataObjectRef){if(event.button!==0||event.target.closest('button'))return;if(viewportEl===galaxyViewport&&(event.target.classList.contains('solar-system-icon')||event.target.closest('.solar-system-icon')))return;const pS=gameSessionData.panning;pS.isActive=true;pS.startX=event.clientX;pS.startY=event.clientY;pS.initialPanX=dataObjectRef.currentPanX||0;pS.initialPanY=dataObjectRef.currentPanY||0;pS.targetElement=contentEl;pS.viewportElement=viewportEl;pS.dataObject=dataObjectRef;viewportEl.classList.add('dragging');if(contentEl) contentEl.style.transition='none';event.preventDefault()}
     function panMouseMove(event){if(!gameSessionData.panning.isActive)return;const pS=gameSessionData.panning,dX=event.clientX-pS.startX,dY=event.clientY-pS.startY;pS.dataObject.currentPanX=pS.initialPanX+dX;pS.dataObject.currentPanY=pS.initialPanY+dY;if(pS.viewportElement===galaxyViewport){clampGalaxyPan(pS.dataObject);renderGalaxyDetailScreen(true)}else if(pS.viewportElement===solarSystemScreen){clampSolarSystemPan(pS.dataObject,pS.viewportElement.offsetWidth,pS.viewportElement.offsetHeight);renderSolarSystemScreen(true); if(solarSystemScreen.classList.contains('active')) { drawAllOrbits(); } }}
-    function panMouseUp(){if(!gameSessionData.panning.isActive)return;if(gameSessionData.panning.viewportElement)gameSessionData.panning.viewportElement.classList.remove('dragging');const pS=gameSessionData.panning;pS.isActive=!1;if(pS.targetElement)pS.targetElement.style.transition='';if(galaxyDetailScreen.classList.contains('active'))renderGalaxyDetailScreen(!1);else if(solarSystemScreen.classList.contains('active'))renderSolarSystemScreen(!1);pS.targetElement=null;pS.viewportElement=null;pS.dataObject=null}
+    function panMouseUp(){if(!gameSessionData.panning.isActive)return;if(gameSessionData.panning.viewportElement)gameSessionData.panning.viewportElement.classList.remove('dragging');const pS=gameSessionData.panning;pS.isActive=!1;if(pS.targetElement)pS.targetElement.style.transition='';if(galaxyDetailScreen.classList.contains('active'))renderGalaxyDetailScreen(!1);else if(solarSystemScreen.classList.contains('active'))renderSolarSystemScreen(!1);pS.targetElement=null;pS.viewportElement=null;pS.dataObject=null;}
     
     function regenerateCurrentUniverseState(fromModal = false){if (!fromModal && !confirm("Regenerate universe with current settings? This will clear the currently saved layout.")) {return;}localStorage.removeItem('galaxyGameSaveData');gameSessionData.universe = { diameter: null };gameSessionData.galaxies = [];gameSessionData.activeGalaxyId = null;gameSessionData.activeSolarSystemId = null;gameSessionData.solarSystemView = { zoomLevel: 1.0, currentPanX: 0, currentPanY: 0, planets: [], systemId: null };gameSessionData.isInitialized = false;if (universeCircle) universeCircle.innerHTML = '';if (galaxyZoomContent) {const canvas = galaxyZoomContent.querySelector('#solar-system-lines-canvas');galaxyZoomContent.innerHTML = ''; if(canvas) galaxyZoomContent.appendChild(canvas); }if (solarSystemContent) solarSystemContent.innerHTML = '';if (orbitCtx && solarSystemOrbitCanvasEl) orbitCtx.clearRect(0,0,solarSystemOrbitCanvasEl.width,solarSystemOrbitCanvasEl.height);if (animationFrameId) { cancelAnimationFrame(animationFrameId); animationFrameId = null; }initializeGame(true); }
     if (regenerateUniverseButton) {regenerateUniverseButton.addEventListener('click', () => regenerateCurrentUniverseState(false));}
@@ -666,8 +669,9 @@ document.addEventListener('DOMContentLoaded', () => {
     if (cancelCustomizationButton) {cancelCustomizationButton.addEventListener('click', () => {customizationModal.classList.remove('visible');});}
     if (applyCustomizationButton) {applyCustomizationButton.addEventListener('click', () => { const numGal = parseInt(numGalaxiesInput.value, 10); const minSS = parseInt(minSSInput.value, 10); const maxSS = parseInt(maxSSInput.value, 10); const spread = parseFloat(ssSpreadInput.value); const minP = parseInt(minPlanetsInput.value, 10); const maxP = parseInt(maxPlanetsInput.value, 10); if (isNaN(numGal) || numGal < 1 || numGal > 10 || isNaN(minSS) || minSS < 10 || minSS > 1000 || isNaN(maxSS) || maxSS < 10 || maxSS > 2000 || maxSS < minSS || isNaN(spread) || spread < 0.1 || spread > 5.0 || isNaN(minP) || minP < 0 || minP > 5 || isNaN(maxP) || maxP < minP || maxP > 8) { alert("Invalid input values. Please check ranges and ensure Max >= Min for systems and planets."); return; } currentNumGalaxies = numGal; currentMinSSCount = minSS; currentMaxSSCount = maxSS; currentMaxPlanetDistanceMultiplier = spread; currentMinPlanets = minP; currentMaxPlanets = maxP; currentShowPlanetOrbits = showOrbitsInput.checked; updateDerivedConstants(); saveCustomizationSettings(); customizationModal.classList.remove('visible'); regenerateCurrentUniverseState(true); });}
     if(pauseResumeSolarSystemButton) {pauseResumeSolarSystemButton.addEventListener('click', () => {isSolarSystemPaused = !isSolarSystemPaused;pauseResumeSolarSystemButton.textContent = isSolarSystemPaused ? "Resume Planets" : "Pause Planets"; const planetIcons = solarSystemContent.querySelectorAll('.planet-icon'); planetIcons.forEach(icon => icon.classList.toggle('clickable-when-paused', isSolarSystemPaused)); if (!isSolarSystemPaused && !animationFrameId && solarSystemScreen.classList.contains('active')) {startSolarSystemAnimation(); }});}
-    if(cancelPlanetCustomizationButton) {cancelPlanetCustomizationButton.addEventListener('click', () => {planetCustomizationModal.classList.remove('visible'); selectedPlanetForCustomization = null;});}
-    if(applyPlanetCustomizationButton) {applyPlanetCustomizationButton.addEventListener('click', () => {if(selectedPlanetForCustomization){const newOrbitalSpeed = parseFloat(planetOrbitalSpeedInput.value); const newAxialSpeed = parseFloat(planetAxialSpeedInput.value); selectedPlanetForCustomization.orbitalSpeed = (isNaN(newOrbitalSpeed) || newOrbitalSpeed < 0) ? selectedPlanetForCustomization.orbitalSpeed : newOrbitalSpeed; selectedPlanetForCustomization.axialSpeed = (isNaN(newAxialSpeed) || newAxialSpeed < 0) ? selectedPlanetForCustomization.axialSpeed : newAxialSpeed; planetCustomizationModal.classList.remove('visible'); selectedPlanetForCustomization = null; }});}
+    // Removed planet customization modal event listeners
+    // if(cancelPlanetCustomizationButton) {cancelPlanetCustomizationButton.addEventListener('click', () => {planetCustomizationModal.classList.remove('visible'); selectedPlanetForCustomization = null;});}
+    // if(applyPlanetCustomizationButton) {applyPlanetCustomizationButton.addEventListener('click', () => {if(selectedPlanetForCustomization){const newOrbitalSpeed = parseFloat(planetOrbitalSpeedInput.value); const newAxialSpeed = parseFloat(planetAxialSpeedInput.value); selectedPlanetForCustomization.orbitalSpeed = (isNaN(newOrbitalSpeed) || newOrbitalSpeed < 0) ? selectedPlanetForCustomization.orbitalSpeed : newOrbitalSpeed; selectedPlanetForCustomization.axialSpeed = (isNaN(newAxialSpeed) || newAxialSpeed < 0) ? selectedPlanetForCustomization.axialSpeed : newAxialSpeed; planetCustomizationModal.classList.remove('visible'); selectedPlanetForCustomization = null; }});}
     
     if (closePlanetInfoPanelBtn) {
         closePlanetInfoPanelBtn.addEventListener('click', () => {
@@ -700,11 +704,11 @@ document.addEventListener('DOMContentLoaded', () => {
             planetInfoPanel.style.right = 'auto'; // Ensure right/bottom don't interfere
             planetInfoPanel.style.bottom = 'auto';
 
-            e.preventDefault(); // Prevent text selection 
+            e.preventDefault(); // Prevent text selection
         });
     }
 
-    // Global mousemove for dragging 
+    // Global mousemove for dragging
     window.addEventListener('mousemove', (e) => {
         if (!isPanelDragging) return;
 
@@ -712,7 +716,7 @@ document.addEventListener('DOMContentLoaded', () => {
         planetInfoPanel.style.top = `${e.clientY - offset.y}px`;
     });
 
-    // Global mouseup to stop dragging 
+    // Global mouseup to stop dragging
     window.addEventListener('mouseup', () => {
         if (isPanelDragging) {
             isPanelDragging = false;

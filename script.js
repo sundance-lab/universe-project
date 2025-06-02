@@ -82,6 +82,7 @@ document.addEventListener('DOMContentLoaded', () => {
     const SOLAR_SYSTEM_EXPLORABLE_RADIUS = 3000; 
     let MIN_ROTATION_SPEED_RAD_PER_FRAME = 0.001; // 5 times slower (0.005 / 5)
     let MAX_ROTATION_SPEED_RAD_PER_FRAME = 0.002; // 5 times slower (0.01 / 5)
+    const MIN_ORBITAL_SEPARATION = 10;
     const FIXED_COLORS = { universeBg: "#100520", galaxyIconFill: "#7f00ff", galaxyIconBorder: "#da70d6", solarSystemBaseColor: "#ffd700", sunFill: "#FFD700", sunBorder: "#FFA500", connectionLine: "rgba(255, 255, 255, 0.3)"};
     let gameSessionData = { universe: { diameter: null }, galaxies: [], activeGalaxyId: null, activeSolarSystemId: null, solarSystemView: { zoomLevel: 1.0, currentPanX: 0, currentPanY: 0, planets: [], systemId: null }, isInitialized: false, panning: { isActive: false, startX: 0, startY: 0, initialPanX: 0, initialPanY: 0, targetElement: null, viewportElement: null, dataObject: null }};
     

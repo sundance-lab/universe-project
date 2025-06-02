@@ -759,36 +759,59 @@ fetch(`https://save-api.nicholasgutteridge512.workers.dev/?key=$`)
   }
 
 function generateSegmentData(planetData) {
-    const totalSegments = Math.floor(Math.random() * (80 - 30 + 1)) + 30; // 30 to 80 segments
-    let numLat = Math.max(3, Math.round(Math.sqrt(totalSegments * (0.8 + Math.random() * 0.4))));
-    let numLon = Math.max(3, Math.round(totalSegments / numLat));
+    const minTotalSegments = 30;
+    const maxTotalSegments = 80;
+    const targetTotalSegments = Math.floor(Math.random() * (maxTotalSegments - minTotalSegments + 1)) + minTotalSegments;
 
-    // Generate random latitude band divisions
+    const minDividersPerAxis = 5; // Min 4 segments along axis
+    const maxDividersPerAxis = 10; // Max 9 segments along axis
+
+    let numLatDividers = Math.floor(Math.random() * (maxDividersPerAxis - minDividersPerAxis + 1)) + minDividersPerAxis;
+    let numLonDividers = Math.floor(Math.random() * (maxDividersPerAxis - minDividersPerAxis + 1)) + minDividersPerAxis;
+
+    let currentSegmentCount = (numLatDividers - 1) * (numLonDividers - 1);
+
+    // Adjust dividers to be within target total segment range
+    let attempts = 0;
+    while ((currentSegmentCount < minTotalSegments || currentSegmentCount > maxTotalSegments) && attempts < 100) {
+        if (currentSegmentCount < minTotalSegments) {
+            if (numLatDividers < maxDividersPerAxis) numLatDividers++;
+            else if (numLonDividers < maxDividersPerAxis) numLonDividers++;
+            else break;
+        } else if (currentSegmentCount > maxTotalSegments) {
+            if (numLatDividers > minDividersPerAxis +1) numLatDividers--; // Keep at least 2 bands
+            else if (numLonDividers > minDividersPerAxis +1) numLonDividers--; // Keep at least 2 slices
+            else break;
+        }
+        currentSegmentCount = (numLatDividers - 1) * (numLonDividers - 1);
+        attempts++;
+    }
+
     const latBandStarts = [0];
-    for (let i = 0; i < numLat - 1; i++) {
+    for (let i = 0; i < numLatDividers - 2; i++) { // -2 because 0 and PI are fixed
         latBandStarts.push(Math.random() * Math.PI);
     }
     latBandStarts.sort((a, b) => a - b);
-    latBandStarts.push(Math.PI);
+    latBandStarts.push(Math.PI); // Ensure coverage from pole to pole
 
-    // Generate random longitude slice divisions
     const lonSliceStarts = [0];
-    for (let i = 0; i < numLon - 1; i++) {
+    for (let i = 0; i < numLonDividers - 2; i++) { // -2 because 0 and 2*PI are fixed
         lonSliceStarts.push(Math.random() * 2 * Math.PI);
     }
     lonSliceStarts.sort((a, b) => a - b);
-    lonSliceStarts.push(2 * Math.PI);
+    lonSliceStarts.push(2 * Math.PI); // Ensure full wraparound coverage
 
     planetData.segmentsData = {
         map: new Map(),
-        numLat: numLat,
-        numLon: numLon,
+        numLatDividers: numLatDividers,
+        numLonDividers: numLonDividers,
         latBandStarts: latBandStarts,
         lonSliceStarts: lonSliceStarts
     };
 
-    for (let i = 0; i < numLat; i++) {
-        for (let j = 0; j < numLon; j++) {
+    // Initialize segments - (numLatDividers-1) bands by (numLonDividers-1) slices
+    for (let i = 0; i < numLatDividers - 1; i++) {
+        for (let j = 0; j < numLonDividers - 1; j++) {
             planetData.segmentsData.map.set(`${i},${j}`, { isPink: false });
         }
     }
@@ -797,79 +820,96 @@ function generateSegmentData(planetData) {
 function drawSegmentLines(ctx, planetData, currentLon, currentLat, sphereRadius, centerX, centerY) {
     if (!planetData.segmentsData || planetData.segmentsData.latBandStarts.length < 2 || planetData.segmentsData.lonSliceStarts.length < 2) return;
 
-    const { latBandStarts, lonSliceStarts, numLat, numLon } = planetData.segmentsData;
+    const { latBandStarts, lonSliceStarts } = planetData.segmentsData;
 
     ctx.strokeStyle = 'rgba(255, 255, 255, 0.4)';
     ctx.lineWidth = 1;
+    const R = 1; // Unit sphere radius for calculations
 
-    // Draw Latitude lines
+    // Helper to get rotated 3D point and check visibility
+    const getRotatedAndVisiblePoint = (phi, theta_raw) => {
+        const theta = theta_raw; // Use raw theta for consistency with sphere calculation, handling 2*PI boundary will be done by atan2.
+
+        // Cartesian for unrotated sphere
+        const x_unrotated = R * Math.sin(phi) * Math.cos(theta);
+        const y_unrotated = R * Math.cos(phi);
+        const z_unrotated = R * Math.sin(phi) * Math.sin(theta);
+
+        // Apply latitude rotation (around X-axis - pitch)
+        const pX_lat = x_unrotated;
+        const pY_lat = y_unrotated * Math.cos(currentLat) - z_unrotated * Math.sin(currentLat);
+        const pZ_lat = y_unrotated * Math.sin(currentLat) + z_unrotated * Math.cos(currentLat);
+
+        // Apply longitude rotation (around Y-axis - yaw)
+        const rotatedX = pX_lat * Math.cos(currentLon) + pZ_lat * Math.sin(currentLon);
+        const rotatedY = pY_lat;
+        const rotatedZ = -pX_lat * Math.sin(currentLon) + pZ_lat * Math.cos(currentLon); // Z is depth from viewer
+
+        // Check visibility (positive Z means in front)
+        const threshold = -0.001 * sphereRadius; // Small epsilon to avoid lines disappearing right at the edge
+        const isVisible = rotatedZ > threshold;
+
+        return { x: rotatedX, y: rotatedY, z: rotatedZ, isVisible: isVisible };
+    };
+
+    // Draw Latitude lines (parallels)
     for (let i = 0; i < latBandStarts.length; i++) {
         const phi = latBandStarts[i];
         ctx.beginPath();
-        let firstPoint = true;
+        let prevPoint = null;
         for (let j = 0; j < lonSliceStarts.length; j++) {
-            const theta = lonSliceStarts[j] - Math.PI; // Convert to -PI to PI for rotation logic
-
-            let x = Math.sin(phi) * Math.sin(theta);
-            let y = -Math.cos(phi);
-            let z = Math.sin(phi) * Math.cos(theta);
-
-            // Apply current rotation
-            let rotatedX_lat = x;
-            let rotatedY_lat = y * Math.cos(currentLat) - z * Math.sin(currentLat);
-            let rotatedZ_lat = y * Math.sin(currentLat) + z * Math.cos(currentLat);
+            const theta_raw = lonSliceStarts[j];
+            const currentPoint = getRotatedAndVisiblePoint(phi, theta_raw);
             
-            let rotatedX = rotatedX_lat * Math.cos(currentLon) + rotatedZ_lat * Math.sin(currentLon);
-            let rotatedZ = -rotatedX_lat * Math.sin(currentLon) + rotatedZ_lat * Math.cos(currentLon);
-            let rotatedY = rotatedY_lat;
+            const canvasX = centerX + currentPoint.x * sphereRadius + (Math.random() - 0.5) * 0.7; // Jitter
+            const canvasY = centerY + currentPoint.y * sphereRadius + (Math.random() - 0.5) * 0.7; // Jitter
 
-            if (rotatedZ < -1) continue;
-
-            const jitterX = (Math.random() - 0.5) * 0.7; // Increased jitter
-            const jitterY = (Math.random() - 0.5) * 0.7;
-
-            const canvasX = centerX + rotatedX * sphereRadius + jitterX;
-            const canvasY = centerY + rotatedY * sphereRadius + jitterY;
-
-            if (firstPoint) { ctx.moveTo(canvasX, canvasY); firstPoint = false; } else { ctx.lineTo(canvasX, canvasY); }
+            if (currentPoint.isVisible) {
+                if (prevPoint && prevPoint.isVisible) {
+                    ctx.lineTo(canvasX, canvasY);
+                } else {
+                    ctx.moveTo(canvasX, canvasY);
+                }
+            } else if (prevPoint && prevPoint.isVisible) { // Previous point was visible, current is not. Draw to intersection
+                // Simplified intersection: just end the line and stroke
+                ctx.lineTo(canvasX, canvasY); // Still connect, but don't start new path later
+                ctx.stroke();
+                ctx.beginPath(); // Start a new path for next visible segment
+            } else if (prevPoint && j === lonSliceStarts.length - 1 && lonSliceStarts[0] !== lonSliceStarts[lonSliceStarts.length - 1]) { // Handle wrapping line for parallels
+                // If it's the last point and wraps around, check connection to first point if both are visible.
+                // This gets complex, for simplicity, assume line breaks at non-visible points.
+            }
+            prevPoint = currentPoint;
         }
-        ctx.stroke();
+        ctx.stroke(); // Ensure any remaining partial path is drawn
     }
 
-    // Draw Longitude lines
+    // Draw Longitude lines (meridians)
     for (let j = 0; j < lonSliceStarts.length; j++) {
-        const thetaRaw = lonSliceStarts[j];
-        const theta = thetaRaw - Math.PI; // Convert to -PI to PI
+        const theta_raw = lonSliceStarts[j];
         ctx.beginPath();
-        let firstPoint = true;
+        let prevPoint = null;
         for (let i = 0; i < latBandStarts.length; i++) {
             const phi = latBandStarts[i];
+            const currentPoint = getRotatedAndVisiblePoint(phi, theta_raw);
 
-            let x = Math.sin(phi) * Math.sin(theta);
-            let y = -Math.cos(phi);
-            let z = Math.sin(phi) * Math.cos(theta);
+            const canvasX = centerX + currentPoint.x * sphereRadius + (Math.random() - 0.5) * 0.7; // Jitter
+            const canvasY = centerY + currentPoint.y * sphereRadius + (Math.random() - 0.5) * 0.7; // Jitter
 
-            // Apply current rotation
-            let rotatedX_lat = x;
-            let rotatedY_lat = y * Math.cos(currentLat) - z * Math.sin(currentLat);
-            let rotatedZ_lat = y * Math.sin(currentLat) + z * Math.cos(currentLat);
-            
-            let rotatedX = rotatedX_lat * Math.cos(currentLon) + rotatedZ_lat * Math.sin(currentLon);
-            let rotatedZ = -rotatedX_lat * Math.sin(currentLon) + rotatedZ_lat * Math.cos(currentLon);
-            let rotatedY = rotatedY_lat;
-
-
-            if (rotatedZ < -1) continue;
-
-            const jitterX = (Math.random() - 0.5) * 0.7;
-            const jitterY = (Math.random() - 0.5) * 0.7;
-
-            const canvasX = centerX + rotatedX * sphereRadius + jitterX;
-            const canvasY = centerY + rotatedY * sphereRadius + jitterY;
-
-            if (firstPoint) { ctx.moveTo(canvasX, canvasY); firstPoint = false; } else { ctx.lineTo(canvasX, canvasY); }
+            if (currentPoint.isVisible) {
+                if (prevPoint && prevPoint.isVisible) {
+                    ctx.lineTo(canvasX, canvasY);
+                } else {
+                    ctx.moveTo(canvasX, canvasY);
+                }
+            } else if (prevPoint && prevPoint.isVisible) { // Previous point was visible, current is not. Draw to intersection
+                ctx.lineTo(canvasX, canvasY);
+                ctx.stroke();
+                ctx.beginPath();
+            }
+            prevPoint = currentPoint;
         }
-        ctx.stroke();
+        ctx.stroke(); // Ensure any remaining partial path is drawn
     }
 }
 
@@ -889,16 +929,13 @@ function drawSegmentLines(ctx, planetData, currentLon, currentLat, sphereRadius,
     ? Math.ceil(radius * 1.0)
     : Math.ceil(radius * 2);
 
-    // Light source vector
+    // Light source vector (arbitrarily chosen position relative to viewer)
     const lightSourceLongitude = Math.PI / 4;
     const lightSourceLatitude = Math.PI / 8;
 
-    const lightVecX = Math.cos(lightSourceLatitude) * Math.cos(lightSourceLongitude);
-    const lightVecY = Math.sin(lightSourceLatitude);
-    const lightVecZ = Math.cos(lightSourceLatitude) * Math.sin(lightSourceLongitude); // Pointing towards camera
-
-    const lightDrawX = centerX + radius * lightVecX;
-    const lightDrawY = centerY + radius * lightVecY;
+    const lightVecX = Math.cos(lightSourceLatitude) * Math.sin(lightSourceLongitude); // X in viewer space
+    const lightVecY = Math.sin(lightSourceLatitude); // Y in viewer space
+    const lightVecZ = Math.cos(lightSourceLatitude) * Math.cos(lightSourceLongitude); // Z in viewer space (pointing out/forward)
 
     if (!planetData.segmentsData) {
         generateSegmentData(planetData);
@@ -908,7 +945,7 @@ function drawSegmentLines(ctx, planetData, currentLon, currentLat, sphereRadius,
     ctx.save();
     ctx.beginPath();
     ctx.arc(centerX, centerY, radius, 0, Math.PI * 2);
-    ctx.clip();
+    ctx.clip(); // Clip drawing to the planet circle
 
     let textureData = null;
     let textureWidth = 0;
@@ -924,42 +961,48 @@ function drawSegmentLines(ctx, planetData, currentLon, currentLat, sphereRadius,
 
     for (let i = 0; i < steps; i++) {
         for (let j = 0; j < steps; j++) {
-            const nx = (i / (steps - 1)) * 2 - 1;
-            const ny = (j / (steps - 1)) * 2 - 1;
-            if (nx * nx + ny * ny > 1) continue;
+            const nx = (i / (steps - 1)) * 2 - 1; // Normalized X from -1 to 1
+            const ny = (j / (steps - 1)) * 2 - 1; // Normalized Y from -1 to 1
+            if (nx * nx + ny * ny > 1) continue; // Outside the circle
 
-            let x = nx;
-            let y = ny;
-            let z = Math.sqrt(1 - x * x - y * y);
+            // Calculate 3D point on unit sphere (Z points out)
+            const x_sphere = nx;
+            const y_sphere = ny;
+            const z_sphere = Math.sqrt(1 - x_sphere * x_sphere - y_sphere * y_sphere); // Z is depth, positive means facing viewer
 
-            let rotatedX_lat = x;
-            let rotatedY_lat = y * Math.cos(latitude) - z * Math.sin(latitude);
-            let rotatedZ_lat = y * Math.sin(latitude) + z * Math.cos(latitude);
-            
-            let rotatedX = rotatedX_lat * Math.cos(longitude) + rotatedZ_lat * Math.sin(longitude);
-            let rotatedZ = -rotatedX_lat * Math.sin(longitude) + rotatedZ_lat * Math.cos(longitude);
-            let rotatedY = rotatedY_lat;
+            // Apply latitude rotation (around X-axis - pitch)
+            const pX_lat = x_sphere;
+            const pY_lat = y_sphere * Math.cos(latitude) - z_sphere * Math.sin(latitude);
+            const pZ_lat = y_sphere * Math.sin(latitude) + z_sphere * Math.cos(latitude);
+
+            // Apply longitude rotation (around Y-axis - yaw)
+            const rotatedX = pX_lat * Math.cos(longitude) + pZ_lat * Math.sin(longitude);
+            const rotatedY = pY_lat;
+            const rotatedZ = -pX_lat * Math.sin(longitude) + pZ_lat * Math.cos(longitude); // Final Z is depth from viewer
 
             let r, g, b, a;
-
-            // Calculate current pixel's normal vector on the sphere (same as its position vector)
-            const normalX = rotatedX;
-            const normalY = rotatedY;
-            const normalZ = rotatedZ; // Depth in front/back of sphere
 
             // Lighting calculation
             const ambientLight = 0.25; // Minimum light for the dark side
             const diffuseLight = 0.75;
-            const dotProduct = normalX * lightVecX + normalY * lightVecY + normalZ * lightVecZ;
+            // Normal vector for lighting is the same as the point's position vector on the unit sphere
+            const dotProduct = rotatedX * lightVecX + rotatedY * lightVecY + rotatedZ * lightVecZ; // Dot product with normalized light vector
             const lightIntensity = Math.max(0, dotProduct) * diffuseLight + ambientLight; // Max(0, dot) for diffuse, add ambient
-            
-            if (planetData.type === 'terrestrial') {
-                let texU = (Math.atan2(rotatedX, rotatedZ) / (2 * Math.PI)) + 0.5;
-                let texV = Math.acos(rotatedY) / Math.PI;
 
+            if (planetData.type === 'terrestrial') {
+                // Determine original spherical coordinates (phi, theta) for texture lookup
+                const phi_original = Math.acos(rotatedY); // Latitude (0 to PI) from Y
+                const theta_original = (Math.atan2(rotatedX, rotatedZ) + 2 * Math.PI) % (2 * Math.PI); // Longitude (0 to 2PI) from X, Z
+
+                // Map to texture coordinates (0 to 1)
+                let texU = theta_original / (2 * Math.PI);
+                let texV = phi_original / Math.PI;
+
+                // Sample the texture
                 let sx = Math.floor(texU * textureWidth);
                 let sy = Math.floor(texV * textureHeight);
 
+                // Clamp texture coordinates
                 sx = Math.max(0, Math.min(textureWidth - 1, sx));
                 sy = Math.max(0, Math.min(textureHeight - 1, sy));
 
@@ -968,13 +1011,21 @@ function drawSegmentLines(ctx, planetData, currentLon, currentLat, sphereRadius,
                 g = textureData.data[idx + 1];
                 b = textureData.data[idx + 2];
                 a = textureData.data[idx + 3];
+
+                // Apply lighting
+                r = Math.min(255, r * lightIntensity);
+                g = Math.min(255, g * lightIntensity);
+                b = Math.min(255, b * lightIntensity);
+
             } else { // 'normal' planet type
                 const hue = planetData.color.hue;
                 const saturation = planetData.color.saturation;
                 const lightness = planetData.color.lightness;
 
-                const currentLightness = lightness * lightIntensity;
+                // Apply lighting to lightness
+                const litLightness = Math.max(0, Math.min(100, lightness * lightIntensity));
                 
+                // Convert HSL to RGB for direct setting
                 const hslToRgb = (h, s, l) => {
                     s /= 100;
                     l /= 100;
@@ -995,32 +1046,31 @@ function drawSegmentLines(ctx, planetData, currentLon, currentLat, sphereRadius,
                     b_val = Math.round((b_val + m) * 255);
                     return [r_val, g_val, b_val];
                 };
-                [r, g, b] = hslToRgb(hue, saturation, Math.max(0, Math.min(100, currentLightness)));
+                [r, g, b] = hslToRgb(hue, saturation, litLightness);
                 a = 255;
             }
 
             // Determine which segment this pixel belongs to for 'pink' coloring
-            // Convert rotated spherical coordinates back to texture map's 0-PI / 0-2PI range
-            const phi_unrotated = Math.acos(rotatedY); // 0 to PI
-            const theta_unrotated = (Math.atan2(rotatedX, rotatedZ) + 2 * Math.PI) % (2 * Math.PI); // 0 to 2PI
+            const current_phi = Math.acos(rotatedY); // Use rotatedY here as it's the Y in the final viewer space
+            const current_theta = (Math.atan2(rotatedX, rotatedZ) + 2 * Math.PI) % (2 * Math.PI);
 
             let latBandIndex = -1;
             for (let k = 0; k < planetData.segmentsData.latBandStarts.length - 1; k++) {
-                if (phi_unrotated >= planetData.segmentsData.latBandStarts[k] && phi_unrotated < planetData.segmentsData.latBandStarts[k + 1]) {
+                if (current_phi >= planetData.segmentsData.latBandStarts[k] && current_phi < planetData.segmentsData.latBandStarts[k + 1]) {
                     latBandIndex = k;
                     break;
                 }
             }
-            if (latBandIndex === -1 && phi_unrotated === Math.PI) latBandIndex = planetData.segmentsData.numLat - 1; // Handle edge case at South Pole
+            if (latBandIndex === -1 && current_phi === Math.PI) latBandIndex = planetData.segmentsData.latBandStarts.length - 2; // Handle South Pole exact match
 
             let lonBandIndex = -1;
             for (let k = 0; k < planetData.segmentsData.lonSliceStarts.length - 1; k++) {
-                if (theta_unrotated >= planetData.segmentsData.lonSliceStarts[k] && theta_unrotated < planetData.segmentsData.lonSliceStarts[k + 1]) {
+                if (current_theta >= planetData.segmentsData.lonSliceStarts[k] && current_theta < planetData.segmentsData.lonSliceStarts[k + 1]) {
                     lonBandIndex = k;
                     break;
                 }
             }
-            if (lonBandIndex === -1 && theta_unrotated === 2 * Math.PI) lonBandIndex = planetData.segmentsData.numLon - 1; // Handle edge case at 2PI longitude
+            if (lonBandIndex === -1 && current_theta === 2 * Math.PI) lonBandIndex = planetData.segmentsData.lonSliceStarts.length - 2; // Handle 2PI exact match
 
             const segment = planetData.segmentsData.map.get(`${latBandIndex},${lonBandIndex}`);
             if (segment && segment.isPink) {
@@ -1153,45 +1203,60 @@ window.addEventListener('mousemove', (e) => {
 planetVisualCanvas.addEventListener('click', (e) => {
     if (!currentPlanetDisplayedInPanel || isDraggingPlanetVisual) return;
 
-    const rect = planetVisualCanvas.getBoundingClientRect();
-    const clickX = e.clientX - rect.left - planetVisualCanvas.width / 2;
-    const clickY = e.clientY - rect.top - planetVisualCanvas.height / 2;
+    const rect = planetVisualPanel.getBoundingClientRect();
+    const canvasRect = planetVisualCanvas.getBoundingClientRect();
+    const clickX_canvas_rel = e.clientX - canvasRect.left;
+    const clickY_canvas_rel = e.clientY - canvasRect.top;
 
+    const centerX = planetVisualCanvas.width / 2;
+    const centerY = planetVisualCanvas.height / 2;
     const radius = Math.min(planetVisualCanvas.width, planetVisualCanvas.height) * 0.4;
 
-    if (clickX * clickX + clickY * clickY > radius * radius) return;
+    const nx = (clickX_canvas_rel - centerX) / radius;
+    const ny = (clickY_canvas_rel - centerY) / radius;
 
-    const normalizedClickX = clickX / radius;
-    const normalizedClickY = clickY / radius;
-    const zUnrotated = Math.sqrt(1 - normalizedClickX * normalizedClickX - normalizedClickY * normalizedClickY);
+    if (nx * nx + ny * ny > 1) return; // Clicked outside the sphere
 
-    let xRevLat = normalizedClickX;
-    let yRevLat = normalizedClickY * Math.cos(-rotationLatitude) - zUnrotated * Math.sin(-rotationLatitude);
-    let zRevLat = normalizedClickY * Math.sin(-rotationLatitude) + zUnrotated * Math.cos(-rotationLatitude);
-    
-    let xSph = xRevLat * Math.cos(-rotationLongitude) - zRevLat * Math.sin(-rotationLongitude);
-    let zSph = xRevLat * Math.sin(-rotationLongitude) + zRevLat * Math.cos(-rotationLongitude);
+    // Calculate 3D point on unit sphere (Z points out)
+    const x_sphere = nx;
+    const y_sphere = ny;
+    const z_sphere = Math.sqrt(1 - x_sphere * x_sphere - y_sphere * y_sphere);
 
-    const phi = Math.acos(yRevLat);
-    const theta = (Math.atan2(xSph, zSph) + 2 * Math.PI) % (2 * Math.PI); // 0 to 2PI
+    // Apply INVERSE rotation to get original phi/theta
+    // Inverse of Yaw then Pitch is Inverse Pitch then Inverse Yaw
+    // Inverse Pitch (around X)
+    const inv_lat = -rotationLatitude;
+    const pX_inv_lat = x_sphere;
+    const pY_inv_lat = y_sphere * Math.cos(inv_lat) - z_sphere * Math.sin(inv_lat);
+    const pZ_inv_lat = y_sphere * Math.sin(inv_lat) + z_sphere * Math.cos(inv_lat);
+
+    // Inverse Yaw (around Y)
+    const inv_lon = -rotationLongitude;
+    const x_original = pX_inv_lat * Math.cos(inv_lon) + pZ_inv_lat * Math.sin(inv_lon);
+    const y_original = pY_inv_lat;
+    const z_original = -pX_inv_lat * Math.sin(inv_lon) + pZ_inv_lat * Math.cos(inv_lon);
+
+    // Convert original Cartesian back to spherical for segment lookup
+    const phi_original = Math.acos(y_original); // Latitude (0 to PI) from Y
+    const theta_original = (Math.atan2(x_original, z_original) + 2 * Math.PI) % (2 * Math.PI); // Longitude (0 to 2PI) from X, Z
 
     let latBandIndex = -1;
     for (let k = 0; k < currentPlanetDisplayedInPanel.segmentsData.latBandStarts.length - 1; k++) {
-        if (phi >= currentPlanetDisplayedInPanel.segmentsData.latBandStarts[k] && phi < currentPlanetDisplayedInPanel.segmentsData.latBandStarts[k + 1]) {
+        if (phi_original >= currentPlanetDisplayedInPanel.segmentsData.latBandStarts[k] && phi_original < currentPlanetDisplayedInPanel.segmentsData.latBandStarts[k + 1]) {
             latBandIndex = k;
             break;
         }
     }
-    if (latBandIndex === -1 && phi === Math.PI) latBandIndex = currentPlanetDisplayedInPanel.segmentsData.numLat - 1;
+    if (latBandIndex === -1 && phi_original === Math.PI) latBandIndex = currentPlanetDisplayedInPanel.segmentsData.latBandStarts.length - 2;
 
     let lonBandIndex = -1;
     for (let k = 0; k < currentPlanetDisplayedInPanel.segmentsData.lonSliceStarts.length - 1; k++) {
-        if (theta >= currentPlanetDisplayedInPanel.segmentsData.lonSliceStarts[k] && theta < currentPlanetDisplayedInPanel.segmentsData.lonSliceStarts[k + 1]) {
+        if (theta_original >= currentPlanetDisplayedInPanel.segmentsData.lonSliceStarts[k] && theta_original < currentPlanetDisplayedInPanel.segmentsData.lonSliceStarts[k + 1]) {
             lonBandIndex = k;
             break;
         }
     }
-     if (lonBandIndex === -1 && theta === 2 * Math.PI) lonBandIndex = currentPlanetDisplayedInPanel.segmentsData.numLon - 1;
+     if (lonBandIndex === -1 && theta_original === 2 * Math.PI) lonBandIndex = currentPlanetDisplayedInPanel.segmentsData.lonSliceStarts.length - 2;
 
     const segment = currentPlanetDisplayedInPanel.segmentsData.map.get(`${latBandIndex},${lonBandIndex}`);
     if (segment) {

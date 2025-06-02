@@ -35,25 +35,23 @@ document.addEventListener('DOMContentLoaded', () => {
     const showOrbitsInput = document.getElementById('show-orbits-input');
     const pauseResumeSolarSystemButton = document.getElementById('pause-resume-solar-system-btn');
 
-    // Removed planet customization modal references and related variables
-    // const planetCustomizationModal = document.getElementById('planet-customization-modal');
-    // const planetModalTitle = document.getElementById('planet-modal-title');
-    // const planetOrbitalSpeedInput = document.getElementById('planet-orbital-speed-input');
-    // const planetAxialSpeedInput = document.getElementById('planet-axial-speed-input');
-    // const applyPlanetCustomizationButton = document.getElementById('apply-planet-customization-btn');
-    // const cancelPlanetCustomizationButton = document.getElementById('cancel-planet-customization-btn');
-    // let selectedPlanetForCustomization = null;
-
     const planetInfoPanel = document.getElementById('planet-info-panel');
     const closePlanetInfoPanelBtn = document.getElementById('close-planet-info-panel');
     const planetInfoPanelHeader = document.getElementById('planet-info-panel-header');
     const planetInfoName = document.getElementById('planet-info-name');
     const planetInfoSize = document.getElementById('planet-info-size');
 
+    const planetVisualPanel = document.getElementById('planet-visual-panel');
+    const closePlanetVisualPanelBtn = document.getElementById('close-planet-visual-panel');
+    const planetVisualPanelHeader = document.getElementById('planet-visual-panel-header');
+    const planetVisualName = document.getElementById('planet-visual-name');
+    const planetVisualCanvas = document.getElementById('planet-visual-canvas');
+
     let linesCtx; 
     let solarSystemOrbitCanvasEl;
     let orbitCtx;
     let animationFrameId = null;
+    let lastAnimationTime = null; // For frame-rate independent animation
     let isSolarSystemPaused = false;
 
     const DEFAULT_NUM_GALAXIES = 3;
@@ -80,9 +78,9 @@ document.addEventListener('DOMContentLoaded', () => {
     let MAX_PLANET_DISTANCE = (SUN_ICON_SIZE * BASE_MAX_PLANET_DISTANCE_FACTOR) * currentMaxPlanetDistanceMultiplier; 
     let ORBIT_CANVAS_SIZE = MAX_PLANET_DISTANCE * 2.2; 
     const SOLAR_SYSTEM_EXPLORABLE_RADIUS = 3000; 
-    let MIN_ROTATION_SPEED_RAD_PER_FRAME = 0.001; // 5 times slower (0.005 / 5)
-    let MAX_ROTATION_SPEED_RAD_PER_FRAME = 0.002; // 5 times slower (0.01 / 5)
-    const MIN_ORBITAL_SEPARATION = 10;
+    const MIN_ORBITAL_SEPARATION = 20; // Consistent with last script.
+    let MIN_ROTATION_SPEED_RAD_PER_FRAME = 0.005; 
+    let MAX_ROTATION_SPEED_RAD_PER_FRAME = 0.01; 
     const FIXED_COLORS = { universeBg: "#100520", galaxyIconFill: "#7f00ff", galaxyIconBorder: "#da70d6", solarSystemBaseColor: "#ffd700", sunFill: "#FFD700", sunBorder: "#FFA500", connectionLine: "rgba(255, 255, 255, 0.3)"};
     let gameSessionData = { universe: { diameter: null }, galaxies: [], activeGalaxyId: null, activeSolarSystemId: null, solarSystemView: { zoomLevel: 1.0, currentPanX: 0, currentPanY: 0, planets: [], systemId: null }, isInitialized: false, panning: { isActive: false, startX: 0, startY: 0, initialPanX: 0, initialPanY: 0, targetElement: null, viewportElement: null, dataObject: null }};
     
@@ -207,6 +205,7 @@ document.addEventListener('DOMContentLoaded', () => {
         else { if (animationFrameId) { cancelAnimationFrame(animationFrameId); animationFrameId = null; } }
         // Hide info panel when changing screens.
         planetInfoPanel.classList.remove('visible');
+        planetVisualPanel.classList.remove('visible'); // Hide visual panel too
     }
 
     function generateUniverseLayout() { const smd=Math.min(window.innerWidth,window.innerHeight);gameSessionData.universe.diameter=Math.max(300,smd*0.85);if(universeCircle){universeCircle.style.width=`${gameSessionData.universe.diameter}px`;universeCircle.style.height=`${gameSessionData.universe.diameter}px`;universeCircle.style.backgroundColor=FIXED_COLORS.universeBg;} }
@@ -580,6 +579,9 @@ document.addEventListener('DOMContentLoaded', () => {
             planetEl.style.width = `${newPlanet.size}px`;
             planetEl.style.height = `${newPlanet.size}px`;
             const hue = Math.random() * 360, saturation = 40 + Math.random() * 40, lightnessBase = 50 + Math.random() * 10; 
+            // Store color components for visual panel rendering
+            newPlanet.color = { hue: hue, saturation: saturation, lightness: lightnessBase };
+
             const angleToSunFromPlanet = Math.atan2(-Math.sin(newPlanet.currentOrbitalAngle), -Math.cos(newPlanet.currentOrbitalAngle));
             const gradientOriginX = (0.5 + Math.cos(angleToSunFromPlanet) * 0.4) * 100, gradientOriginY = (0.5 + Math.sin(angleToSunFromPlanet) * 0.4) * 100;
             const lighterColor = `hsl(${hue}, ${saturation}%, ${lightnessBase + 35}%)`, darkerColor = `hsl(${hue}, ${saturation}%, ${lightnessBase - 35}%)`; 
@@ -588,25 +590,28 @@ document.addEventListener('DOMContentLoaded', () => {
             
             planetEl.addEventListener('click', (e) => { 
                 e.stopPropagation(); 
-                // selectedPlanetForCustomization = newPlanet; // Removed since customization modal is gone
 
                 // Show planet info panel
                 planetInfoName.textContent = `Planet ${newPlanet.id.split('-')[1]}`;
                 planetInfoSize.textContent = Math.round(newPlanet.size);
                 planetInfoPanel.classList.add('visible');
-                // Center the panel initially
+                // Center the info panel initially
                 planetInfoPanel.style.left = '50%';
                 planetInfoPanel.style.top = '50%';
                 planetInfoPanel.style.transform = 'translate(-50%, -50%)';
-                planetInfoPanel.style.transition = ''; // Ensure transition is reset for initial placement
+                planetInfoPanel.style.transition = ''; 
 
-                // Removed planet customization modal opening logic
-                // if (isSolarSystemPaused) {
-                //     planetModalTitle.textContent = `Customize Planet ${newPlanet.id.split('-')[1]}`;
-                //     planetOrbitalSpeedInput.value = newPlanet.orbitalSpeed.toFixed(4);
-                //     planetAxialSpeedInput.value = newPlanet.axialSpeed.toFixed(4);
-                //     planetCustomizationModal.classList.add('visible');
-                // }
+                // Show planet visual panel
+                planetVisualName.textContent = `Planet ${newPlanet.id.split('-')[1]} Visual`;
+                planetVisualPanel.classList.add('visible');
+                // Position visual panel slightly offset from info panel
+                planetVisualPanel.style.left = 'calc(50% + 200px)'; // Example offset
+                planetVisualPanel.style.top = '50%';
+                planetVisualPanel.style.transform = 'translate(-50%, -50%)';
+                planetVisualPanel.style.transition = '';
+
+                // Render the planet on the visual panel canvas
+                renderPlanetVisual(newPlanet);
             });
             solarSystemContent.appendChild(planetEl);
             newPlanet.element = planetEl;
@@ -631,48 +636,91 @@ document.addEventListener('DOMContentLoaded', () => {
         renderSolarSystemScreen(false); 
     }
 
-   let lastAnimationTime = null;
+    function renderPlanetVisual(planetData) {
+        if (!planetVisualCanvas) return;
 
-function animateSolarSystem(now) {
-    if (!now) now = performance.now();
-    if (lastAnimationTime === null) lastAnimationTime = now;
-    const delta = (now - lastAnimationTime) / 1000; // Time since last frame in seconds
-    lastAnimationTime = now;
+        const ctx = planetVisualCanvas.getContext('2d');
+        const canvasWidth = planetVisualCanvas.width;
+        const canvasHeight = planetVisualCanvas.height;
+        const centerX = canvasWidth / 2;
+        const centerY = canvasHeight / 2;
 
-    const activeSysView = gameSessionData.solarSystemView;
-    if (isSolarSystemPaused) {
-        animationFrameId = requestAnimationFrame(animateSolarSystem);
-        return;
+        ctx.clearRect(0, 0, canvasWidth, canvasHeight);
+
+        const radius = Math.min(canvasWidth, canvasHeight) * 0.4; // Scale planet to fit well
+
+        // Use stored color components
+        const hue = planetData.color.hue;
+        const saturation = planetData.color.saturation;
+        const lightness = planetData.color.lightness;
+
+        // Simple radial gradient for shading
+        const gradient = ctx.createRadialGradient(
+            centerX - radius * 0.4, centerY - radius * 0.4, radius * 0.1, // Inner circle for light source
+            centerX, centerY, radius * 1.8 // Outer circle for shadow
+        );
+
+        // Adjust colors for shading, making sure they stay within valid ranges
+        const lighterColor = `hsl(${hue}, ${saturation}%, ${Math.min(100, lightness + 15)}%)`;
+        const darkerColor = `hsl(${hue}, ${saturation}%, ${Math.max(0, lightness - 15)}%)`;
+
+        gradient.addColorStop(0, lighterColor); // Light side
+        gradient.addColorStop(1, darkerColor);  // Dark side
+
+        ctx.beginPath();
+        ctx.arc(centerX, centerY, radius, 0, Math.PI * 2);
+        ctx.fillStyle = gradient;
+        ctx.fill();
+
+        // Add a subtle ambient glow
+        ctx.shadowColor = `hsl(${hue}, ${saturation}%, ${lightness + 5}%)`;
+        ctx.shadowBlur = radius * 0.1;
+        ctx.shadowOffsetX = 0;
+        ctx.shadowOffsetY = 0;
+        ctx.fill();
+        ctx.shadowBlur = 0; 
     }
-    if (activeSysView && solarSystemScreen.classList.contains('active') && activeSysView.planets) {
-        activeSysView.planets.forEach(planet => {
-            // The factor '5' here preserves your previous visual speed (since before you used .1 as the step)
-            planet.currentOrbitalAngle += planet.orbitalSpeed * delta * 5;
-            planet.currentAxialAngle  += planet.axialSpeed * delta * 1;
-            if (planet.element) {
-                const planetScreenX = planet.distance * Math.cos(planet.currentOrbitalAngle);
-                const planetScreenY = planet.distance * Math.sin(planet.currentOrbitalAngle);
-                planet.element.style.left = `calc(50% + ${planetScreenX}px - ${planet.size / 2}px)`;
-                planet.element.style.top  = `calc(50% + ${planetScreenY}px - ${planet.size / 2}px)`;
-                planet.element.style.transform = `translate(-50%, -50%) rotate(${planet.currentAxialAngle}rad)`;
-            }
-        });
-        animationFrameId = requestAnimationFrame(animateSolarSystem);
-    } else {
-        if (animationFrameId) {
-            cancelAnimationFrame(animationFrameId);
-            animationFrameId = null;
+
+    function animateSolarSystem(now) {
+        if (!now) now = performance.now();
+        if (lastAnimationTime === null) lastAnimationTime = now;
+        const deltaTime = (now - lastAnimationTime) / 1000; // Time since last frame in seconds
+        lastAnimationTime = now;
+
+        const activeSysView = gameSessionData.solarSystemView;
+        if (isSolarSystemPaused) { 
+            animationFrameId = requestAnimationFrame(animateSolarSystem); 
+            return; 
         }
-        lastAnimationTime = null;
-    }
-}
+        if (activeSysView && solarSystemScreen.classList.contains('active') && activeSysView.planets) {
+            activeSysView.planets.forEach(planet => {
+                // Orbital speed 5x slower (original speed * 0.5 was the reference point)
+                // If base speed is 0.005-0.01, and effective speed was base * 0.5,
+                // now effective speed is base * (0.5 / 5) = base * 0.1
+                planet.currentOrbitalAngle += planet.orbitalSpeed * deltaTime * 5; // The *5 converts frames/sec to units/sec where orbitalSpeed is in angle/frame
+                planet.currentAxialAngle += planet.axialSpeed * deltaTime * 60; // Adjust axial speed similarly if needed, currently 60 for visual pace
 
-    function startSolarSystemAnimation() {
-    if (!animationFrameId && solarSystemScreen.classList.contains('active')) {
-        lastAnimationTime = null;
-        animateSolarSystem();
+                if (planet.element) {
+                    const planetScreenX = planet.distance * Math.cos(planet.currentOrbitalAngle);
+                    const planetScreenY = planet.distance * Math.sin(planet.currentOrbitalAngle);
+                    planet.element.style.left = `calc(50% + ${planetScreenX}px - ${planet.size / 2}px)`;
+                    planet.element.style.top = `calc(50% + ${planetScreenY}px - ${planet.size / 2}px)`;
+                    planet.element.style.transform = `translate(-50%, -50%) rotate(${planet.currentAxialAngle}rad)`; // Center transform for rotation
+                }
+            });
+            animationFrameId = requestAnimationFrame(animateSolarSystem);
+        } else {
+            if (animationFrameId) { cancelAnimationFrame(animationFrameId); animationFrameId = null; }
+            lastAnimationTime = null; // Reset for next animation start
+        }
     }
-}
+
+    function startSolarSystemAnimation() { 
+        if (!animationFrameId && solarSystemScreen.classList.contains('active')) { 
+            lastAnimationTime = null; // Ensure fresh start for delta time
+            animateSolarSystem(); 
+        } 
+    }
     function clampSolarSystemPan(dataObject, viewportWidth, viewportHeight) { if (!dataObject || !viewportWidth || !viewportHeight) { if (dataObject) { dataObject.currentPanX = 0; dataObject.currentPanY = 0; } return; } const zm = dataObject.zoomLevel; const explorableRadius = SOLAR_SYSTEM_EXPLORABLE_RADIUS; const scaledExplorableRadius = explorableRadius * zm; const panSlackX = scaledExplorableRadius - viewportWidth / 2; const panSlackY = scaledExplorableRadius - viewportHeight / 2; const panLimitX = Math.abs(panSlackX); const panLimitY = Math.abs(panSlackY); dataObject.currentPanX = Math.max(-panLimitX, Math.min(panLimitX, dataObject.currentPanX)); dataObject.currentPanY = Math.max(-panLimitY, Math.min(panLimitY, dataObject.currentPanY)); }
     function clampGalaxyPan(galaxy) { if(!galaxy || !galaxyViewport) return; const vw = galaxyViewport.offsetWidth; const vh = galaxyViewport.offsetHeight; const zm = galaxy.currentZoom; if(zm <= GALAXY_VIEW_MIN_ZOOM){ galaxy.currentPanX=0; galaxy.currentPanY=0; } else { const panLimitX = (vw * zm - vw) / 2; const panLimitY = (vh * zm - vh) / 2; galaxy.currentPanX = Math.max(-panLimitX, Math.min(panLimitX, galaxy.currentPanX)); galaxy.currentPanY = Math.max(-panLimitY, Math.min(panLimitY, galaxy.currentPanY)); } }
     function handleZoom(direction,mouseEvent=null){let targetData, viewportElement, currentClampFunction, currentRenderFunction, hardcodedMinZoom, hardcodedMaxZoom, currentZoomProp, currentPanXProp, currentPanYProp, isSolarView=false;if(galaxyDetailScreen.classList.contains('active')){const g=gameSessionData.galaxies.find(gl=>gl.id===gameSessionData.activeGalaxyId); if(!g)return;targetData=g; viewportElement=galaxyViewport; currentClampFunction=clampGalaxyPan; currentRenderFunction=renderGalaxyDetailScreen; hardcodedMinZoom=GALAXY_VIEW_MIN_ZOOM; hardcodedMaxZoom=GALAXY_VIEW_MAX_ZOOM;currentZoomProp='currentZoom'; currentPanXProp='currentPanX'; currentPanYProp='currentPanY';} else if(solarSystemScreen.classList.contains('active')){isSolarView = true;targetData=gameSessionData.solarSystemView; viewportElement=solarSystemScreen; currentClampFunction=clampSolarSystemPan; currentRenderFunction=renderSolarSystemScreen; hardcodedMinZoom=SOLAR_SYSTEM_VIEW_MIN_ZOOM; hardcodedMaxZoom=SOLAR_SYSTEM_VIEW_MAX_ZOOM;currentZoomProp='zoomLevel'; currentPanXProp='currentPanX'; currentPanYProp='currentPanY';} else return;const oldZoom=targetData[currentZoomProp];let newCalculatedZoom =oldZoom+(direction==='in'?(ZOOM_STEP*oldZoom):-(ZOOM_STEP*oldZoom)); let finalMinZoomForClamping = hardcodedMinZoom;if (isSolarView) {const viewportWidth = viewportElement.offsetWidth;const viewportHeight = viewportElement.offsetHeight;let dynamicMinZoomBasedOnExplorable = 0; if (SOLAR_SYSTEM_EXPLORABLE_RADIUS > 0 && (viewportWidth > 0 || viewportHeight > 0)) {const minZoomToCoverWidth = viewportWidth > 0 ? viewportWidth / (SOLAR_SYSTEM_EXPLORABLE_RADIUS * 2) : 0;const minZoomToCoverHeight = viewportHeight > 0 ? viewportHeight / (SOLAR_SYSTEM_EXPLORABLE_RADIUS * 2) : 0;dynamicMinZoomBasedOnExplorable = Math.max(minZoomToCoverWidth, minZoomToCoverHeight);}finalMinZoomForClamping = Math.max(hardcodedMinZoom, dynamicMinZoomBasedOnExplorable);}newCalculatedZoom=Math.max(finalMinZoomForClamping, Math.min(hardcodedMaxZoom, newCalculatedZoom)); if (Math.abs(oldZoom - newCalculatedZoom) < 0.0001) return; targetData[currentZoomProp]=newCalculatedZoom; if(mouseEvent){ const rect=viewportElement.getBoundingClientRect();const mX=mouseEvent.clientX-rect.left;const mY=mouseEvent.clientY-rect.top;const oPX=targetData[currentPanXProp]||0; const oPY=targetData[currentPanYProp]||0; const worldX = (mX - viewportElement.offsetWidth/2 - oPX) / oldZoom;const worldY = (mY - viewportElement.offsetHeight/2 - oPY) / oldZoom;targetData[currentPanXProp] = (mX - viewportElement.offsetWidth/2) - (worldX * newCalculatedZoom);targetData[currentPanYProp] = (mY - viewportElement.offsetHeight/2) - (worldY * newCalculatedZoom);}if(isSolarView) currentClampFunction(targetData, viewportElement.offsetWidth, viewportElement.offsetHeight);else currentClampFunction(targetData); currentRenderFunction(true);if (isSolarView) { const activeSysView = gameSessionData.solarSystemView;activeSysView.planets.forEach(planet => {if (planet.element) {const planetScreenX = planet.distance * Math.cos(planet.currentOrbitalAngle);const planetScreenY = planet.distance * Math.sin(planet.currentOrbitalAngle);planet.element.style.left = `calc(50% + ${planetScreenX}px - ${planet.size / 2}px)`;planet.element.style.top = `calc(50% + ${planetScreenY}px - ${planet.size / 2}px)`;planet.element.style.transform = `translate(-50%, -50%) rotate(${planet.currentAxialAngle}rad)`;}});drawAllOrbits(); }}
@@ -686,9 +734,6 @@ function animateSolarSystem(now) {
     if (cancelCustomizationButton) {cancelCustomizationButton.addEventListener('click', () => {customizationModal.classList.remove('visible');});}
     if (applyCustomizationButton) {applyCustomizationButton.addEventListener('click', () => { const numGal = parseInt(numGalaxiesInput.value, 10); const minSS = parseInt(minSSInput.value, 10); const maxSS = parseInt(maxSSInput.value, 10); const spread = parseFloat(ssSpreadInput.value); const minP = parseInt(minPlanetsInput.value, 10); const maxP = parseInt(maxPlanetsInput.value, 10); if (isNaN(numGal) || numGal < 1 || numGal > 10 || isNaN(minSS) || minSS < 10 || minSS > 1000 || isNaN(maxSS) || maxSS < 10 || maxSS > 2000 || maxSS < minSS || isNaN(spread) || spread < 0.1 || spread > 5.0 || isNaN(minP) || minP < 0 || minP > 5 || isNaN(maxP) || maxP < minP || maxP > 8) { alert("Invalid input values. Please check ranges and ensure Max >= Min for systems and planets."); return; } currentNumGalaxies = numGal; currentMinSSCount = minSS; currentMaxSSCount = maxSS; currentMaxPlanetDistanceMultiplier = spread; currentMinPlanets = minP; currentMaxPlanets = maxP; currentShowPlanetOrbits = showOrbitsInput.checked; updateDerivedConstants(); saveCustomizationSettings(); customizationModal.classList.remove('visible'); regenerateCurrentUniverseState(true); });}
     if(pauseResumeSolarSystemButton) {pauseResumeSolarSystemButton.addEventListener('click', () => {isSolarSystemPaused = !isSolarSystemPaused;pauseResumeSolarSystemButton.textContent = isSolarSystemPaused ? "Resume Planets" : "Pause Planets"; const planetIcons = solarSystemContent.querySelectorAll('.planet-icon'); planetIcons.forEach(icon => icon.classList.toggle('clickable-when-paused', isSolarSystemPaused)); if (!isSolarSystemPaused && !animationFrameId && solarSystemScreen.classList.contains('active')) {startSolarSystemAnimation(); }});}
-    // Removed planet customization modal event listeners
-    // if(cancelPlanetCustomizationButton) {cancelPlanetCustomizationButton.addEventListener('click', () => {planetCustomizationModal.classList.remove('visible'); selectedPlanetForCustomization = null;});}
-    // if(applyPlanetCustomizationButton) {applyPlanetCustomizationButton.addEventListener('click', () => {if(selectedPlanetForCustomization){const newOrbitalSpeed = parseFloat(planetOrbitalSpeedInput.value); const newAxialSpeed = parseFloat(planetAxialSpeedInput.value); selectedPlanetForCustomization.orbitalSpeed = (isNaN(newOrbitalSpeed) || newOrbitalSpeed < 0) ? selectedPlanetForCustomization.orbitalSpeed : newOrbitalSpeed; selectedPlanetForCustomization.axialSpeed = (isNaN(newAxialSpeed) || newAxialSpeed < 0) ? selectedPlanetForCustomization.axialSpeed : newAxialSpeed; planetCustomizationModal.classList.remove('visible'); selectedPlanetForCustomization = null; }});}
     
     if (closePlanetInfoPanelBtn) {
         closePlanetInfoPanelBtn.addEventListener('click', () => {
@@ -696,55 +741,89 @@ function animateSolarSystem(now) {
         });
     }
 
-    let isPanelDragging = false;
-    let offset = { x: 0, y: 0 };
+    if (closePlanetVisualPanelBtn) {
+        closePlanetVisualPanelBtn.addEventListener('click', () => {
+            planetVisualPanel.classList.remove('visible');
+        });
+    }
+
+    let isInfoPanelDragging = false;
+    let infoPanelOffset = { x: 0, y: 0 };
 
     if (planetInfoPanelHeader) {
         planetInfoPanelHeader.addEventListener('mousedown', (e) => {
             if (e.button !== 0) return; // Only left-click
-            isPanelDragging = true;
+            isInfoPanelDragging = true;
             planetInfoPanelHeader.classList.add('dragging');
             
-            // Explicitly disable transition during drag to prevent jittering
             planetInfoPanel.style.transition = 'none';
 
-            // Calculate offset relative to the panel's current position
             const rect = planetInfoPanel.getBoundingClientRect();
-            offset.x = e.clientX - rect.left;
-            offset.y = e.clientY - rect.top;
+            infoPanelOffset.x = e.clientX - rect.left;
+            infoPanelOffset.y = e.clientY - rect.top;
 
-            // Immediately convert current transform-based position to absolute top/left
-            // This ensures smooth transition from potentially centered to absolute drag
             planetInfoPanel.style.left = `${rect.left}px`;
             planetInfoPanel.style.top = `${rect.top}px`;
-            planetInfoPanel.style.transform = 'none'; // Remove transform
-            planetInfoPanel.style.right = 'auto'; // Ensure right/bottom don't interfere
+            planetInfoPanel.style.transform = 'none'; 
+            planetInfoPanel.style.right = 'auto'; 
             planetInfoPanel.style.bottom = 'auto';
 
-            e.preventDefault(); // Prevent text selection
+            e.preventDefault(); 
         });
     }
 
-    // Global mousemove for dragging
-    window.addEventListener('mousemove', (e) => {
-        if (!isPanelDragging) return;
+    let isVisualPanelDragging = false;
+    let visualPanelOffset = { x: 0, y: 0 };
 
-        planetInfoPanel.style.left = `${e.clientX - offset.x}px`;
-        planetInfoPanel.style.top = `${e.clientY - offset.y}px`;
+    if (planetVisualPanelHeader) {
+        planetVisualPanelHeader.addEventListener('mousedown', (e) => {
+            if (e.button !== 0) return; 
+            isVisualPanelDragging = true;
+            planetVisualPanelHeader.classList.add('dragging');
+            
+            planetVisualPanel.style.transition = 'none';
+
+            const rect = planetVisualPanel.getBoundingClientRect();
+            visualPanelOffset.x = e.clientX - rect.left;
+            visualPanelOffset.y = e.clientY - rect.top;
+
+            planetVisualPanel.style.left = `${rect.left}px`;
+            planetVisualPanel.style.top = `${rect.top}px`;
+            planetVisualPanel.style.transform = 'none'; 
+            planetVisualPanel.style.right = 'auto'; 
+            planetVisualPanel.style.bottom = 'auto';
+
+            e.preventDefault(); 
+        });
+    }
+
+    window.addEventListener('mousemove', (e) => {
+        if (isInfoPanelDragging) {
+            planetInfoPanel.style.left = `${e.clientX - infoPanelOffset.x}px`;
+            planetInfoPanel.style.top = `${e.clientY - infoPanelOffset.y}px`;
+        }
+        if (isVisualPanelDragging) {
+            planetVisualPanel.style.left = `${e.clientX - visualPanelOffset.x}px`;
+            planetVisualPanel.style.top = `${e.clientY - visualPanelOffset.y}px`;
+        }
     });
 
-    // Global mouseup to stop dragging
     window.addEventListener('mouseup', () => {
-        if (isPanelDragging) {
-            isPanelDragging = false;
+        if (isInfoPanelDragging) {
+            isInfoPanelDragging = false;
             planetInfoPanelHeader.classList.remove('dragging');
-            // Re-enable transition after dragging
-            planetInfoPanel.style.transition = ''; // Reset to what CSS dictates
+            planetInfoPanel.style.transition = ''; 
+        }
+        if (isVisualPanelDragging) {
+            isVisualPanelDragging = false;
+            planetVisualPanelHeader.classList.remove('dragging');
+            planetVisualPanel.style.transition = '';
         }
     });
 
     function initializeGame(isForcedRegeneration = false) {loadCustomizationSettings(); if (!isForcedRegeneration && loadGameState()) {setActiveScreen(mainScreen); if (universeCircle && gameSessionData.universe.diameter) {universeCircle.style.width = `${gameSessionData.universe.diameter}px`;universeCircle.style.height = `${gameSessionData.universe.diameter}px`;universeCircle.style.backgroundColor = FIXED_COLORS.universeBg;} else {generateUniverseLayout(); }renderMainScreen(); preGenerateAllGalaxyContents(); } else {generateUniverseLayout();generateGalaxies(); setActiveScreen(mainScreen); renderMainScreen();preGenerateAllGalaxyContents(); if(gameSessionData.galaxies.every(g => g.layoutGenerated)) {saveGameState();}}gameSessionData.isInitialized = true;}
-    window.addEventListener('resize', () => { const currentScreenIdBeforeResize = document.querySelector('.screen.active')?.id;localStorage.removeItem('galaxyGameSaveData'); gameSessionData.universe = { diameter: null };gameSessionData.galaxies = [];gameSessionData.activeGalaxyId = null;gameSessionData.activeSolarSystemId = null;gameSessionData.solarSystemView = { zoomLevel: 1.0, currentPanX: 0, currentPanY: 0, planets: [], systemId: null };gameSessionData.isInitialized = false;if (universeCircle) universeCircle.innerHTML = '';if (galaxyZoomContent) {const canvas = galaxyZoomContent.querySelector('#solar-system-lines-canvas');galaxyZoomContent.innerHTML = ''; if(canvas) galaxyZoomContent.appendChild(canvas); }if (solarSystemContent) solarSystemContent.innerHTML = '';if (orbitCtx && solarSystemOrbitCanvasEl) orbitCtx.clearRect(0,0,solarSystemOrbitCanvasEl.width,solarSystemOrbitCanvasEl.height); if (animationFrameId) { cancelAnimationFrame(animationFrameId); animationFrameId = null; }loadCustomizationSettings(); initializeGame(true);  if (currentScreenIdBeforeResize) { const screenToActivate = document.getElementById(currentScreenIdBeforeResize) || mainScreen; setActiveScreen(screenToActivate);  } else { setActiveScreen(mainScreen); }});
+    window.addEventListener('resize', () => { const currentScreenIdBeforeResize = document.querySelector('.screen.active')?.id;localStorage.removeItem('galaxyGameSaveData'); gameSessionData.universe = { diameter: null };gameSessionData.galaxies = [];gameSessionData.activeGalaxyId = null;gameSessionData.activeSolarSystemId = null;gameSessionData.solarSystemView = { zoomLevel: 1.0, currentPanX: 0, currentPanY: 0, planets: [], systemId: null };gameSessionData.isInitialized = false;if (universeCircle) universeCircle.innerHTML = '';if (galaxyZoomContent) {const canvas = galaxyZoomContent.querySelector('#solar-system-lines-canvas');galaxyZoomContent.innerHTML = ''; if(canvas) galaxyZoomContent.appendChild(canvas); }if (solarSystemContent) solarSystemContent.innerHTML = '';if (orbitCtx && solarSystemOrbitCanvasEl) orbitCtx.clearRect(0,0,solarSystemOrbitCanvasEl.width,solarSystemOrbitCanvasEl.height); if (animationFrameId) { cancelAnimationFrame(animationFrameId); animationFrameId = null; }lastAnimationTime = null; // Reset for animation restart
+    loadCustomizationSettings(); initializeGame(true);  if (currentScreenIdBeforeResize) { const screenToActivate = document.getElementById(currentScreenIdBeforeResize) || mainScreen; setActiveScreen(screenToActivate);  } else { setActiveScreen(mainScreen); }});
     if(backToMainButton) backToMainButton.addEventListener('click', switchToMainView);
     if(backToGalaxyButton) backToGalaxyButton.addEventListener('click', () => { if(gameSessionData.activeGalaxyId && gameSessionData.galaxies.find(g => g.id === gameSessionData.activeGalaxyId)) {switchToGalaxyDetailView(gameSessionData.activeGalaxyId);} else {switchToMainView();} });
     if(zoomInButton) zoomInButton.addEventListener('click', (e) => handleZoom('in', e));

@@ -56,9 +56,6 @@ document.addEventListener('DOMContentLoaded', () => {
     let lastDragX = 0, lastDragY = 0;
     let planetRotationVelocity = 0;
     let isPlanetRotating = false;
-    let rotationLongitude = 0; // Horizontal rotation (was currentRotationAngleInPanel)
-    let rotationLatitude = 0;  // Vertical rotation (new!)
-    let lastDragX = 0, lastDragY = 0;
     let lastPlanetDragTime = 0;
     let currentPlanetDisplayedInPanel = null; 
 
@@ -986,14 +983,11 @@ window.addEventListener('mousemove', (e) => {
     if (isDraggingPlanetVisual && currentPlanetDisplayedInPanel) {
         const deltaX = e.clientX - lastDragX;
         const deltaY = e.clientY - lastDragY;
-
-        rotationLongitude += deltaX * 0.005;
-        rotationLatitude += deltaY * 0.005;
-        // Clamp vertical tilt so you can't flip the planet
+        rotationLongitude += deltaX * 0.005; // Horizontal drag
+        rotationLatitude += deltaY * 0.005;  // Vertical drag
+        // Clamp vertical rotation so you can't flip upside down
         rotationLatitude = Math.max(-Math.PI / 2, Math.min(Math.PI / 2, rotationLatitude));
-
         renderPlanetVisual(currentPlanetDisplayedInPanel, rotationLongitude, rotationLatitude);
-
         lastDragX = e.clientX;
         lastDragY = e.clientY;
     }
@@ -1003,11 +997,6 @@ window.addEventListener('mouseup', () => {
     if (isDraggingPlanetVisual) {
         isDraggingPlanetVisual = false;
         planetVisualCanvas.classList.remove('dragging');
-        // If velocity is significant, start inertia animation
-        if (Math.abs(planetRotationVelocity) > 0.01) {
-            isPlanetRotating = true;
-            requestAnimationFrame(planetInertiaStep);
-        }
     }
 });
 

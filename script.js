@@ -1,4 +1,4 @@
-// script.js (Finalized Panel Rotation & Drag)
+// script.js (Finalized Panel Rotation & Drag with Quaternion-based Rotation)
 console.log("Script V1.3.10.2 (Full Enhancements) Loaded.");
 document.addEventListener('DOMContentLoaded', () => {
   const mainScreen = document.getElementById('main-screen');
@@ -53,22 +53,64 @@ document.addEventListener('DOMContentLoaded', () => {
   let lastAnimationTime = null;
   let isSolarSystemPaused = false;
   let isDraggingPlanetVisual = false;
-  let rotationLongitude = 0;
-  let rotationLatitude = 0;
-  // New variables for arcball-like rotation
+
+  // --- Quaternion Math Utilities (Copied from worker) ---
+  /**
+   * Represents a quaternion as [w, x, y, z]
+   */
+
+  // Identity quaternion (no rotation)
+  function quat_identity() {
+    return [1, 0, 0, 0];
+  }
+
+  // Create a quaternion from an axis and an angle (radians)
+  function quat_from_axis_angle(axis, angle) {
+    const halfAngle = angle * 0.5;
+    const s = Math.sin(halfAngle);
+    return [
+      Math.cos(halfAngle), // w
+      axis[0] * s,         // x
+      axis[1] * s,         // y
+      axis[2] * s          // z
+    ];
+  }
+
+  // Multiply two quaternions: q1 * q2
+  function quat_multiply(q1, q2) {
+    const w1 = q1[0], x1 = q1[1], y1 = q1[2], z1 = q1[3];
+    const w2 = q2[0], x2 = q2[1], y2 = q2[2], z2 = q2[3];
+
+    return [
+      w1 * w2 - x1 * x2 - y1 * y2 - z1 * z2, // w
+      w1 * x2 + x1 * w2 + y1 * z2 - z1 * y2, // x
+      w1 * y2 - x1 * z2 + y1 * w2 + z1 * x2, // y
+      w1 * z2 + x1 * y2 - y1 * x2 + z1 * w2  // z
+    ];
+  }
+
+  // Normalize a quaternion
+  function quat_normalize(q) {
+    let len = Math.sqrt(q[0] * q[0] + q[1] * q[1] + q[2] * q[2] + q[3] * q[3]);
+    if (len === 0) return [1, 0, 0, 0]; // Return identity if zero length
+    len = 1 / len;
+    return [q[0] * len, q[1] * len, q[2] * len, q[3] * len];
+  }
+
+  // --- End Quaternion Math Utilities ---
+
+  // New: Quaternion to track planet rotation for the visual panel
+  let planetVisualRotationQuat = quat_identity();
+  let startDragPlanetVisualQuat = quat_identity();
+
+  // New: Quaternion to track designer planet rotation
+  let designerPlanetRotationQuat = quat_identity();
+  let startDragDesignerPlanetQuat = quat_identity();
+
   let startDragMouseX = 0;
   let startDragMouseY = 0;
-  let startDragRotationLongitude = 0;
-  let startDragRotationLatitude = 0;
+  
   let currentPlanetDisplayedInPanel = null;
-  let designerRotationLongitude = 0;
-  let designerRotationLatitude = 0;
-  let isDraggingDesignerPlanet = false;
-  // New variables for designer panel rotation
-  let designerStartDragMouseX = 0;
-  let designerStartDragMouseY = 0;
-  let designerStartDragRotationLongitude = 0;
-  let designerStartDragRotationLatitude = 0;
 
   const DEFAULT_NUM_GALAXIES = 3;
   const DEFAULT_MIN_SS_COUNT_CONST = 200;
@@ -76,13 +118,12 @@ document.addEventListener('DOMContentLoaded', () => {
   const DEFAULT_MAX_PLANET_DISTANCE_MULTIPLIER = 1.0;
   const DEFAULT_MIN_PLANETS_PER_SYSTEM = 0;
   const DEFAULT_MAX_PLANETS_PER_SYSTEM = 3;
-  const DEFAULT_SHOW_PLANET_ORBITS = false; // Changed to false as requested
+  const DEFAULT_SHOW_PLANET_ORBITS = false;
   const DEFAULT_PLANET_AXIAL_SPEED = 0.01;
   const BASE_MAX_PLANET_DISTANCE_FACTOR = 8;
-  // NEW: Controls the overall "speed" or sensitivity of planet rotation when dragging.
-  // 1.0 means a full drag across canvas width rotates 2*PI radians / PI for height. Lower values decrease sensitivity.
-  const PLANET_ROTATION_SENSITIVITY = 0.75;
 
+  // NEW: Controls the overall "speed" or sensitivity of planet rotation when dragging.
+  const PLANET_ROTATION_SENSITIVITY = 0.75; // Adjust this value to make rotation faster/slower
 
   let currentNumGalaxies = DEFAULT_NUM_GALAXIES;
   let currentMinSSCount = DEFAULT_MIN_SS_COUNT_CONST;
@@ -130,7 +171,6 @@ document.addEventListener('DOMContentLoaded', () => {
     const { renderedData, width, height, senderId } = e.data;
     if (senderId === 'planet-visual-canvas') {
       const ctx = planetVisualCanvas.getContext('2d');
-      // Clear the canvas ONLY when the new image data has arrived.
       ctx.clearRect(0, 0, planetVisualCanvas.width, planetVisualCanvas.height);
       const imageData = new ImageData(renderedData, width, height);
       ctx.putImageData(imageData, 0, 0);
@@ -141,7 +181,6 @@ document.addEventListener('DOMContentLoaded', () => {
     const { renderedData, width, height, senderId } = e.data;
     if (senderId === 'designer-planet-canvas') {
       const ctx = designerPlanetCanvas.getContext('2d');
-      // Clear the canvas ONLY when the new image data has arrived.
       ctx.clearRect(0, 0, designerPlanetCanvas.width, designerPlanetCanvas.height);
       const imageData = new ImageData(renderedData, width, height);
       ctx.putImageData(imageData, 0, 0);
@@ -437,7 +476,7 @@ document.addEventListener('DOMContentLoaded', () => {
                     minUltimateFallbackDist = dist;
                     ultimateFallbackId = currentConnectedId;
                 }
-                }
+              }
               }
               if (ultimateFallbackId) {
                 gal.lineConnections.push({ fromId: systemToConnectId, toId: ultimateFallbackId });
@@ -568,7 +607,7 @@ document.addEventListener('DOMContentLoaded', () => {
     solarSystemContent.style.transition = isInteractive ? 'none' : 'transform 0.1s ease-out';
     solarSystemContent.style.transform = `translate(${panX}px,${panY}px)scale(${zoom})`;
     // Correctly find galaxy from system id prefix (e.g., "galaxy-1-ss-5" -> "galaxy-1")
-    const galaxyPart = gameSessionData.activeSolarSystemId.substring(0, gameSessionData.activeSolarSystemId.indexOf('-ss-'));
+    const galaxyPart = solarSystemId.substring(0, solarSystemId.indexOf('-ss-'));
     const activeGalaxy = gameSessionData.galaxies.find(g => g.id === galaxyPart);
 
     let solarSystemObject = null;
@@ -647,7 +686,8 @@ document.addEventListener('DOMContentLoaded', () => {
     } else { renderGalaxyDetailScreen(false); }
   }
 
-  function renderPlanetVisual(planetData, longitude = 0, latitude = 0, targetCanvas = planetVisualCanvas) {
+// Modified to accept quaternion
+  function renderPlanetVisual(planetData, rotationQuaternion, targetCanvas = planetVisualCanvas) {
     if (!planetData || !targetCanvas) return;
 
     if (!planetData.continentSeed) {
@@ -677,8 +717,7 @@ document.addEventListener('DOMContentLoaded', () => {
       planetVisualWorker.postMessage({
         cmd: 'renderPlanet',
         planetData: dataToSend,
-        longitude: longitude,
-        latitude: latitude,
+        rotationQuaternion: rotationQuaternion, // Pass quaternion directly
         canvasWidth: targetCanvas.width,
         canvasHeight: targetCanvas.height,
         senderId: canvasId
@@ -687,8 +726,7 @@ document.addEventListener('DOMContentLoaded', () => {
       designerWorker.postMessage({
         cmd: 'renderPlanet',
         planetData: dataToSend,
-        longitude: longitude,
-        latitude: latitude,
+        rotationQuaternion: rotationQuaternion, // Pass quaternion directly
         canvasWidth: targetCanvas.width,
         canvasHeight: targetCanvas.height,
         senderId: canvasId
@@ -781,8 +819,7 @@ document.addEventListener('DOMContentLoaded', () => {
       planetVisualWorker.postMessage({
         cmd: 'preloadPlanet', // New command for preloading
         planetData: preloadData,
-        longitude: 0, // Dummy rotation, not used for preloading calculation
-        latitude: 0, // Dummy rotation, not used for preloading calculation
+        rotationQuaternion: quat_identity(), // Dummy rotation, not used for preloading calculation
         canvasWidth: planetVisualCanvas.width, // Worker needs canvas dimensions for texture generation
         canvasHeight: planetVisualCanvas.height,
         senderId: 'preload' // Identifies this as a non-rendering request
@@ -814,9 +851,10 @@ document.addEventListener('DOMContentLoaded', () => {
         planetVisualPanel.style.top = '50%';
         planetVisualPanel.style.transform = 'translate(-50%, -50%)';
         planetVisualPanel.style.transition = ''; // Remove transition for immediate placement
-        rotationLongitude = 0; // Reset rotation for new planet
-        rotationLatitude = 0; // Reset rotation for new planet
-        renderPlanetVisual(newPlanet, rotationLongitude, rotationLatitude, planetVisualCanvas);
+        
+            // Reset rotation to identity when panel is opened for a new planet
+            planetVisualRotationQuat = quat_identity(); 
+        renderPlanetVisual(newPlanet, planetVisualRotationQuat, planetVisualCanvas);
       });
       solarSystemContent.appendChild(planetEl);
       newPlanet.element = planetEl;
@@ -1035,18 +1073,12 @@ document.addEventListener('DOMContentLoaded', () => {
   let isPanelDragging = false;
   let visualPanelOffset = { x: 0, y: 0 };
 
-  // Change event listener from header to the entire panel for dragging
-  if (planetVisualPanel) { // Ensure the panel element exists
-    planetVisualPanel.addEventListener('mousedown', (e) => {
+  // Change event listener from the entire panel to the header for dragging
+  if (planetVisualPanelHeader) { // Ensure the header element exists
+    planetVisualPanelHeader.addEventListener('mousedown', (e) => {
       if (e.button !== 0) return; // Only left-click
-      // If the target is the canvas or a button, don't drag the panel
-      if (e.target === planetVisualCanvas || e.target.closest('button')) {
-        // Let the specific handlers for the canvas/buttons take over
-        return;
-      }
-
+      
       isPanelDragging = true;
-      // Add a class directly to the panel for visual feedback (e.g., cursor)
       planetVisualPanel.classList.add('dragging');
        
       planetVisualPanel.style.transition = 'none'; // Disable transition during drag
@@ -1055,8 +1087,8 @@ document.addEventListener('DOMContentLoaded', () => {
       visualPanelOffset.y = e.clientY - rect.top;
        
       // Set initial position to fixed pixel values for easier dragging calculus
-      planetVisualPanel.style.left = `${rect.left}px`;
-      planetVisualPanel.style.top = `${rect.top}px`;
+      planetVisualPanel.style.left = `${e.clientX - visualPanelOffset.x}px`;
+      planetVisualPanel.style.top = `${e.clientY - visualPanelOffset.y}px`;
       planetVisualPanel.style.transform = 'none'; // Reset transform to avoid conflicts
       planetVisualPanel.style.right = 'auto'; // Clear other position properties
       planetVisualPanel.style.bottom = 'auto';
@@ -1069,9 +1101,8 @@ document.addEventListener('DOMContentLoaded', () => {
     isDraggingPlanetVisual = true;
     startDragMouseX = e.clientX;
     startDragMouseY = e.clientY;
-    startDragRotationLongitude = rotationLongitude;
-    startDragRotationLatitude = rotationLatitude;
-
+    startDragPlanetVisualQuat = [...planetVisualRotationQuat]; // Copy current quaternion
+    
     planetVisualCanvas.classList.add('dragging');
     e.preventDefault();
   });
@@ -1080,7 +1111,7 @@ document.addEventListener('DOMContentLoaded', () => {
       planetVisualPanel.style.left = `${e.clientX - visualPanelOffset.x}px`;
       planetVisualPanel.style.top = `${e.clientY - visualPanelOffset.y}px`;
     }
-    // Combined logic for planet rotation in both panels
+
     if (isDraggingPlanetVisual && currentPlanetDisplayedInPanel && planetVisualPanel.classList.contains('visible')) {
       const rect = planetVisualCanvas.getBoundingClientRect();
       const canvasWidth = rect.width;
@@ -1089,17 +1120,25 @@ document.addEventListener('DOMContentLoaded', () => {
       const deltaMouseX = e.clientX - startDragMouseX;
       const deltaMouseY = e.clientY - startDragMouseY;
 
-      // Arcball-like rotation: map mouse movement over canvas dimensions to angles
-      // Horizontal movement: drag right -> surface moves right (longitude decreases)
-      rotationLongitude = startDragRotationLongitude - (deltaMouseX / canvasWidth) * (2 * Math.PI) * PLANET_ROTATION_SENSITIVITY;
-      // Vertical movement: drag down -> surface moves down (latitude decreases)
-      rotationLatitude = startDragRotationLatitude - (deltaMouseY / canvasHeight) * Math.PI * PLANET_ROTATION_SENSITIVITY;
+      // Calculate angles based on mouse movement relative to canvas size
+      const angleX = (deltaMouseY / canvasHeight) * Math.PI * PLANET_ROTATION_SENSITIVITY; // Vertical movement maps to rotation around X-axis
+      const angleY = (deltaMouseX / canvasWidth) * (2 * Math.PI) * PLANET_ROTATION_SENSITIVITY; // Horizontal movement maps to rotation around Y-axis
 
+      // Create incremental rotations around camera's X and Y axes
+      const rotX_quat = quat_from_axis_angle([1, 0, 0], -angleX); // Negative for direct drag (mouse down shows texture moving down)
+      const rotY_quat = quat_from_axis_angle([0, 1, 0], -angleY); // Negative for direct drag (mouse right shows texture moving right)
+      
+      // Combine these incremental rotations
+      let incrementalRotation = quat_multiply(rotY_quat, rotX_quat); // Order can affect feel, (Yaw then Pitch) feels natural
+
+      // Apply the new incremental rotation to the original starting rotation
+      // Q_new = Q_incremental * Q_start
+      planetVisualRotationQuat = quat_normalize(quat_multiply(incrementalRotation, startDragPlanetVisualQuat));
 
       if (!renderPending) {
         renderPending = true;
         requestAnimationFrame(() => {
-          renderPlanetVisual(currentPlanetDisplayedInPanel, rotationLongitude, rotationLatitude, planetVisualCanvas);
+          renderPlanetVisual(currentPlanetDisplayedInPanel, planetVisualRotationQuat, planetVisualCanvas);
           renderPending = false;
         });
       }
@@ -1111,24 +1150,28 @@ document.addEventListener('DOMContentLoaded', () => {
       const deltaMouseX = e.clientX - designerStartDragMouseX;
       const deltaMouseY = e.clientY - designerStartDragMouseY;
 
-      // Rotation for designer planet (direct mapping)
-      designerRotationLongitude = designerStartDragRotationLongitude - (deltaMouseX / canvasWidth) * (2 * Math.PI) * PLANET_ROTATION_SENSITIVITY;
-      designerRotationLatitude = designerStartDragRotationLatitude - (deltaMouseY / canvasHeight) * Math.PI * PLANET_ROTATION_SENSITIVITY;
+      const angleX = (deltaMouseY / canvasHeight) * Math.PI * PLANET_ROTATION_SENSITIVITY;
+      const angleY = (deltaMouseX / canvasWidth) * (2 * Math.PI) * PLANET_ROTATION_SENSITIVITY;
+
+      const rotX_quat = quat_from_axis_angle([1, 0, 0], -angleX);
+      const rotY_quat = quat_from_axis_angle([0, 1, 0], -angleY);
+      
+      let incrementalRotation = quat_multiply(rotY_quat, rotX_quat);
+
+      designerPlanetRotationQuat = quat_normalize(quat_multiply(incrementalRotation, startDragDesignerPlanetQuat));
 
       if (!designerRenderPending) {
         designerRenderPending = true;
         requestAnimationFrame(() => {
-          renderDesignerPlanet(currentDesignerPlanet, designerRotationLongitude, designerRotationLatitude);
+          renderDesignerPlanet(currentDesignerPlanet, designerPlanetRotationQuat);
           designerRenderPending = false;
         });
-      }
     }
   });
 
   window.addEventListener('mouseup', () => {
     if (isPanelDragging) {
       isPanelDragging = false;
-      // Assuming dragging class is added to the panel itself now
       planetVisualPanel.classList.remove('dragging'); 
       planetVisualPanel.style.transition = '';
     }
@@ -1142,14 +1185,14 @@ document.addEventListener('DOMContentLoaded', () => {
     }
   });
   let currentDesignerPlanet = { waterColor: '#000080', landColor: '#006400', continentSeed: Math.random() };
-  function renderDesignerPlanet(planet, longitude, latitude) {
+  function renderDesignerPlanet(planet, rotationQuaternion) {
     if (!planet || !designerPlanetCanvas) return;
-    renderPlanetVisual(planet, longitude, latitude, designerPlanetCanvas);
+    renderPlanetVisual(planet, rotationQuaternion, designerPlanetCanvas);
   }
   function updateDesignerPlanetFromInputs() {
     currentDesignerPlanet.waterColor = designerWaterColorInput.value;
     currentDesignerPlanet.landColor = designerLandColorInput.value;
-    renderDesignerPlanet(currentDesignerPlanet, designerRotationLongitude, designerRotationLatitude);
+    renderDesignerPlanet(currentDesignerPlanet, designerPlanetRotationQuat); // Pass current quaternion
   }
   function randomizeDesignerPlanet() {
     currentDesignerPlanet.waterColor = `#${Math.floor(Math.random() * 16777215).toString(16).padStart(6, '0')}`;
@@ -1157,7 +1200,8 @@ document.addEventListener('DOMContentLoaded', () => {
     currentDesignerPlanet.continentSeed = Math.random();
     designerWaterColorInput.value = currentDesignerPlanet.waterColor;
     designerLandColorInput.value = currentDesignerPlanet.landColor;
-    renderDesignerPlanet(currentDesignerPlanet, designerRotationLongitude, designerRotationLatitude);
+    designerPlanetRotationQuat = quat_identity(); // Reset rotation on randomize
+    renderDesignerPlanet(currentDesignerPlanet, designerPlanetRotationQuat);
   }
   function saveCustomPlanetDesign() {
     const newDesign = {
@@ -1209,8 +1253,7 @@ document.addEventListener('DOMContentLoaded', () => {
     isDraggingDesignerPlanet = true;
     designerStartDragMouseX = e.clientX;
     designerStartDragMouseY = e.clientY;
-    designerStartDragRotationLongitude = designerRotationLongitude;
-    designerStartDragRotationLatitude = designerRotationLatitude;
+    startDragDesignerPlanetQuat = [...designerPlanetRotationQuat]; // Copy current quaternion
 
     designerPlanetCanvas.classList.add('dragging');
     e.preventDefault();
@@ -1308,7 +1351,6 @@ document.addEventListener('DOMContentLoaded', () => {
           event.stopPropagation();
           return;
         }
-      }
     });
   }
   let isGalaxyPanning = false;

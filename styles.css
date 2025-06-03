@@ -36,12 +36,18 @@ body {font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background-c
   position: absolute;
   left: 50%;
   top: 50%;
-  transform: translate(-50%, -50%);
+  transform: translate(-50%, -50%); /* Center the sun */
   border-radius: 50%;
-  background-color: #FFD700;
-  border: 2px solid #FFA500;
-  box-shadow: 0 0 15px #FFD700, 0 0 25px #FFA500, 0 0 35px #FF8C00;
-  z-index: 5;
+  box-sizing: border-box;
+  z-index: 0; /* Ensure sun is generally behind closer elements like planets */
+
+  /* CSS variables will be set by JavaScript based on FIXED_COLORS */
+  background: radial-gradient(ellipse at center,
+      var(--sun-core-color, #FFEA00) 30%,    /* Brightest center, customize percentages as needed */
+      var(--sun-mid-color, #FFD700) 65%,     /* Mid tone for transition */
+      var(--sun-edge-color, #FFA500) 90%     /* Darker edge for spherical look */
+  );
+  border: 2px solid var(--sun-actual-border-color, #FFA500); /* Border color also set via JS */
 }
 .planet-icon {
   position: absolute;
@@ -123,15 +129,25 @@ body {font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background-c
 }
 
 @keyframes sunSurfaceTexture1 {
-  0% { transform: rotate(0deg) scale(1); opacity: 0.3; }
-  50% { transform: rotate(180deg) scale(1.02); opacity: 0.4; }
-  100% { transform: rotate(360deg) scale(1); opacity: 0.3; }
+  0%, 100% {
+    transform: rotate(0deg) scale(1);
+    opacity: 0.3;
+  }
+  50% {
+    transform: rotate(180deg) scale(1.05); /* Slightly increased scale */
+    opacity: 0.5; /* Slightly increased opacity */
+  }
 }
 
 @keyframes sunSurfaceTexture2 {
-  0% { transform: rotate(0deg) scale(1); opacity: 0.25; }
-  50% { transform: rotate(-150deg) scale(1.03); opacity: 0.35; }
-  100% { transform: rotate(-360deg) scale(1); opacity: 0.25; }
+  0%, 100% {
+    transform: rotate(0deg) scale(1);
+    opacity: 0.25;
+  }
+  50% {
+    transform: rotate(-150deg) scale(1.07); /* Slightly increased scale */
+    opacity: 0.45; /* Slightly increased opacity */
+  }
 }
 #solar-system-orbit-canvas {
   position: absolute;

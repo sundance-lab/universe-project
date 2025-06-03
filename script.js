@@ -1003,26 +1003,6 @@ const newPlanet = {
     startSolarSystemAnimation();
   }
 
-function generatePlanetFromBasis(basis) {
-  // Pick random values within ranges
-  const minTerrainHeight = randomInRange(basis.minTerrainHeightRange);
-  const maxTerrainHeight = randomInRange(basis.maxTerrainHeightRange);
-  const oceanHeightLevel = randomInRange(basis.oceanHeightRange);
-
-  return {
-    waterColor: basis.waterColor,
-    landColor: basis.landColor,
-    continentSeed: Math.random(),
-    minTerrainHeight,
-    maxTerrainHeight: Math.max(minTerrainHeight + 0.2, maxTerrainHeight), // ensure valid
-    oceanHeightLevel,
-  };
-}
-
-function randomInRange([min, max]) {
-  return min + Math.random() * (max - min);
-}
-
 // When showing the designer preview, generate a random example:
 function renderDesignerPlanetPreview() {
   const examplePlanet = generatePlanetFromBasis(currentDesignerBasis);

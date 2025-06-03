@@ -787,34 +787,30 @@ document.addEventListener('DOMContentLoaded', () => {
     if (activeGalaxy && activeGalaxy.solarSystems) {
       solarSystemObject = activeGalaxy.solarSystems.find(ss => ss.id === solarSystemId);
     }
-    gameSessionData.solarSystemView.zoomLevel = 0.5;
-    gameSessionData.solarSystemView.currentPanX = 0;
-    gameSessionData.solarSystemView.currentPanY = 0;
-    gameSessionData.solarSystemView.systemId = solarSystemId;
-    solarSystemContent.innerHTML = '';
+  gameSessionData.solarSystemView.zoomLevel = 0.5;
+  gameSessionData.solarSystemView.currentPanX = 0;
+  gameSessionData.solarSystemView.currentPanY = 0;
+  gameSessionData.solarSystemView.systemId = solarSystemId;
+  solarSystemContent.innerHTML = ''; // Clear previous content
 
-    let currentSunSize = SUN_ICON_SIZE;
-    if (solarSystemObject && typeof solarSystemObject.sunSizeFactor === 'number') {
-        currentSunSize = SUN_ICON_SIZE * solarSystemObject.sunSizeFactor;
-    }
-    currentSunSize = Math.max(currentSunSize, 5); // Ensure minimum visible size
+  // Calculate the sun's size dynamically
+  let currentSunSize = SUN_ICON_SIZE; // Default base size
+  if (solarSystemObject && typeof solarSystemObject.sunSizeFactor === 'number') {
+    // Apply the random factor to the base sun icon size
+    currentSunSize = SUN_ICON_SIZE * solarSystemObject.sunSizeFactor;
+  }
+  currentSunSize = Math.max(currentSunSize, 15); // Ensure a minimum practical size (e.g., 15px)
 
-   const sunEl = document.createElement('div');
-  sunEl.className = 'sun-icon sun-animated'; // Add sun-animated class
-  sunEl.style.width = `$px`;
-  sunEl.style.height = `$px`;
+  const sunEl = document.createElement('div');
+  sunEl.className = 'sun-icon sun-animated';
+  sunEl.style.width = `${currentSunSize}px`; // Apply the calculated dynamic size
+  sunEl.style.height = `${currentSunSize}px`; // Apply the calculated dynamic size
 
   // Set CSS variables for the gradient and border in .sun-icon
-  const coreColor = FIXED_COLORS.sunFill; // e.g., #FFD700 (bright yellow/gold)
-  
-  // Mid color can be the original border color or a slightly less bright version of coreColor
-  const midColor = FIXED_COLORS.sunBorder; // e.g., #FFA500 (orange)
-  
-  // Edge color should be darker to give depth. We use the existing adjustColor function.
-  // The -40 value can be tweaked to make it darker or lighter.
-  const edgeColor = adjustColor(FIXED_COLORS.sunBorder, -40); 
-
-  const actualBorderColor = FIXED_COLORS.sunBorder; // Or choose a specific border color, like edgeColor
+  const coreColor = FIXED_COLORS.sunFill;
+  const midColor = FIXED_COLORS.sunBorder;
+  const edgeColor = adjustColor(FIXED_COLORS.sunBorder, -40); // Make it darker for depth
+  const actualBorderColor = FIXED_COLORS.sunBorder;
 
   sunEl.style.setProperty('--sun-core-color', coreColor);
   sunEl.style.setProperty('--sun-mid-color', midColor);

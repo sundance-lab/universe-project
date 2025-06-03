@@ -61,7 +61,14 @@ document.addEventListener('DOMContentLoaded', () => {
   let needsPlanetVisualRerender = false;
   let planetVisualRotationQuatTarget = quat_identity();
   let planetVisualRotationQuatDisplayed = quat_identity();
-
+  let currentDesignerBasis = {
+    waterColor: '#000080',
+    landColor: '#006400',
+    continentSeed: Math.random(),
+    minTerrainHeightRange: [0, 2],      // [min, max]
+    maxTerrainHeightRange: [8, 12],     // [min, max]
+    oceanHeightRange: [1, 3]            // [min, max]
+};
   
   function quat_identity() {
     return [1, 0, 0, 0];
@@ -966,6 +973,32 @@ planetVisualWorker.onmessage = function(e) {
     startSolarSystemAnimation();
   }
 
+function generatePlanetFromBasis(basis) {
+  // Pick random values within ranges
+  const minTerrainHeight = randomInRange(basis.minTerrainHeightRange);
+  const maxTerrainHeight = randomInRange(basis.maxTerrainHeightRange);
+  const oceanHeightLevel = randomInRange(basis.oceanHeightRange);
+
+  return {
+    waterColor: basis.waterColor,
+    landColor: basis.landColor,
+    continentSeed: Math.random(),
+    minTerrainHeight,
+    maxTerrainHeight: Math.max(minTerrainHeight + 0.2, maxTerrainHeight), // ensure valid
+    oceanHeightLevel,
+  };
+}
+
+function randomInRange([min, max]) {
+  return min + Math.random() * (max - min);
+}
+
+// When showing the designer preview, generate a random example:
+function renderDesignerPlanetPreview() {
+  const examplePlanet = generatePlanetFromBasis(currentDesignerBasis);
+  renderPlanetVisual(examplePlanet, designerPlanetRotationQuat, designerPlanetCanvas);
+}
+  
   function animateSolarSystem(now) {
     if (!now) now = performance.now();
     if (lastAnimationTime === null) lastAnimationTime = now;

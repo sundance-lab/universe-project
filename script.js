@@ -59,6 +59,8 @@ document.addEventListener('DOMContentLoaded', () => {
   let isRenderingVisualPlanet = false;
   let isRenderingDesignerPlanet = false;
   let needsPlanetVisualRerender = false;
+  let planetVisualRotationQuatTarget = quat_identity();
+  let planetVisualRotationQuatDisplayed = quat_identity();
 
   
   function quat_identity() {
@@ -1203,15 +1205,35 @@ document.addEventListener('DOMContentLoaded', () => {
       const combined_inc_quat = quat_multiply(incY_quat, incX_quat);
       designerPlanetRotationQuat = quat_normalize(quat_multiply(combined_inc_quat, startDragDesignerPlanetQuat));
 
+    planetVisualRotationQuatTarget = quat_normalize(quat_multiply(combined_inc_quat, startDragPlanetVisualQuat));
+    applyPlanetPanelVisualRotation();
     if (!isRenderingVisualPlanet) {
         isRenderingVisualPlanet = true;
-        renderPlanetVisual(currentPlanetDisplayedInPanel, planetVisualRotationQuat, planetVisualCanvas);
+        planetVisualRotationQuatDisplayed = planetVisualRotationQuatTarget; // This will be the new real render
+        renderPlanetVisual(currentPlanetDisplayedInPanel, planetVisualRotationQuatDisplayed, planetVisualCanvas);
     } else {
-        // If a render is already ongoing, flag that another is needed
         needsPlanetVisualRerender = true;
     }
 }
   });
+
+  function applyPlanetPanelVisualRotation() {
+    const q = planetVisualRotationQuatTarget;
+    // Approximate conversion to Euler (for small angles):
+    const ysqr = q[2] * q[2];
+    // roll (x-axis rotation)
+    let t0 = +2.0 * (q[0] * q[1] + q[2] * q[3]);
+    let t1 = +1.0 - 2.0 * (q[1] * q[1] + ysqr);
+    let rollX = Math.atan2(t0, t1);
+    // pitch (y-axis rotation)
+    let t2 = +2.0 * (q[0] * q[2] - q[3] * q[1]);
+    t2 = t2 > 1 ? 1 : t2;
+    t2 = t2 < -1 ? -1 : t2;
+    let pitchY = Math.asin(t2);
+    // (you can also compute yaw Z if desired)
+    planetVisualCanvas.style.transform = `rotateX(${pitchY * 180 / Math.PI}deg) rotateY(${rollX * 180 / Math.PI}deg)`;
+}
+
 
   window.addEventListener('mouseup', () => {
     if (isPanelDragging) {

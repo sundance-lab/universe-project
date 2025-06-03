@@ -1329,7 +1329,7 @@ function renderDesignerPlanetPreview() {
     renderPlanetVisual(planet, rotationQuaternion, designerPlanetCanvas);
   }
 
-  function updateDesignerPlanetFromInputs() {
+function updateDesignerPlanetFromInputs() {
     currentDesignerPlanet.waterColor = designerWaterColorInput.value;
     currentDesignerPlanet.landColor = designerLandColorInput.value;
     currentDesignerPlanet.minTerrainHeight = parseFloat(designerMinHeightMinInput.value) || DEFAULT_MIN_TERRAIN_HEIGHT;
@@ -1338,28 +1338,28 @@ function renderDesignerPlanetPreview() {
 
     if (currentDesignerPlanet.minTerrainHeight >= currentDesignerPlanet.maxTerrainHeight) {
         currentDesignerPlanet.minTerrainHeight = currentDesignerPlanet.maxTerrainHeight - 0.1;
-        if (designerMinHeightInput) designerMinHeightInput.value = currentDesignerPlanet.minTerrainHeight.toFixed(1);
+        designerMinHeightMinInput.value = currentDesignerPlanet.minTerrainHeight.toFixed(1);
     }
     if (currentDesignerPlanet.minTerrainHeight < 0) {
         currentDesignerPlanet.minTerrainHeight = 0;
-        if (designerMinHeightInput) designerMinHeightInput.value = currentDesignerPlanet.minTerrainHeight.toFixed(1);
+        designerMinHeightMinInput.value = currentDesignerPlanet.minTerrainHeight.toFixed(1);
     }
     if (currentDesignerPlanet.maxTerrainHeight <= currentDesignerPlanet.minTerrainHeight) {
         currentDesignerPlanet.maxTerrainHeight = currentDesignerPlanet.minTerrainHeight + 0.1;
-        if(designerMaxHeightInput) designerMaxHeightInput.value = currentDesignerPlanet.maxTerrainHeight.toFixed(1);
+        designerMaxHeightMaxInput.value = currentDesignerPlanet.maxTerrainHeight.toFixed(1);
     }
     if (currentDesignerPlanet.oceanHeightLevel > currentDesignerPlanet.maxTerrainHeight) {
         currentDesignerPlanet.oceanHeightLevel = currentDesignerPlanet.maxTerrainHeight;
-        if(designerOceanHeightInput) designerOceanHeightInput.value = currentDesignerPlanet.oceanHeightLevel.toFixed(1);
+        designerOceanHeightMinInput.value = currentDesignerPlanet.oceanHeightLevel.toFixed(1);
     }
-     if (currentDesignerPlanet.oceanHeightLevel < currentDesignerPlanet.minTerrainHeight) {
+    if (currentDesignerPlanet.oceanHeightLevel < currentDesignerPlanet.minTerrainHeight) {
         currentDesignerPlanet.oceanHeightLevel = currentDesignerPlanet.minTerrainHeight;
-        if(designerOceanHeightInput) designerOceanHeightInput.value = currentDesignerPlanet.oceanHeightLevel.toFixed(1);
+        designerOceanHeightMinInput.value = currentDesignerPlanet.oceanHeightLevel.toFixed(1);
     }
 
     isRenderingDesignerPlanet = false;
     renderDesignerPlanet(currentDesignerPlanet, designerPlanetRotationQuat);
-  }
+}
 
   function randomizeDesignerPlanet() {
     currentDesignerPlanet.waterColor = `#${Math.floor(Math.random() * 16777215).toString(16).padStart(6, '0')}`;
@@ -1371,10 +1371,10 @@ function renderDesignerPlanetPreview() {
 
     designerWaterColorInput.value = currentDesignerPlanet.waterColor;
     designerLandColorInput.value = currentDesignerPlanet.landColor;
-    if (designerMinHeightInput) designerMinHeightInput.value = currentDesignerPlanet.minTerrainHeight.toFixed(1);
-    if (designerMaxHeightInput) designerMaxHeightInput.value = currentDesignerPlanet.maxTerrainHeight.toFixed(1);
-    if (designerOceanHeightInput) designerOceanHeightInput.value = currentDesignerPlanet.oceanHeightLevel.toFixed(1);
-
+    designerMinHeightMinInput.value = currentDesignerPlanet.minTerrainHeight.toFixed(1);
+    designerMaxHeightMaxInput.value = currentDesignerPlanet.maxTerrainHeight.toFixed(1);
+    designerOceanHeightMinInput.value = currentDesignerPlanet.oceanHeightLevel.toFixed(1);
+    
     designerPlanetRotationQuat = quat_identity();
     isRenderingDesignerPlanet = false;
     renderDesignerPlanet(currentDesignerPlanet, designerPlanetRotationQuat);

@@ -873,7 +873,7 @@ document.addEventListener('DOMContentLoaded', () => {
     ctx.beginPath();
     ctx.arc(centerX, centerY, radius, 0, Math.PI * 2);
     ctx.clip();
-
+    const pixelStep = isCurrentlyDragging ? 6 : 1;
     for (let y = 0; y < canvasHeight; y += pixelStep) {
       for (let x = 0; x < canvasWidth; x += pixelStep) {
         const x_cam = (x - centerX) / radius;
@@ -887,7 +887,6 @@ document.addEventListener('DOMContentLoaded', () => {
         const invLatSin = Math.sin(-latitude);
         const tempY = y_cam * invLatCos - z_cam * invLatSin;
         const tempZ = y_cam * invLatSin + z_cam * invLatCos;
-const pixelStep = isCurrentlyDragging ? 6 : 1;
         const invLonCos = Math.cos(-longitude);
         const invLonSin = Math.sin(-longitude);
         const x_tex = x_cam * invLonCos + tempZ * invLonSin;

@@ -758,7 +758,7 @@ fetch(`https://save-api.nicholasgutteridge512.workers.dev/?key=$`)
     renderSolarSystemScreen(false);
   }
 
-// Place this function in place of the old generateSegmentData(planetData)
+// Place this function in place of the old generateRandomSquigglySegments(planetData, 40)
 function generateRandomSquigglySegments(planetData, numSegments = 40) {
     // Generate random seed points on the sphere (phi: latitude, theta: longitude)
     const seeds = [];
@@ -903,7 +903,7 @@ function drawSegmentLines(ctx, planetData, currentLon, currentLat, sphereRadius,
     const lightVecZ = Math.cos(lightSourceLatitude) * Math.cos(lightSourceLongitude); // Z in viewer space (pointing out/forward)
 
     if (!planetData.segmentsData) {
-        generateSegmentData(planetData);
+        generateRandomSquigglySegments(planetData, 40);
     }
 
     // Main pixel rendering loop for both normal and terrestrial planets

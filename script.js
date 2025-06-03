@@ -455,7 +455,7 @@ document.addEventListener('DOMContentLoaded', () => {
       const finalCandidates = limitedPotentialTargets.slice(0, MAX_NEIGHBOR_CANDIDATES_FOR_ADDITIONAL_CONNECTIONS);
       for (const ss2 of finalCandidates) {
         if (connectionsToAdd <= 0) break;
-        const success = tryAddConnection( ss1.id, ss2.id, gal.lineConnections, systemConnectionCounts, allSystemsCoords, actualMaxEuclideanConnectionDistance );
+        const success = tryAddConnection( ss1.id, ss2.id, gal.lineConnections, systemConnectionCounts, allSystemCoords, actualMaxEuclideanConnectionDistance );
         if (success) {
           gal.lineConnections.push({ fromId: ss1.id, toId: ss2.id });
           systemConnectionCounts[ss1.id] = (systemConnectionCounts[ss1.id] || 0) + 1;
@@ -652,17 +652,15 @@ document.addEventListener('DOMContentLoaded', () => {
 
     for (let y = 0; y < canvas.height; y++) {
       for (let x = 0; x < canvas.width; x++) {
-        // Map texture coordinates (x,y) to spherical coordinates (lat, lon)
-        const lat = (y / canvas.height) * Math.PI; // phi, from 0 to PI (0 to 180 degrees)
-        const lon = (x / canvas.width) * 2 * Math.PI; // theta, from 0 to 2PI (0 to 360 degrees)
+        const lat = (y / canvas.height) * Math.PI;
+        const lon = (x / canvas.width) * 2 * Math.PI;
 
-        // Convert spherical coordinates to Cartesian for Perlin noise input
         const nx = Math.sin(lat) * Math.cos(lon) * scale;
         const ny = Math.cos(lat) * scale;
         const nz = Math.sin(lat) * Math.sin(lon) * scale;
 
         let noiseValue = noiseGen.fractalNoise(nx, ny, nz, octaves, persistence);
-        noiseValue = (noiseValue + 1) / 2; // Normalize noise to 0-1
+        noiseValue = (noiseValue + 1) / 2;
 
         const threshold = 0.5;
 
@@ -682,7 +680,7 @@ document.addEventListener('DOMContentLoaded', () => {
         data[index] = pixelR;
         data[index + 1] = pixelG;
         data[index + 2] = pixelB;
-        data[index + 3] = 255; // Always full opacity
+        data[index + 3] = 255;
       }
     }
     ctx.putImageData(imageData, 0, 0);
@@ -749,12 +747,12 @@ document.addEventListener('DOMContentLoaded', () => {
           data[index] = 255;
           data[index + 1] = 255;
           data[index + 2] = 255;
-          data[index + 3] = 255; // Always full opacity for outlines in texture
+          data[index + 3] = 255;
         } else {
           data[index] = 0;
           data[index + 1] = 0;
           data[index + 2] = 0;
-          data[index + 3] = 0; // Transparent if not an outline
+          data[index + 3] = 0;
         }
       }
     }
@@ -762,7 +760,7 @@ document.addEventListener('DOMContentLoaded', () => {
     return canvas;
   }
 
-  function drawContinentOutlinesOnSphere(ctx, planetData, currentLon, currentLat, sphereRadius, centerX, centerY, isCurrentlyDragging) {
+  function drawContinentOutlinesOnSphere(ctx, planetData, currentLon, currentLat, sphereRadius, centerX, centerY) {
     if (!planetData.outlineTextureCanvas || planetData.waterColor !== planetData._cachedOutlineWaterColor || planetData.landColor !== planetData._cachedOutlineLandColor || planetData.continentSeed !== planetData._cachedOutlineContinentSeed) {
       planetData.outlineTextureCanvas = createOutlineTexture(planetData.waterColor, planetData.landColor, planetData.continentSeed);
       planetData._cachedOutlineWaterColor = planetData.waterColor;
@@ -776,54 +774,59 @@ document.addEventListener('DOMContentLoaded', () => {
     const textureWidth = outlineTextureCanvas.width;
     const textureHeight = outlineTextureCanvas.height;
 
-    const steps = Math.ceil(sphereRadius * 2);
+    // Iterate over every pixel in the canvas's bounding box
+    for (let y = 0; y < ctx.canvas.height; y++) {
+      for (let x = 0; x < ctx.canvas.width; x++) {
+        // Calculate normalized device coordinates from pixel (x,y)
+        const x_cam = (x - centerX) / sphereRadius;
+        const y_cam = (y - centerY) / sphereRadius;
 
-    for (let i = 0; i < steps; i++) {
-        for (let j = 0; j < steps; j++) {
-            const x_canvas = i - centerX;
-            const y_canvas = j - centerY;
+        // Check if the current pixel is within the sphere's circle projection
+        if (x_cam * x_cam + y_cam * y_cam > 1) continue;
 
-            if (x_canvas * x_canvas + y_canvas * y_canvas > sphereRadius * sphereRadius) continue;
+        // Calculate the z-coordinate on the sphere for this pixel
+        const z_cam = Math.sqrt(1 - x_cam * x_cam - y_cam * y_cam);
 
-            const x_cam = x_canvas / sphereRadius;
-            const y_cam = y_canvas / sphereRadius;
-            const z_cam = Math.sqrt(1 - x_cam * x_cam - y_cam * y_cam);
+        // Apply inverse rotation to transform the camera-space point back to the planet's local space
+        // Order of rotations is typically Y (longitude) first, then X (latitude) or vice versa.
+        // For inverse transformation, apply in reverse order with negative angles.
 
-            if (isNaN(z_cam)) continue;
+        // Inverse rotate around X (latitude)
+        const invLatCos = Math.cos(-currentLat);
+        const invLatSin = Math.sin(-currentLat);
+        const tempY = y_cam * invLatCos - z_cam * invLatSin;
+        const tempZ = y_cam * invLatSin + z_cam * invLatCos;
 
-            // Apply inverse rotation
-            const invLatCos = Math.cos(-currentLat);
-            const invLatSin = Math.sin(-currentLat);
-            const tempY = y_cam * invLatCos - z_cam * invLatSin;
-            const tempZ = y_cam * invLatSin + z_cam * invLatCos;
+        // Inverse rotate around Y (longitude)
+        const invLonCos = Math.cos(-currentLon);
+        const invLonSin = Math.sin(-currentLon);
+        const x_tex = x_cam * invLonCos + tempZ * invLonSin;
+        const y_tex = tempY;
+        const z_tex = -x_cam * invLonSin + tempZ * invLonCos;
 
-            const invLonCos = Math.cos(-currentLon);
-            const invLonSin = Math.sin(-currentLon);
-            const x_tex = x_cam * invLonCos + tempZ * invLonSin;
-            const y_tex = tempY;
-            const z_tex = -x_cam * invLonSin + tempZ * invLonCos;
+        // Convert inverse-rotated Cartesian coordinates back to spherical for texture lookup
+        let phi_tex = Math.acos(y_tex); // Latitude (polar angle), range 0 to PI
+        let theta_tex = Math.atan2(x_tex, z_tex); // Longitude (azimuthal angle), range -PI to PI
+        theta_tex = (theta_tex + 2 * Math.PI) % (2 * Math.PI); // Normalize theta_tex to [0, 2*PI) for texture lookup
 
-            let phi_tex = Math.acos(y_tex);
-            let theta_tex = Math.atan2(x_tex, z_tex);
-            theta_tex = (theta_tex + 2 * Math.PI) % (2 * Math.PI);
+        // Map to texture UV coordinates
+        let texU = theta_tex / (2 * Math.PI);
+        let texV = phi_tex / Math.PI;
 
-            let texU = theta_tex / (2 * Math.PI);
-            let texV = phi_tex / Math.PI;
+        let sx = Math.floor(texU * textureWidth);
+        let sy = Math.floor(texV * textureHeight);
 
-            let sx = Math.floor(texU * textureWidth);
-            let sy = Math.floor(texV * textureHeight);
+        sx = Math.max(0, Math.min(textureWidth - 1, sx));
+        sy = Math.max(0, Math.min(textureHeight - 1, sy));
 
-            sx = Math.max(0, Math.min(textureWidth - 1, sx));
-            sy = Math.max(0, Math.min(textureHeight - 1, sy));
+        const idx = (sy * textureWidth + sx) * 4;
+        const alpha = outlineTextureData.data[idx + 3];
 
-            const idx = (sy * textureWidth + sx) * 4;
-            const alpha = outlineTextureData.data[idx + 3];
-
-            if (alpha > 0) {
-                ctx.fillStyle = 'white'; // Always render outlines as white
-                ctx.fillRect(i, j, 1, 1);
-            }
+        if (alpha > 0) {
+          ctx.fillStyle = 'white'; // Always render outlines as white
+          ctx.fillRect(x, y, 1, 1);
         }
+      }
     }
   }
 
@@ -842,9 +845,10 @@ document.addEventListener('DOMContentLoaded', () => {
     const radius = Math.min(canvasWidth, canvasHeight) * 0.4;
     const isCurrentlyDragging = (targetCanvas === planetVisualCanvas && isDraggingPlanetVisual) || (targetCanvas === designerPlanetCanvas && isDraggingDesignerPlanet);
 
-    const steps = isCurrentlyDragging
-      ? Math.ceil(radius * 1.0)
-      : Math.ceil(radius * 2.0);
+    // Using canvas dimensions for loops, not 'steps'
+    // This ensures full coverage across the canvas, then we filter by circle.
+    // The density of rendering is still effectively controlled by render quality (pixel block size, if implemented).
+    // For per-pixel rendering, there's no 'steps' other than canvas width/height.
 
     const lightSourceLongitude = Math.PI / 4;
     const lightSourceLatitude = Math.PI / 8;
@@ -885,78 +889,75 @@ document.addEventListener('DOMContentLoaded', () => {
     ctx.arc(centerX, centerY, radius, 0, Math.PI * 2);
     ctx.clip();
 
-    for (let i = 0; i < steps; i++) {
-        for (let j = 0; j < steps; j++) {
-            const x_canvas = i - centerX;
-            const y_canvas = j - centerY;
+    const pixelStep = isCurrentlyDragging ? 2 : 1; // Render every Nth pixel for faster dragging
 
-            if (x_canvas * x_canvas + y_canvas * y_canvas > radius * radius) continue;
+    for (let y = 0; y < canvasHeight; y += pixelStep) {
+      for (let x = 0; x < canvasWidth; x += pixelStep) {
+        // Calculate normalized device coordinates from pixel (x,y)
+        const x_cam = (x - centerX) / radius;
+        const y_cam = (y - centerY) / radius;
 
-            const x_cam = x_canvas / radius;
-            const y_cam = y_canvas / radius;
-            const z_cam = Math.sqrt(1 - x_cam * x_cam - y_cam * y_cam);
+        // Check if the current pixel is within the sphere's circle projection
+        if (x_cam * x_cam + y_cam * y_cam > 1) continue;
 
-            if (isNaN(z_cam)) continue;
+        // Calculate the z-coordinate on the sphere for this pixel
+        const z_cam = Math.sqrt(1 - x_cam * x_cam - y_cam * y_cam);
 
-            // Apply inverse rotation to transform the camera-space point
-            // back to the planet's local space (where the texture is defined).
-            // Order of rotations is typically Z (axial) then Y (long) then X (lat) for planet-fixed rotations.
-            // So inverse order is X (lat) -> Y (long) applied to camera coordinates.
+        // Apply inverse rotation to transform the camera-space point back to the planet's local space
+        // Order of rotations is typically Y (longitude) first, then X (latitude) or vice versa.
+        // For inverse transformation, apply in reverse order with negative angles.
 
-            // Inverse rotate around X (latitude)
-            const invLatCos = Math.cos(-latitude);
-            const invLatSin = Math.sin(-latitude);
-            const tempY = y_cam * invLatCos - z_cam * invLatSin;
-            const tempZ = y_cam * invLatSin + z_cam * invLatCos;
+        // Inverse rotate around X (latitude)
+        const invLatCos = Math.cos(-latitude);
+        const invLatSin = Math.sin(-latitude);
+        const tempY = y_cam * invLatCos - z_cam * invLatSin;
+        const tempZ = y_cam * invLatSin + z_cam * invLatCos;
 
-            // Inverse rotate around Y (longitude)
-            const invLonCos = Math.cos(-longitude);
-            const invLonSin = Math.sin(-longitude);
-            const x_tex = x_cam * invLonCos + tempZ * invLonSin;
-            const y_tex = tempY;
-            const z_tex = -x_cam * invLonSin + tempZ * invLonCos;
+        // Inverse rotate around Y (longitude)
+        const invLonCos = Math.cos(-longitude);
+        const invLonSin = Math.sin(-longitude);
+        const x_tex = x_cam * invLonCos + tempZ * invLonSin;
+        const y_tex = tempY;
+        const z_tex = -x_cam * invLonSin + tempZ * invLonCos;
 
-            // Convert inverse-rotated Cartesian coordinates back to spherical for texture lookup
-            let phi_tex = Math.acos(y_tex); // Latitude (polar angle), range 0 to PI
-            let theta_tex = Math.atan2(x_tex, z_tex); // Longitude (azimuthal angle), range -PI to PI
+        // Convert inverse-rotated Cartesian coordinates back to spherical for texture lookup
+        let phi_tex = Math.acos(y_tex); // Latitude (polar angle), range 0 to PI
+        let theta_tex = Math.atan2(x_tex, z_tex); // Longitude (azimuthal angle), range -PI to PI
+        theta_tex = (theta_tex + 2 * Math.PI) % (2 * Math.PI); // Normalize theta_tex to [0, 2*PI) for texture lookup
 
-            // Normalize theta_tex to [0, 2*PI) for texture lookup
-            theta_tex = (theta_tex + 2 * Math.PI) % (2 * Math.PI);
+        // Map to texture UV coordinates
+        let texU = theta_tex / (2 * Math.PI);
+        let texV = phi_tex / Math.PI;
 
-            // Map to texture UV coordinates
-            let texU = theta_tex / (2 * Math.PI);
-            let texV = phi_tex / Math.PI;
+        let sx = Math.floor(texU * textureWidth);
+        let sy = Math.floor(texV * textureHeight);
 
-            // Adjust for texture boundaries in case of floating point errors
-            let sx = Math.floor(texU * textureWidth);
-            let sy = Math.floor(texV * textureHeight);
+        sx = Math.max(0, Math.min(textureWidth - 1, sx));
+        sy = Math.max(0, Math.min(textureHeight - 1, sy));
 
-            sx = Math.max(0, Math.min(textureWidth - 1, sx));
-            sy = Math.max(0, Math.min(textureHeight - 1, sy));
+        const idx = (sy * textureWidth + sx) * 4;
+        let r = textureData.data[idx];
+        let g = textureData.data[idx + 1];
+        let b = textureData.data[idx + 2];
+        let a = textureData.data[idx + 3];
 
-            const idx = (sy * textureWidth + sx) * 4;
-            let r = textureData.data[idx];
-            let g = textureData.data[idx + 1];
-            let b = textureData.data[idx + 2];
-            let a = textureData.data[idx + 3];
+        // Lighting calculation uses the camera-space (rotated) coordinates as the normal vector
+        const ambientLight = 0.25;
+        const diffuseLight = 0.75;
+        const dotProduct = x_cam * lightVecX + y_cam * lightVecY + z_cam * lightVecZ;
+        const lightIntensity = Math.max(0, dotProduct) * diffuseLight + ambientLight;
 
-            // Lighting calculation uses the camera-space (rotated) coordinates as the normal vector
-            const ambientLight = 0.25;
-            const diffuseLight = 0.75;
-            const dotProduct = x_cam * lightVecX + y_cam * lightVecY + z_cam * lightVecZ;
-            const lightIntensity = Math.max(0, dotProduct) * diffuseLight + ambientLight;
+        r = Math.min(255, r * lightIntensity);
+        g = Math.min(255, g * lightIntensity);
+        b = Math.min(255, b * lightIntensity);
 
-            r = Math.min(255, r * lightIntensity);
-            g = Math.min(255, g * lightIntensity);
-            b = Math.min(255, b * lightIntensity);
-
-            ctx.fillStyle = `rgba(${r},${g},${b},${a / 255})`;
-            ctx.fillRect(i, j, 1, 1);
-        }
+        ctx.fillStyle = `rgba(${r},${g},${b},${a / 255})`;
+        ctx.fillRect(x, y, pixelStep, pixelStep);
+      }
     }
     ctx.restore();
 
-    drawContinentOutlinesOnSphere(ctx, planetData, longitude, latitude, radius, centerX, centerY, isCurrentlyDragging);
+    drawContinentOutlinesOnSphere(ctx, planetData, longitude, latitude, radius, centerX, centerY);
   }
 
   function switchToSolarSystemView(solarSystemId) {

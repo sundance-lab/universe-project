@@ -298,15 +298,6 @@ body {font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background-c
     min-height: 0;
 }
 
-#designer-title-container {
-    padding-bottom: 20px;
-    position: relative;
-    top: auto;
-    left: auto;
-    width: 100%;
-    text-align: center;
-}
-
 /* Make sure the panel sizes itself by content, not by 100% of the parent */
 .designer-panel {
     display: flex;

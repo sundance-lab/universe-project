@@ -80,6 +80,16 @@ document.addEventListener('DOMContentLoaded', () => {
     oceanHeightRange: [1, 3]            // [min, max]
 };
 
+function resizeDesignerCanvas() {
+    // Find the computed size (as shown on page) and set the canvas pixel buffer to match
+    const rect = designerPlanetCanvas.getBoundingClientRect();
+    designerPlanetCanvas.width = rect.width;
+    designerPlanetCanvas.height = rect.height;
+}
+// Call when showing the designer, and on resize
+resizeDesignerCanvas();
+window.addEventListener('resize', resizeDesignerCanvas);
+  
 function randomInRange(range) {
   // Defensive: fallback to [0, 1] if not an array of length 2
   if (!Array.isArray(range) || range.length !== 2) {

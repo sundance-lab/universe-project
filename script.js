@@ -772,25 +772,6 @@ function renderPlanetVisual(planet, rotationLongitude = 0, rotationLatitude = 0)
     ctx.fillRect(centerX - radius, centerY - radius, radius * 2, radius * 2);
   }
 
-  // Optionally, highlight segments if present (Voronoi or classic)
-  if (planet.segmentsData && planet.segmentsData.map) {
-    // This is a stub: you could draw borders or highlight segments
-    // Example: highlight all 'isPink' segments
-    // (real segment rendering would require more code)
-    planet.segmentsData.map.forEach((seg) => {
-      if (seg.isPink) {
-        ctx.save();
-        ctx.globalAlpha = 0.3;
-        ctx.fillStyle = 'pink';
-        // Here you'd need the segment's pixel coordinates; for now, just overlay a pink layer
-        ctx.beginPath();
-        ctx.arc(centerX, centerY, radius * 0.95, 0, 2 * Math.PI);
-        ctx.fill();
-        ctx.restore();
-      }
-    });
-  }
-
   ctx.restore();
 
   // Draw outline
@@ -1117,68 +1098,7 @@ window.addEventListener('mousemove', (e) => {
 });
 
 planetVisualCanvas.addEventListener('click', (e) => {
-    if (!currentPlanetDisplayedInPanel || isDraggingPlanetVisual) return;
-
-    const rect = planetVisualPanel.getBoundingClientRect();
-    const canvasRect = planetVisualCanvas.getBoundingClientRect();
-    const clickX_canvas_rel = e.clientX - canvasRect.left;
-    const clickY_canvas_rel = e.clientY - canvasRect.top;
-
-    const centerX = planetVisualCanvas.width / 2;
-    const centerY = planetVisualCanvas.height / 2;
-    const radius = Math.min(planetVisualCanvas.width, planetVisualCanvas.height) * 0.4;
-
-    const nx = (clickX_canvas_rel - centerX) / radius;
-    const ny = (clickY_canvas_rel - centerY) / radius;
-
-    if (nx * nx + ny * ny > 1) return; // Clicked outside the sphere
-
-    // Calculate 3D point on unit sphere (Z points out)
-    const x_sphere = nx;
-    const y_sphere = ny;
-    const z_sphere = Math.sqrt(1 - x_sphere * x_sphere - y_sphere * y_sphere);
-
-    // Apply INVERSE rotation to get original phi/theta
-    // Inverse of Yaw then Pitch is Inverse Pitch then Inverse Yaw
-    // Inverse Pitch (around X)
-    const inv_lat = -rotationLatitude;
-    const pX_inv_lat = x_sphere;
-    const pY_inv_lat = y_sphere * Math.cos(inv_lat) - z_sphere * Math.sin(inv_lat);
-    const pZ_inv_lat = y_sphere * Math.sin(inv_lat) + z_sphere * Math.cos(inv_lat);
-
-    // Inverse Yaw (around Y)
-    const inv_lon = -rotationLongitude;
-    const x_original = pX_inv_lat * Math.cos(inv_lon) + pZ_inv_lat * Math.sin(inv_lon);
-    const y_original = pY_inv_lat;
-    const z_original = -pX_inv_lat * Math.sin(inv_lon) + pZ_inv_lat * Math.cos(inv_lon);
-
-    // Convert original Cartesian back to spherical for segment lookup
-    const phi_original = Math.acos(y_original); // Latitude (0 to PI) from Y
-    const theta_original = (Math.atan2(x_original, z_original) + 2 * Math.PI) % (2 * Math.PI); // Longitude (0 to 2PI) from X, Z
-
-    let latBandIndex = -1;
-    for (let k = 0; k < currentPlanetDisplayedInPanel.segmentsData.latBandStarts.length - 1; k++) {
-        if (phi_original >= currentPlanetDisplayedInPanel.segmentsData.latBandStarts[k] && phi_original < currentPlanetDisplayedInPanel.segmentsData.latBandStarts[k + 1]) {
-            latBandIndex = k;
-            break;
-        }
-    }
-    if (latBandIndex === -1 && phi_original === Math.PI) latBandIndex = currentPlanetDisplayedInPanel.segmentsData.latBandStarts.length - 2;
-
-    let lonBandIndex = -1;
-    for (let k = 0; k < currentPlanetDisplayedInPanel.segmentsData.lonSliceStarts.length - 1; k++) {
-        if (theta_original >= currentPlanetDisplayedInPanel.segmentsData.lonSliceStarts[k] && theta_original < currentPlanetDisplayedInPanel.segmentsData.lonSliceStarts[k + 1]) {
-            lonBandIndex = k;
-            break;
-        }
-    }
-     if (lonBandIndex === -1 && theta_original === 2 * Math.PI) lonBandIndex = currentPlanetDisplayedInPanel.segmentsData.lonSliceStarts.length - 2;
-
-    const segment = currentPlanetDisplayedInPanel.segmentsData.map.get(`${latBandIndex},${lonBandIndex}`);
-    if (segment) {
-        segment.isPink = !segment.isPink;
-        renderPlanetVisual(currentPlanetDisplayedInPanel, rotationLongitude, rotationLatitude);
-    }
+    // Reserved for future interactive features.
 });
 
 

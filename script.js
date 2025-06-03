@@ -1067,6 +1067,8 @@ document.addEventListener('DOMContentLoaded', () => {
     startSolarSystemAnimation();
   }
 
+    const pixelStep = isCurrentlyDragging ? 1 : 1;
+  
   function animateSolarSystem(now) {
     if (!now) now = performance.now();
     if (lastAnimationTime === null) lastAnimationTime = now;

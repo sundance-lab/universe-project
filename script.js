@@ -239,41 +239,9 @@ designerWorker.onmessage = function(e) {
   };
  } else {
   console.warn("Web Workers not supported in this browser. Planet rendering will be disabled.");
- };
+ }
 
-  const { renderedData, width, height, senderId } = e.data;
 
-  if (senderId === 'designer-planet-canvas') { // Primary check for this specific task
-    if (designerPlanetCanvas && designerPlanetCanvas instanceof HTMLCanvasElement) {
-      const ctx = designerPlanetCanvas.getContext('2d');
-      if (!ctx) {
-          console.error("Failed to get 2D context from designerPlanetCanvas.");
-          isRenderingDesignerPlanet = false; // Reset for this specific task
-          return;
-      }
-
-      ctx.clearRect(0, 0, designerPlanetCanvas.width, designerPlanetCanvas.height);
-
-      if (renderedData && width > 0 && height > 0) { // Added > 0 check for width/height
-        try {
-          const clampedArray = new Uint8ClampedArray(renderedData);
-          const imageDataObj = new ImageData(clampedArray, width, height);
-          ctx.putImageData(imageDataObj, 0, 0);
-        } catch (err) {
-          console.error("Error putting ImageData on designerPlanetCanvas:", err);
-        }
-      } else {
-        console.warn("Rendered data, width, or height missing or invalid for designer-planet-canvas.");
-      }
-    } else {
-      console.warn("designerPlanetCanvas not found or not a canvas element.");
-    }
-    isRenderingDesignerPlanet = false; // Reset flag AFTER processing for this senderId
-  } else {
-    // Handle other messages from the worker if any, or just ignore if none are expected.
-    console.log("Received message from worker for different senderId:", senderId);
-  }
-};
 
   class PerlinNoise {
     constructor(seed = Math.random()) {

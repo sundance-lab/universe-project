@@ -69,6 +69,24 @@ document.addEventListener('DOMContentLoaded', () => {
     maxTerrainHeightRange: [8, 12],     // [min, max]
     oceanHeightRange: [1, 3]            // [min, max]
 };
+
+function randomInRange([min, max]) {
+  return min + Math.random() * (max - min);
+}
+
+ function generatePlanetFromBasis(basis) {
+ const minTerrainHeight = randomInRange(basis.minTerrainHeightRange);
+  const maxTerrainHeight = Math.max(minTerrainHeight + 0.2, randomInRange(basis.maxTerrainHeightRange));
+ const oceanHeightLevel = randomInRange(basis.oceanHeightRange);
+   return {
+   waterColor: basis.waterColor,
+   landColor: basis.landColor,
+   continentSeed: Math.random(),
+ minTerrainHeight,
+ maxTerrainHeight,
+oceanHeightLevel
+ };
+}
   
   function quat_identity() {
     return [1, 0, 0, 0];
@@ -95,7 +113,7 @@ document.addEventListener('DOMContentLoaded', () => {
       w1 * z2 + x1 * y2 - y1 * x2 + z1 * w2
     ];
   }
-
+  
   function quat_normalize(q) {
     let len_sq = q[0] * q[0] + q[1] * q[1] + q[2] * q[2] + q[3] * q[3];
     if (len_sq === 0) return [1, 0, 0, 0];
@@ -870,7 +888,8 @@ planetVisualWorker.onmessage = function(e) {
         continue;
       }
 
-      const randomDesign = gameSessionData.customPlanetDesigns[Math.floor(Math.random() * gameSessionData.customPlanetDesigns.length)];
+      const basis = gameSessionData.customPlanetDesigns[Math.floor(Math.random() * gameSessionData.customPlanetDesigns.length)];
+      const newPlanetData = generatePlanetFromBasis(basis);
 
       usedDistances.push({ distance: planetDistance, size: planetSize });
       const initialOrbitalAngle = Math.random() * 2 * Math.PI;

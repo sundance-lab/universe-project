@@ -91,9 +91,9 @@ document.addEventListener('DOMContentLoaded', () => {
 
   // Normalize a quaternion
   function quat_normalize(q) {
-    let len = Math.sqrt(q[0] * q[0] + q[1] * q[1] + q[2] * q[2] + q[3] * q[3]);
-    if (len === 0) return [1, 0, 0, 0]; // Return identity if zero length
-    len = 1 / len;
+    let len_sq = q[0] * q[0] + q[1] * q[1] + q[2] * q[2] + q[3] * q[3];
+    if (len_sq === 0) return [1, 0, 0, 0]; // Return identity if zero length
+    let len = 1 / Math.sqrt(len_sq);
     return [q[0] * len, q[1] * len, q[2] * len, q[3] * len];
   }
 
@@ -607,7 +607,7 @@ document.addEventListener('DOMContentLoaded', () => {
     solarSystemContent.style.transition = isInteractive ? 'none' : 'transform 0.1s ease-out';
     solarSystemContent.style.transform = `translate(${panX}px,${panY}px)scale(${zoom})`;
     // Correctly find galaxy from system id prefix (e.g., "galaxy-1-ss-5" -> "galaxy-1")
-    const galaxyPart = solarSystemId.substring(0, solarSystemId.indexOf('-ss-'));
+    const galaxyPart = gameSessionData.activeSolarSystemId.substring(0, gameSessionData.activeSolarSystemId.indexOf('-ss-'));
     const activeGalaxy = gameSessionData.galaxies.find(g => g.id === galaxyPart);
 
     let solarSystemObject = null;
@@ -1120,20 +1120,23 @@ document.addEventListener('DOMContentLoaded', () => {
       const deltaMouseX = e.clientX - startDragMouseX;
       const deltaMouseY = e.clientY - startDragMouseY;
 
-      // Calculate angles based on mouse movement relative to canvas size
-      const angleX = (deltaMouseY / canvasHeight) * Math.PI * PLANET_ROTATION_SENSITIVITY; // Vertical movement maps to rotation around X-axis
-      const angleY = (deltaMouseX / canvasWidth) * (2 * Math.PI) * PLANET_ROTATION_SENSITIVITY; // Horizontal movement maps to rotation around Y-axis
+      // Determine rotation amounts based on mouse movement
+      const rotationAroundX = (deltaMouseY / canvasHeight) * Math.PI * PLANET_ROTATION_SENSITIVITY; // Vertical movement for X-axis rotation
+      const rotationAroundY = (deltaMouseX / canvasWidth) * (2 * Math.PI) * PLANET_ROTATION_SENSITIVITY; // Horizontal movement for Y-axis rotation
 
-      // Create incremental rotations around camera's X and Y axes
-      const rotX_quat = quat_from_axis_angle([1, 0, 0], -angleX); // Negative for direct drag (mouse down shows texture moving down)
-      const rotY_quat = quat_from_axis_angle([0, 1, 0], -angleY); // Negative for direct drag (mouse right shows texture moving right)
+      // Create incremental quaternions for rotation about camera's X and Y axes
+        // Negative sign to make the *surface* drag in the same direction as the mouse
+      const incX_quat = quat_from_axis_angle([1, 0, 0], -rotationAroundX); 
+      const incY_quat = quat_from_axis_angle([0, 1, 0], -rotationAroundY);
       
-      // Combine these incremental rotations
-      let incrementalRotation = quat_multiply(rotY_quat, rotX_quat); // Order can affect feel, (Yaw then Pitch) feels natural
-
-      // Apply the new incremental rotation to the original starting rotation
-      // Q_new = Q_incremental * Q_start
-      planetVisualRotationQuat = quat_normalize(quat_multiply(incrementalRotation, startDragPlanetVisualQuat));
+      // Combine these incremental rotations by multiplying them into a single update quaternion.
+      // Order matters: here, Y (yaw) then X (pitch) in camera space, then apply to current rotation.
+        // The rotation is applied to the starting quaternion.
+      const combined_inc_quat = quat_multiply(incY_quat, incX_quat);
+       
+        // The new total rotation is the product of the incremental rotation and the starting rotation.
+        // Order: combined_inc_quat * startDragPlanetVisualQuat
+      planetVisualRotationQuat = quat_normalize(quat_multiply(combined_inc_quat, startDragPlanetVisualQuat));
 
       if (!renderPending) {
         renderPending = true;
@@ -1150,15 +1153,15 @@ document.addEventListener('DOMContentLoaded', () => {
       const deltaMouseX = e.clientX - designerStartDragMouseX;
       const deltaMouseY = e.clientY - designerStartDragMouseY;
 
-      const angleX = (deltaMouseY / canvasHeight) * Math.PI * PLANET_ROTATION_SENSITIVITY;
-      const angleY = (deltaMouseX / canvasWidth) * (2 * Math.PI) * PLANET_ROTATION_SENSITIVITY;
-
-      const rotX_quat = quat_from_axis_angle([1, 0, 0], -angleX);
-      const rotY_quat = quat_from_axis_angle([0, 1, 0], -angleY);
+      const rotationAroundX = (deltaMouseY / canvasHeight) * Math.PI * PLANET_ROTATION_SENSITIVITY;
+      const rotationAroundY = (deltaMouseX / canvasWidth) * (2 * Math.PI) * PLANET_ROTATION_SENSITIVITY;
+        
+      const incX_quat = quat_from_axis_angle([1, 0, 0], -rotationAroundX);
+      const incY_quat = quat_from_axis_angle([0, 1, 0], -rotationAroundY);
       
-      let incrementalRotation = quat_multiply(rotY_quat, rotX_quat);
+      const combined_inc_quat = quat_multiply(incY_quat, incX_quat);
 
-      designerPlanetRotationQuat = quat_normalize(quat_multiply(incrementalRotation, startDragDesignerPlanetQuat));
+      designerPlanetRotationQuat = quat_normalize(quat_multiply(combined_inc_quat, startDragDesignerPlanetQuat));
 
       if (!designerRenderPending) {
         designerRenderPending = true;
@@ -1167,7 +1170,7 @@ document.addEventListener('DOMContentLoaded', () => {
           designerRenderPending = false;
         });
     }
-  };
+  });
 
   window.addEventListener('mouseup', () => {
     if (isPanelDragging) {
@@ -1334,7 +1337,7 @@ document.addEventListener('DOMContentLoaded', () => {
         e.preventDefault();
         handleZoom(e.deltaY < 0 ? 'in' : 'out', e);
       }
-    };
+    });
   }
   if (solarSystemScreen) { solarSystemScreen.addEventListener('mousedown', (e) => { if (solarSystemScreen.classList.contains('active')) { startPan(e, solarSystemScreen, solarSystemContent, gameSessionData.solarSystemView); } }); }
   window.addEventListener('mousemove', panMouseMove);
@@ -1351,7 +1354,8 @@ document.addEventListener('DOMContentLoaded', () => {
           event.stopPropagation();
           return;
         }
-    };
+      } // Fix was here! Missing closing curly brace for the if(event.target.closest) block.
+    });
   }
   let isGalaxyPanning = false;
   let galaxyPanStart = { x: 0, y: 0 };
@@ -1375,7 +1379,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
       galaxyViewport.classList.add('dragging');
       e.preventDefault();
-    };
+    });
 
     window.addEventListener('mousemove', (e) => {
       if (!isGalaxyPanning) return;
@@ -1400,7 +1404,7 @@ document.addEventListener('DOMContentLoaded', () => {
         isGalaxyPanning = false;
         galaxyViewport.classList.remove('dragging');
       }
-    };
+    });
   }
   initializeGame();
-};
+});

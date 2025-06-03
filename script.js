@@ -44,6 +44,13 @@ document.addEventListener('DOMContentLoaded', () => {
   const designerSaveBtn = document.getElementById('designer-save-btn');
   const designerCancelBtn = document.getElementById('designer-cancel-btn');
   const savedDesignsUl = document.getElementById('saved-designs-ul');
+
+  // New Designer Inputs for Height
+  const designerMinHeightInput = document.getElementById('designer-min-height');
+  const designerMaxHeightInput = document.getElementById('designer-max-height');
+  const designerOceanHeightInput = document.getElementById('designer-ocean-height');
+
+
   let linesCtx;
   let solarSystemOrbitCanvasEl;
   let orbitCtx;
@@ -111,6 +118,12 @@ document.addEventListener('DOMContentLoaded', () => {
   const BASE_MAX_PLANET_DISTANCE_FACTOR = 8;
   const PLANET_ROTATION_SENSITIVITY = 0.75;
 
+  // Default height params
+  const DEFAULT_MIN_TERRAIN_HEIGHT = 0.0;
+  const DEFAULT_MAX_TERRAIN_HEIGHT = 10.0;
+  const DEFAULT_OCEAN_HEIGHT_LEVEL = 2.0;
+
+
   let currentNumGalaxies = DEFAULT_NUM_GALAXIES;
   let currentMinSSCount = DEFAULT_MIN_SS_COUNT_CONST;
   let currentMaxSSCount = DEFAULT_MAX_SS_COUNT_CONST;
@@ -162,7 +175,7 @@ document.addEventListener('DOMContentLoaded', () => {
             const imageData = new ImageData(renderedData, width, height);
             ctx.putImageData(imageData, 0, 0);
           } catch (err) {
-            console.error("Error putting ImageData on planetVisualCanvas:", err, "Data length:", renderedData.length, "Expected:", width * height * 4);
+            console.error("Error putting ImageData on planetVisualCanvas:", err);
           }
         }
       }
@@ -178,7 +191,7 @@ document.addEventListener('DOMContentLoaded', () => {
             const imageData = new ImageData(renderedData, width, height);
             ctx.putImageData(imageData, 0, 0);
           } catch (err) {
-            console.error("Error putting ImageData on designerPlanetCanvas:", err, "Data length:", renderedData.length, "Expected:", width * height * 4);
+            console.error("Error putting ImageData on designerPlanetCanvas:", err);
           }
         }
       }
@@ -341,6 +354,12 @@ document.addEventListener('DOMContentLoaded', () => {
             gal.lineConnections = gal.lineConnections || [];
           });
           gameSessionData.customPlanetDesigns = loadedState.customPlanetDesigns || [];
+          // Ensure loaded designs have new height properties with defaults
+          gameSessionData.customPlanetDesigns.forEach(design => {
+            design.minTerrainHeight = design.minTerrainHeight ?? DEFAULT_MIN_TERRAIN_HEIGHT;
+            design.maxTerrainHeight = design.maxTerrainHeight ?? DEFAULT_MAX_TERRAIN_HEIGHT;
+            design.oceanHeightLevel = design.oceanHeightLevel ?? DEFAULT_OCEAN_HEIGHT_LEVEL;
+          });
           return true;
         }
       }
@@ -393,11 +412,11 @@ document.addEventListener('DOMContentLoaded', () => {
   function tryAddConnection(fromId, toId, currentConnectionsArray, currentCountsObject, allSystemsLookup, maxDistanceLimit) { if (!fromId || !toId || fromId === toId || fromId === null || toId === null) return false; if ((currentCountsObject[fromId] || 0) >= MAX_CONNECTIONS_PER_SYSTEM || (currentCountsObject[toId] || 0) >= MAX_CONNECTIONS_PER_SYSTEM) { return false; } const key = [fromId, toId].sort().join('-'); if (currentConnectionsArray.some(conn => ([conn.fromId, conn.toId].sort().join('-') === key))) { return false; } if (maxDistanceLimit !== undefined && maxDistanceLimit !== null) { const sys1 = allSystemsLookup.find(s => s.id === fromId); const sys2 = allSystemsLookup.find(s => s.id === toId); if (sys1 && sys2 && getDistance(sys1, sys2) > maxDistanceLimit) { return false; } } return true; }
   function generateSolarSystemsForGalaxy(galaxyId) {
     const gal = gameSessionData.galaxies.find(g => g.id === galaxyId);
-    if (!gal || !galaxyViewport) { console.warn("Cannot find galaxy or viewport for ID:", galaxyId); return; }
+    if (!gal || !galaxyViewport) { return; }
     if (gal.layoutGenerated && !gameSessionData.isForceRegenerating) return;
     const pd = galaxyViewport.offsetWidth > 0 ? galaxyViewport.offsetWidth : (gameSessionData.universe.diameter || 500);
     const pr = pd / 2;
-    if (pd <= 0 || isNaN(pr) || pr <= 0) { console.warn("Invalid dimensions for galaxy layout:", pd, pr); gal.layoutGenerated = true; if (!gameSessionData.isForceRegenerating) saveGameState(); return }
+    if (pd <= 0 || isNaN(pr) || pr <= 0) { gal.layoutGenerated = true; if (!gameSessionData.isForceRegenerating) saveGameState(); return }
     gal.solarSystems = []; gal.lineConnections = []; const tpr = [];
     const numSystemsToAssign = Math.floor(Math.random() * (currentMaxSSCount - currentMinSSCount + 1)) + currentMinSSCount;
     for (let i = 0; i < numSystemsToAssign; i++) {
@@ -694,7 +713,6 @@ document.addEventListener('DOMContentLoaded', () => {
           } else if (retriesLeft > 0) {
             requestAnimationFrame(() => attemptLayoutGeneration(retriesLeft - 1));
           } else {
-            console.warn("Galaxy viewport width not available after retries, layout generation might be incorrect.");
             gal.layoutGenerated = true; renderGalaxyDetailScreen(false);
           }
         }
@@ -720,11 +738,18 @@ document.addEventListener('DOMContentLoaded', () => {
       }
       planetData.type = 'terrestrial';
     }
+    planetData.minTerrainHeight = planetData.minTerrainHeight ?? DEFAULT_MIN_TERRAIN_HEIGHT;
+    planetData.maxTerrainHeight = planetData.maxTerrainHeight ?? DEFAULT_MAX_TERRAIN_HEIGHT;
+    planetData.oceanHeightLevel = planetData.oceanHeightLevel ?? DEFAULT_OCEAN_HEIGHT_LEVEL;
+
 
     const dataToSend = {
       waterColor: planetData.waterColor,
       landColor: planetData.landColor,
       continentSeed: planetData.continentSeed,
+      minTerrainHeight: planetData.minTerrainHeight,
+      maxTerrainHeight: planetData.maxTerrainHeight,
+      oceanHeightLevel: planetData.oceanHeightLevel,
     };
 
     const canvasId = targetCanvas.id;
@@ -792,10 +817,9 @@ document.addEventListener('DOMContentLoaded', () => {
         }
         if (!tooClose) break; attemptCount++;
       } while (attemptCount < 200);
-      if (attemptCount === 200) { console.warn("Could not place planet, too crowded."); continue; }
+      if (attemptCount === 200) { continue; }
 
       if (gameSessionData.customPlanetDesigns.length === 0) {
-        console.warn("No custom planet designs exist. Skipping planet generation for this system.");
         continue;
       }
 
@@ -816,6 +840,9 @@ document.addEventListener('DOMContentLoaded', () => {
         waterColor: randomDesign.waterColor,
         landColor: randomDesign.landColor,
         continentSeed: randomDesign.continentSeed,
+        minTerrainHeight: randomDesign.minTerrainHeight ?? DEFAULT_MIN_TERRAIN_HEIGHT,
+        maxTerrainHeight: randomDesign.maxTerrainHeight ?? DEFAULT_MAX_TERRAIN_HEIGHT,
+        oceanHeightLevel: randomDesign.oceanHeightLevel ?? DEFAULT_OCEAN_HEIGHT_LEVEL,
         sourceDesignId: randomDesign.designId
       };
 
@@ -865,6 +892,9 @@ document.addEventListener('DOMContentLoaded', () => {
                 waterColor: planetToPreload.waterColor,
                 landColor: planetToPreload.landColor,
                 continentSeed: planetToPreload.continentSeed,
+                minTerrainHeight: planetToPreload.minTerrainHeight,
+                maxTerrainHeight: planetToPreload.maxTerrainHeight,
+                oceanHeightLevel: planetToPreload.oceanHeightLevel,
             };
             planetVisualWorker.postMessage({
                 cmd: 'preloadPlanet',
@@ -1052,7 +1082,7 @@ document.addEventListener('DOMContentLoaded', () => {
       const spread = parseFloat(ssSpreadInput.value);
       const minP = parseInt(minPlanetsInput.value, 10);
       const maxP = parseInt(maxPlanetsInput.value, 10);
-      if (isNaN(numGal) || numGal < 1 || numGal > 10 || isNaN(minSS) || minSS < 10 || minSS > 500 || isNaN(maxSS) || maxSS < 10 || maxSS > 1000 || maxSS < minSS || isNaN(spread) || spread < 0.1 || spread > 5.0 || isNaN(minP) || minP < 0 || minP > 5 || isNaN(maxP) || maxP < minP || maxP > 8) { alert("Invalid input values. Please check ranges and ensure Max >= Min for systems and planets."); return; }
+      if (isNaN(numGal) || numGal < 1 || numGal > 100 || isNaN(minSS) || minSS < 1 || minSS > 1000 || isNaN(maxSS) || maxSS < 1 || maxSS > 2000 || maxSS < minSS || isNaN(spread) || spread < 0.1 || spread > 5.0 || isNaN(minP) || minP < 0 || minP > 20 || isNaN(maxP) || maxP < minP || maxP > 20) { alert("Invalid input values. Please check ranges and ensure Max >= Min for systems and planets."); return; }
       currentNumGalaxies = numGal;
       currentMinSSCount = minSS;
       currentMaxSSCount = maxSS;
@@ -1078,15 +1108,12 @@ document.addEventListener('DOMContentLoaded', () => {
   if (planetVisualPanelHeader) {
     planetVisualPanelHeader.addEventListener('mousedown', (e) => {
       if (e.button !== 0) return;
-
       isPanelDragging = true;
       planetVisualPanel.classList.add('dragging');
-
       planetVisualPanel.style.transition = 'none';
       const rect = planetVisualPanel.getBoundingClientRect();
       visualPanelOffset.x = e.clientX - rect.left;
       visualPanelOffset.y = e.clientY - rect.top;
-
       planetVisualPanel.style.left = `${e.clientX - visualPanelOffset.x}px`;
       planetVisualPanel.style.top = `${e.clientY - visualPanelOffset.y}px`;
       planetVisualPanel.style.transform = 'none';
@@ -1102,7 +1129,6 @@ document.addEventListener('DOMContentLoaded', () => {
     startDragMouseX = e.clientX;
     startDragMouseY = e.clientY;
     startDragPlanetVisualQuat = [...planetVisualRotationQuat];
-
     planetVisualCanvas.classList.add('dragging');
     e.preventDefault();
   });
@@ -1117,19 +1143,14 @@ document.addEventListener('DOMContentLoaded', () => {
       const rect = planetVisualCanvas.getBoundingClientRect();
       const canvasWidth = rect.width;
       const canvasHeight = rect.height;
-
       const deltaMouseX = e.clientX - startDragMouseX;
       const deltaMouseY = e.clientY - startDragMouseY;
-
       const rotationAroundX = (deltaMouseY / canvasHeight) * Math.PI * PLANET_ROTATION_SENSITIVITY;
       const rotationAroundY = (deltaMouseX / canvasWidth) * (2 * Math.PI) * PLANET_ROTATION_SENSITIVITY;
-
       const incX_quat = quat_from_axis_angle([1, 0, 0], -rotationAroundX);
       const incY_quat = quat_from_axis_angle([0, 1, 0], rotationAroundY);
-
       const combined_inc_quat = quat_multiply(incY_quat, incX_quat);
       planetVisualRotationQuat = quat_normalize(quat_multiply(combined_inc_quat, startDragPlanetVisualQuat));
-
       if (!renderPending) {
         renderPending = true;
         requestAnimationFrame(() => {
@@ -1141,19 +1162,14 @@ document.addEventListener('DOMContentLoaded', () => {
       const rect = designerPlanetCanvas.getBoundingClientRect();
       const canvasWidth = rect.width;
       const canvasHeight = rect.height;
-
       const deltaMouseX = e.clientX - designerStartDragMouseX;
       const deltaMouseY = e.clientY - designerStartDragMouseY;
-
       const rotationAroundX = (deltaMouseY / canvasHeight) * Math.PI * PLANET_ROTATION_SENSITIVITY;
       const rotationAroundY = (deltaMouseX / canvasWidth) * (2 * Math.PI) * PLANET_ROTATION_SENSITIVITY;
-
       const incX_quat = quat_from_axis_angle([1, 0, 0], -rotationAroundX);
       const incY_quat = quat_from_axis_angle([0, 1, 0], rotationAroundY);
-
       const combined_inc_quat = quat_multiply(incY_quat, incX_quat);
       designerPlanetRotationQuat = quat_normalize(quat_multiply(combined_inc_quat, startDragDesignerPlanetQuat));
-
       if (!designerRenderPending) {
         designerRenderPending = true;
         requestAnimationFrame(() => {
@@ -1179,37 +1195,81 @@ document.addEventListener('DOMContentLoaded', () => {
       designerPlanetCanvas.classList.remove('dragging');
     }
   });
-  let currentDesignerPlanet = { waterColor: '#000080', landColor: '#006400', continentSeed: Math.random() };
+
+  let currentDesignerPlanet = {
+    waterColor: '#000080',
+    landColor: '#006400',
+    continentSeed: Math.random(),
+    minTerrainHeight: DEFAULT_MIN_TERRAIN_HEIGHT,
+    maxTerrainHeight: DEFAULT_MAX_TERRAIN_HEIGHT,
+    oceanHeightLevel: DEFAULT_OCEAN_HEIGHT_LEVEL
+  };
+
   function renderDesignerPlanet(planet, rotationQuaternion) {
     if (!planet || !designerPlanetCanvas) return;
     renderPlanetVisual(planet, rotationQuaternion, designerPlanetCanvas);
   }
+
   function updateDesignerPlanetFromInputs() {
     currentDesignerPlanet.waterColor = designerWaterColorInput.value;
     currentDesignerPlanet.landColor = designerLandColorInput.value;
+    if (designerMinHeightInput) currentDesignerPlanet.minTerrainHeight = parseFloat(designerMinHeightInput.value) || DEFAULT_MIN_TERRAIN_HEIGHT;
+    if (designerMaxHeightInput) currentDesignerPlanet.maxTerrainHeight = parseFloat(designerMaxHeightInput.value) || DEFAULT_MAX_TERRAIN_HEIGHT;
+    if (designerOceanHeightInput) currentDesignerPlanet.oceanHeightLevel = parseFloat(designerOceanHeightInput.value) || DEFAULT_OCEAN_HEIGHT_LEVEL;
+
+    if (currentDesignerPlanet.minTerrainHeight >= currentDesignerPlanet.maxTerrainHeight) {
+        currentDesignerPlanet.minTerrainHeight = currentDesignerPlanet.maxTerrainHeight - 0.1;
+        if (designerMinHeightInput) designerMinHeightInput.value = currentDesignerPlanet.minTerrainHeight.toFixed(1);
+    }
+    if (currentDesignerPlanet.oceanHeightLevel > currentDesignerPlanet.maxTerrainHeight) {
+        currentDesignerPlanet.oceanHeightLevel = currentDesignerPlanet.maxTerrainHeight;
+        if(designerOceanHeightInput) designerOceanHeightInput.value = currentDesignerPlanet.oceanHeightLevel.toFixed(1);
+    }
+     if (currentDesignerPlanet.oceanHeightLevel < currentDesignerPlanet.minTerrainHeight) {
+        currentDesignerPlanet.oceanHeightLevel = currentDesignerPlanet.minTerrainHeight;
+        if(designerOceanHeightInput) designerOceanHeightInput.value = currentDesignerPlanet.oceanHeightLevel.toFixed(1);
+    }
+
+
     renderDesignerPlanet(currentDesignerPlanet, designerPlanetRotationQuat);
   }
+
   function randomizeDesignerPlanet() {
     currentDesignerPlanet.waterColor = `#${Math.floor(Math.random() * 16777215).toString(16).padStart(6, '0')}`;
     currentDesignerPlanet.landColor = `#${Math.floor(Math.random() * 16777215).toString(16).padStart(6, '0')}`;
     currentDesignerPlanet.continentSeed = Math.random();
+
+    currentDesignerPlanet.minTerrainHeight = parseFloat((Math.random() * 5).toFixed(1)); // e.g. 0 to 5
+    currentDesignerPlanet.maxTerrainHeight = parseFloat((currentDesignerPlanet.minTerrainHeight + 5 + Math.random() * 10).toFixed(1)); // e.g. minHeight + 5 to minHeight + 15
+    currentDesignerPlanet.oceanHeightLevel = parseFloat((currentDesignerPlanet.minTerrainHeight + Math.random() * (currentDesignerPlanet.maxTerrainHeight - currentDesignerPlanet.minTerrainHeight)).toFixed(1));
+
+
     designerWaterColorInput.value = currentDesignerPlanet.waterColor;
     designerLandColorInput.value = currentDesignerPlanet.landColor;
+    if (designerMinHeightInput) designerMinHeightInput.value = currentDesignerPlanet.minTerrainHeight.toFixed(1);
+    if (designerMaxHeightInput) designerMaxHeightInput.value = currentDesignerPlanet.maxTerrainHeight.toFixed(1);
+    if (designerOceanHeightInput) designerOceanHeightInput.value = currentDesignerPlanet.oceanHeightLevel.toFixed(1);
+
     designerPlanetRotationQuat = quat_identity();
     renderDesignerPlanet(currentDesignerPlanet, designerPlanetRotationQuat);
   }
+
   function saveCustomPlanetDesign() {
     const newDesign = {
       designId: `design-${Date.now()}`,
       waterColor: currentDesignerPlanet.waterColor,
       landColor: currentDesignerPlanet.landColor,
       continentSeed: currentDesignerPlanet.continentSeed,
+      minTerrainHeight: currentDesignerPlanet.minTerrainHeight,
+      maxTerrainHeight: currentDesignerPlanet.maxTerrainHeight,
+      oceanHeightLevel: currentDesignerPlanet.oceanHeightLevel,
       name: `Custom Planet ${gameSessionData.customPlanetDesigns.length + 1}`
     };
     gameSessionData.customPlanetDesigns.push(newDesign);
     saveGameState();
     populateSavedDesignsList();
   }
+
   function populateSavedDesignsList() {
     savedDesignsUl.innerHTML = '';
     if (gameSessionData.customPlanetDesigns.length === 0) {
@@ -1250,16 +1310,21 @@ document.addEventListener('DOMContentLoaded', () => {
     designerStartDragMouseX = e.clientX;
     designerStartDragMouseY = e.clientY;
     startDragDesignerPlanetQuat = [...designerPlanetRotationQuat];
-
     designerPlanetCanvas.classList.add('dragging');
     e.preventDefault();
   });
+
   designerWaterColorInput.addEventListener('change', updateDesignerPlanetFromInputs);
   designerLandColorInput.addEventListener('change', updateDesignerPlanetFromInputs);
+  if(designerMinHeightInput) designerMinHeightInput.addEventListener('change', updateDesignerPlanetFromInputs);
+  if(designerMaxHeightInput) designerMaxHeightInput.addEventListener('change', updateDesignerPlanetFromInputs);
+  if(designerOceanHeightInput) designerOceanHeightInput.addEventListener('change', updateDesignerPlanetFromInputs);
+
   designerRandomizeBtn.addEventListener('click', randomizeDesignerPlanet);
   designerSaveBtn.addEventListener('click', saveCustomPlanetDesign);
   designerCancelBtn.addEventListener('click', () => setActiveScreen(mainScreen));
   createPlanetDesignButton.addEventListener('click', switchToPlanetDesignerScreen);
+
   function initializeGame(isForcedRegeneration = false) {
     loadCustomizationSettings();
     if (!isForcedRegeneration && loadGameState()) {
@@ -1283,7 +1348,6 @@ document.addEventListener('DOMContentLoaded', () => {
   }
   window.addEventListener('resize', () => {
     const currentScreenIdBeforeResize = document.querySelector('.screen.active')?.id;
-
     localStorage.removeItem('galaxyGameSaveData');
     gameSessionData.universe = { diameter: null };
     gameSessionData.galaxies = [];
@@ -1297,7 +1361,6 @@ document.addEventListener('DOMContentLoaded', () => {
     if (orbitCtx && solarSystemOrbitCanvasEl) orbitCtx.clearRect(0, 0, solarSystemOrbitCanvasEl.width, solarSystemOrbitCanvasEl.height);
     if (animationFrameId) { cancelAnimationFrame(animationFrameId); animationFrameId = null; }
     lastAnimationTime = null;
-
     loadCustomizationSettings();
     initializeGame(true);
     if (currentScreenIdBeforeResize) {
@@ -1363,17 +1426,13 @@ document.addEventListener('DOMContentLoaded', () => {
         e.target.closest('.solar-system-icon') ||
         e.target.closest('button')
       ) return;
-
       if (gameSessionData.panning.isActive) return;
-
       isGalaxyPanningSpecific = true;
       galaxyPanStartSpecific.x = e.clientX;
       galaxyPanStartSpecific.y = e.clientY;
-
       const gal = gameSessionData.galaxies.find(g => g.id === gameSessionData.activeGalaxyId);
       galaxyLastPanSpecific.x = gal?.currentPanX || 0;
       galaxyLastPanSpecific.y = gal?.currentPanY || 0;
-
       galaxyViewport.classList.add('dragging');
       if (galaxyZoomContent) galaxyZoomContent.style.transition = 'none';
       e.preventDefault();
@@ -1393,7 +1452,6 @@ document.addEventListener('DOMContentLoaded', () => {
       renderGalaxyDetailScreen(true);
     };
     window.addEventListener('mousemove', galaxyMouseMoveHandler);
-
 
     const galaxyMouseUpHandler = (e) => {
       if (isGalaxyPanningSpecific) {

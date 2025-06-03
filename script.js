@@ -1691,8 +1691,6 @@ function renderPlanetVisual(planetData, longitude = 0, latitude = 0, targetCanva
       planetVisualPanel.classList.remove('visible');
     });
   }
-
-  let isPanelDragging = false;
   let visualPanelOffset = { x: 0, y: 0 };
 
   if (planetVisualPanelHeader) {

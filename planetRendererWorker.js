@@ -360,7 +360,8 @@ self.onmessage = function(e) {
         
         // Apply the INVERSE of the planet's rotation to get coordinates in texture space (static original sphere)
         // If the planet has been rotated by Q, then to find which point on the texture corresponds to a given
-        // camera-space coordinate, we need to counter-rotate the camera-space coordinate by Q_inverse.
+        // camera-space coordinate, we need to counter-rotate the camera-space coordinate.
+        // For unit quaternions, Q_inverse is its conjugate: [w, -x, -y, -z]
         const inverseRotationQuaternion = quat_normalize([rotationQuaternion[0], -rotationQuaternion[1], -rotationQuaternion[2], -rotationQuaternion[3]]);
         const pointInTextureSpace = quat_rotate_vector(inverseRotationQuaternion, pointInCameraSpace);
 
@@ -423,10 +424,10 @@ self.onmessage = function(e) {
           resultData[resultPixelIndex + 2] = b;
           resultData[resultPixelIndex + 3] = a;
         }
-      }
-    }
+    d }
+  }
 
-    if (senderId !== 'preload') {
+  if (senderId !== 'preload') {
       self.postMessage({
         renderedData: resultImageData.data,
         width: canvasWidth,
@@ -434,5 +435,4 @@ self.onmessage = function(e) {
         senderId: senderId
       }, [resultImageData.data.buffer]);
     }
-  }
 };

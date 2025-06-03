@@ -47,9 +47,9 @@ document.addEventListener('DOMContentLoaded', () => {
   const designerPlanetCanvas = document.getElementById('designer-planet-canvas');
   const designerWaterColorInput = document.getElementById('designer-water-color');
   const designerLandColorInput = document.getElementById('designer-land-color');
-  const designerRandomizeBtn = document.getElementById('designer-randomize-btn');
-  const designerSaveBtn = document.getElementById('designer-save-btn');
-  const designerCancelBtn = document.getElementById('designer-cancel-btn');
+  const designerRandomizeBtn = document = document.getElementById('designer-randomize-btn');
+  const designerSaveBtn = document = document.getElementById('designer-save-btn');
+  const designerCancelBtn = document = document.getElementById('designer-cancel-btn');
   const savedDesignsUl = document.getElementById('saved-designs-ul');
 
   let linesCtx;
@@ -774,42 +774,30 @@ document.addEventListener('DOMContentLoaded', () => {
     const textureWidth = outlineTextureCanvas.width;
     const textureHeight = outlineTextureCanvas.height;
 
-    // Iterate over every pixel in the canvas's bounding box
     for (let y = 0; y < ctx.canvas.height; y++) {
       for (let x = 0; x < ctx.canvas.width; x++) {
-        // Calculate normalized device coordinates from pixel (x,y)
         const x_cam = (x - centerX) / sphereRadius;
         const y_cam = (y - centerY) / sphereRadius;
 
-        // Check if the current pixel is within the sphere's circle projection
         if (x_cam * x_cam + y_cam * y_cam > 1) continue;
 
-        // Calculate the z-coordinate on the sphere for this pixel
         const z_cam = Math.sqrt(1 - x_cam * x_cam - y_cam * y_cam);
 
-        // Apply inverse rotation to transform the camera-space point back to the planet's local space
-        // Order of rotations is typically Y (longitude) first, then X (latitude) or vice versa.
-        // For inverse transformation, apply in reverse order with negative angles.
-
-        // Inverse rotate around X (latitude)
         const invLatCos = Math.cos(-currentLat);
         const invLatSin = Math.sin(-currentLat);
         const tempY = y_cam * invLatCos - z_cam * invLatSin;
         const tempZ = y_cam * invLatSin + z_cam * invLatCos;
 
-        // Inverse rotate around Y (longitude)
         const invLonCos = Math.cos(-currentLon);
         const invLonSin = Math.sin(-currentLon);
         const x_tex = x_cam * invLonCos + tempZ * invLonSin;
         const y_tex = tempY;
         const z_tex = -x_cam * invLonSin + tempZ * invLonCos;
 
-        // Convert inverse-rotated Cartesian coordinates back to spherical for texture lookup
-        let phi_tex = Math.acos(y_tex); // Latitude (polar angle), range 0 to PI
-        let theta_tex = Math.atan2(x_tex, z_tex); // Longitude (azimuthal angle), range -PI to PI
-        theta_tex = (theta_tex + 2 * Math.PI) % (2 * Math.PI); // Normalize theta_tex to [0, 2*PI) for texture lookup
+        let phi_tex = Math.acos(y_tex);
+        let theta_tex = Math.atan2(x_tex, z_tex);
+        theta_tex = (theta_tex + 2 * Math.PI) % (2 * Math.PI);
 
-        // Map to texture UV coordinates
         let texU = theta_tex / (2 * Math.PI);
         let texV = phi_tex / Math.PI;
 
@@ -823,7 +811,7 @@ document.addEventListener('DOMContentLoaded', () => {
         const alpha = outlineTextureData.data[idx + 3];
 
         if (alpha > 0) {
-          ctx.fillStyle = 'white'; // Always render outlines as white
+          ctx.fillStyle = 'white';
           ctx.fillRect(x, y, 1, 1);
         }
       }
@@ -845,10 +833,7 @@ document.addEventListener('DOMContentLoaded', () => {
     const radius = Math.min(canvasWidth, canvasHeight) * 0.4;
     const isCurrentlyDragging = (targetCanvas === planetVisualCanvas && isDraggingPlanetVisual) || (targetCanvas === designerPlanetCanvas && isDraggingDesignerPlanet);
 
-    // Using canvas dimensions for loops, not 'steps'
-    // This ensures full coverage across the canvas, then we filter by circle.
-    // The density of rendering is still effectively controlled by render quality (pixel block size, if implemented).
-    // For per-pixel rendering, there's no 'steps' other than canvas width/height.
+    const pixelStep = isCurrentlyDragging ? 2 : 1;
 
     const lightSourceLongitude = Math.PI / 4;
     const lightSourceLatitude = Math.PI / 8;
@@ -889,43 +874,30 @@ document.addEventListener('DOMContentLoaded', () => {
     ctx.arc(centerX, centerY, radius, 0, Math.PI * 2);
     ctx.clip();
 
-    const pixelStep = isCurrentlyDragging ? 2 : 1; // Render every Nth pixel for faster dragging
-
     for (let y = 0; y < canvasHeight; y += pixelStep) {
       for (let x = 0; x < canvasWidth; x += pixelStep) {
-        // Calculate normalized device coordinates from pixel (x,y)
         const x_cam = (x - centerX) / radius;
         const y_cam = (y - centerY) / radius;
 
-        // Check if the current pixel is within the sphere's circle projection
         if (x_cam * x_cam + y_cam * y_cam > 1) continue;
 
-        // Calculate the z-coordinate on the sphere for this pixel
         const z_cam = Math.sqrt(1 - x_cam * x_cam - y_cam * y_cam);
 
-        // Apply inverse rotation to transform the camera-space point back to the planet's local space
-        // Order of rotations is typically Y (longitude) first, then X (latitude) or vice versa.
-        // For inverse transformation, apply in reverse order with negative angles.
-
-        // Inverse rotate around X (latitude)
         const invLatCos = Math.cos(-latitude);
         const invLatSin = Math.sin(-latitude);
         const tempY = y_cam * invLatCos - z_cam * invLatSin;
         const tempZ = y_cam * invLatSin + z_cam * invLatCos;
 
-        // Inverse rotate around Y (longitude)
         const invLonCos = Math.cos(-longitude);
         const invLonSin = Math.sin(-longitude);
         const x_tex = x_cam * invLonCos + tempZ * invLonSin;
         const y_tex = tempY;
         const z_tex = -x_cam * invLonSin + tempZ * invLonCos;
 
-        // Convert inverse-rotated Cartesian coordinates back to spherical for texture lookup
-        let phi_tex = Math.acos(y_tex); // Latitude (polar angle), range 0 to PI
-        let theta_tex = Math.atan2(x_tex, z_tex); // Longitude (azimuthal angle), range -PI to PI
-        theta_tex = (theta_tex + 2 * Math.PI) % (2 * Math.PI); // Normalize theta_tex to [0, 2*PI) for texture lookup
+        let phi_tex = Math.acos(y_tex);
+        let theta_tex = Math.atan2(x_tex, z_tex);
+        theta_tex = (theta_tex + 2 * Math.PI) % (2 * Math.PI);
 
-        // Map to texture UV coordinates
         let texU = theta_tex / (2 * Math.PI);
         let texV = phi_tex / Math.PI;
 
@@ -941,7 +913,6 @@ document.addEventListener('DOMContentLoaded', () => {
         let b = textureData.data[idx + 2];
         let a = textureData.data[idx + 3];
 
-        // Lighting calculation uses the camera-space (rotated) coordinates as the normal vector
         const ambientLight = 0.25;
         const diffuseLight = 0.75;
         const dotProduct = x_cam * lightVecX + y_cam * lightVecY + z_cam * lightVecZ;
@@ -1205,8 +1176,8 @@ document.addEventListener('DOMContentLoaded', () => {
     if (isDraggingPlanetVisual && currentPlanetDisplayedInPanel && planetVisualPanel.classList.contains('visible')) {
       const deltaX = e.clientX - lastDragX;
       const deltaY = e.clientY - lastDragY;
-      rotationLongitude += deltaX * 0.005;
-      rotationLatitude += deltaY * 0.005;
+      rotationLongitude += deltaX * 0.015; // Increased sensitivity
+      rotationLatitude += deltaY * 0.015; // Increased sensitivity
       lastDragX = e.clientX;
       lastDragY = e.clientY;
       if (!renderPending) {
@@ -1321,8 +1292,8 @@ document.addEventListener('DOMContentLoaded', () => {
     if (isDraggingDesignerPlanet) {
       const deltaX = e.clientX - designerLastDragX;
       const deltaY = e.clientY - designerLastDragY;
-      designerRotationLongitude += deltaX * 0.005;
-      designerRotationLatitude += deltaY * 0.005;
+      designerRotationLongitude += deltaX * 0.015; // Increased sensitivity
+      designerRotationLatitude += deltaY * 0.015; // Increased sensitivity
       designerLastDragX = e.clientX;
       designerLastDragY = e.clientY;
       if (!designerRenderPending) {

@@ -285,13 +285,18 @@ body {font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background-c
 #planet-designer-screen {
     width: 100vw;
     height: 100vh;
-    overflow: hidden; /* Prevent accidental scrollbars */
+    overflow-y: auto; /* was: overflow: hidden */
     display: flex;
     flex-direction: column;
     align-items: stretch;
     justify-content: flex-start;
     padding: 0;
     box-sizing: border-box;
+}
+
+/* Make flex children shrinkable and allow scroll if content overflows */
+.designer-panel, .designer-controls, .designer-preview {
+    min-height: 0;
 }
 
 #designer-title-container {

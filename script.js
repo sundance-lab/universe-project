@@ -110,7 +110,7 @@ document.addEventListener('DOMContentLoaded', () => {
   const DEFAULT_MAX_PLANETS_PER_SYSTEM = 3;
   const DEFAULT_SHOW_PLANET_ORBITS = false;
   const DEFAULT_PLANET_AXIAL_SPEED = 0.01;
-  const BASE_MAX_PLANET_DISTANCE_FACTOR = 8;
+  const BASE_MAX_PLANET_DISTANCE_FACTOR = 25; // Increased from 8
   const PLANET_ROTATION_SENSITIVITY = 0.75;
   const DEFAULT_MIN_TERRAIN_HEIGHT = 0.0;
   const DEFAULT_MAX_TERRAIN_HEIGHT = 10.0;
@@ -125,7 +125,7 @@ document.addEventListener('DOMContentLoaded', () => {
   let currentShowPlanetOrbits = DEFAULT_SHOW_PLANET_ORBITS;
   const GALAXY_ICON_SIZE = 60;
   const SOLAR_SYSTEM_BASE_ICON_SIZE = 2.5;
-  const SUN_ICON_SIZE = 60; // This remains the BASE size for calculations like planet distances
+  const SUN_ICON_SIZE = 60;
   const MAX_PLACEMENT_ATTEMPTS = 150;
   const GALAXY_VIEW_MIN_ZOOM = 1.0;
   const GALAXY_VIEW_MAX_ZOOM = 5.0;
@@ -138,10 +138,10 @@ document.addEventListener('DOMContentLoaded', () => {
   const MAX_FORCED_CONNECTION_DISTANCE_PERCENT = 0.20;
   const MIN_PLANET_SIZE = 5;
   const MAX_PLANET_SIZE = 15;
-  let MIN_PLANET_DISTANCE = SUN_ICON_SIZE * 1.5;
+  let MIN_PLANET_DISTANCE = SUN_ICON_SIZE * 3.0; // Increased from 1.5 * multiplier logic
   let MAX_PLANET_DISTANCE = (SUN_ICON_SIZE * BASE_MAX_PLANET_DISTANCE_FACTOR) * currentMaxPlanetDistanceMultiplier;
   let ORBIT_CANVAS_SIZE = MAX_PLANET_DISTANCE * 2.2;
-  const SOLAR_SYSTEM_EXPLORABLE_RADIUS = 3000;
+  let SOLAR_SYSTEM_EXPLORABLE_RADIUS = MAX_PLANET_DISTANCE * 1.2; // Dynamically set
   const MIN_ORBITAL_SEPARATION = 20;
   let MIN_ROTATION_SPEED_RAD_PER_PERLIN_UNIT = 0.005;
   let MAX_ROTATION_SPEED_RAD_PER_PERLIN_UNIT = 0.01;
@@ -273,8 +273,10 @@ document.addEventListener('DOMContentLoaded', () => {
   }
   function updateDerivedConstants() {
     MAX_PLANET_DISTANCE = (SUN_ICON_SIZE * BASE_MAX_PLANET_DISTANCE_FACTOR) * currentMaxPlanetDistanceMultiplier;
-    MIN_PLANET_DISTANCE = SUN_ICON_SIZE * 1.5 * (currentMaxPlanetDistanceMultiplier > 0.5 ? currentMaxPlanetDistanceMultiplier * 0.8 : 0.5);
+    // Adjusted MIN_PLANET_DISTANCE logic for new base factor
+    MIN_PLANET_DISTANCE = SUN_ICON_SIZE * 3.0 * (currentMaxPlanetDistanceMultiplier > 0.5 ? currentMaxPlanetDistanceMultiplier * 0.8 : 0.5);
     ORBIT_CANVAS_SIZE = MAX_PLANET_DISTANCE * 2.2;
+    SOLAR_SYSTEM_EXPLORABLE_RADIUS = MAX_PLANET_DISTANCE * 1.2; // Make explorable radius dependent on max planet distance
   }
   function saveCustomizationSettings() {
     const settings = {
@@ -343,7 +345,7 @@ document.addEventListener('DOMContentLoaded', () => {
             if (gal.solarSystems && Array.isArray(gal.solarSystems)) {
               gal.solarSystems.forEach(ss => {
                 ss.customName = ss.customName || null;
-                ss.sunSizeFactor = ss.sunSizeFactor || (0.5 + Math.random() * 9.5); // Add default for old saves
+                ss.sunSizeFactor = ss.sunSizeFactor ?? (0.5 + Math.random() * 9.5); // Add default for old saves
               });
             }
             gal.lineConnections = gal.lineConnections || [];
@@ -417,7 +419,7 @@ document.addEventListener('DOMContentLoaded', () => {
       const sysId = `${gal.id}-ss-${i + 1}`;
       const pos = getNonOverlappingPositionInCircle(pr, SOLAR_SYSTEM_BASE_ICON_SIZE, tpr);
       if (pos && !isNaN(pos.x) && !isNaN(pos.y)) {
-        const sunSizeFactor = 0.5 + Math.random() * 9.5; // Range 0.5 to 10.0
+        const sunSizeFactor = 0.5 + Math.random() * 9.5;
         gal.solarSystems.push({
             id: sysId,
             customName: null,
@@ -791,16 +793,18 @@ document.addEventListener('DOMContentLoaded', () => {
     gameSessionData.solarSystemView.systemId = solarSystemId;
     solarSystemContent.innerHTML = '';
 
-    let currentSunSize = SUN_ICON_SIZE; // Default base size
+    let currentSunSize = SUN_ICON_SIZE;
     if (solarSystemObject && typeof solarSystemObject.sunSizeFactor === 'number') {
         currentSunSize = SUN_ICON_SIZE * solarSystemObject.sunSizeFactor;
     }
-    currentSunSize = Math.max(currentSunSize, 5); // Ensure a minimum visible size
+    currentSunSize = Math.max(currentSunSize, 5); // Ensure minimum visible size
 
     const sunEl = document.createElement('div');
-    sunEl.className = 'sun-icon';
+    sunEl.className = 'sun-icon sun-animated'; // Add sun-animated class
     sunEl.style.width = `${currentSunSize}px`;
     sunEl.style.height = `${currentSunSize}px`;
+    sunEl.style.backgroundColor = FIXED_COLORS.sunFill; // Set base fill
+    sunEl.style.border = `3px solid ${FIXED_COLORS.sunBorder}`; // Set base border
     solarSystemContent.appendChild(sunEl);
 
     solarSystemOrbitCanvasEl = document.createElement('canvas');
@@ -1341,7 +1345,7 @@ document.addEventListener('DOMContentLoaded', () => {
   createPlanetDesignButton.addEventListener('click', switchToPlanetDesignerScreen);
 
   function initializeGame(isForcedRegeneration = false) {
-    loadCustomizationSettings();
+    loadCustomizationSettings(); // This will also call updateDerivedConstants
     if (!isForcedRegeneration && loadGameState()) {
       setActiveScreen(mainScreen);
       if (universeCircle && gameSessionData.universe.diameter) {

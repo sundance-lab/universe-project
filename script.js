@@ -783,8 +783,7 @@ function generateRandomSquigglySegments(planetData, numSegments = 40) {
     };
 }
 function drawSegmentLines(ctx, planetData, currentLon, currentLat, sphereRadius, centerX, centerY) {
-    if (!planetData.segmentsData || planetData.segmentsData.latBandStarts.length < 2 || planetData.segmentsData.lonSliceStarts.length < 2) return;
-
+  
     const { latBandStarts, lonSliceStarts } = planetData.segmentsData;
 
     ctx.strokeStyle = 'rgba(255, 255, 255, 0.4)';

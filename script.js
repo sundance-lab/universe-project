@@ -814,43 +814,6 @@ function drawSegmentLines(ctx, planetData, currentLon, currentLat, sphereRadius,
         return { x: rotatedX, y: rotatedY, z: rotatedZ, isVisible: isVisible };
     };
 
-    // Draw Latitude lines (parallels)
-    for (let i = 0; i < .length; i++) {
-        const phi = [i];
-        ctx.beginPath();
-        let prevPoint = null;
-        for (let j = 0; j < lonSliceStarts.length; j++) {
-            const theta_raw = lonSliceStarts[j];
-            const currentPoint = getRotatedAndVisiblePoint(phi, theta_raw);
-            
-            const canvasX = centerX + currentPoint.x * sphereRadius + (Math.random() - 0.5) * 0.7; // Jitter
-            const canvasY = centerY + currentPoint.y * sphereRadius + (Math.random() - 0.5) * 0.7; // Jitter
-
-            if (currentPoint.isVisible) {
-                if (prevPoint && prevPoint.isVisible) {
-                    ctx.lineTo(canvasX, canvasY);
-                } else {
-                    ctx.moveTo(canvasX, canvasY);
-                }
-            } else if (prevPoint && prevPoint.isVisible) { // Previous point was visible, current is not. Draw to intersection
-                // Simplified intersection: just end the line and stroke
-                ctx.lineTo(canvasX, canvasY); // Still connect, but don't start new path later
-                ctx.stroke();
-                ctx.beginPath(); // Start a new path for next visible segment
-            } else if (prevPoint && j === lonSliceStarts.length - 1 && lonSliceStarts[0] !== lonSliceStarts[lonSliceStarts.length - 1]) { // Handle wrapping line for parallels
-                // If it's the last point and wraps around, check connection to first point if both are visible.
-                // This gets complex, for simplicity, assume line breaks at non-visible points.
-            }
-            prevPoint = currentPoint;
-        }
-        ctx.stroke(); // Ensure any remaining partial path is drawn
-    }
-
-    // Draw Longitude lines (meridians)
-
-
-
-
     // Main pixel rendering loop for both normal and terrestrial planets
     ctx.save();
     ctx.beginPath();

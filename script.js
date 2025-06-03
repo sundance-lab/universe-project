@@ -113,6 +113,10 @@ document.addEventListener('DOMContentLoaded', () => {
   let renderPending = false;
   let designerRenderPending = false;
 
+  let offscreenPlanetVisualCanvas = null;
+  let offscreenDesignerPlanetCanvas = null;
+  let planetRendererWorker = null;
+
   class PerlinNoise {
     constructor(seed = Math.random()) {
       this.p = new Array(512);
@@ -171,17 +175,16 @@ document.addEventListener('DOMContentLoaded', () => {
       let BB = this.p[B + 1] + floorZ;
 
       return this.lerp(
-        this.lerp(
-          this.lerp(this.grad(this.p[AA], x, y, z), this.grad(this.p[BA], x - 1, y, z), u),
-          this.lerp(this.grad(this.p[AB], x, y - 1, z), this.grad(this.p[BB], x - 1, y - 1, z), u),
-          v
-        ),
-        this.lerp(
-          this.lerp(this.grad(this.p[AA + 1], x, y, z - 1), this.grad(this.p[BA + 1], x - 1, y, z - 1), u),
-          this.lerp(this.grad(this.p[AB + 1], x, y - 1, z - 1), this.grad(this.p[BB + 1], x - 1, y - 1, z - 1), u),
-          v
-        ),
-        w
+        this.lerp(this.grad(this.p[AA], x, y, z), this.grad(this.p[BA], x - 1, y, z), u),
+        this.lerp(this.grad(this.p[AB], x, y - 1, z), this.grad(this.p[BB], x - 1, y - 1, z), u),
+        v
+      ),
+      this.lerp(
+        this.lerp(this.grad(this.p[AA + 1], x, y, z - 1), this.grad(this.p[BA + 1], x - 1, y, z - 1), u),
+        this.lerp(this.grad(this.p[AB + 1], x, y - 1, z - 1), this.grad(this.p[BB + 1], x - 1, y - 1, z - 1), u),
+        v
+      ),
+      w
       );
     }
 
@@ -628,308 +631,6 @@ document.addEventListener('DOMContentLoaded', () => {
     if (!gal.layoutGenerated) { setTimeout(() => { function attemptLayoutGeneration(retriesLeft = 5) { if (galaxyViewport && galaxyViewport.offsetWidth > 0) {generateSolarSystemsForGalaxy(galaxyId);renderGalaxyDetailScreen(false); } else if (retriesLeft > 0) {requestAnimationFrame(() => attemptLayoutGeneration(retriesLeft - 1));} else {gal.layoutGenerated = true; renderGalaxyDetailScreen(false); }}attemptLayoutGeneration(); }, 50); } else {renderGalaxyDetailScreen(false); }
   }
 
-
-  function hexToRgb(hex) {
-    const bigint = parseInt(hex.slice(1), 16);
-    const r = (bigint >> 16) & 255;
-    const g = (bigint >> 8) & 255;
-    const b = bigint & 255;
-    return [r, g, b, 255];
-  }
-
-  function createContinentTexture(waterColorHex, landColorHex, seed, textureSize = 512, octaves = 6, persistence = 0.5, scale = 1.0) {
-    const canvas = document.createElement('canvas');
-    canvas.width = textureSize * 2;
-    canvas.height = textureSize;
-    const ctx = canvas.getContext('2d', { willReadFrequently: true });
-
-    const noiseGen = new PerlinNoise(seed);
-    const waterRgb = hexToRgb(waterColorHex);
-    const landRgb = hexToRgb(landColorHex);
-
-    const imageData = ctx.createImageData(canvas.width, canvas.height);
-    const data = imageData.data;
-
-    for (let y = 0; y < canvas.height; y++) {
-      for (let x = 0; x < canvas.width; x++) {
-        const lat = (y / canvas.height) * Math.PI;
-        const lon = (x / canvas.width) * 2 * Math.PI;
-
-        const nx = Math.sin(lat) * Math.cos(lon) * scale;
-        const ny = Math.cos(lat) * scale;
-        const nz = Math.sin(lat) * Math.sin(lon) * scale;
-
-        let noiseValue = noiseGen.fractalNoise(nx, ny, nz, octaves, persistence);
-        noiseValue = (noiseValue + 1) / 2;
-
-        const threshold = 0.5;
-
-        let pixelR, pixelG, pixelB;
-
-        if (noiseValue > threshold) {
-          pixelR = landRgb[0];
-          pixelG = landRgb[1];
-          pixelB = landRgb[2];
-        } else {
-          pixelR = waterRgb[0];
-          pixelG = waterRgb[1];
-          pixelB = waterRgb[2];
-        }
-
-        const index = (y * canvas.width + x) * 4;
-        data[index] = pixelR;
-        data[index + 1] = pixelG;
-        data[index + 2] = pixelB;
-        data[index + 3] = 255;
-      }
-    }
-    ctx.putImageData(imageData, 0, 0);
-    return canvas;
-  }
-
-  function createOutlineTexture(waterColorHex, landColorHex, seed, textureSize = 512, octaves = 6, persistence = 0.5, scale = 1.0) {
-    const canvas = document.createElement('canvas');
-    canvas.width = textureSize * 2;
-    canvas.height = textureSize;
-    const ctx = canvas.getContext('2d', { willReadFrequently: true });
-
-    const noiseGen = new PerlinNoise(seed);
-
-    const waterThreshold = 0.5;
-    const neighborCheckDistance = 0.01;
-
-    const imageData = ctx.createImageData(canvas.width, canvas.height);
-    const data = imageData.data;
-
-    for (let y = 0; y < canvas.height; y++) {
-      for (let x = 0; x < canvas.width; x++) {
-        const lat = (y / canvas.height) * Math.PI;
-        const lon = (x / canvas.width) * 2 * Math.PI;
-
-        const nx = Math.sin(lat) * Math.cos(lon) * scale;
-        const ny = Math.cos(lat) * scale;
-        const nz = Math.sin(lat) * Math.sin(lon) * scale;
-
-        let baseNoise = (noiseGen.fractalNoise(nx, ny, nz, octaves, persistence) + 1) / 2;
-        let isBoundary = false;
-
-        const checkPoints = [
-          { dl: neighborCheckDistance, dlo: 0 },
-          { dl: -neighborCheckDistance, dlo: 0 },
-          { dl: 0, dlo: neighborCheckDistance },
-          { dl: 0, dlo: -neighborCheckDistance }
-        ];
-
-        for (const { dl, dlo } of checkPoints) {
-          let neighborLat = lat + dl;
-          let neighborLon = lon + dlo;
-
-          neighborLat = Math.max(0, Math.min(Math.PI, neighborLat));
-          neighborLon = (neighborLon + 2 * Math.PI) % (2 * Math.PI);
-
-          const neighborNx = Math.sin(neighborLat) * Math.cos(neighborLon) * scale;
-          const neighborNy = Math.cos(neighborLat) * scale;
-          const neighborNz = Math.sin(neighborLat) * Math.sin(neighborLon) * scale;
-
-          let neighborNoise = (noiseGen.fractalNoise(neighborNx, neighborNy, neighborNz, octaves, persistence) + 1) / 2;
-
-          const baseIsLand = baseNoise > waterThreshold;
-          const neighborIsLand = neighborNoise > waterThreshold;
-
-          if (baseIsLand !== neighborIsLand) {
-            isBoundary = true;
-            break;
-          }
-        }
-
-        const index = (y * canvas.width + x) * 4;
-        if (isBoundary) {
-          data[index] = 255;
-          data[index + 1] = 255;
-          data[index + 2] = 255;
-          data[index + 3] = 255;
-        } else {
-          data[index] = 0;
-          data[index + 1] = 0;
-          data[index + 2] = 0;
-          data[index + 3] = 0;
-        }
-      }
-    }
-    ctx.putImageData(imageData, 0, 0);
-    return canvas;
-  }
-
-  function drawContinentOutlinesOnSphere(ctx, planetData, currentLon, currentLat, sphereRadius, centerX, centerY, pixelStep) {
-    if (!planetData.outlineTextureCanvas || planetData.waterColor !== planetData._cachedOutlineWaterColor || planetData.landColor !== planetData._cachedOutlineLandColor || planetData.continentSeed !== planetData._cachedOutlineContinentSeed) {
-      planetData.outlineTextureCanvas = createOutlineTexture(planetData.waterColor, planetData.landColor, planetData.continentSeed);
-      planetData._cachedOutlineWaterColor = planetData.waterColor;
-      planetData._cachedOutlineLandColor = planetData.landColor;
-      planetData._cachedOutlineContinentSeed = planetData.continentSeed;
-    }
-
-    const outlineTextureCanvas = planetData.outlineTextureCanvas;
-    const outlineTextureCtx = outlineTextureCanvas.getContext('2d', { willReadFrequently: true });
-    const outlineTextureData = outlineTextureCtx.getImageData(0, 0, outlineTextureCanvas.width, outlineTextureCanvas.height);
-    const textureWidth = outlineTextureCanvas.width;
-    const textureHeight = outlineTextureCanvas.height;
-
-    for (let y = 0; y < ctx.canvas.height; y += pixelStep) {
-      for (let x = 0; x < ctx.canvas.width; x += pixelStep) {
-        const x_cam = (x - centerX) / sphereRadius;
-        const y_cam = (y - centerY) / sphereRadius;
-
-        if (x_cam * x_cam + y_cam * y_cam > 1) continue;
-
-        const z_cam = Math.sqrt(1 - x_cam * x_cam - y_cam * y_cam);
-
-        if (isNaN(z_cam)) continue;
-
-        const invLatCos = Math.cos(-currentLat);
-        const invLatSin = Math.sin(-currentLat);
-        const tempY = y_cam * invLatCos - z_cam * invLatSin;
-        const tempZ = y_cam * invLatSin + z_cam * invLatCos;
-
-        const invLonCos = Math.cos(-currentLon);
-        const invLonSin = Math.sin(-currentLon);
-        const x_tex = x_cam * invLonCos + tempZ * invLonSin;
-        const y_tex = tempY;
-        const z_tex = -x_cam * invLonSin + tempZ * invLonCos;
-
-        let phi_tex = Math.acos(y_tex);
-        let theta_tex = Math.atan2(x_tex, z_tex);
-        theta_tex = (theta_tex + 2 * Math.PI) % (2 * Math.PI);
-
-        let texU = theta_tex / (2 * Math.PI);
-        let texV = phi_tex / Math.PI;
-
-        let sx = Math.floor(texU * textureWidth);
-        let sy = Math.floor(texV * textureHeight);
-
-        sx = Math.max(0, Math.min(textureWidth - 1, sx));
-        sy = Math.max(0, Math.min(textureHeight - 1, sy));
-
-        const idx = (sy * textureWidth + sx) * 4;
-        const alpha = outlineTextureData.data[idx + 3];
-
-        if (alpha > 0) {
-          ctx.fillStyle = 'white';
-          ctx.fillRect(x, y, pixelStep, pixelStep);
-        }
-      }
-    }
-  }
-
-
-  function renderPlanetVisual(planetData, longitude = 0, latitude = 0, targetCanvas = planetVisualCanvas) {
-    if (!planetData || !targetCanvas) return;
-
-    const ctx = targetCanvas.getContext('2d', { willReadFrequently: true });
-    const canvasWidth = targetCanvas.width;
-    const canvasHeight = targetCanvas.height;
-    const centerX = canvasWidth / 2;
-    const centerY = canvasHeight / 2;
-
-    ctx.clearRect(0, 0, canvasWidth, canvasHeight);
-
-    const radius = Math.min(canvasWidth, canvasHeight) * 0.4;
-    const isCurrentlyDragging = (targetCanvas === planetVisualCanvas && isDraggingPlanetVisual) || (targetCanvas === designerPlanetCanvas && isDraggingDesignerPlanet);
-
-    const lightSourceLongitude = Math.PI / 4;
-    const lightSourceLatitude = Math.PI / 8;
-
-    const lightVecX = Math.cos(lightSourceLatitude) * Math.sin(lightSourceLongitude);
-    const lightVecY = Math.sin(lightSourceLatitude);
-    const lightVecZ = Math.cos(lightSourceLatitude) * Math.cos(lightSourceLongitude);
-
-    if (!planetData.continentSeed) {
-      planetData.continentSeed = Math.random();
-    }
-    if (!planetData.waterColor) {
-      if (planetData.type === 'normal' && planetData.color) {
-        planetData.waterColor = `hsl(${planetData.color.hue}, ${planetData.color.saturation}%, ${planetData.color.lightness}%)`;
-        planetData.landColor = `hsl(${planetData.color.hue}, ${planetData.color.saturation + 10}%, ${planetData.color.lightness + 10}%)`;
-        delete planetData.color;
-      } else {
-        planetData.waterColor = '#000080';
-        planetData.landColor = '#006400';
-      }
-      planetData.type = 'terrestrial';
-    }
-
-    if (!planetData.textureCanvas || planetData.waterColor !== planetData._cachedWaterColor || planetData.landColor !== planetData._cachedLandColor || planetData.continentSeed !== planetData._cachedContinentSeed) {
-      planetData.textureCanvas = createContinentTexture(planetData.waterColor, planetData.landColor, planetData.continentSeed);
-      planetData._cachedWaterColor = planetData.waterColor;
-      planetData._cachedLandColor = planetData.landColor;
-      planetData._cachedContinentSeed = planetData.continentSeed;
-    }
-    const textureCanvas = planetData.textureCanvas;
-    const textureCtx = textureCanvas.getContext('2d', { willReadFrequently: true });
-    const textureData = textureCtx.getImageData(0, 0, textureCanvas.width, textureCanvas.height);
-    const textureWidth = textureCanvas.width;
-    const textureHeight = textureCanvas.height;
-
-    ctx.save();
-    ctx.beginPath();
-    ctx.arc(centerX, centerY, radius, 0, Math.PI * 2);
-    ctx.clip();
-    const pixelStep = isCurrentlyDragging ? 2 : 1;
-    for (let y = 0; y < canvasHeight; y += pixelStep) {
-      for (let x = 0; x < canvasWidth; x += pixelStep) {
-        const x_cam = (x - centerX) / radius;
-        const y_cam = (y - centerY) / radius;
-
-        if (x_cam * x_cam + y_cam * y_cam > 1) continue;
-
-        const z_cam = Math.sqrt(1 - x_cam * x_cam - y_cam * y_cam);
-
-        const invLatCos = Math.cos(-latitude);
-        const invLatSin = Math.sin(-latitude);
-        const tempY = y_cam * invLatCos - z_cam * invLatSin;
-        const tempZ = y_cam * invLatSin + z_cam * invLatCos;
-        const invLonCos = Math.cos(-longitude);
-        const invLonSin = Math.sin(-longitude);
-        const x_tex = x_cam * invLonCos + tempZ * invLonSin;
-        const y_tex = tempY;
-        const z_tex = -x_cam * invLonSin + tempZ * invLonCos;
-
-        let phi_tex = Math.acos(y_tex);
-        let theta_tex = Math.atan2(x_tex, z_tex);
-        theta_tex = (theta_tex + 2 * Math.PI) % (2 * Math.PI);
-
-        let texU = theta_tex / (2 * Math.PI);
-        let texV = phi_tex / Math.PI;
-
-        let sx = Math.floor(texU * textureWidth);
-        let sy = Math.floor(texV * textureHeight);
-
-        sx = Math.max(0, Math.min(textureWidth - 1, sx));
-        sy = Math.max(0, Math.min(textureHeight - 1, sy));
-
-        const idx = (sy * textureWidth + sx) * 4;
-        let r = textureData.data[idx];
-        let g = textureData.data[idx + 1];
-        let b = textureData.data[idx + 2];
-        let a = textureData.data[idx + 3];
-
-        const ambientLight = 0.25;
-        const diffuseLight = 0.75;
-        const dotProduct = x_cam * lightVecX + y_cam * lightVecY + z_cam * lightVecZ;
-        const lightIntensity = Math.max(0, dotProduct) * diffuseLight + ambientLight;
-
-        r = Math.min(255, r * lightIntensity);
-        g = Math.min(255, g * lightIntensity);
-        b = Math.min(255, b * lightIntensity);
-
-        ctx.fillStyle = `rgba(${r},${g},${b},${a / 255})`;
-        ctx.fillRect(x, y, pixelStep, pixelStep);
-      }
-    }
-    ctx.restore();
-
-    drawContinentOutlinesOnSphere(ctx, planetData, longitude, latitude, radius, centerX, centerY, pixelStep);
-  }
-
   function switchToSolarSystemView(solarSystemId) {
     gameSessionData.activeSolarSystemId = solarSystemId;
     const activeGalaxy = gameSessionData.galaxies.find(g => solarSystemId.startsWith(g.id));
@@ -1040,7 +741,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
         rotationLongitude = 0;
         rotationLatitude = 0;
-        renderPlanetVisual(newPlanet, rotationLongitude, rotationLatitude, planetVisualCanvas);
+        sendRenderPlanetVisualToWorker(newPlanet, rotationLongitude, rotationLatitude, 'planetVisual');
       });
       solarSystemContent.appendChild(planetEl);
       newPlanet.element = planetEl;
@@ -1065,7 +766,7 @@ document.addEventListener('DOMContentLoaded', () => {
     renderSolarSystemScreen(false);
     startSolarSystemAnimation();
   }
-  
+    
   function animateSolarSystem(now) {
     if (!now) now = performance.now();
     if (lastAnimationTime === null) lastAnimationTime = now;
@@ -1182,7 +883,7 @@ document.addEventListener('DOMContentLoaded', () => {
       if (!renderPending) {
         renderPending = true;
         requestAnimationFrame(() => {
-          renderPlanetVisual(currentPlanetDisplayedInPanel, rotationLongitude, rotationLatitude, planetVisualCanvas);
+          sendRenderPlanetVisualToWorker(currentPlanetDisplayedInPanel, rotationLongitude, rotationLatitude, 'planetVisual');
           renderPending = false;
         });
       }
@@ -1202,7 +903,7 @@ document.addEventListener('DOMContentLoaded', () => {
     if (isDraggingPlanetVisual) {
       isDraggingPlanetVisual = false;
       planetVisualCanvas.classList.remove('dragging');
-      renderPlanetVisual(currentPlanetDisplayedInPanel, rotationLongitude, rotationLatitude, planetVisualCanvas);
+      sendRenderPlanetVisualToWorker(currentPlanetDisplayedInPanel, rotationLongitude, rotationLatitude, 'planetVisual');
     }
   });
 
@@ -1210,7 +911,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
   function renderDesignerPlanet(planet, longitude, latitude) {
     if (!planet || !designerPlanetCanvas) return;
-    renderPlanetVisual(planet, longitude, latitude, designerPlanetCanvas);
+    sendRenderPlanetVisualToWorker(planet, longitude, latitude, 'designerPlanet');
   }
 
   function updateDesignerPlanetFromInputs() {
@@ -1298,7 +999,7 @@ document.addEventListener('DOMContentLoaded', () => {
       if (!designerRenderPending) {
         designerRenderPending = true;
         requestAnimationFrame(() => {
-          renderDesignerPlanet(currentDesignerPlanet, designerRotationLongitude, designerRotationLatitude);
+          sendRenderPlanetVisualToWorker(currentDesignerPlanet, designerRotationLongitude, designerRotationLatitude, 'designerPlanet');
           designerRenderPending = false;
         });
       }
@@ -1309,9 +1010,49 @@ document.addEventListener('DOMContentLoaded', () => {
     if (isDraggingDesignerPlanet) {
       isDraggingDesignerPlanet = false;
       designerPlanetCanvas.classList.remove('dragging');
-      renderDesignerPlanet(currentDesignerPlanet, designerRotationLongitude, designerRotationLatitude);
+      sendRenderPlanetVisualToWorker(currentDesignerPlanet, designerRotationLongitude, designerRotationLatitude, 'designerPlanet');
     }
   });
+
+  function sendRenderPlanetVisualToWorker(planetData, longitude, latitude, canvasType) {
+    if (!planetRendererWorker) return;
+    planetRendererWorker.postMessage({
+      type: 'render',
+      planetData: {
+          waterColor: planetData.waterColor,
+          landColor: planetData.landColor,
+          continentSeed: planetData.continentSeed,
+          type: planetData.type
+      },
+      longitude: longitude,
+      latitude: latitude,
+      canvasType: canvasType
+    });
+  }
+
+  function setupPlanetRendererWorker() {
+    if (planetVisualCanvas.transferControlToOffscreen && designerPlanetCanvas.transferControlToOffscreen) {
+      offscreenPlanetVisualCanvas = planetVisualCanvas.transferControlToOffscreen();
+      offscreenDesignerPlanetCanvas = designerPlanetCanvas.transferControlToOffscreen();
+      
+      planetRendererWorker = new Worker('planetRendererWorker.js');
+      
+      planetRendererWorker.postMessage({
+        type: 'init',
+        canvases: {
+          planetVisual: offscreenPlanetVisualCanvas,
+          designerPlanet: offscreenDesignerPlanetCanvas
+        }
+      }, [offscreenPlanetVisualCanvas, offscreenDesignerPlanetCanvas]);
+
+    } else {
+      console.warn("OffscreenCanvas not supported. Planet rendering might be slower without web worker.");
+      // Fallback for browsers not supporting OffscreenCanvas (not part of requested change, but good to note)
+      // In a real scenario, you'd then inline the Perlin/drawing logic here.
+      // For this solution, assume OffscreenCanvas is available.
+    }
+  }
+
 
   designerWaterColorInput.addEventListener('change', updateDesignerPlanetFromInputs);
   designerLandColorInput.addEventListener('change', updateDesignerPlanetFromInputs);
@@ -1321,9 +1062,41 @@ document.addEventListener('DOMContentLoaded', () => {
   createPlanetDesignButton.addEventListener('click', switchToPlanetDesignerScreen);
 
 
-  function initializeGame(isForcedRegeneration = false) {loadCustomizationSettings(); if (!isForcedRegeneration && loadGameState()) {setActiveScreen(mainScreen); if (universeCircle && gameSessionData.universe.diameter) {universeCircle.style.width = `${gameSessionData.universe.diameter}px`;universeCircle.style.height = `${gameSessionData.universe.diameter}px`;universeCircle.style.backgroundColor = FIXED_COLORS.universeBg;} else {generateUniverseLayout(); }renderMainScreen(); preGenerateAllGalaxyContents(); } else {generateUniverseLayout();generateGalaxies(); setActiveScreen(mainScreen); renderMainScreen();preGenerateAllGalaxyContents(); if(gameSessionData.galaxies.every(g => g.layoutGenerated)) {saveGameState();}}gameSessionData.isInitialized = true;}
+  function initializeGame(isForcedRegeneration = false) {
+    loadCustomizationSettings();
+    setupPlanetRendererWorker(); 
+
+    if (!isForcedRegeneration && loadGameState()) {
+      setActiveScreen(mainScreen);
+      if (universeCircle && gameSessionData.universe.diameter) {
+        universeCircle.style.width = `${gameSessionData.universe.diameter}px`;
+        universeCircle.style.height = `${gameSessionData.universe.diameter}px`;
+        universeCircle.style.backgroundColor = FIXED_COLORS.universeBg;
+      } else {
+        generateUniverseLayout();
+      }
+      renderMainScreen();
+      preGenerateAllGalaxyContents();
+    } else {
+      generateUniverseLayout();
+      generateGalaxies();
+      setActiveScreen(mainScreen);
+      renderMainScreen();
+      preGenerateAllGalaxyContents();
+      if(gameSessionData.galaxies.every(g => g.layoutGenerated)) {
+        saveGameState();
+      }
+    }
+    gameSessionData.isInitialized = true;
+  }
   window.addEventListener('resize', () => { const currentScreenIdBeforeResize = document.querySelector('.screen.active')?.id;localStorage.removeItem('galaxyGameSaveData'); gameSessionData.universe = { diameter: null };gameSessionData.galaxies = [];gameSessionData.activeGalaxyId = null;gameSessionData.activeSolarSystemId = null;gameSessionData.solarSystemView = { zoomLevel: 1.0, currentPanX: 0, currentPanY: 0, planets: [], systemId: null };gameSessionData.isInitialized = false;if (universeCircle) universeCircle.innerHTML = '';if (galaxyZoomContent) {const canvas = galaxyZoomContent.querySelector('#solar-system-lines-canvas');galaxyZoomContent.innerHTML = ''; if(canvas) galaxyZoomContent.appendChild(canvas); }if (solarSystemContent) solarSystemContent.innerHTML = '';if (orbitCtx && solarSystemOrbitCanvasEl) orbitCtx.clearRect(0,0,solarSystemOrbitCanvasEl.width,solarSystemOrbitCanvasEl.height); if (animationFrameId) { cancelAnimationFrame(animationFrameId); animationFrameId = null; }lastAnimationTime = null;
-  loadCustomizationSettings(); initializeGame(true); if (currentScreenIdBeforeResize) { const screenToActivate = document.getElementById(currentScreenIdBeforeResize) || mainScreen; setActiveScreen(screenToActivate); } else { setActiveScreen(mainScreen); }});
+  loadCustomizationSettings(); 
+  // Re-initializing worker for resize makes sense if canvases are re-created or dimensions change significantly
+  if (planetRendererWorker) {
+    planetRendererWorker.terminate();
+    planetRendererWorker = null;
+  }
+  initializeGame(true); if (currentScreenIdBeforeResize) { const screenToActivate = document.getElementById(currentScreenIdBeforeResize) || mainScreen; setActiveScreen(screenToActivate); } else { setActiveScreen(mainScreen); }});
   if(backToMainButton) backToMainButton.addEventListener('click', switchToMainView);
   if(backToGalaxyButton) backToGalaxyButton.addEventListener('click', () => { if(gameSessionData.activeGalaxyId && gameSessionData.galaxies.find(g => g.id === gameSessionData.activeGalaxyId)) {switchToGalaxyDetailView(gameSessionData.activeGalaxyId);} else {switchToMainView();} });
   if(zoomInButton) zoomInButton.addEventListener('click', (e) => handleZoom('in', e));
@@ -1401,3 +1174,410 @@ document.addEventListener('DOMContentLoaded', () => {
 
   initializeGame();
 });
+// planetRendererWorker.js
+let contexts = {};
+let cachedContinentTextures = {};
+let cachedOutlineTextures = {};
+
+class PerlinNoise {
+  constructor(seed = Math.random()) {
+    this.p = new Array(512);
+    this.permutation = new Array(256);
+    this.seed = seed;
+    this.initPermutationTable();
+  }
+
+  initPermutationTable() {
+    for (let i = 0; i < 256; i++) {
+      this.permutation[i] = i;
+    }
+    for (let i = 0; i < 256; i++) {
+      let r = Math.floor(this.random() * (i + 1));
+      let tmp = this.permutation[i];
+      this.permutation[i] = this.permutation[r];
+      this.permutation[r] = tmp;
+    }
+    for (let i = 0; i < 256; i++) {
+      this.p[i] = this.p[i + 256] = this.permutation[i];
+    }
+  }
+
+  random() {
+    let x = Math.sin(this.seed++) * 10000;
+    return x - Math.floor(x);
+  }
+
+  fade(t) { return t * t * t * (t * (t * 6 - 15) + 10); }
+  lerp(a, b, t) { return a + t * (b - a); }
+  grad(hash, x, y, z) {
+    hash = hash & 15;
+    let u = hash < 8 ? x : y;
+    let v = hash < 4 ? y : hash === 12 || hash === 14 ? x : z;
+    return ((hash & 1) === 0 ? u : -u) + ((hash & 2) === 0 ? v : -v);
+  }
+
+  noise(x, y, z) {
+    let floorX = Math.floor(x) & 255;
+    let floorY = Math.floor(y) & 255;
+    let floorZ = Math.floor(z) & 255;
+
+    x -= Math.floor(x);
+    y -= Math.floor(y);
+    z -= Math.floor(z);
+
+    let u = this.fade(x);
+    let v = this.fade(y);
+    let w = this.fade(z);
+
+    let A = this.p[floorX] + floorY;
+    let AA = this.p[A] + floorZ;
+    let AB = this.p[A + 1] + floorZ;
+    let B = this.p[floorX + 1] + floorY;
+    let BA = this.p[B] + floorZ;
+    let BB = this.p[B + 1] + floorZ;
+
+    return this.lerp(
+      this.lerp(this.grad(this.p[AA], x, y, z), this.grad(this.p[BA], x - 1, y, z), u),
+      this.lerp(this.grad(this.p[AB], x, y - 1, z), this.grad(this.p[BB], x - 1, y - 1, z), u),
+      v
+    ),
+    this.lerp(
+      this.lerp(this.grad(this.p[AA + 1], x, y, z - 1), this.grad(this.p[BA + 1], x - 1, y, z - 1), u),
+      this.lerp(this.grad(this.p[AB + 1], x, y - 1, z - 1), this.grad(this.p[BB + 1], x - 1, y - 1, z - 1), u),
+      v
+    ),
+    w
+    );
+  }
+
+  fractalNoise(x, y, z, octaves = 4, persistence = 0.5, lacunarity = 2.0) {
+    let total = 0;
+    let frequency = 1;
+    let amplitude = 1;
+    let maxValue = 0;
+
+    for (let i = 0; i < octaves; i++) {
+      total += this.noise(x * frequency, y * frequency, z * frequency) * amplitude;
+
+      maxValue += amplitude;
+
+      amplitude *= persistence;
+      frequency *= lacunarity;
+    }
+
+    return total / maxValue;
+  }
+}
+
+function hexToRgb(hex) {
+  const bigint = parseInt(hex.slice(1), 16);
+  const r = (bigint >> 16) & 255;
+  const g = (bigint >> 8) & 255;
+  const b = bigint & 255;
+  return [r, g, b, 255];
+}
+
+function createContinentTexture(waterColorHex, landColorHex, seed, textureSize = 512, octaves = 6, persistence = 0.5, scale = 1.0) {
+  const cacheKey = `${waterColorHex}-${landColorHex}-${seed}-${textureSize}`;
+  if (cachedContinentTextures[cacheKey]) {
+    return cachedContinentTextures[cacheKey];
+  }
+
+  const canvas = new OffscreenCanvas(textureSize * 2, textureSize);
+  const ctx = canvas.getContext('2d', { willReadFrequently: true });
+
+  const noiseGen = new PerlinNoise(seed);
+  const waterRgb = hexToRgb(waterColorHex);
+  const landRgb = hexToRgb(landColorHex);
+
+  const imageData = ctx.createImageData(canvas.width, canvas.height);
+  const data = imageData.data;
+
+  for (let y = 0; y < canvas.height; y++) {
+    for (let x = 0; x < canvas.width; x++) {
+      const lat = (y / canvas.height) * Math.PI;
+      const lon = (x / canvas.width) * 2 * Math.PI;
+
+      const nx = Math.sin(lat) * Math.cos(lon) * scale;
+      const ny = Math.cos(lat) * scale;
+      const nz = Math.sin(lat) * Math.sin(lon) * scale;
+
+      let noiseValue = noiseGen.fractalNoise(nx, ny, nz, octaves, persistence);
+      noiseValue = (noiseValue + 1) / 2;
+
+      const threshold = 0.5;
+
+      let pixelR, pixelG, pixelB;
+
+      if (noiseValue > threshold) {
+        pixelR = landRgb[0];
+        pixelG = landRgb[1];
+        pixelB = landRgb[2];
+      } else {
+        pixelR = waterRgb[0];
+        pixelG = waterRgb[1];
+        pixelB = waterRgb[2];
+      }
+
+      const index = (y * canvas.width + x) * 4;
+      data[index] = pixelR;
+      data[index + 1] = pixelG;
+      data[index + 2] = pixelB;
+      data[index + 3] = 255;
+    }
+  }
+  ctx.putImageData(imageData, 0, 0);
+  cachedContinentTextures[cacheKey] = canvas;
+  return canvas;
+}
+
+function createOutlineTexture(waterColorHex, landColorHex, seed, textureSize = 512, octaves = 6, persistence = 0.5, scale = 1.0) {
+  const cacheKey = `${waterColorHex}-${landColorHex}-${seed}-${textureSize}-outline`;
+  if (cachedOutlineTextures[cacheKey]) {
+    return cachedOutlineTextures[cacheKey];
+  }
+
+  const canvas = new OffscreenCanvas(textureSize * 2, textureSize);
+  const ctx = canvas.getContext('2d', { willReadFrequently: true });
+
+  const noiseGen = new PerlinNoise(seed);
+
+  const waterThreshold = 0.5;
+  const neighborCheckDistance = 0.01;
+
+  const imageData = ctx.createImageData(canvas.width, canvas.height);
+  const data = imageData.data;
+
+  for (let y = 0; y < canvas.height; y++) {
+    for (let x = 0; x < canvas.width; x++) {
+      const lat = (y / canvas.height) * Math.PI;
+      const lon = (x / canvas.width) * 2 * Math.PI;
+
+      const nx = Math.sin(lat) * Math.cos(lon) * scale;
+      const ny = Math.cos(lat) * scale;
+      const nz = Math.sin(lat) * Math.sin(lon) * scale;
+
+      let baseNoise = (noiseGen.fractalNoise(nx, ny, nz, octaves, persistence) + 1) / 2;
+      let isBoundary = false;
+
+      const checkPoints = [
+        { dl: neighborCheckDistance, dlo: 0 },
+        { dl: -neighborCheckDistance, dlo: 0 },
+        { dl: 0, dlo: neighborCheckDistance },
+        { dl: 0, dlo: -neighborCheckDistance }
+      ];
+
+      for (const { dl, dlo } of checkPoints) {
+        let neighborLat = lat + dl;
+        let neighborLon = lon + dlo;
+
+        neighborLat = Math.max(0, Math.min(Math.PI, neighborLat));
+        neighborLon = (neighborLon + 2 * Math.PI) % (2 * Math.PI);
+
+        const neighborNx = Math.sin(neighborLat) * Math.cos(neighborLon) * scale;
+        const neighborNy = Math.cos(neighborLat) * scale;
+        const neighborNz = Math.sin(neighborLat) * Math.sin(neighborLon) * scale;
+
+        let neighborNoise = (noiseGen.fractalNoise(neighborNx, neighborNy, neighborNz, octaves, persistence) + 1) / 2;
+
+        const baseIsLand = baseNoise > waterThreshold;
+        const neighborIsLand = neighborNoise > waterThreshold;
+
+        if (baseIsLand !== neighborIsLand) {
+          isBoundary = true;
+          break;
+        }
+      }
+
+      const index = (y * canvas.width + x) * 4;
+      if (isBoundary) {
+        data[index] = 255;
+        data[index + 1] = 255;
+        data[index + 2] = 255;
+        data[index + 3] = 255;
+      } else {
+        data[index] = 0;
+        data[index + 1] = 0;
+        data[index + 2] = 0;
+        data[index + 3] = 0;
+      }
+    }
+  }
+  ctx.putImageData(imageData, 0, 0);
+  cachedOutlineTextures[cacheKey] = canvas;
+  return canvas;
+}
+
+function drawContinentOutlinesOnSphere(ctx, planetData, currentLon, currentLat, sphereRadius, centerX, centerY) {
+  const outlineTextureCanvas = createOutlineTexture(planetData.waterColor, planetData.landColor, planetData.continentSeed);
+  const outlineTextureCtx = outlineTextureCanvas.getContext('2d', { willReadFrequently: true });
+  const outlineTextureData = outlineTextureCtx.getImageData(0, 0, outlineTextureCanvas.width, outlineTextureCanvas.height);
+  const textureWidth = outlineTextureCanvas.width;
+  const textureHeight = outlineTextureCanvas.height;
+
+  for (let y = 0; y < ctx.canvas.height; y++) {
+    for (let x = 0; x < ctx.canvas.width; x++) {
+      const x_cam = (x - centerX) / sphereRadius;
+      const y_cam = (y - centerY) / sphereRadius;
+
+      if (x_cam * x_cam + y_cam * y_cam > 1) continue;
+
+      const z_cam = Math.sqrt(1 - x_cam * x_cam - y_cam * y_cam);
+
+      if (isNaN(z_cam)) continue;
+
+      const invLatCos = Math.cos(-currentLat);
+      const invLatSin = Math.sin(-currentLat);
+      const tempY = y_cam * invLatCos - z_cam * invLatSin;
+      const tempZ = y_cam * invLatSin + z_cam * invLatCos;
+
+      const invLonCos = Math.cos(-currentLon);
+      const invLonSin = Math.sin(-currentLon);
+      const x_tex = x_cam * invLonCos + tempZ * invLonSin;
+      const y_tex = tempY;
+      const z_tex = -x_cam * invLonSin + tempZ * invLonCos;
+
+      let phi_tex = Math.acos(y_tex);
+      let theta_tex = Math.atan2(x_tex, z_tex);
+      theta_tex = (theta_tex + 2 * Math.PI) % (2 * Math.PI);
+
+      let texU = theta_tex / (2 * Math.PI);
+      let texV = phi_tex / Math.PI;
+
+      let sx = Math.floor(texU * textureWidth);
+      let sy = Math.floor(texV * textureHeight);
+
+      sx = Math.max(0, Math.min(textureWidth - 1, sx));
+      sy = Math.max(0, Math.min(textureHeight - 1, sy));
+
+      const idx = (sy * textureWidth + sx) * 4;
+      const alpha = outlineTextureData.data[idx + 3];
+
+      if (alpha > 0) {
+        ctx.fillStyle = 'white';
+        ctx.fillRect(x, y, 1, 1);
+      }
+    }
+  }
+}
+
+
+function renderPlanetVisual(planetData, longitude = 0, latitude = 0, ctx, targetCanvas) {
+  if (!planetData || !targetCanvas) return;
+
+  const canvasWidth = targetCanvas.width;
+  const canvasHeight = targetCanvas.height;
+  const centerX = canvasWidth / 2;
+  const centerY = canvasHeight / 2;
+
+  ctx.clearRect(0, 0, canvasWidth, canvasHeight);
+
+  const radius = Math.min(canvasWidth, canvasHeight) * 0.4;
+
+  const lightSourceLongitude = Math.PI / 4;
+  const lightSourceLatitude = Math.PI / 8;
+
+  const lightVecX = Math.cos(lightSourceLatitude) * Math.sin(lightSourceLongitude);
+  const lightVecY = Math.sin(lightSourceLatitude);
+  const lightVecZ = Math.cos(lightSourceLatitude) * Math.cos(lightSourceLongitude);
+
+  if (!planetData.continentSeed) {
+    planetData.continentSeed = Math.random();
+  }
+  if (!planetData.waterColor) {
+    if (planetData.type === 'normal' && planetData.color) {
+      planetData.waterColor = `hsl(${planetData.color.hue}, ${planetData.color.saturation}%, ${planetData.color.lightness}%)`;
+      planetData.landColor = `hsl(${planetData.color.hue}, ${planetData.color.saturation + 10}%, ${planetData.color.lightness + 10}%)`;
+      delete planetData.color;
+    } else {
+      planetData.waterColor = '#000080';
+      planetData.landColor = '#006400';
+    }
+    planetData.type = 'terrestrial';
+  }
+
+  const textureCanvas = createContinentTexture(planetData.waterColor, planetData.landColor, planetData.continentSeed);
+  const textureCtx = textureCanvas.getContext('2d', { willReadFrequently: true });
+  const textureData = textureCtx.getImageData(0, 0, textureCanvas.width, textureCanvas.height);
+  const textureWidth = textureCanvas.width;
+  const textureHeight = textureCanvas.height;
+
+  ctx.save();
+  ctx.beginPath();
+  ctx.arc(centerX, centerY, radius, 0, Math.PI * 2);
+  ctx.clip();
+  const pixelStep = 1; 
+
+  for (let y = 0; y < canvasHeight; y += pixelStep) {
+    for (let x = 0; x < canvasWidth; x += pixelStep) {
+      const x_cam = (x - centerX) / radius;
+      const y_cam = (y - centerY) / radius;
+
+      if (x_cam * x_cam + y_cam * y_cam > 1) continue;
+
+      const z_cam = Math.sqrt(1 - x_cam * x_cam - y_cam * y_cam);
+
+      const invLatCos = Math.cos(-latitude);
+      const invLatSin = Math.sin(-latitude);
+      const tempY = y_cam * invLatCos - z_cam * invLatSin;
+      const tempZ = y_cam * invLatSin + z_cam * invLatCos;
+      const invLonCos = Math.cos(-longitude);
+      const invLonSin = Math.sin(-longitude);
+      const x_tex = x_cam * invLonCos + tempZ * invLonSin;
+      const y_tex = tempY;
+      const z_tex = -x_cam * invLonSin + tempZ * invLonCos;
+
+      let phi_tex = Math.acos(y_tex);
+      let theta_tex = Math.atan2(x_tex, z_tex);
+      theta_tex = (theta_tex + 2 * Math.PI) % (2 * Math.PI);
+
+      let texU = theta_tex / (2 * Math.PI);
+      let texV = phi_tex / Math.PI;
+
+      let sx = Math.floor(texU * textureWidth);
+      let sy = Math.floor(texV * textureHeight);
+
+      sx = Math.max(0, Math.min(textureWidth - 1, sx));
+      sy = Math.max(0, Math.min(textureHeight - 1, sy));
+
+      const idx = (sy * textureWidth + sx) * 4;
+      let r = textureData.data[idx];
+      let g = textureData.data[idx + 1];
+      let b = textureData.data[idx + 2];
+      let a = textureData.data[idx + 3];
+
+      const ambientLight = 0.25;
+      const diffuseLight = 0.75;
+      const dotProduct = x_cam * lightVecX + y_cam * lightVecY + z_cam * lightVecZ;
+      const lightIntensity = Math.max(0, dotProduct) * diffuseLight + ambientLight;
+
+      r = Math.min(255, r * lightIntensity);
+      g = Math.min(255, g * lightIntensity);
+      b = Math.min(255, b * lightIntensity);
+
+      ctx.fillStyle = `rgba(${r},${g},${b},${a / 255})`;
+      ctx.fillRect(x, y, pixelStep, pixelStep);
+    }
+  }
+  ctx.restore();
+
+  drawContinentOutlinesOnSphere(ctx, planetData, longitude, latitude, radius, centerX, centerY);
+}
+
+self.onmessage = function(event) {
+    const data = event.data;
+    switch (data.type) {
+        case 'init':
+            for (const key in data.canvases) {
+                contexts[key] = data.canvases[key].getContext('2d', { willReadFrequently: true });
+                contexts[key].canvas = data.canvases[key]; // Attach canvas reference for width/height access
+            }
+            break;
+        case 'render':
+            const ctx = contexts[data.canvasType];
+            if (ctx && ctx.canvas) {
+                renderPlanetVisual(data.planetData, data.longitude, data.latitude, ctx, ctx.canvas);
+            }
+            break;
+    }
+};

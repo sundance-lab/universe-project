@@ -150,17 +150,6 @@ document.addEventListener('DOMContentLoaded', () => {
     } catch (error) {}
   }
 
-fetch('https://save-api.nicholasgutteridge512.workers.dev/', {
-  method: 'POST',
-  headers: { 'Content-Type': 'application/json' },
-  body: JSON.stringify({
-   userId: 'sundance-lab',
-  })
-})
-.then(res => res.text())
-.then(msg => console.log('Server save:', msg))
-.catch(err => console.error('Server save failed:', err));
-
   function loadGameState() {
     try {
       const savedStateString = localStorage.getItem('galaxyGameSaveData');
@@ -192,19 +181,6 @@ fetch('https://save-api.nicholasgutteridge512.workers.dev/', {
 
 const userId = 'sundance-lab';
 
-fetch(`https://save-api.nicholasgutteridge512.workers.dev/?key=$`)
-  .then(res => {
-   if (!res.ok) throw new Error('Not found');
-   return res.json();
-  })
-  .then(data => {
-   if (data && data.gameState) {
-     console.log('Loaded game state from server:', data.gameState);
-   }
-  })
-  .catch(err => {
-   console.log('Could not load from server:', err);
-  });
 
   function checkOverlap(r1,r2){return!(r1.x+r1.width<r2.x||r2.x+r2.width<r1.x||r1.y+r1.height<r2.y||r2.y+r2.height<r1.y)}
   function getNonOverlappingPositionInCircle(pr,od,exR){let plr=pr-(od/2)-5;if(plr<0)plr=0;for(let i=0;i<MAX_PLACEMENT_ATTEMPTS;i++){const a=Math.random()*2*Math.PI,r=Math.sqrt(Math.random())*plr,cx=pr+r*Math.cos(a),cy=pr+r*Math.sin(a),x=cx-(od/2),y=cy-(od/2),nr={x,y,width:od,height:od};if(!exR.some(er=>checkOverlap(nr,er)))return{x,y}}return null}
@@ -758,6 +734,73 @@ fetch(`https://save-api.nicholasgutteridge512.workers.dev/?key=$`)
     renderSolarSystemScreen(false);
   }
 
+// Place this in script.js, making sure planetVisualCanvas exists in your HTML
+
+function renderPlanetVisual(planet, rotationLongitude = 0, rotationLatitude = 0) {
+  if (!planet || !window.planetVisualCanvas) return;
+  const ctx = planetVisualCanvas.getContext('2d');
+  const w = planetVisualCanvas.width;
+  const h = planetVisualCanvas.height;
+  ctx.clearRect(0, 0, w, h);
+
+  // Draw planet as a sphere
+  const centerX = w / 2;
+  const centerY = h / 2;
+  const radius = Math.min(w, h) * 0.4;
+
+  // Draw base circle (planet)
+  ctx.save();
+  ctx.beginPath();
+  ctx.arc(centerX, centerY, radius, 0, 2 * Math.PI);
+  ctx.closePath();
+  ctx.clip();
+
+  // Basic color logic
+  if (planet.type === 'terrestrial') {
+    // Simple 2-band planet, more logic can be added here
+    ctx.fillStyle = planet.waterColor || '#3a8ddf';
+    ctx.fillRect(centerX - radius, centerY - radius, radius * 2, radius * 2);
+    ctx.fillStyle = planet.grassColor || '#6cb552';
+    ctx.beginPath();
+    ctx.arc(centerX, centerY, radius * 0.7, 0, 2 * Math.PI);
+    ctx.fill();
+  } else if (planet.type === 'normal' && planet.color) {
+    ctx.fillStyle = `hsl(${planet.color.hue},${planet.color.saturation}%,${planet.color.lightness}%)`;
+    ctx.fillRect(centerX - radius, centerY - radius, radius * 2, radius * 2);
+  } else {
+    ctx.fillStyle = '#999';
+    ctx.fillRect(centerX - radius, centerY - radius, radius * 2, radius * 2);
+  }
+
+  // Optionally, highlight segments if present (Voronoi or classic)
+  if (planet.segmentsData && planet.segmentsData.map) {
+    // This is a stub: you could draw borders or highlight segments
+    // Example: highlight all 'isPink' segments
+    // (real segment rendering would require more code)
+    planet.segmentsData.map.forEach((seg) => {
+      if (seg.isPink) {
+        ctx.save();
+        ctx.globalAlpha = 0.3;
+        ctx.fillStyle = 'pink';
+        // Here you'd need the segment's pixel coordinates; for now, just overlay a pink layer
+        ctx.beginPath();
+        ctx.arc(centerX, centerY, radius * 0.95, 0, 2 * Math.PI);
+        ctx.fill();
+        ctx.restore();
+      }
+    });
+  }
+
+  ctx.restore();
+
+  // Draw outline
+  ctx.beginPath();
+  ctx.arc(centerX, centerY, radius, 0, 2 * Math.PI);
+  ctx.strokeStyle = '#fff';
+  ctx.lineWidth = 2;
+  ctx.stroke();
+}
+  
 // Place this function in place of the old generateRandomSquigglySegments(planetData, 40)
 function generateRandomSquigglySegments(planetData, numSegments = 40) {
     // Generate random seed points on the sphere (phi: latitude, theta: longitude)

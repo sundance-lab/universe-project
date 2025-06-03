@@ -44,10 +44,20 @@ document.addEventListener('DOMContentLoaded', () => {
   const designerSaveBtn = document.getElementById('designer-save-btn');
   const designerCancelBtn = document.getElementById('designer-cancel-btn');
   const savedDesignsUl = document.getElementById('saved-designs-ul');
-  const designerMinHeightInput = document.getElementById('designer-min-height');
-  const designerMaxHeightInput = document.getElementById('designer-max-height');
-  const designerOceanHeightInput = document.getElementById('designer-ocean-height');
+  const designerMinHeightMinInput = document.getElementById('designer-min-height-min');
+  const designerMinHeightMaxInput = document.getElementById('designer-min-height-max');
+  const designerMaxHeightMinInput = document.getElementById('designer-max-height-min');
+  const designerMaxHeightMaxInput = document.getElementById('designer-max-height-max');
+  const designerOceanHeightMinInput = document.getElementById('designer-ocean-height-min');
+  const designerOceanHeightMaxInput = document.getElementById('designer-ocean-height-max');
 
+  designerMinHeightMinInput.addEventListener('change', updateDesignerPlanetFromInputs);
+  designerMinHeightMaxInput.addEventListener('change', updateDesignerPlanetFromInputs);
+  designerMaxHeightMinInput.addEventListener('change', updateDesignerPlanetFromInputs);
+  designerMaxHeightMaxInput.addEventListener('change', updateDesignerPlanetFromInputs);
+  designerOceanHeightMinInput.addEventListener('change', updateDesignerPlanetFromInputs);
+  designerOceanHeightMaxInput.addEventListener('change', updateDesignerPlanetFromInputs);
+    
   let linesCtx;
   let solarSystemOrbitCanvasEl;
   let orbitCtx;
@@ -1322,6 +1332,9 @@ function renderDesignerPlanetPreview() {
   function updateDesignerPlanetFromInputs() {
     currentDesignerPlanet.waterColor = designerWaterColorInput.value;
     currentDesignerPlanet.landColor = designerLandColorInput.value;
+    currentDesignerPlanet.minTerrainHeight = parseFloat(designerMinHeightMinInput.value) || DEFAULT_MIN_TERRAIN_HEIGHT;
+    currentDesignerPlanet.maxTerrainHeight = parseFloat(designerMaxHeightMaxInput.value) || DEFAULT_MAX_TERRAIN_HEIGHT;
+    currentDesignerPlanet.oceanHeightLevel = parseFloat(designerOceanHeightMinInput.value) || DEFAULT_OCEAN_HEIGHT_LEVEL;
     if (designerMinHeightInput) currentDesignerPlanet.minTerrainHeight = parseFloat(designerMinHeightInput.value) || DEFAULT_MIN_TERRAIN_HEIGHT;
     if (designerMaxHeightInput) currentDesignerPlanet.maxTerrainHeight = parseFloat(designerMaxHeightInput.value) || DEFAULT_MAX_TERRAIN_HEIGHT;
     if (designerOceanHeightInput) currentDesignerPlanet.oceanHeightLevel = parseFloat(designerOceanHeightInput.value) || DEFAULT_OCEAN_HEIGHT_LEVEL;

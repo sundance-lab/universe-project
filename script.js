@@ -278,7 +278,7 @@ document.addEventListener('DOMContentLoaded', () => {
         try {
             const savedStateString = localStorage.getItem('galaxyGameSaveData');
             if (savedStateString) {
-                const loadedState = JSON.parse(savedStateString);
+                const loadedState = JSON.parse(savedStateState);
                 if (loadedState && typeof loadedState.universeDiameter === 'number' && Array.isArray(loadedState.galaxies)) {
                     gameSessionData.universe.diameter = loadedState.universeDiameter;
                     gameSessionData.galaxies = loadedState.galaxies;
@@ -355,8 +355,7 @@ document.addEventListener('DOMContentLoaded', () => {
         gal.solarSystems = []; gal.lineConnections = []; const tpr = [];
         const numSystemsToAssign = Math.floor(Math.random() * (currentMaxSSCount - currentMinSSCount + 1)) + currentMinSSCount;
         for (let i = 0; i < numSystemsToAssign; i++) {
-            // FIXED: Corrected `id` to `sysId` to match push operation
-            const sysId = `${gal.id}-ss-${i + 1}`; // e.g., "galaxy-1-ss-1"
+            const sysId = `${gal.id}-ss-${i + 1}`; // Fixed: Corrected variable name from 'id' to 'sysId'
             const pos = getNonOverlappingPositionInCircle(pr, SOLAR_SYSTEM_BASE_ICON_SIZE, tpr);
             if (pos && !isNaN(pos.x) && !isNaN(pos.y)) {
                 gal.solarSystems.push({ id: sysId, customName: null, x: pos.x, y: pos.y, iconSize: SOLAR_SYSTEM_BASE_ICON_SIZE });
@@ -422,9 +421,8 @@ document.addEventListener('DOMContentLoaded', () => {
                         } else {
                             let ultimateFallbackId = null;
                             let minUltimateFallbackDist = Infinity;
-                            for (const connId = 0; connId < connectedSet.length; connId++) { // Fixed: iterators for Set needs to be `for (const connId of connectedSet)`
-                                const currentConnectedId = Array.from(connectedSet)[connId]; // Convert Set to Array for current index usage
-                                const connSys = allSystemCoords.find(s => s.id === currentConnectedId); // Use actual ID from Set
+                            for (const currentConnectedId of connectedSet) { // Fixed: iterators for Set
+                                const connSys = allSystemCoords.find(s => s.id === currentConnectedId);
                                 const dist = getDistance(systemToConnect, connSys);
                                 const isPossibleUltimateFallback = tryAddConnection(systemToConnectId, currentConnectedId, gal.lineConnections, systemConnectionCounts, allSystemCoords, null);
                                 if (isPossibleUltimateFallback) {
@@ -455,7 +453,7 @@ document.addEventListener('DOMContentLoaded', () => {
                     }
                 }
             }
-        }
+        });
         allSystemCoords.forEach(ss1 => {
             const desiredConnections = getWeightedNumberOfConnections();
             let currentConnections = systemConnectionCounts[ss1.id] || 0;
@@ -733,7 +731,19 @@ document.addEventListener('DOMContentLoaded', () => {
                 }
                 if (!tooClose) break; attemptCount++;
             } while (attemptCount < 200);
-            if (attemptCount === 200) { continue; }
+            if (attemptCount === 200) { continue; } // Skip planet if unable to find a non-overlapping distance
+
+            // *** START Planet Design Enforcement ***
+            if (gameSessionData.customPlanetDesigns.length === 0) {
+                // If NO custom designs exist, skip creating this planet
+                // This ensures "planets only use the designs created"
+                continue;
+            }
+
+            // Always use a random custom design if any exist
+            const randomDesign = gameSessionData.customPlanetDesigns[Math.floor(Math.random() * gameSessionData.customPlanetDesigns.length)];
+            // *** END Planet Design Enforcement ***
+
             usedDistances.push({ distance: planetDistance, size: planetSize });
             const initialOrbitalAngle = Math.random() * 2 * Math.PI;
             const orbitalSpeed = MIN_ROTATION_SPEED_RAD_PER_PERLIN_UNIT + Math.random() * (MAX_ROTATION_SPEED_RAD_PER_PERLIN_UNIT - MIN_ROTATION_SPEED_RAD_PER_PERLIN_UNIT);
@@ -744,22 +754,34 @@ document.addEventListener('DOMContentLoaded', () => {
                 currentOrbitalAngle: initialOrbitalAngle, orbitalSpeed: orbitalSpeed,
                 currentAxialAngle: initialAxialAngle, axialSpeed: axialSpeed,
                 element: null,
-                planetName: `Planet ${i + 1}`
+                planetName: `Planet ${i + 1}`,
+                // Assign properties from the selected custom design
+                type: 'terrestrial', // All custom designs are assumed terrestrial
+                waterColor: randomDesign.waterColor,
+                landColor: randomDesign.landColor,
+                continentSeed: randomDesign.continentSeed,
+                sourceDesignId: randomDesign.designId
             };
-            if (gameSessionData.customPlanetDesigns.length > 0 && Math.random() < 0.5) {
-                const randomDesign = gameSessionData.customPlanetDesigns[Math.floor(Math.random() * gameSessionData.customPlanetDesigns.length)];
-                newPlanet.type = 'terrestrial';
-                newPlanet.waterColor = randomDesign.waterColor;
-                newPlanet.landColor = randomDesign.landColor;
-                newPlanet.continentSeed = randomDesign.continentSeed;
-                newPlanet.sourceDesignId = randomDesign.designId;
-            } else {
-                newPlanet.type = 'terrestrial';
-                newPlanet.waterColor = `hsl(${200 + Math.random() * 40}, ${70 + Math.random() * 10}%, ${30 + Math.random() * 10}%)`;
-                newPlanet.landColor = `hsl(${100 + Math.random() * 40}, ${60 + Math.random() * 10}%, ${30 + Math.random() * 10}%)`;
-                newPlanet.continentSeed = Math.random();
-            }
+            
             gameSessionData.solarSystemView.planets.push(newPlanet);
+
+            // *** Pre-load texture for this planet ***
+            const preloadData = {
+                waterColor: newPlanet.waterColor,
+                landColor: newPlanet.landColor,
+                continentSeed: newPlanet.continentSeed,
+            };
+            planetVisualWorker.postMessage({
+                cmd: 'preloadPlanet', // New command for preloading
+                planetData: preloadData,
+                longitude: 0, // Dummy rotation
+                latitude: 0,  // Dummy rotation
+                canvasWidth: planetVisualCanvas.width, // Worker needs canvas dimensions for texture generation
+                canvasHeight: planetVisualCanvas.height,
+                senderId: 'preload' // Identifies this as a non-rendering request
+            });
+            // *** End Pre-load texture ***
+
             const planetEl = document.createElement('div');
             planetEl.className = 'planet-icon';
             planetEl.style.width = `${newPlanet.size}px`;
@@ -791,9 +813,9 @@ document.addEventListener('DOMContentLoaded', () => {
             solarSystemContent.appendChild(planetEl);
             newPlanet.element = planetEl;
         }
+
         if (solarSystemTitleText) {
             solarSystemTitleText.textContent = (solarSystemObject && solarSystemObject.customName) ? solarSystemObject.customName : `System ${solarSystemId.substring(solarSystemId.lastIndexOf('-') + 1)}`;
-            solarSystemTitleText.style.display = 'inline-block';
         }
         if (solarSystemTitleInput) solarSystemTitleInput.style.display = 'none';
         setActiveScreen(solarSystemScreen);
@@ -1031,8 +1053,8 @@ document.addEventListener('DOMContentLoaded', () => {
             // Arcball-like rotation: map mouse movement over canvas dimensions to angles
             // Horizontal movement directly rotates longitude from start drag angle
             rotationLongitude = startDragRotationLongitude + (deltaMouseX / canvasWidth) * (2 * Math.PI);
-            // Vertical movement directly rotates latitude from start drag angle
-            rotationLatitude = startDragRotationLatitude + (deltaMouseY / canvasHeight) * Math.PI;
+            // Vertical movement directly rotates latitude from start drag angle (inverted for natural feel)
+            rotationLatitude = startDragRotationLatitude - (deltaMouseY / canvasHeight) * Math.PI; // INVERTED HERE
 
             if (!renderPending) {
                 renderPending = true;
@@ -1049,9 +1071,9 @@ document.addEventListener('DOMContentLoaded', () => {
             const deltaMouseX = e.clientX - designerStartDragMouseX;
             const deltaMouseY = e.clientY - designerStartDragMouseY;
 
-            // Arcball-like rotation for designer planet
+            // Arcball-like rotation for designer planet (inverted vertical drag)
             designerRotationLongitude = designerStartDragRotationLongitude + (deltaMouseX / canvasWidth) * (2 * Math.PI);
-            designerRotationLatitude = designerStartDragRotationLatitude + (deltaMouseY / canvasHeight) * Math.PI;
+            designerRotationLatitude = designerStartDragRotationLatitude - (deltaMouseY / canvasHeight) * Math.PI; // INVERTED HERE
 
             if (!designerRenderPending) {
                 designerRenderPending = true;

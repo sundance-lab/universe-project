@@ -43,9 +43,9 @@ body {font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background-c
 
   /* CSS variables will be set by JavaScript based on FIXED_COLORS */
   background: radial-gradient(ellipse at center,
-      var(--sun-core-color, #FFEA00) 30%,    /* Brightest center, customize percentages as needed */
-      var(--sun-mid-color, #FFD700) 65%,     /* Mid tone for transition */
-      var(--sun-edge-color, #FFA500) 90%     /* Darker edge for spherical look */
+      var(--sun-core-color, #FFEA00) 45%,    /* Increased from 30% - Brighter core expands */
+      var(--sun-mid-color, #FFD700) 75%,     /* Increased from 65% - Mid tone expands */
+      var(--sun-edge-color, #FFA500) 95%     /* Adjusted from 90% - Darker edge pushed out */
   );
   border: 2px solid var(--sun-actual-border-color, #FFA500); /* Border color also set via JS */
 }

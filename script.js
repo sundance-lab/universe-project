@@ -56,11 +56,8 @@ document.addEventListener('DOMContentLoaded', () => {
   let isSolarSystemPaused = false;
   let isDraggingPlanetVisual = false;
   let isDraggingDesignerPlanet = false;
-
-  // Flags to manage rendering requests to worker
   let isRenderingVisualPlanet = false;
   let isRenderingDesignerPlanet = false;
-
 
   function quat_identity() {
     return [1, 0, 0, 0];
@@ -128,7 +125,7 @@ document.addEventListener('DOMContentLoaded', () => {
   let currentShowPlanetOrbits = DEFAULT_SHOW_PLANET_ORBITS;
   const GALAXY_ICON_SIZE = 60;
   const SOLAR_SYSTEM_BASE_ICON_SIZE = 2.5;
-  const SUN_ICON_SIZE = 60;
+  const SUN_ICON_SIZE = 60; // This remains the BASE size for calculations like planet distances
   const MAX_PLACEMENT_ATTEMPTS = 150;
   const GALAXY_VIEW_MIN_ZOOM = 1.0;
   const GALAXY_VIEW_MAX_ZOOM = 5.0;
@@ -166,14 +163,14 @@ document.addEventListener('DOMContentLoaded', () => {
         if (renderedData && width && height) {
           try {
             const clampedArray = new Uint8ClampedArray(renderedData);
-            const imageDataObj = new ImageData(clampedArray, width, height); // Renamed to avoid conflict
+            const imageDataObj = new ImageData(clampedArray, width, height);
             ctx.putImageData(imageDataObj, 0, 0);
           } catch (err) {
             console.error("Error putting ImageData on planetVisualCanvas:", err);
           }
         }
       }
-      isRenderingVisualPlanet = false; // Reset flag
+      isRenderingVisualPlanet = false;
     };
 
     designerWorker.onmessage = function(e) {
@@ -184,14 +181,14 @@ document.addEventListener('DOMContentLoaded', () => {
         if (renderedData && width && height) {
          try {
             const clampedArray = new Uint8ClampedArray(renderedData);
-            const imageDataObj = new ImageData(clampedArray, width, height); // Renamed to avoid conflict
+            const imageDataObj = new ImageData(clampedArray, width, height);
             ctx.putImageData(imageDataObj, 0, 0);
           } catch (err) {
             console.error("Error putting ImageData on designerPlanetCanvas:", err);
           }
         }
       }
-      isRenderingDesignerPlanet = false; // Reset flag
+      isRenderingDesignerPlanet = false;
     };
   } else {
     console.warn("Web Workers not supported in this browser. Planet rendering will be disabled.");
@@ -346,6 +343,7 @@ document.addEventListener('DOMContentLoaded', () => {
             if (gal.solarSystems && Array.isArray(gal.solarSystems)) {
               gal.solarSystems.forEach(ss => {
                 ss.customName = ss.customName || null;
+                ss.sunSizeFactor = ss.sunSizeFactor || (0.5 + Math.random() * 9.5); // Add default for old saves
               });
             }
             gal.lineConnections = gal.lineConnections || [];
@@ -419,7 +417,15 @@ document.addEventListener('DOMContentLoaded', () => {
       const sysId = `${gal.id}-ss-${i + 1}`;
       const pos = getNonOverlappingPositionInCircle(pr, SOLAR_SYSTEM_BASE_ICON_SIZE, tpr);
       if (pos && !isNaN(pos.x) && !isNaN(pos.y)) {
-        gal.solarSystems.push({ id: sysId, customName: null, x: pos.x, y: pos.y, iconSize: SOLAR_SYSTEM_BASE_ICON_SIZE });
+        const sunSizeFactor = 0.5 + Math.random() * 9.5; // Range 0.5 to 10.0
+        gal.solarSystems.push({
+            id: sysId,
+            customName: null,
+            x: pos.x,
+            y: pos.y,
+            iconSize: SOLAR_SYSTEM_BASE_ICON_SIZE,
+            sunSizeFactor: sunSizeFactor
+        });
         tpr.push({ x: pos.x, y: pos.y, width: SOLAR_SYSTEM_BASE_ICON_SIZE, height: SOLAR_SYSTEM_BASE_ICON_SIZE })
       }
     }
@@ -738,7 +744,6 @@ document.addEventListener('DOMContentLoaded', () => {
     planetData.maxTerrainHeight = planetData.maxTerrainHeight ?? DEFAULT_MAX_TERRAIN_HEIGHT;
     planetData.oceanHeightLevel = planetData.oceanHeightLevel ?? DEFAULT_OCEAN_HEIGHT_LEVEL;
 
-
     const dataToSend = {
       waterColor: planetData.waterColor,
       landColor: planetData.landColor,
@@ -785,11 +790,19 @@ document.addEventListener('DOMContentLoaded', () => {
     gameSessionData.solarSystemView.currentPanY = 0;
     gameSessionData.solarSystemView.systemId = solarSystemId;
     solarSystemContent.innerHTML = '';
+
+    let currentSunSize = SUN_ICON_SIZE; // Default base size
+    if (solarSystemObject && typeof solarSystemObject.sunSizeFactor === 'number') {
+        currentSunSize = SUN_ICON_SIZE * solarSystemObject.sunSizeFactor;
+    }
+    currentSunSize = Math.max(currentSunSize, 5); // Ensure a minimum visible size
+
     const sunEl = document.createElement('div');
     sunEl.className = 'sun-icon';
-    sunEl.style.width = `${SUN_ICON_SIZE}px`;
-    sunEl.style.height = `${SUN_ICON_SIZE}px`;
+    sunEl.style.width = `${currentSunSize}px`;
+    sunEl.style.height = `${currentSunSize}px`;
     solarSystemContent.appendChild(sunEl);
+
     solarSystemOrbitCanvasEl = document.createElement('canvas');
     solarSystemOrbitCanvasEl.id = 'solar-system-orbit-canvas';
     solarSystemOrbitCanvasEl.width = ORBIT_CANVAS_SIZE;
@@ -876,7 +889,7 @@ document.addEventListener('DOMContentLoaded', () => {
         }
 
         planetVisualRotationQuat = quat_identity();
-        isRenderingVisualPlanet = false; // Ensure it can render the new planet
+        isRenderingVisualPlanet = false;
         renderPlanetVisual(newPlanet, planetVisualRotationQuat, planetVisualCanvas);
       });
       solarSystemContent.appendChild(planetEl);
@@ -1183,13 +1196,6 @@ document.addEventListener('DOMContentLoaded', () => {
     if (isDraggingPlanetVisual) {
       isDraggingPlanetVisual = false;
       planetVisualCanvas.classList.remove('dragging');
-      // Request a final high-quality render if needed, or let the flag handle it
-      if (isRenderingVisualPlanet && currentPlanetDisplayedInPanel) {
-        // If a render was skipped due to lag, force one now.
-        // However, the flag logic should ensure the last intended state is rendered.
-        // This might be redundant or cause a double send if the last one is still processing.
-        // For safety, let the worker's onmessage clear the flag.
-      }
     }
     if (isDraggingDesignerPlanet) {
       isDraggingDesignerPlanet = false;
@@ -1222,11 +1228,11 @@ document.addEventListener('DOMContentLoaded', () => {
         currentDesignerPlanet.minTerrainHeight = currentDesignerPlanet.maxTerrainHeight - 0.1;
         if (designerMinHeightInput) designerMinHeightInput.value = currentDesignerPlanet.minTerrainHeight.toFixed(1);
     }
-     if (currentDesignerPlanet.minTerrainHeight < 0) { // Ensure min height is not negative
+    if (currentDesignerPlanet.minTerrainHeight < 0) {
         currentDesignerPlanet.minTerrainHeight = 0;
         if (designerMinHeightInput) designerMinHeightInput.value = currentDesignerPlanet.minTerrainHeight.toFixed(1);
     }
-    if (currentDesignerPlanet.maxTerrainHeight <= currentDesignerPlanet.minTerrainHeight) { //Ensure max is greater
+    if (currentDesignerPlanet.maxTerrainHeight <= currentDesignerPlanet.minTerrainHeight) {
         currentDesignerPlanet.maxTerrainHeight = currentDesignerPlanet.minTerrainHeight + 0.1;
         if(designerMaxHeightInput) designerMaxHeightInput.value = currentDesignerPlanet.maxTerrainHeight.toFixed(1);
     }
@@ -1239,7 +1245,7 @@ document.addEventListener('DOMContentLoaded', () => {
         if(designerOceanHeightInput) designerOceanHeightInput.value = currentDesignerPlanet.oceanHeightLevel.toFixed(1);
     }
 
-    isRenderingDesignerPlanet = false; // Allow immediate re-render on input change
+    isRenderingDesignerPlanet = false;
     renderDesignerPlanet(currentDesignerPlanet, designerPlanetRotationQuat);
   }
 
@@ -1247,9 +1253,8 @@ document.addEventListener('DOMContentLoaded', () => {
     currentDesignerPlanet.waterColor = `#${Math.floor(Math.random() * 16777215).toString(16).padStart(6, '0')}`;
     currentDesignerPlanet.landColor = `#${Math.floor(Math.random() * 16777215).toString(16).padStart(6, '0')}`;
     currentDesignerPlanet.continentSeed = Math.random();
-
     currentDesignerPlanet.minTerrainHeight = parseFloat((Math.random() * 5).toFixed(1));
-    currentDesignerPlanet.maxTerrainHeight = parseFloat((currentDesignerPlanet.minTerrainHeight + 0.1 + Math.random() * 10).toFixed(1)); // Ensure max > min
+    currentDesignerPlanet.maxTerrainHeight = parseFloat((currentDesignerPlanet.minTerrainHeight + 0.1 + Math.random() * 10).toFixed(1));
     currentDesignerPlanet.oceanHeightLevel = parseFloat((currentDesignerPlanet.minTerrainHeight + Math.random() * (currentDesignerPlanet.maxTerrainHeight - currentDesignerPlanet.minTerrainHeight)).toFixed(1));
 
     designerWaterColorInput.value = currentDesignerPlanet.waterColor;
@@ -1259,12 +1264,12 @@ document.addEventListener('DOMContentLoaded', () => {
     if (designerOceanHeightInput) designerOceanHeightInput.value = currentDesignerPlanet.oceanHeightLevel.toFixed(1);
 
     designerPlanetRotationQuat = quat_identity();
-    isRenderingDesignerPlanet = false; // Allow immediate re-render
+    isRenderingDesignerPlanet = false;
     renderDesignerPlanet(currentDesignerPlanet, designerPlanetRotationQuat);
   }
 
   function saveCustomPlanetDesign() {
-    updateDesignerPlanetFromInputs(); // Ensure current values from inputs are captured before saving
+    updateDesignerPlanetFromInputs();
     const newDesign = {
       designId: `design-${Date.now()}`,
       waterColor: currentDesignerPlanet.waterColor,

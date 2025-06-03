@@ -1,5 +1,4 @@
 // planetRendererWorker.js
-console.log("Worker started");
 class PerlinNoise {
     constructor(seed = Math.random()) {
       this.p = new Array(512);

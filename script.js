@@ -46,7 +46,6 @@ document.addEventListener('DOMContentLoaded', () => {
   const planetVisualSize = document.getElementById('planet-visual-size');
   const planetVisualCanvas = document.getElementById('planet-visual-canvas');
 
-  // Planet Designer Elements
   const designerPlanetCanvas = document.getElementById('designer-planet-canvas');
   const designerWaterColorInput = document.getElementById('designer-water-color');
   const designerLandColorInput = document.getElementById('designer-land-color');
@@ -191,7 +190,7 @@ document.addEventListener('DOMContentLoaded', () => {
             frequency *= lacunarity;
         }
 
-        return total / maxValue; // Normalize to -1 to 1 range
+        return total / maxValue;
     }
   }
 
@@ -257,17 +256,6 @@ document.addEventListener('DOMContentLoaded', () => {
     } catch (error) {}
   }
 
-fetch('https://save-api.nicholasgutteridge512.workers.dev/', {
-  method: 'POST',
-  headers: { 'Content-Type': 'application/json' },
-  body: JSON.stringify({
-   userId: 'sundance-lab',
-  })
-})
-.then(res => res.text())
-.then(msg => console.log('Server save:', msg))
-.catch(err => console.error('Server save failed:', err));
-
   function loadGameState() {
     try {
       const savedStateString = localStorage.getItem('galaxyGameSaveData');
@@ -298,26 +286,10 @@ fetch('https://save-api.nicholasgutteridge512.workers.dev/', {
     return false;
   }
 
-const userId = 'sundance-lab';
-
-fetch(`https://save-api.nicholasgutteridge512.workers.dev/?key=$`)
-  .then(res => {
-   if (!res.ok) throw new Error('Not found');
-   return res.json();
-  })
-  .then(data => {
-   if (data && data.gameState) {
-     console.log('Loaded game state from server:', data.gameState);
-   }
-  })
-  .catch(err => {
-   console.log('Could not load from server:', err);
-  });
-
   function checkOverlap(r1,r2){return!(r1.x+r1.width<r2.x||r2.x+r2.width<r1.x||r1.y+r1.height<r2.y||r2.y+r2.height<r1.y)}
   function getNonOverlappingPositionInCircle(pr,od,exR){let plr=pr-(od/2)-5;if(plr<0)plr=0;for(let i=0;i<MAX_PLACEMENT_ATTEMPTS;i++){const a=Math.random()*2*Math.PI,r=Math.sqrt(Math.random())*plr,cx=pr+r*Math.cos(a),cy=pr+r*Math.sin(a),x=cx-(od/2),y=cy-(od/2),nr={x,y,width:od,height:od};if(!exR.some(er=>checkOverlap(nr,er)))return{x,y}}return null}
   function getWeightedNumberOfConnections(){ const e=Math.random(); return e < .6 ? 1 : e < .9 ? 2 : 3; }
-  function adjustColor(e,t){let r=parseInt(e.slice(1,3),16),o=parseInt(e.slice(3,5),16),a=parseInt(e.slice(5,7),16);return r=Math.max(0,Math.min(255,r+t)),o=Math.max(0,Math.min(255,o+t)),a=Math.max(0,Math.min(255,a+t)),`#${r.toString(16).padStart(2,"0")}${o.toString(16).padStart(2,"0")}${a.toString}(16).padStart(2,"0")}`;}
+  function adjustColor(e,t){let r=parseInt(e.slice(1,3),16),o=parseInt(e.slice(3,5),16),a=parseInt(e.slice(5,7),16);return r=Math.max(0,Math.min(255,r+t)),o=Math.max(0,Math.min(255,o+t)),a=Math.max(0,Math.min(255,a+t)),`#${r.toString(16).padStart(2,"0")}${o.toString(16).padStart(2,"0")}${a.toString(16).padStart(2,"0")}`;}
 
   function setActiveScreen(screenToShow) {
     [mainScreen, galaxyDetailScreen, solarSystemScreen, planetDesignerScreen].forEach(screen => {
@@ -451,7 +423,7 @@ fetch(`https://save-api.nicholasgutteridge512.workers.dev/?key=$`)
               }
               if (ultimateFallbackId) {
                 gal.lineConnections.push({ fromId: systemToConnectId, toId: ultimateFallbackId });
-                systemConnectionCounts[systemToConnectId] = (systemConnectionCounts[systemToConnectId] || 0) + 1;
+                systemConnectionCounts[systemToConnectId] = (systemConnectionCounts[systemToSystemId] || 0) + 1;
                 systemConnectionCounts[ultimateFallbackId] = (systemConnectionCounts[ultimateFallbackId] || 0) + 1;
                 connectedSet.add(systemToConnectId);
                 unconnectedSet.delete(systemToConnectId);
@@ -658,19 +630,17 @@ fetch(`https://save-api.nicholasgutteridge512.workers.dev/?key=$`)
   }
 
 
-// --- Continent/Planet Texture & Rendering Logic ---
-
 function hexToRgb(hex) {
     const bigint = parseInt(hex.slice(1), 16);
     const r = (bigint >> 16) & 255;
     const g = (bigint >> 8) & 255;
     const b = bigint & 255;
-    return [r, g, b, 255]; // Add alpha for ImageData
+    return [r, g, b, 255];
 }
 
 function createContinentTexture(waterColorHex, landColorHex, seed, textureSize = 512, octaves = 6, persistence = 0.5, scale = 1.0) {
-    const canvas = document.createElement('canvas'); // Offscreen canvas
-    canvas.width = textureSize * 2; // Mercator projection: 2:1 aspect ratio (lon:lat)
+    const canvas = document.createElement('canvas');
+    canvas.width = textureSize * 2;
     canvas.height = textureSize;
     const ctx = canvas.getContext('2d', { willReadFrequently: true });
     
@@ -683,30 +653,25 @@ function createContinentTexture(waterColorHex, landColorHex, seed, textureSize =
 
     for (let y = 0; y < canvas.height; y++) {
         for (let x = 0; x < canvas.width; x++) {
-            // Map 2D texture coordinates to spherical coordinates
-            const lat = (y / canvas.height) * Math.PI; // 0 to PI
-            const lon = (x / canvas.width) * 2 * Math.PI; // 0 to 2PI
+            const lat = (y / canvas.height) * Math.PI;
+            const lon = (x / canvas.width) * 2 * Math.PI;
 
-            // Convert spherical to Cartesian for 3D noise sampling
             const nx = Math.sin(lat) * Math.cos(lon) * scale;
-            const ny = Math.cos(lat) * scale; // Y is up/down from pole
+            const ny = Math.cos(lat) * scale;
             const nz = Math.sin(lat) * Math.sin(lon) * scale;
 
-            // Generate noise value
             let noiseValue = noiseGen.fractalNoise(nx, ny, nz, octaves, persistence);
-            noiseValue = (noiseValue + 1) / 2; // Normalize to 0-1
+            noiseValue = (noiseValue + 1) / 2;
 
-            const threshold = 0.5; // Controls land vs water ratio
+            const threshold = 0.5;
 
             let pixelR, pixelG, pixelB;
 
             if (noiseValue > threshold) {
-                // Land color
                 pixelR = landRgb[0];
                 pixelG = landRgb[1];
                 pixelB = landRgb[2];
             } else {
-                // Water color
                 pixelR = waterRgb[0];
                 pixelG = waterRgb[1];
                 pixelB = waterRgb[2];
@@ -716,7 +681,7 @@ function createContinentTexture(waterColorHex, landColorHex, seed, textureSize =
             data[index] = pixelR;
             data[index + 1] = pixelG;
             data[index + 2] = pixelB;
-            data[index + 3] = 255; // Alpha
+            data[index + 3] = 255;
         }
     }
     ctx.putImageData(imageData, 0, 0);
@@ -726,51 +691,46 @@ function createContinentTexture(waterColorHex, landColorHex, seed, textureSize =
 function drawContinentOutlines(ctx, planetData, currentLon, currentLat, sphereRadius, centerX, centerY) {
     const outlineColor = 'rgba(255, 255, 255, 0.4)';
     const outlineLineWidth = 1.0;
-    const tolerance = 0.05; // How close a pixel needs to be to a boundary to be considered an outline
-    const R = 1; // Unit sphere for calculations
-    const textureSize = planetData.textureCanvas.height; // Assuming designer/visual canvas is 2:1 aspect
+    const tolerance = 0.05;
+    const R = 1;
+    const textureSize = planetData.textureCanvas.height;
     const noiseGen = new PerlinNoise(planetData.continentSeed);
 
-    const waterThreshold = 0.5; // Same threshold as in createContinentTexture
+    const waterThreshold = 0.5;
     const octaves = 6;
     const persistence = 0.5;
     const scale = 1.0;
 
-    const jitterStrength = 0.7; // Strength of random jitter for lines
+    const jitterStrength = 0.7;
 
-    // Iterating over the projected sphere's pixels to find boundaries
     const renderSteps = Math.ceil(sphereRadius * 2);
 
     for (let yPx = 0; yPx < renderSteps; yPx++) {
         for (let xPx = 0; xPx < renderSteps; xPx++) {
-            const nx = (xPx / (renderSteps - 1)) * 2 - 1; // Normalized X from -1 to 1
-            const ny = (yPx / (renderSteps - 1)) * 2 - 1; // Normalized Y from -1 to 1
+            const nx = (xPx / (renderSteps - 1)) * 2 - 1;
+            const ny = (yPx / (renderSteps - 1)) * 2 - 1;
 
-            if (nx * nx + ny * ny > 1) continue; // Outside the main circle, continue
+            if (nx * nx + ny * ny > 1) continue;
 
-            const z_sphere = Math.sqrt(1 - nx * nx - ny * ny); // Z is depth, positive forward
+            const z_sphere = Math.sqrt(1 - nx * nx - ny * ny);
 
-            // Apply latitude rotation (around X-axis - pitch)
             const pX_lat = nx;
             const pY_lat = ny * Math.cos(currentLat) - z_sphere * Math.sin(currentLat);
             const pZ_lat = ny * Math.sin(currentLat) + z_sphere * Math.cos(currentLat);
 
-            // Apply longitude rotation (around Y-axis - yaw)
             const rotatedX = pX_lat * Math.cos(currentLon) + pZ_lat * Math.sin(currentLon);
             const rotatedY = pY_lat;
-            const rotatedZ = -pX_lat * Math.sin(currentLon) + pZ_lat * Math.cos(currentLon); // Final Z is depth from viewer
+            const rotatedZ = -pX_lat * Math.sin(currentLon) + pZ_lat * Math.cos(currentLon);
 
-            // Check visibility (positive Z means in front)
-            const threshold = -0.001 * sphereRadius; // Small epsilon to avoid lines disappearing right at the edge
+            const threshold = -0.001 * sphereRadius;
             const isVisible = rotatedZ > threshold;
 
             if (!isVisible) continue;
 
-            const phi_original = Math.acos(rotatedY); // Latitude (0 to PI)
-            const theta_original = (Math.atan2(rotatedX, rotatedZ) + 2 * Math.PI) % (2 * Math.PI); // Longitude (0 to 2PI)
+            const phi_original = Math.acos(rotatedY);
+            const theta_original = (Math.atan2(rotatedX, rotatedZ) + 2 * Math.PI) % (2 * Math.PI);
 
-            // Calculate noise values for direct neighbors to find boundaries
-            const neighborCheckRadius = 0.005; // Small increment to check neighbors
+            const neighborCheckRadius = 0.005;
 
             const baseNoise = (noiseGen.fractalNoise(
                 Math.sin(phi_original) * Math.cos(theta_original) * scale,
@@ -791,8 +751,8 @@ function drawContinentOutlines(ctx, planetData, currentLon, currentLat, sphereRa
                 let neighborPhi = phi_original + dp;
                 let neighborTheta = theta_original + dt;
 
-                neighborPhi = Math.max(0, Math.min(Math.PI, neighborPhi)); // Clamp latitude
-                neighborTheta = (neighborTheta + 2 * Math.PI) % (2 * Math.PI); // Wrap longitude
+                neighborPhi = Math.max(0, Math.min(Math.PI, neighborPhi));
+                neighborTheta = (neighborTheta + 2 * Math.PI) % (2 * Math.PI);
 
                 const neighborNoise = (noiseGen.fractalNoise(
                     Math.sin(neighborPhi) * Math.cos(neighborTheta) * scale,
@@ -814,7 +774,6 @@ function drawContinentOutlines(ctx, planetData, currentLon, currentLat, sphereRa
                 ctx.fillStyle = outlineColor;
                 const jitterX = (Math.random() - 0.5) * jitterStrength;
                 const jitterY = (Math.random() - 0.5) * jitterStrength;
-                // Draw a small square for the outline segment
                 ctx.fillRect(centerX + nx * sphereRadius + jitterX, centerY + ny * sphereRadius + jitterY, outlineLineWidth, outlineLineWidth);
             }
         }
@@ -835,35 +794,31 @@ function renderPlanetVisual(planetData, longitude = 0, latitude = 0, targetCanva
 
     const radius = Math.min(canvasWidth, canvasHeight) * 0.4;
     const steps = isDraggingPlanetVisual || targetCanvas === designerPlanetCanvas
-        ? Math.ceil(radius * 1.5) // Higher quality for dragging/designer preview
-        : Math.ceil(radius * 2); // Best quality when static
+        ? Math.ceil(radius * 1.5)
+        : Math.ceil(radius * 2);
 
-    // Light source vector (arbitrarily chosen position relative to viewer)
     const lightSourceLongitude = Math.PI / 4;
     const lightSourceLatitude = Math.PI / 8;
 
     const lightVecX = Math.cos(lightSourceLatitude) * Math.sin(lightSourceLongitude);
     const lightVecY = Math.sin(lightSourceLatitude);
-    const lightVecZ = Math.cos(lightSourceLatitude) * Math.cos(lightSourceLongitude); // Z points out/forward
+    const lightVecZ = Math.cos(lightSourceLatitude) * Math.cos(lightSourceLongitude);
 
-    // Ensure planet has necessary data for continents
     if (!planetData.continentSeed) {
         planetData.continentSeed = Math.random();
     }
     if (!planetData.waterColor) {
-        if (planetData.type === 'normal' && planetData.color) { // Convert old 'normal' type to new terrestrial-like
+        if (planetData.type === 'normal' && planetData.color) {
             planetData.waterColor = `hsl(${planetData.color.hue}, ${planetData.color.saturation}%, ${planetData.color.lightness}%)`;
             planetData.landColor = `hsl(${planetData.color.hue}, ${planetData.color.saturation + 10}%, ${planetData.color.lightness + 10}%)`;
-            delete planetData.color; // Remove old color property
+            delete planetData.color;
         } else {
-            planetData.waterColor = '#000080'; // Default deep blue
-            planetData.landColor = '#006400'; // Default dark green
+            planetData.waterColor = '#000080';
+            planetData.landColor = '#006400';
         }
-        planetData.type = 'terrestrial'; // Standardize to terrestrial for texture mapping
+        planetData.type = 'terrestrial';
     }
 
-    // Create or update texture canvas for the planet
-    // Only generate if not already created, or if colors/seed changed
     if (!planetData.textureCanvas || planetData.waterColor !== planetData._cachedWaterColor || planetData.landColor !== planetData._cachedLandColor || planetData.continentSeed !== planetData._cachedContinentSeed) {
         planetData.textureCanvas = createContinentTexture(planetData.waterColor, planetData.landColor, planetData.continentSeed);
         planetData._cachedWaterColor = planetData.waterColor;
@@ -879,42 +834,35 @@ function renderPlanetVisual(planetData, longitude = 0, latitude = 0, targetCanva
     ctx.save();
     ctx.beginPath();
     ctx.arc(centerX, centerY, radius, 0, Math.PI * 2);
-    ctx.clip(); // Clip drawing to the planet circle
+    ctx.clip();
 
     for (let i = 0; i < steps; i++) {
         for (let j = 0; j < steps; j++) {
-            const nx = (i / (steps - 1)) * 2 - 1; // Normalized X from -1 to 1
-            const ny = (j / (steps - 1)) * 2 - 1; // Normalized Y from -1 to 1
-            if (nx * nx + ny * ny > 1) continue; // Outside the circle
+            const nx = (i / (steps - 1)) * 2 - 1;
+            const ny = (j / (steps - 1)) * 2 - 1;
+            if (nx * nx + ny * ny > 1) continue;
 
-            // Calculate 3D point on unit sphere (Z points out)
             const x_sphere = nx;
             const y_sphere = ny;
             const z_sphere = Math.sqrt(1 - x_sphere * x_sphere - y_sphere * y_sphere);
 
-            // Apply latitude rotation (around X-axis - pitch)
             const pX_lat = x_sphere;
             const pY_lat = y_sphere * Math.cos(latitude) - z_sphere * Math.sin(latitude);
             const pZ_lat = y_sphere * Math.sin(latitude) + z_sphere * Math.cos(latitude);
 
-            // Apply longitude rotation (around Y-axis - yaw)
             const rotatedX = pX_lat * Math.cos(longitude) + pZ_lat * Math.sin(longitude);
             const rotatedY = pY_lat;
-            const rotatedZ = -pX_lat * Math.sin(longitude) + pZ_lat * Math.cos(longitude); // Final Z is depth from viewer
+            const rotatedZ = -pX_lat * Math.sin(longitude) + pZ_lat * Math.cos(longitude);
 
-            // Determine original spherical coordinates (phi, theta) for texture lookup
-            const phi_original = Math.acos(rotatedY); // Latitude (0 to PI) from Y
-            const theta_original = (Math.atan2(rotatedX, rotatedZ) + 2 * Math.PI) % (2 * Math.PI); // Longitude (0 to 2PI) from X, Z
+            const phi_original = Math.acos(rotatedY);
+            const theta_original = (Math.atan2(rotatedX, rotatedZ) + 2 * Math.PI) % (2 * Math.PI);
 
-            // Map to texture coordinates (0 to 1)
             let texU = theta_original / (2 * Math.PI);
             let texV = phi_original / Math.PI;
 
-            // Sample the texture
             let sx = Math.floor(texU * textureWidth);
             let sy = Math.floor(texV * textureHeight);
 
-            // Clamp texture coordinates
             sx = Math.max(0, Math.min(textureWidth - 1, sx));
             sy = Math.max(0, Math.min(textureHeight - 1, sy));
 
@@ -924,7 +872,6 @@ function renderPlanetVisual(planetData, longitude = 0, latitude = 0, targetCanva
             let b = textureData.data[idx + 2];
             let a = textureData.data[idx + 3];
 
-            // Lighting calculation
             const ambientLight = 0.25;
             const diffuseLight = 0.75;
             const dotProduct = rotatedX * lightVecX + rotatedY * lightVecY + rotatedZ * lightVecZ;
@@ -938,9 +885,8 @@ function renderPlanetVisual(planetData, longitude = 0, latitude = 0, targetCanva
             ctx.fillRect(centerX + nx * radius, centerY + ny * radius, 1, 1);
         }
     }
-    ctx.restore(); // Restore clip from previous save()
+    ctx.restore();
 
-    // Draw continent outlines on top of the rendered planet
     drawContinentOutlines(ctx, planetData, longitude, latitude, radius, centerX, centerY);
 }
 
@@ -1005,17 +951,15 @@ function renderPlanetVisual(planetData, longitude = 0, latitude = 0, targetCanva
                 planetName: `Planet ${i+1}`
              };
 
-      // Decide if using a custom design or generating a new one
-      if (gameSessionData.customPlanetDesigns.length > 0 && Math.random() < 0.5) { // 50% chance to use custom if available
+      if (gameSessionData.customPlanetDesigns.length > 0 && Math.random() < 0.5) {
         const randomDesign = gameSessionData.customPlanetDesigns[Math.floor(Math.random() * gameSessionData.customPlanetDesigns.length)];
-        newPlanet.type = 'terrestrial'; // Custom designs are effectively terrestrial
+        newPlanet.type = 'terrestrial';
         newPlanet.waterColor = randomDesign.waterColor;
         newPlanet.landColor = randomDesign.landColor;
         newPlanet.continentSeed = randomDesign.continentSeed;
-        newPlanet.sourceDesignId = randomDesign.designId; // Keep track of source
+        newPlanet.sourceDesignId = randomDesign.designId;
       } else {
-        // Fallback to random generation if no custom designs or not chosen
-        newPlanet.type = 'terrestrial'; // All new planets are terrestrial with continents
+        newPlanet.type = 'terrestrial';
         newPlanet.waterColor = `hsl(${200 + Math.random()*40}, ${70 + Math.random()*10}%, ${30 + Math.random()*10}%)`;
         newPlanet.landColor = `hsl(${100 + Math.random()*40}, ${60 + Math.random()*10}%, ${30 + Math.random()*10}%)`;
         newPlanet.continentSeed = Math.random();
@@ -1028,7 +972,6 @@ function renderPlanetVisual(planetData, longitude = 0, latitude = 0, targetCanva
       planetEl.style.width = `${newPlanet.size}px`;
       planetEl.style.height = `${newPlanet.size}px`;
 
-      // Simplified icon for solar system view (without full complex rendering)
       const randomPos = 15 + Math.random() * 40;
       const randomSize = 20 + Math.random() * 30;
       let backgroundStyle = `radial-gradient(circle at ${randomPos}% ${randomPos}%, ${newPlanet.landColor} ${randomSize}%, transparent ${randomSize + 20}%), ${newPlanet.waterColor}`;
@@ -1055,7 +998,7 @@ function renderPlanetVisual(planetData, longitude = 0, latitude = 0, targetCanva
         planetVisualPanel.style.transform = 'translate(-50%, -50%)';
         planetVisualPanel.style.transition = '';
 
-        rotationLongitude = 0; // Reset rotation for panel
+        rotationLongitude = 0;
         rotationLatitude = 0;
         renderPlanetVisual(newPlanet, rotationLongitude, rotationLatitude, planetVisualCanvas);
       });
@@ -1182,7 +1125,7 @@ window.addEventListener('mousemove', (e) => {
     const deltaY = e.clientY - lastDragY;
     rotationLongitude += deltaX * 0.005;
     rotationLatitude += deltaY * 0.005;
-    rotationLatitude = Math.max(-0.49 * Math.PI, Math.min(0.49 * Math.PI, rotationLatitude));
+    // Removed: rotationLatitude = Math.max(-0.49 * Math.PI, Math.min(0.49 * Math.PI, rotationLatitude));
     lastDragX = e.clientX;
     lastDragY = e.clientY;
     if (!renderPending) {
@@ -1212,7 +1155,6 @@ window.addEventListener('mouseup', () => {
   }
 });
 
-// --- Planet Designer Screen Logic ---
 let currentDesignerPlanet = { waterColor: '#000080', landColor: '#006400', continentSeed: Math.random() };
 let isDraggingDesignerPlanet = false;
 
@@ -1281,8 +1223,8 @@ function populateSavedDesignsList() {
 
 function switchToPlanetDesignerScreen() {
     setActiveScreen(planetDesignerScreen);
-    randomizeDesignerPlanet(); // Start with a random planet
-    populateSavedDesignsList(); // Populate list of saved designs
+    randomizeDesignerPlanet();
+    populateSavedDesignsList();
 }
 
 let designerLastDragX = 0, designerLastDragY = 0;
@@ -1301,7 +1243,7 @@ window.addEventListener('mousemove', (e) => {
         const deltaY = e.clientY - designerLastDragY;
         designerRotationLongitude += deltaX * 0.005;
         designerRotationLatitude += deltaY * 0.005;
-        designerRotationLatitude = Math.max(-0.49 * Math.PI, Math.min(0.49 * Math.PI, designerRotationLatitude));
+        // Removed: designerRotationLatitude = Math.max(-0.49 * Math.PI, Math.min(0.49 * Math.PI, designerRotationLatitude));
         designerLastDragX = e.clientX;
         designerLastDragY = e.clientY;
         if (!designerRenderPending) {
@@ -1321,8 +1263,8 @@ window.addEventListener('mouseup', () => {
     }
 });
 
-designerWaterColorInput.addEventListener('input', updateDesignerPlanetFromInputs);
-designerLandColorInput.addEventListener('input', updateDesignerPlanetFromInputs);
+designerWaterColorInput.addEventListener('change', updateDesignerPlanetFromInputs);
+designerLandColorInput.addEventListener('change', updateDesignerPlanetFromInputs);
 designerRandomizeBtn.addEventListener('click', randomizeDesignerPlanet);
 designerSaveBtn.addEventListener('click', saveCustomPlanetDesign);
 designerCancelBtn.addEventListener('click', () => setActiveScreen(mainScreen));

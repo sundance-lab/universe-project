@@ -224,7 +224,7 @@ let cachedPlanetParams = { waterColor: null, landColor: null, continentSeed: nul
 self.onmessage = function(e) {
     const { cmd, planetData, longitude, latitude, canvasWidth, canvasHeight, senderId } = e.data;
 
-    if (cmd === 'renderPlanet') {
+    if (cmd === 'renderPlanet' || cmd === 'preloadPlanet') {
         // Create an OffscreenCanvas to render to
         const tempCanvas = new OffscreenCanvas(canvasWidth, canvasHeight);
         const ctx = tempCanvas.getContext('2d');
@@ -351,11 +351,13 @@ self.onmessage = function(e) {
 
         // Send back the pixel data (Uint8ClampedArray) and dimensions
         // The array buffer is transferred, not copied, for performance
-        self.postMessage({
-            renderedData: resultImageData.data,
-            width: canvasWidth,
-            height: canvasHeight,
-            senderId: senderId // Send back senderId to identify which canvas to draw on
-        }, [resultImageData.data.buffer]);
+        if (senderId !== 'preload') { // <--- NEW CONDITION
+            self.postMessage({
+                renderedData: resultImageData.data,
+                width: canvasWidth,
+                height: canvasHeight,
+                senderId: senderId
+            }, [resultImageData.data.buffer]);
+        }
     }
 };

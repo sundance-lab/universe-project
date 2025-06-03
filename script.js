@@ -1167,7 +1167,7 @@ document.addEventListener('DOMContentLoaded', () => {
           designerRenderPending = false;
         });
     }
-  });
+  };
 
   window.addEventListener('mouseup', () => {
     if (isPanelDragging) {

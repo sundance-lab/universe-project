@@ -52,13 +52,12 @@ document.addEventListener('DOMContentLoaded', () => {
   const designerCancelBtn = document.getElementById('designer-cancel-btn');
   const savedDesignsUl = document.getElementById('saved-designs-ul');
 
-  // Declaring variables once here
   let linesCtx;
   let solarSystemOrbitCanvasEl;
   let orbitCtx;
   let animationFrameId = null;
   let lastAnimationTime = null;
-  let isSolarSystemPaused = false; // Initialized here
+  let isSolarSystemPaused = false;
 
   let isDraggingPlanetVisual = false;
   let rotationLongitude = 0;
@@ -86,9 +85,22 @@ document.addEventListener('DOMContentLoaded', () => {
   let currentMaxPlanets = DEFAULT_MAX_PLANETS_PER_SYSTEM;
   let currentShowPlanetOrbits = DEFAULT_SHOW_PLANET_ORBITS;
 
-  const GALAXY_ICON_SIZE = 60; const SOLAR_SYSTEM_BASE_ICON_SIZE = 2.5; const SUN_ICON_SIZE = 60; const MAX_PLACEMENT_ATTEMPTS = 150; const GALAXY_VIEW_MIN_ZOOM = 1.0; const GALAXY_VIEW_MAX_ZOOM = 5.0; const SOLAR_SYSTEM_VIEW_MIN_ZOOM = 0.05; const SOLAR_SYSTEM_VIEW_MAX_ZOOM = 10.0; const ZOOM_STEP = 0.2;
-  const MAX_CONNECTIONS_PER_SYSTEM = 3; const MAX_NEIGHBOR_CANDIDATES_FOR_ADDITIONAL_CONNECTIONS = 5; const MAX_EUCLIDEAN_CONNECTION_DISTANCE_PERCENT = 0.07; const MAX_FORCED_CONNECTION_DISTANCE_PERCENT = 0.20;
-  const MIN_PLANET_SIZE = 5; const MAX_PLANET_SIZE = 15; let MIN_PLANET_DISTANCE = SUN_ICON_SIZE * 1.5;
+  const GALAXY_ICON_SIZE = 60;
+  const SOLAR_SYSTEM_BASE_ICON_SIZE = 2.5;
+  const SUN_ICON_SIZE = 60;
+  const MAX_PLACEMENT_ATTEMPTS = 150;
+  const GALAXY_VIEW_MIN_ZOOM = 1.0;
+  const GALAXY_VIEW_MAX_ZOOM = 5.0;
+  const SOLAR_SYSTEM_VIEW_MIN_ZOOM = 0.05;
+  const SOLAR_SYSTEM_VIEW_MAX_ZOOM = 10.0;
+  const ZOOM_STEP = 0.2;
+  const MAX_CONNECTIONS_PER_SYSTEM = 3;
+  const MAX_NEIGHBOR_CANDIDATES_FOR_ADDITIONAL_CONNECTIONS = 5;
+  const MAX_EUCLIDEAN_CONNECTION_DISTANCE_PERCENT = 0.07;
+  const MAX_FORCED_CONNECTION_DISTANCE_PERCENT = 0.20;
+  const MIN_PLANET_SIZE = 5;
+  const MAX_PLANET_SIZE = 15;
+  let MIN_PLANET_DISTANCE = SUN_ICON_SIZE * 1.5;
   let MAX_PLANET_DISTANCE = (SUN_ICON_SIZE * BASE_MAX_PLANET_DISTANCE_FACTOR) * currentMaxPlanetDistanceMultiplier;
   let ORBIT_CANVAS_SIZE = MAX_PLANET_DISTANCE * 2.2;
   const SOLAR_SYSTEM_EXPLORABLE_RADIUS = 3000;
@@ -173,21 +185,21 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     fractalNoise(x, y, z, octaves = 4, persistence = 0.5, lacunarity = 2.0) {
-        let total = 0;
-        let frequency = 1;
-        let amplitude = 1;
-        let maxValue = 0;
+      let total = 0;
+      let frequency = 1;
+      let amplitude = 1;
+      let maxValue = 0;
 
-        for (let i = 0; i < octaves; i++) {
-            total += this.noise(x * frequency, y * frequency, z * frequency) * amplitude;
+      for (let i = 0; i < octaves; i++) {
+        total += this.noise(x * frequency, y * frequency, z * frequency) * amplitude;
 
-            maxValue += amplitude;
+        maxValue += amplitude;
 
-            amplitude *= persistence;
-            frequency *= lacunarity;
-        }
+        amplitude *= persistence;
+        frequency *= lacunarity;
+      }
 
-        return total / maxValue;
+      return total / maxValue;
     }
   }
 
@@ -221,9 +233,9 @@ document.addEventListener('DOMContentLoaded', () => {
         currentMaxSSCount = parseInt(loadedSettings.maxSS, 10) || DEFAULT_MAX_SS_COUNT_CONST;
         currentMaxPlanetDistanceMultiplier = parseFloat(loadedSettings.spread) || DEFAULT_MAX_PLANET_DISTANCE_MULTIPLIER;
         currentMinPlanets = parseInt(loadedSettings.minPlanets, 10);
-         if (isNaN(currentMinPlanets)) currentMinPlanets = DEFAULT_MIN_PLANETS_PER_SYSTEM;
+        if (isNaN(currentMinPlanets)) currentMinPlanets = DEFAULT_MIN_PLANETS_PER_SYSTEM;
         currentMaxPlanets = parseInt(loadedSettings.maxPlanets, 10);
-         if (isNaN(currentMaxPlanets)) currentMaxPlanets = DEFAULT_MAX_PLANETS_PER_SYSTEM;
+        if (isNaN(currentMaxPlanets)) currentMaxPlanets = DEFAULT_MAX_PLANETS_PER_SYSTEM;
         currentShowPlanetOrbits = typeof loadedSettings.showOrbits === 'boolean' ? loadedSettings.showOrbits : DEFAULT_SHOW_PLANET_ORBITS;
 
       } catch (e) { resetToDefaultCustomization(); }
@@ -306,9 +318,8 @@ document.addEventListener('DOMContentLoaded', () => {
       customizeGenerationButton.style.display = (screenToShow === mainScreen || screenToShow === galaxyDetailScreen || screenToShow === solarSystemScreen || screenToShow === planetDesignerScreen) ? 'block' : 'none';
     }
     if (createPlanetDesignButton) {
-        createPlanetDesignButton.style.display = (screenToShow === mainScreen || screenToShow === galaxyDetailScreen || screenToShow === solarSystemScreen || screenToShow === planetDesignerScreen) ? 'block' : 'none';
+      createPlanetDesignButton.style.display = (screenToShow === mainScreen || screenToShow === galaxyDetailScreen || screenToShow === solarSystemScreen || screenToShow === planetDesignerScreen) ? 'block' : 'none';
     }
-    // 'Pause Planets' button and functionality removed
     planetVisualPanel.classList.remove('visible');
   }
 
@@ -412,7 +423,7 @@ document.addEventListener('DOMContentLoaded', () => {
               }
               if (ultimateFallbackId) {
                 gal.lineConnections.push({ fromId: systemToConnectId, toId: ultimateFallbackId });
-                systemConnectionCounts[systemToConnectId] = (systemConnectionCounts[systemToSystemId] || 0) + 1;
+                systemConnectionCounts[systemToConnectId] = (systemConnectionCounts[systemToConnectId] || 0) + 1;
                 systemConnectionCounts[ultimateFallbackId] = (systemConnectionCounts[ultimateFallbackId] || 0) + 1;
                 connectedSet.add(systemToConnectId);
                 unconnectedSet.delete(systemToConnectId);
@@ -551,7 +562,7 @@ document.addEventListener('DOMContentLoaded', () => {
       solarSystemObject = activeGalaxy.solarSystems.find(ss => ss.id === data.systemId);
     }
     if(solarSystemTitleText) {
-       solarSystemTitleText.textContent = (solarSystemObject && solarSystemObject.customName) ? solarSystemObject.customName : `System ${data.systemId ? data.systemId.substring(data.systemId.lastIndexOf('-')+1) : 'N/A'}`;
+      solarSystemTitleText.textContent = (solarSystemObject && solarSystemObject.customName) ? solarSystemObject.customName : `System ${data.systemId ? data.systemId.substring(data.systemId.lastIndexOf('-')+1) : 'N/A'}`;
     }
     if(isInteractive || !animationFrameId) { drawAllOrbits(); }
   }
@@ -598,8 +609,8 @@ document.addEventListener('DOMContentLoaded', () => {
     gal.currentPanY = gal.currentPanY || 0;
 
     if (galaxyDetailTitleText) {
-       galaxyDetailTitleText.textContent = gal.customName || `Galaxy ${gal.id.split('-')[1]}`;
-       galaxyDetailTitleText.style.display = 'inline-block';
+      galaxyDetailTitleText.textContent = gal.customName || `Galaxy ${gal.id.split('-')[1]}`;
+      galaxyDetailTitleText.style.display = 'inline-block';
     }
     if(galaxyDetailTitleInput) galaxyDetailTitleInput.style.display = 'none';
 
@@ -616,20 +627,20 @@ document.addEventListener('DOMContentLoaded', () => {
   }
 
 
-function hexToRgb(hex) {
+  function hexToRgb(hex) {
     const bigint = parseInt(hex.slice(1), 16);
     const r = (bigint >> 16) & 255;
     const g = (bigint >> 8) & 255;
     const b = bigint & 255;
     return [r, g, b, 255];
-}
+  }
 
-function createContinentTexture(waterColorHex, landColorHex, seed, textureSize = 512, octaves = 6, persistence = 0.5, scale = 1.0) {
+  function createContinentTexture(waterColorHex, landColorHex, seed, textureSize = 512, octaves = 6, persistence = 0.5, scale = 1.0) {
     const canvas = document.createElement('canvas');
     canvas.width = textureSize * 2;
     canvas.height = textureSize;
     const ctx = canvas.getContext('2d', { willReadFrequently: true });
-    
+
     const noiseGen = new PerlinNoise(seed);
     const waterRgb = hexToRgb(waterColorHex);
     const landRgb = hexToRgb(landColorHex);
@@ -638,127 +649,125 @@ function createContinentTexture(waterColorHex, landColorHex, seed, textureSize =
     const data = imageData.data;
 
     for (let y = 0; y < canvas.height; y++) {
-        for (let x = 0; x < canvas.width; x++) {
-            const lat = (y / canvas.height) * Math.PI;
-            const lon = (x / canvas.width) * 2 * Math.PI;
+      for (let x = 0; x < canvas.width; x++) {
+        const lat = (y / canvas.height) * Math.PI;
+        const lon = (x / canvas.width) * 2 * Math.PI;
 
-            const nx = Math.sin(lat) * Math.cos(lon) * scale;
-            const ny = Math.cos(lat) * scale;
-            const nz = Math.sin(lat) * Math.sin(lon) * scale;
+        const nx = Math.sin(lat) * Math.cos(lon) * scale;
+        const ny = Math.cos(lat) * scale;
+        const nz = Math.sin(lat) * Math.sin(lon) * scale;
 
-            let noiseValue = noiseGen.fractalNoise(nx, ny, nz, octaves, persistence);
-            noiseValue = (noiseValue + 1) / 2;
+        let noiseValue = noiseGen.fractalNoise(nx, ny, nz, octaves, persistence);
+        noiseValue = (noiseValue + 1) / 2;
 
-            const threshold = 0.5;
+        const threshold = 0.5;
 
-            let pixelR, pixelG, pixelB;
+        let pixelR, pixelG, pixelB;
 
-            if (noiseValue > threshold) {
-                pixelR = landRgb[0];
-                pixelG = landRgb[1];
-                pixelB = landRgb[2];
-            } else {
-                pixelR = waterRgb[0];
-                pixelG = waterRgb[1];
-                pixelB = waterRgb[2];
-            }
-
-            const index = (y * canvas.width + x) * 4;
-            data[index] = pixelR;
-            data[index + 1] = pixelG;
-            data[index + 2] = pixelB;
-            data[index + 3] = 255;
+        if (noiseValue > threshold) {
+          pixelR = landRgb[0];
+          pixelG = landRgb[1];
+          pixelB = landRgb[2];
+        } else {
+          pixelR = waterRgb[0];
+          pixelG = waterRgb[1];
+          pixelB = waterRgb[2];
         }
+
+        const index = (y * canvas.width + x) * 4;
+        data[index] = pixelR;
+        data[index + 1] = pixelG;
+        data[index + 2] = pixelB;
+        data[index + 3] = 255;
+      }
     }
     ctx.putImageData(imageData, 0, 0);
     return canvas;
-}
+  }
 
-function createOutlineTexture(waterColorHex, landColorHex, seed, textureSize = 512, octaves = 6, persistence = 0.5, scale = 1.0) {
+  function createOutlineTexture(waterColorHex, landColorHex, seed, textureSize = 512, octaves = 6, persistence = 0.5, scale = 1.0) {
     const canvas = document.createElement('canvas');
     canvas.width = textureSize * 2;
     canvas.height = textureSize;
     const ctx = canvas.getContext('2d', { willReadFrequently: true });
-    
+
     const noiseGen = new PerlinNoise(seed);
 
     const waterThreshold = 0.5;
     const neighborCheckDistance = 0.005;
-    const outlineColor = 'rgba(255, 255, 255, 255)';
-    const outlineLineWidth = 1;
 
     const imageData = ctx.createImageData(canvas.width, canvas.height);
     const data = imageData.data;
 
     for (let y = 0; y < canvas.height; y++) {
-        for (let x = 0; x < canvas.width; x++) {
-            const lat = (y / canvas.height) * Math.PI;
-            const lon = (x / canvas.width) * 2 * Math.PI;
+      for (let x = 0; x < canvas.width; x++) {
+        const lat = (y / canvas.height) * Math.PI;
+        const lon = (x / canvas.width) * 2 * Math.PI;
 
-            const nx = Math.sin(lat) * Math.cos(lon) * scale;
-            const ny = Math.cos(lat) * scale;
-            const nz = Math.sin(lat) * Math.sin(lon) * scale;
+        const nx = Math.sin(lat) * Math.cos(lon) * scale;
+        const ny = Math.cos(lat) * scale;
+        const nz = Math.sin(lat) * Math.sin(lon) * scale;
 
-            let baseNoise = (noiseGen.fractalNoise(nx, ny, nz, octaves, persistence) + 1) / 2;
-            let isBoundary = false;
+        let baseNoise = (noiseGen.fractalNoise(nx, ny, nz, octaves, persistence) + 1) / 2;
+        let isBoundary = false;
 
-            const checkPoints = [
-                { dl: neighborCheckDistance, dlo: 0 },
-                { dl: -neighborCheckDistance, dlo: 0 },
-                { dl: 0, dlo: neighborCheckDistance },
-                { dl: 0, dlo: -neighborCheckDistance }
-            ];
+        const checkPoints = [
+          { dl: neighborCheckDistance, dlo: 0 },
+          { dl: -neighborCheckDistance, dlo: 0 },
+          { dl: 0, dlo: neighborCheckDistance },
+          { dl: 0, dlo: -neighborCheckDistance }
+        ];
 
-            for (const { dl, dlo } of checkPoints) {
-                let neighborLat = lat + dl;
-                let neighborLon = lon + dlo;
+        for (const { dl, dlo } of checkPoints) {
+          let neighborLat = lat + dl;
+          let neighborLon = lon + dlo;
 
-                neighborLat = Math.max(0, Math.min(Math.PI, neighborLat));
-                neighborLon = (neighborLon + 2 * Math.PI) % (2 * Math.PI);
+          neighborLat = Math.max(0, Math.min(Math.PI, neighborLat));
+          neighborLon = (neighborLon + 2 * Math.PI) % (2 * Math.PI);
 
-                const neighborNx = Math.sin(neighborLat) * Math.cos(neighborLon) * scale;
-                const neighborNy = Math.cos(neighborLat) * scale;
-                const neighborNz = Math.sin(neighborLat) * Math.sin(neighborLon) * scale;
+          const neighborNx = Math.sin(neighborLat) * Math.cos(neighborLon) * scale;
+          const neighborNy = Math.cos(neighborLat) * scale;
+          const neighborNz = Math.sin(neighborLat) * Math.sin(neighborLon) * scale;
 
-                let neighborNoise = (noiseGen.fractalNoise(neighborNx, neighborNy, neighborNz, octaves, persistence) + 1) / 2;
+          let neighborNoise = (noiseGen.fractalNoise(neighborNx, neighborNy, neighborNz, octaves, persistence) + 1) / 2;
 
-                const baseIsLand = baseNoise > waterThreshold;
-                const neighborIsLand = neighborNoise > waterThreshold;
+          const baseIsLand = baseNoise > waterThreshold;
+          const neighborIsLand = neighborNoise > waterThreshold;
 
-                if (baseIsLand !== neighborIsLand) {
-                    isBoundary = true;
-                    break;
-                }
-            }
-
-            const index = (y * canvas.width + x) * 4;
-            if (isBoundary) {
-                data[index] = 255;
-                data[index + 1] = 255;
-                data[index + 2] = 255;
-                data[index + 3] = 255;
-            } else {
-                data[index] = 0;
-                data[index + 1] = 0;
-                data[index + 2] = 0;
-                data[index + 3] = 0;
-            }
+          if (baseIsLand !== neighborIsLand) {
+            isBoundary = true;
+            break;
+          }
         }
+
+        const index = (y * canvas.width + x) * 4;
+        if (isBoundary) {
+          data[index] = 255;
+          data[index + 1] = 255;
+          data[index + 2] = 255;
+          data[index + 3] = 255;
+        } else {
+          data[index] = 0;
+          data[index + 1] = 0;
+          data[index + 2] = 0;
+          data[index + 3] = 0;
+        }
+      }
     }
     ctx.putImageData(imageData, 0, 0);
     return canvas;
-}
+  }
 
-function drawContinentOutlinesOnSphere(ctx, planetData, currentLon, currentLat, sphereRadius, centerX, centerY, isDragging) {
+  function drawContinentOutlinesOnSphere(ctx, planetData, currentLon, currentLat, sphereRadius, centerX, centerY, isDragging) {
     if (isDragging) {
       return;
     }
-    
+
     if (!planetData.outlineTextureCanvas || planetData.waterColor !== planetData._cachedOutlineWaterColor || planetData.landColor !== planetData._cachedOutlineLandColor || planetData.continentSeed !== planetData._cachedOutlineContinentSeed) {
-        planetData.outlineTextureCanvas = createOutlineTexture(planetData.waterColor, planetData.landColor, planetData.continentSeed);
-        planetData._cachedOutlineWaterColor = planetData.waterColor;
-        planetData._cachedOutlineLandColor = planetData.landColor;
-        planetData._cachedOutlineContinentSeed = planetData.continentSeed;
+      planetData.outlineTextureCanvas = createOutlineTexture(planetData.waterColor, planetData.landColor, planetData.continentSeed);
+      planetData._cachedOutlineWaterColor = planetData.waterColor;
+      planetData._cachedOutlineLandColor = planetData.landColor;
+      planetData._cachedOutlineContinentSeed = planetData.continentSeed;
     }
 
     const outlineTextureCanvas = planetData.outlineTextureCanvas;
@@ -767,55 +776,53 @@ function drawContinentOutlinesOnSphere(ctx, planetData, currentLon, currentLat, 
     const textureWidth = outlineTextureCanvas.width;
     const textureHeight = outlineTextureCanvas.height;
 
-    const R = 1;
-
-    const steps = Math.ceil(sphereRadius * 2); 
+    const steps = Math.ceil(sphereRadius * 2);
 
     for (let i = 0; i < steps; i++) {
-        for (let j = 0; j < steps; j++) {
-            const nx = (i / (steps - 1)) * 2 - 1;
-            const ny = (j / (steps - 1)) * 2 - 1;
-            if (nx * nx + ny * ny > 1) continue;
+      for (let j = 0; j < steps; j++) {
+        const nx = (i / (steps - 1)) * 2 - 1;
+        const ny = (j / (steps - 1)) * 2 - 1;
+        if (nx * nx + ny * ny > 1) continue;
 
-            const x_sphere = nx;
-            const y_sphere = ny;
-            const z_sphere = Math.sqrt(1 - x_sphere * x_sphere - y_sphere * y_sphere);
+        const x_sphere = nx;
+        const y_sphere = ny;
+        const z_sphere = Math.sqrt(1 - x_sphere * x_sphere - y_sphere * y_sphere);
 
-            const pX_lat = x_sphere;
-            const pY_lat = y_sphere * Math.cos(currentLat) - z_sphere * Math.sin(currentLat);
-            const pZ_lat = y_sphere * Math.sin(currentLat) + z_sphere * Math.cos(currentLat);
+        const pX_lat = x_sphere;
+        const pY_lat = y_sphere * Math.cos(currentLat) - z_sphere * Math.sin(currentLat);
+        const pZ_lat = y_sphere * Math.sin(currentLat) + z_sphere * Math.cos(currentLat);
 
-            const rotatedX = pX_lat * Math.cos(currentLon) + pZ_lat * Math.sin(currentLon);
-            const rotatedY = pY_lat;
-            const rotatedZ = -pX_lat * Math.sin(currentLon) + pZ_lat * Math.cos(currentLon);
+        const rotatedX = pX_lat * Math.cos(currentLon) + pZ_lat * Math.sin(currentLon);
+        const rotatedY = pY_lat;
+        const rotatedZ = -pX_lat * Math.sin(currentLon) + pZ_lat * Math.cos(currentLon);
 
-            if (rotatedZ < -0.01) continue;
+        if (rotatedZ < -0.01) continue;
 
-            const phi_original = Math.acos(rotatedY);
-            const theta_original = (Math.atan2(rotatedX, rotatedZ) + 2 * Math.PI) % (2 * Math.PI);
+        const phi_original = Math.acos(rotatedY);
+        const theta_original = (Math.atan2(rotatedX, rotatedZ) + 2 * Math.PI) % (2 * Math.PI);
 
-            let texU = theta_original / (2 * Math.PI);
-            let texV = phi_original / Math.PI;
+        let texU = theta_original / (2 * Math.PI);
+        let texV = phi_original / Math.PI;
 
-            let sx = Math.floor(texU * textureWidth);
-            let sy = Math.floor(texV * textureHeight);
+        let sx = Math.floor(texU * textureWidth);
+        let sy = Math.floor(texV * textureHeight);
 
-            sx = Math.max(0, Math.min(textureWidth - 1, sx));
-            sy = Math.max(0, Math.min(textureHeight - 1, sy));
+        sx = Math.max(0, Math.min(textureWidth - 1, sx));
+        sy = Math.max(0, Math.min(textureHeight - 1, sy));
 
-            const idx = (sy * textureWidth + sx) * 4;
-            const alpha = outlineTextureData.data[idx + 3];
+        const idx = (sy * textureWidth + sx) * 4;
+        const alpha = outlineTextureData.data[idx + 3];
 
-            if (alpha > 0) {
-                ctx.fillStyle = `rgba(${outlineTextureData.data[idx]},${outlineTextureData.data[idx+1]},${outlineTextureData.data[idx+2]},${alpha / 255})`;
-                ctx.fillRect(centerX + nx * sphereRadius, centerY + ny * sphereRadius, 1, 1);
-            }
+        if (alpha > 0) {
+          ctx.fillStyle = `rgba(${outlineTextureData.data[idx]},${outlineTextureData.data[idx+1]},${outlineTextureData.data[idx+2]},${alpha / 255})`;
+          ctx.fillRect(centerX + nx * sphereRadius, centerY + ny * sphereRadius, 1, 1);
         }
+      }
     }
-}
+  }
 
 
-function renderPlanetVisual(planetData, longitude = 0, latitude = 0, targetCanvas = planetVisualCanvas) {
+  function renderPlanetVisual(planetData, longitude = 0, latitude = 0, targetCanvas = planetVisualCanvas) {
     if (!planetData || !targetCanvas) return;
 
     const ctx = targetCanvas.getContext('2d', { willReadFrequently: true });
@@ -829,8 +836,8 @@ function renderPlanetVisual(planetData, longitude = 0, latitude = 0, targetCanva
     const radius = Math.min(canvasWidth, canvasHeight) * 0.4;
     const isDragging = (targetCanvas === planetVisualCanvas && isDraggingPlanetVisual) || (targetCanvas === designerPlanetCanvas && isDraggingDesignerPlanet);
     const steps = isDragging
-        ? Math.ceil(radius * 1.0)
-        : Math.ceil(radius * 2.0);
+      ? Math.ceil(radius * 1.0)
+      : Math.ceil(radius * 2.0);
 
     const lightSourceLongitude = Math.PI / 4;
     const lightSourceLatitude = Math.PI / 8;
@@ -840,25 +847,25 @@ function renderPlanetVisual(planetData, longitude = 0, latitude = 0, targetCanva
     const lightVecZ = Math.cos(lightSourceLatitude) * Math.cos(lightSourceLongitude);
 
     if (!planetData.continentSeed) {
-        planetData.continentSeed = Math.random();
+      planetData.continentSeed = Math.random();
     }
     if (!planetData.waterColor) {
-        if (planetData.type === 'normal' && planetData.color) {
-            planetData.waterColor = `hsl(${planetData.color.hue}, ${planetData.color.saturation}%, ${planetData.color.lightness}%)`;
-            planetData.landColor = `hsl(${planetData.color.hue}, ${planetData.color.saturation + 10}%, ${planetData.color.lightness + 10}%)`;
-            delete planetData.color;
-        } else {
-            planetData.waterColor = '#000080';
-            planetData.landColor = '#006400';
-        }
-        planetData.type = 'terrestrial';
+      if (planetData.type === 'normal' && planetData.color) {
+        planetData.waterColor = `hsl(${planetData.color.hue}, ${planetData.color.saturation}%, ${planetData.color.lightness}%)`;
+        planetData.landColor = `hsl(${planetData.color.hue}, ${planetData.color.saturation + 10}%, ${planetData.color.lightness + 10}%)`;
+        delete planetData.color;
+      } else {
+        planetData.waterColor = '#000080';
+        planetData.landColor = '#006400';
+      }
+      planetData.type = 'terrestrial';
     }
 
     if (!planetData.textureCanvas || planetData.waterColor !== planetData._cachedWaterColor || planetData.landColor !== planetData._cachedLandColor || planetData.continentSeed !== planetData._cachedContinentSeed) {
-        planetData.textureCanvas = createContinentTexture(planetData.waterColor, planetData.landColor, planetData.continentSeed);
-        planetData._cachedWaterColor = planetData.waterColor;
-        planetData._cachedLandColor = planetData.landColor;
-        planetData._cachedContinentSeed = planetData.continentSeed;
+      planetData.textureCanvas = createContinentTexture(planetData.waterColor, planetData.landColor, planetData.continentSeed);
+      planetData._cachedWaterColor = planetData.waterColor;
+      planetData._cachedLandColor = planetData.landColor;
+      planetData._cachedContinentSeed = planetData.continentSeed;
     }
     const textureCanvas = planetData.textureCanvas;
     const textureCtx = textureCanvas.getContext('2d', { willReadFrequently: true });
@@ -872,58 +879,58 @@ function renderPlanetVisual(planetData, longitude = 0, latitude = 0, targetCanva
     ctx.clip();
 
     for (let i = 0; i < steps; i++) {
-        for (let j = 0; j < steps; j++) {
-            const nx = (i / (steps - 1)) * 2 - 1;
-            const ny = (j / (steps - 1)) * 2 - 1;
-            if (nx * nx + ny * ny > 1) continue;
+      for (let j = 0; j < steps; j++) {
+        const nx = (i / (steps - 1)) * 2 - 1;
+        const ny = (j / (steps - 1)) * 2 - 1;
+        if (nx * nx + ny * ny > 1) continue;
 
-            const x_sphere = nx;
-            const y_sphere = ny;
-            const z_sphere = Math.sqrt(1 - x_sphere * x_sphere - y_sphere * y_sphere);
+        const x_sphere = nx;
+        const y_sphere = ny;
+        const z_sphere = Math.sqrt(1 - x_sphere * x_sphere - y_sphere * y_sphere);
 
-            const pX_lat = x_sphere;
-            const pY_lat = y_sphere * Math.cos(latitude) - z_sphere * Math.sin(latitude);
-            const pZ_lat = y_sphere * Math.sin(latitude) + z_sphere * Math.cos(latitude);
+        const pX_lat = x_sphere;
+        const pY_lat = y_sphere * Math.cos(latitude) - z_sphere * Math.sin(latitude);
+        const pZ_lat = y_sphere * Math.sin(latitude) + z_sphere * Math.cos(latitude);
 
-            const rotatedX = pX_lat * Math.cos(longitude) + pZ_lat * Math.sin(longitude);
-            const rotatedY = pY_lat;
-            const rotatedZ = -pX_lat * Math.sin(longitude) + pZ_lat * Math.cos(longitude);
+        const rotatedX = pX_lat * Math.cos(longitude) + pZ_lat * Math.sin(longitude);
+        const rotatedY = pY_lat;
+        const rotatedZ = -pX_lat * Math.sin(longitude) + pZ_lat * Math.cos(longitude);
 
-            const phi_original = Math.acos(rotatedY);
-            const theta_original = (Math.atan2(rotatedX, rotatedZ) + 2 * Math.PI) % (2 * Math.PI);
+        const phi_original = Math.acos(rotatedY);
+        const theta_original = (Math.atan2(rotatedX, rotatedZ) + 2 * Math.PI) % (2 * Math.PI);
 
-            let texU = theta_original / (2 * Math.PI);
-            let texV = phi_original / Math.PI;
+        let texU = theta_original / (2 * Math.PI);
+        let texV = phi_original / Math.PI;
 
-            let sx = Math.floor(texU * textureWidth);
-            let sy = Math.floor(texV * textureHeight);
+        let sx = Math.floor(texU * textureWidth);
+        let sy = Math.floor(texV * textureHeight);
 
-            sx = Math.max(0, Math.min(textureWidth - 1, sx));
-            sy = Math.max(0, Math.min(textureHeight - 1, sy));
+        sx = Math.max(0, Math.min(textureWidth - 1, sx));
+        sy = Math.max(0, Math.min(textureHeight - 1, sy));
 
-            const idx = (sy * textureWidth + sx) * 4;
-            let r = textureData.data[idx];
-            let g = textureData.data[idx + 1];
-            let b = textureData.data[idx + 2];
-            let a = textureData.data[idx + 3];
+        const idx = (sy * textureWidth + sx) * 4;
+        let r = textureData.data[idx];
+        let g = textureData.data[idx + 1];
+        let b = textureData.data[idx + 2];
+        let a = textureData.data[idx + 3];
 
-            const ambientLight = 0.25;
-            const diffuseLight = 0.75;
-            const dotProduct = rotatedX * lightVecX + rotatedY * lightVecY + rotatedZ * lightVecZ;
-            const lightIntensity = Math.max(0, dotProduct) * diffuseLight + ambientLight;
+        const ambientLight = 0.25;
+        const diffuseLight = 0.75;
+        const dotProduct = rotatedX * lightVecX + rotatedY * lightVecY + rotatedZ * lightVecZ;
+        const lightIntensity = Math.max(0, dotProduct) * diffuseLight + ambientLight;
 
-            r = Math.min(255, r * lightIntensity);
-            g = Math.min(255, g * lightIntensity);
-            b = Math.min(255, b * lightIntensity);
+        r = Math.min(255, r * lightIntensity);
+        g = Math.min(255, g * lightIntensity);
+        b = Math.min(255, b * lightIntensity);
 
-            ctx.fillStyle = `rgba(${r},${g},${b},${a / 255})`;
-            ctx.fillRect(centerX + nx * radius, centerY + ny * radius, 1, 1);
-        }
+        ctx.fillStyle = `rgba(${r},${g},${b},${a / 255})`;
+        ctx.fillRect(centerX + nx * radius, centerY + ny * radius, 1, 1);
+      }
     }
     ctx.restore();
 
     drawContinentOutlinesOnSphere(ctx, planetData, longitude, latitude, radius, centerX, centerY, isDragging);
-}
+  }
 
   function switchToSolarSystemView(solarSystemId) {
     gameSessionData.activeSolarSystemId = solarSystemId;
@@ -978,13 +985,13 @@ function renderPlanetVisual(planetData, longitude = 0, latitude = 0, targetCanva
       const orbitalSpeed = MIN_ROTATION_SPEED_RAD_PER_PERLIN_UNIT + Math.random() * (MAX_ROTATION_SPEED_RAD_PER_PERLIN_UNIT - MIN_ROTATION_SPEED_RAD_PER_PERLIN_UNIT);
       const initialAxialAngle = Math.random() * 2 * Math.PI;
       const axialSpeed = DEFAULT_PLANET_AXIAL_SPEED * (Math.random() * 0.5 + 0.75);
-      
+
       const newPlanet = { id: `planet-${i+1}`, size: planetSize, distance: planetDistance,
-                currentOrbitalAngle: initialOrbitalAngle, orbitalSpeed: orbitalSpeed,
-                currentAxialAngle: initialAxialAngle, axialSpeed: axialSpeed,
-                element: null,
-                planetName: `Planet ${i+1}`
-             };
+        currentOrbitalAngle: initialOrbitalAngle, orbitalSpeed: orbitalSpeed,
+        currentAxialAngle: initialAxialAngle, axialSpeed: axialSpeed,
+        element: null,
+        planetName: `Planet ${i+1}`
+      };
 
       if (gameSessionData.customPlanetDesigns.length > 0 && Math.random() < 0.5) {
         const randomDesign = gameSessionData.customPlanetDesigns[Math.floor(Math.random() * gameSessionData.customPlanetDesigns.length)];
@@ -1010,7 +1017,7 @@ function renderPlanetVisual(planetData, longitude = 0, latitude = 0, targetCanva
       const randomPos = 15 + Math.random() * 40;
       const randomSize = 20 + Math.random() * 30;
       let backgroundStyle = `radial-gradient(circle at ${randomPos}% ${randomPos}%, ${newPlanet.landColor} ${randomSize}%, transparent ${randomSize + 20}%), ${newPlanet.waterColor}`;
-                                     
+
       if (Math.random() < 0.5) {
         const randomPos2 = 15 + Math.random() * 40;
         const randomSize2 = 20 + Math.random() * 30;
@@ -1051,9 +1058,9 @@ function renderPlanetVisual(planetData, longitude = 0, latitude = 0, targetCanva
     makeTitleEditable(solarSystemTitleText, solarSystemTitleInput, (newName) => {
       if (solarSystemObject) {
         solarSystemObject.customName = newName || null;
-         saveGameState();
-         renderGalaxyDetailScreen();
-         return solarSystemObject.customName || `System ${solarSystemId.substring(solarSystemId.lastIndexOf('-')+1)}`;
+        saveGameState();
+        renderGalaxyDetailScreen();
+        return solarSystemObject.customName || `System ${solarSystemId.substring(solarSystemId.lastIndexOf('-')+1)}`;
       }
       return `System ${solarSystemId.substring(solarSystemId.lastIndexOf('-')+1)}`;
     });
@@ -1095,9 +1102,9 @@ function renderPlanetVisual(planetData, longitude = 0, latitude = 0, targetCanva
   }
   function clampSolarSystemPan(dataObject, viewportWidth, viewportHeight) { if (!dataObject || !viewportWidth || !viewportHeight) { if (dataObject) { dataObject.currentPanX = 0; dataObject.currentPanY = 0; } return; } const zm = dataObject.zoomLevel; const explorableRadius = SOLAR_SYSTEM_EXPLORABLE_RADIUS; const scaledExplorableRadius = explorableRadius * zm; const panSlackX = scaledExplorableRadius - viewportWidth / 2; const panSlackY = scaledExplorableRadius - viewportHeight / 2; const panLimitX = Math.abs(panSlackX); const panLimitY = Math.abs(panSlackY); dataObject.currentPanX = Math.max(-panLimitX, Math.min(panLimitX, dataObject.currentPanX)); dataObject.currentPanY = Math.max(-panLimitY, Math.min(panLimitY, dataObject.currentPanY)); }
   function clampGalaxyPan(galaxy) { if(!galaxy || !galaxyViewport) return; const vw = galaxyViewport.offsetWidth; const vh = galaxyViewport.offsetHeight; const zm = galaxy.currentZoom; if(zm <= GALAXY_VIEW_MIN_ZOOM){ galaxy.currentPanX=0; galaxy.currentPanY=0; } else { const panLimitX = (vw * zm - vw) / 2; const panLimitY = (vh * zm - vh) / 2; galaxy.currentPanX = Math.max(-panLimitX, Math.min(panLimitX, galaxy.currentPanX)); galaxy.currentPanY = Math.max(-panLimitY, Math.min(panLimitY, galaxy.currentPanY)); } }
-  function handleZoom(direction,mouseEvent=null){let targetData, viewportElement, currentClampFunction, currentRenderFunction, hardcodedMinZoom, hardcodedMaxZoom, currentZoomProp, currentPanXProp, currentPanYProp, isSolarView=false;if(galaxyDetailScreen.classList.contains('active')){const g=gameSessionData.galaxies.find(gl=>gl.id===gameSessionData.activeGalaxyId); if(!g)return;targetData=g; viewportElement=galaxyViewport; currentClampFunction=clampGalaxyPan; currentRenderFunction=renderGalaxyDetailScreen; hardcodedMinZoom=GALAXY_VIEW_MIN_ZOOM; hardcodedMinZoom=GALAXY_VIEW_MAX_ZOOM;currentZoomProp='currentZoom'; currentPanXProp='currentPanX'; currentPanYProp='currentPanY';} else if(solarSystemScreen.classList.contains('active')){isSolarView = true;targetData=gameSessionData.solarSystemView; viewportElement=solarSystemScreen; currentClampFunction=clampSolarSystemPan; currentRenderFunction=renderSolarSystemScreen; hardcodedMinZoom=SOLAR_SYSTEM_VIEW_MIN_ZOOM; hardcodedMaxZoom=SOLAR_SYSTEM_VIEW_MAX_ZOOM;currentZoomProp='zoomLevel'; currentPanXProp='currentPanX'; currentPanYProp='currentPanY';} else return;const oldZoom=targetData[currentZoomProp];let newCalculatedZoom =oldZoom+(direction==='in'?(ZOOM_STEP*oldZoom):-(ZOOM_STEP*oldZoom)); let finalMinZoomForClamping = hardcodedMinZoom;if (isSolarView) {const viewportWidth = viewportElement.offsetWidth;const viewportHeight = viewportElement.offsetHeight;let dynamicMinZoomBasedOnExplorable = 0; if (SOLAR_SYSTEM_EXPLORABLE_RADIUS > 0 && (viewportWidth > 0 || viewportHeight > 0)) {const minZoomToCoverWidth = viewportWidth > 0 ? viewportWidth / (SOLAR_SYSTEM_EXPLORABLE_RADIUS * 2) : 0;const minZoomToCoverHeight = viewportHeight > 0 ? viewportHeight / (SOLAR_SYSTEM_EXPLORABLE_RADIUS * 2) : 0;dynamicMinZoomBasedOnExplorable = Math.max(minZoomToCoverWidth, minZoomToCoverHeight);}finalMinZoomForClamping = Math.max(hardcodedMinZoom, dynamicMinZoomBasedOnExplorable);}newCalculatedZoom=Math.max(finalMinZoomForClamping, Math.min(hardcodedMaxZoom, newCalculatedZoom)); if (Math.abs(oldZoom - newCalculatedZoom) < 0.0001) return; targetData[currentZoomProp]=newCalculatedZoom; if(mouseEvent){ const rect=viewportElement.getBoundingClientRect();const mX=mouseEvent.clientX-rect.left;const mY=mouseEvent.clientY-rect.top;const oPX=targetData[currentPanXProp]||0; const oPY=targetData[currentPanYProp]||0; const worldX = (mX - viewportElement.offsetWidth/2 - oPX) / oldZoom;const worldY = (mY - viewportElement.offsetHeight/2 - oPY) / oldZoom;targetData[currentPanXProp] = (mX - viewportElement.offsetWidth/2) - (worldX * newCalculatedZoom);targetData[currentPanYProp] = (mY - viewportElement.offsetHeight/2) - (worldY * newCalculatedZoom);}if(isSolarView) currentClampFunction(targetData, viewportElement.offsetWidth, viewportElement.offsetHeight);else currentClampFunction(targetData); currentRenderFunction(true);if (isSolarView) { const activeSysView = gameSessionData.solarSystemView;activeSysView.planets.forEach(planet => {if (planet.element) {const planetScreenX = planet.distance * Math.cos(planet.currentOrbitalAngle);const planetScreenY = planet.distance * Math.sin(planet.currentOrbitalAngle);planet.element.style.left = `calc(50% + ${planetScreenX}px - ${planet.size / 2}px)`;planet.element.style.top = `calc(50% + ${planetScreenY}px - ${planet.size / 2}px)`;planet.element.style.transform = `translate(-50%, -50%) rotate(${planet.currentAxialAngle}rad)`;}});drawAllOrbits(); }}
+  function handleZoom(direction,mouseEvent=null){let targetData, viewportElement, currentClampFunction, currentRenderFunction, hardcodedMinZoom, hardcodedMaxZoom, currentZoomProp, currentPanXProp, currentPanYProp, isSolarView=false;if(galaxyDetailScreen.classList.contains('active')){const g=gameSessionData.galaxies.find(gl=>gl.id===gameSessionData.activeGalaxyId); if(!g)return;targetData=g; viewportElement=galaxyViewport; currentClampFunction=clampGalaxyPan; currentRenderFunction=renderGalaxyDetailScreen; hardcodedMinZoom=GALAXY_VIEW_MIN_ZOOM; hardcodedMaxZoom=GALAXY_VIEW_MAX_ZOOM;currentZoomProp='currentZoom'; currentPanXProp='currentPanX'; currentPanYProp='currentPanY';} else if(solarSystemScreen.classList.contains('active')){isSolarView = true;targetData=gameSessionData.solarSystemView; viewportElement=solarSystemScreen; currentClampFunction=clampSolarSystemPan; currentRenderFunction=renderSolarSystemScreen; hardcodedMinZoom=SOLAR_SYSTEM_VIEW_MIN_ZOOM; hardcodedMaxZoom=SOLAR_SYSTEM_VIEW_MAX_ZOOM;currentZoomProp='zoomLevel'; currentPanXProp='currentPanX'; currentPanYProp='currentPanY';} else return;const oldZoom=targetData[currentZoomProp];let newCalculatedZoom =oldZoom+(direction==='in'?(ZOOM_STEP*oldZoom):-(ZOOM_STEP*oldZoom)); let finalMinZoomForClamping = hardcodedMinZoom;if (isSolarView) {const viewportWidth = viewportElement.offsetWidth;const viewportHeight = viewportElement.offsetHeight;let dynamicMinZoomBasedOnExplorable = 0; if (SOLAR_SYSTEM_EXPLORABLE_RADIUS > 0 && (viewportWidth > 0 || viewportHeight > 0)) {const minZoomToCoverWidth = viewportWidth > 0 ? viewportWidth / (SOLAR_SYSTEM_EXPLORABLE_RADIUS * 2) : 0;const minZoomToCoverHeight = viewportHeight > 0 ? viewportHeight / (SOLAR_SYSTEM_EXPLORABLE_RADIUS * 2) : 0;dynamicMinZoomBasedOnExplorable = Math.max(minZoomToCoverWidth, minZoomToCoverHeight);}finalMinZoomForClamping = Math.max(hardcodedMinZoom, dynamicMinZoomBasedOnExplorable);}newCalculatedZoom=Math.max(finalMinZoomForClamping, Math.min(hardcodedMaxZoom, newCalculatedZoom)); if (Math.abs(oldZoom - newCalculatedZoom) < 0.0001) return; targetData[currentZoomProp]=newCalculatedZoom; if(mouseEvent){ const rect=viewportElement.getBoundingClientRect();const mX=mouseEvent.clientX-rect.left;const mY=mouseEvent.clientY-rect.top;const oPX=targetData[currentPanXProp]||0; const oPY=targetData[currentPanYProp]||0; const worldX = (mX - viewportElement.offsetWidth/2 - oPX) / oldZoom;const worldY = (mY - viewportElement.offsetHeight/2 - oPY) / oldZoom;targetData[currentPanXProp] = (mX - viewportElement.offsetWidth/2) - (worldX * newCalculatedZoom);targetData[currentPanYProp] = (mY - viewportElement.offsetHeight/2) - (worldY * newCalculatedZoom);}if(isSolarView) currentClampFunction(targetData, viewportElement.offsetWidth, viewportElement.offsetHeight);else currentClampFunction(targetData); currentRenderFunction(true);if (isSolarView) { const activeSysView = gameSessionData.solarSystemView;activeSysView.planets.forEach(planet => {if (planet.element) {const planetScreenX = planet.distance * Math.cos(planet.currentOrbitalAngle);const planetScreenY = planet.distance * Math.sin(planet.currentOrbitalAngle);planet.element.style.left = `calc(50% + ${planetScreenX}px - ${planet.size / 2}px)`;planet.element.style.top = `calc(50% + ${planetScreenY}px - ${planet.size / 2}px)`;planet.element.style.transform = `translate(-50%, -50%) rotate(${planet.currentAxialAngle}rad)`;}});drawAllOrbits(); }}
   function startPan(event,viewportEl,contentEl,dataObjectRef){if(event.button!==0||event.target.closest('button'))return;if(viewportEl===galaxyViewport&&(event.target.classList.contains('solar-system-icon')||event.target.closest('.solar-system-icon')))return;const pS=gameSessionData.panning;pS.isActive=true;pS.startX=event.clientX;pS.startY=event.clientY;pS.initialPanX=dataObjectRef.currentPanX||0;pS.initialPanY=dataObjectRef.currentPanY||0;pS.targetElement=contentEl;pS.viewportElement=viewportEl;pS.dataObject=dataObjectRef;viewportEl.classList.add('dragging');if(contentEl) contentEl.style.transition='none';event.preventDefault()}
-  function panMouseMove(event){if(!gameSessionData.panning.isActive)return;const pS=gameSessionData.panning,dX=event.clientX-pS.startX,dY=event.clientY-pS.startY;pS.dataObject.currentPanX=pS.initialPanX+dX;pS.dataObject.currentPanY=pS.initialPanY+dY;if(pS.viewportElement===galaxyViewport){clampGalaxyPan(pS.dataObject);renderGalaxyDetailScreen(true)}else if(pS.viewportElement===solarSystemScreen){clampSolarSystemPan(pS.dataObject,pS.viewportElement.offsetWidth,pS.viewportElement.offsetHeight);renderSolarSystemScreen(true); } }}
+  function panMouseMove(event){if(!gameSessionData.panning.isActive)return;const pS=gameSessionData.panning,dX=event.clientX-pS.startX,dY=event.clientY-pS.startY;pS.dataObject.currentPanX=pS.initialPanX+dX;pS.dataObject.currentPanY=pS.initialPanY+dY;if(pS.viewportElement===galaxyViewport){clampGalaxyPan(pS.dataObject);renderGalaxyDetailScreen(true)}else if(pS.viewportElement===solarSystemScreen){clampSolarSystemPan(pS.dataObject,pS.viewportElement.offsetWidth,pS.viewportElement.offsetHeight);renderSolarSystemScreen(true); } }
   function panMouseUp(){if(!gameSessionData.panning.isActive)return;if(gameSessionData.panning.viewportElement)gameSessionData.panning.viewportElement.classList.remove('dragging');const pS=gameSessionData.panning;pS.isActive=!1;if(pS.targetElement)pS.targetElement.style.transition='';if(galaxyDetailScreen.classList.contains('active'))renderGalaxyDetailScreen(!1);else if(solarSystemScreen.classList.contains('active'))renderSolarSystemScreen(!1);pS.targetElement=null;pS.viewportElement=null;pS.dataObject=null;}
 
   function regenerateCurrentUniverseState(fromModal = false){if (!fromModal && !confirm("Regenerate universe with current settings? This will clear the currently saved layout.")) {return;}localStorage.removeItem('galaxyGameSaveData');gameSessionData.universe = { diameter: null };gameSessionData.galaxies = [];gameSessionData.activeGalaxyId = null;gameSessionData.activeSolarSystemId = null;gameSessionData.solarSystemView = { zoomLevel: 1.0, currentPanX: 0, currentPanY: 0, planets: [], systemId: null };gameSessionData.isInitialized = false;if (universeCircle) universeCircle.innerHTML = '';if (galaxyZoomContent) {const canvas = galaxyZoomContent.querySelector('#solar-system-lines-canvas');galaxyZoomContent.innerHTML = ''; if(canvas) galaxyZoomContent.appendChild(canvas); }if (solarSystemContent) solarSystemContent.innerHTML = '';if (orbitCtx && solarSystemOrbitCanvasEl) orbitCtx.clearRect(0,0,solarSystemOrbitCanvasEl.width,solarSystemOrbitCanvasEl.height);if (animationFrameId) { cancelAnimationFrame(animationFrameId); animationFrameId = null; }initializeGame(true); }
@@ -1137,168 +1144,168 @@ function renderPlanetVisual(planetData, longitude = 0, latitude = 0, targetCanva
     });
   }
 
-planetVisualCanvas.addEventListener('mousedown', (e) => {
-  if (e.button !== 0 || !currentPlanetDisplayedInPanel) return;
-  isDraggingPlanetVisual = true;
-  lastDragX = e.clientX;
-  lastDragY = e.clientY;
-  planetVisualCanvas.classList.add('dragging');
-  e.preventDefault();
-});
-
-window.addEventListener('mousemove', (e) => {
-  if (isPanelDragging) {
-    planetVisualPanel.style.left = `${e.clientX - visualPanelOffset.x}px`;
-    planetVisualPanel.style.top = `${e.clientY - visualPanelOffset.y}px`;
-  }
-  if (isDraggingPlanetVisual && currentPlanetDisplayedInPanel && planetVisualPanel.classList.contains('visible')) {
-    const deltaX = e.clientX - lastDragX;
-    const deltaY = e.clientY - lastDragY;
-    rotationLongitude += deltaX * 0.005;
-    rotationLatitude += deltaY * 0.005;
+  planetVisualCanvas.addEventListener('mousedown', (e) => {
+    if (e.button !== 0 || !currentPlanetDisplayedInPanel) return;
+    isDraggingPlanetVisual = true;
     lastDragX = e.clientX;
     lastDragY = e.clientY;
-    if (!renderPending) {
-      renderPending = true;
-      requestAnimationFrame(() => {
-        renderPlanetVisual(currentPlanetDisplayedInPanel, rotationLongitude, rotationLatitude, planetVisualCanvas);
-        renderPending = false;
-      });
-    }
-  }
-});
+    planetVisualCanvas.classList.add('dragging');
+    e.preventDefault();
+  });
 
-planetVisualCanvas.addEventListener('click', (e) => {
-});
-
-
-window.addEventListener('mouseup', () => {
+  window.addEventListener('mousemove', (e) => {
     if (isPanelDragging) {
-        isPanelDragging = false;
-        planetVisualPanelHeader.classList.remove('dragging');
-        planetVisualPanel.style.transition = '';
+      planetVisualPanel.style.left = `${e.clientX - visualPanelOffset.x}px`;
+      planetVisualPanel.style.top = `${e.clientY - visualPanelOffset.y}px`;
     }
-  if (isDraggingPlanetVisual) {
-    isDraggingPlanetVisual = false;
-    planetVisualCanvas.classList.remove('dragging');
-    renderPlanetVisual(currentPlanetDisplayedInPanel, rotationLongitude, rotationLatitude, planetVisualCanvas);
-  }
-});
+    if (isDraggingPlanetVisual && currentPlanetDisplayedInPanel && planetVisualPanel.classList.contains('visible')) {
+      const deltaX = e.clientX - lastDragX;
+      const deltaY = e.clientY - lastDragY;
+      rotationLongitude += deltaX * 0.005;
+      rotationLatitude += deltaY * 0.005;
+      lastDragX = e.clientX;
+      lastDragY = e.clientY;
+      if (!renderPending) {
+        renderPending = true;
+        requestAnimationFrame(() => {
+          renderPlanetVisual(currentPlanetDisplayedInPanel, rotationLongitude, rotationLatitude, planetVisualCanvas);
+          renderPending = false;
+        });
+      }
+    }
+  });
 
-let currentDesignerPlanet = { waterColor: '#000080', landColor: '#006400', continentSeed: Math.random() };
-let isDraggingDesignerPlanet = false;
+  planetVisualCanvas.addEventListener('click', (e) => {
+  });
 
-function renderDesignerPlanet(planet, longitude, latitude) {
+
+  window.addEventListener('mouseup', () => {
+    if (isPanelDragging) {
+      isPanelDragging = false;
+      planetVisualPanelHeader.classList.remove('dragging');
+      planetVisualPanel.style.transition = '';
+    }
+    if (isDraggingPlanetVisual) {
+      isDraggingPlanetVisual = false;
+      planetVisualCanvas.classList.remove('dragging');
+      renderPlanetVisual(currentPlanetDisplayedInPanel, rotationLongitude, rotationLatitude, planetVisualCanvas);
+    }
+  });
+
+  let currentDesignerPlanet = { waterColor: '#000080', landColor: '#006400', continentSeed: Math.random() };
+  let isDraggingDesignerPlanet = false;
+
+  function renderDesignerPlanet(planet, longitude, latitude) {
     if (!planet || !designerPlanetCanvas) return;
     renderPlanetVisual(planet, longitude, latitude, designerPlanetCanvas);
-}
+  }
 
-function updateDesignerPlanetFromInputs() {
+  function updateDesignerPlanetFromInputs() {
     currentDesignerPlanet.waterColor = designerWaterColorInput.value;
     currentDesignerPlanet.landColor = designerLandColorInput.value;
     renderDesignerPlanet(currentDesignerPlanet, designerRotationLongitude, designerRotationLatitude);
-}
+  }
 
-function randomizeDesignerPlanet() {
+  function randomizeDesignerPlanet() {
     currentDesignerPlanet.waterColor = `#${Math.floor(Math.random()*16777215).toString(16).padStart(6, '0')}`;
     currentDesignerPlanet.landColor = `#${Math.floor(Math.random()*16777215).toString(16).padStart(6, '0')}`;
     currentDesignerPlanet.continentSeed = Math.random();
     designerWaterColorInput.value = currentDesignerPlanet.waterColor;
     designerLandColorInput.value = currentDesignerPlanet.landColor;
     renderDesignerPlanet(currentDesignerPlanet, designerRotationLongitude, designerRotationLatitude);
-}
+  }
 
-function saveCustomPlanetDesign() {
+  function saveCustomPlanetDesign() {
     const newDesign = {
-        designId: `design-${Date.now()}`,
-        waterColor: currentDesignerPlanet.waterColor,
-        landColor: currentDesignerPlanet.landColor,
-        continentSeed: currentDesignerPlanet.continentSeed,
-        name: `Custom Planet ${gameSessionData.customPlanetDesigns.length + 1}`
+      designId: `design-${Date.now()}`,
+      waterColor: currentDesignerPlanet.waterColor,
+      landColor: currentDesignerPlanet.landColor,
+      continentSeed: currentDesignerPlanet.continentSeed,
+      name: `Custom Planet ${gameSessionData.customPlanetDesigns.length + 1}`
     };
     gameSessionData.customPlanetDesigns.push(newDesign);
     saveGameState();
     populateSavedDesignsList();
-}
+  }
 
-function populateSavedDesignsList() {
+  function populateSavedDesignsList() {
     savedDesignsUl.innerHTML = '';
     if (gameSessionData.customPlanetDesigns.length === 0) {
-        savedDesignsUl.innerHTML = '<li>No designs saved yet.</li>';
-        return;
+      savedDesignsUl.innerHTML = '<li>No designs saved yet.</li>';
+      return;
     }
     gameSessionData.customPlanetDesigns.forEach(design => {
-        const li = document.createElement('li');
-        li.dataset.designId = design.designId;
-        const designNameSpan = document.createElement('span');
-        designNameSpan.className = 'design-item-name';
-        designNameSpan.textContent = design.name;
-        li.appendChild(designNameSpan);
+      const li = document.createElement('li');
+      li.dataset.designId = design.designId;
+      const designNameSpan = document.createElement('span');
+      designNameSpan.className = 'design-item-name';
+      designNameSpan.textContent = design.name;
+      li.appendChild(designNameSpan);
 
-        const deleteBtn = document.createElement('button');
-        deleteBtn.className = 'design-item-delete';
-        deleteBtn.textContent = 'x';
-        deleteBtn.onclick = (e) => {
-            e.stopPropagation();
-            if (confirm(`Delete design "${design.name}"?`)) {
-                gameSessionData.customPlanetDesigns = gameSessionData.customPlanetDesigns.filter(d => d.designId !== design.designId);
-                saveGameState();
-                populateSavedDesignsList();
-            }
-        };
-        li.appendChild(deleteBtn);
-        savedDesignsUl.appendChild(li);
+      const deleteBtn = document.createElement('button');
+      deleteBtn.className = 'design-item-delete';
+      deleteBtn.textContent = 'x';
+      deleteBtn.onclick = (e) => {
+        e.stopPropagation();
+        if (confirm(`Delete design "${design.name}"?`)) {
+          gameSessionData.customPlanetDesigns = gameSessionData.customPlanetDesigns.filter(d => d.designId !== design.designId);
+          saveGameState();
+          populateSavedDesignsList();
+        }
+      };
+      li.appendChild(deleteBtn);
+      savedDesignsUl.appendChild(li);
     });
-}
+  }
 
-function switchToPlanetDesignerScreen() {
+  function switchToPlanetDesignerScreen() {
     setActiveScreen(planetDesignerScreen);
     randomizeDesignerPlanet();
     populateSavedDesignsList();
-}
+  }
 
-let designerLastDragX = 0, designerLastDragY = 0;
-designerPlanetCanvas.addEventListener('mousedown', (e) => {
+  let designerLastDragX = 0, designerLastDragY = 0;
+  designerPlanetCanvas.addEventListener('mousedown', (e) => {
     if (e.button !== 0) return;
     isDraggingDesignerPlanet = true;
     designerLastDragX = e.clientX;
     designerLastDragY = e.clientY;
     designerPlanetCanvas.classList.add('dragging');
     e.preventDefault();
-});
+  });
 
-window.addEventListener('mousemove', (e) => {
+  window.addEventListener('mousemove', (e) => {
     if (isDraggingDesignerPlanet) {
-        const deltaX = e.clientX - designerLastDragX;
-        const deltaY = e.clientY - designerLastDragY;
-        designerRotationLongitude += deltaX * 0.005;
-        designerRotationLatitude += deltaY * 0.005;
-        designerLastDragX = e.clientX;
-        designerLastDragY = e.clientY;
-        if (!designerRenderPending) {
-            designerRenderPending = true;
-            requestAnimationFrame(() => {
-                renderDesignerPlanet(currentDesignerPlanet, designerRotationLongitude, designerRotationLatitude);
-                designerRenderPending = false;
-            });
-        }
+      const deltaX = e.clientX - designerLastDragX;
+      const deltaY = e.clientY - designerLastDragY;
+      designerRotationLongitude += deltaX * 0.005;
+      designerRotationLatitude += deltaY * 0.005;
+      designerLastDragX = e.clientX;
+      designerLastDragY = e.clientY;
+      if (!designerRenderPending) {
+        designerRenderPending = true;
+        requestAnimationFrame(() => {
+          renderDesignerPlanet(currentDesignerPlanet, designerRotationLongitude, designerRotationLatitude);
+          designerRenderPending = false;
+        });
+      }
     }
-});
+  });
 
-window.addEventListener('mouseup', () => {
+  window.addEventListener('mouseup', () => {
     if (isDraggingDesignerPlanet) {
-        isDraggingDesignerPlanet = false;
-        designerPlanetCanvas.classList.remove('dragging');
-        renderDesignerPlanet(currentDesignerPlanet, designerRotationLongitude, designerRotationLatitude);
+      isDraggingDesignerPlanet = false;
+      designerPlanetCanvas.classList.remove('dragging');
+      renderDesignerPlanet(currentDesignerPlanet, designerRotationLongitude, designerRotationLatitude);
     }
-});
+  });
 
-designerWaterColorInput.addEventListener('change', updateDesignerPlanetFromInputs);
-designerLandColorInput.addEventListener('change', updateDesignerPlanetFromInputs);
-designerRandomizeBtn.addEventListener('click', randomizeDesignerPlanet);
-designerSaveBtn.addEventListener('click', saveCustomPlanetDesign);
-designerCancelBtn.addEventListener('click', () => setActiveScreen(mainScreen));
-createPlanetDesignButton.addEventListener('click', switchToPlanetDesignerScreen);
+  designerWaterColorInput.addEventListener('change', updateDesignerPlanetFromInputs);
+  designerLandColorInput.addEventListener('change', updateDesignerPlanetFromInputs);
+  designerRandomizeBtn.addEventListener('click', randomizeDesignerPlanet);
+  designerSaveBtn.addEventListener('click', saveCustomPlanetDesign);
+  designerCancelBtn.addEventListener('click', () => setActiveScreen(mainScreen));
+  createPlanetDesignButton.addEventListener('click', switchToPlanetDesignerScreen);
 
 
   function initializeGame(isForcedRegeneration = false) {loadCustomizationSettings(); if (!isForcedRegeneration && loadGameState()) {setActiveScreen(mainScreen); if (universeCircle && gameSessionData.universe.diameter) {universeCircle.style.width = `${gameSessionData.universe.diameter}px`;universeCircle.style.height = `${gameSessionData.universe.diameter}px`;universeCircle.style.backgroundColor = FIXED_COLORS.universeBg;} else {generateUniverseLayout(); }renderMainScreen(); preGenerateAllGalaxyContents(); } else {generateUniverseLayout();generateGalaxies(); setActiveScreen(mainScreen); renderMainScreen();preGenerateAllGalaxyContents(); if(gameSessionData.galaxies.every(g => g.layoutGenerated)) {saveGameState();}}gameSessionData.isInitialized = true;}
@@ -1321,55 +1328,57 @@ createPlanetDesignButton.addEventListener('click', switchToPlanetDesignerScreen)
   window.addEventListener('mouseup', panMouseUp);
   if(galaxyZoomContent) { galaxyZoomContent.addEventListener('click', function(event) { if (gameSessionData.panning.isActive && !event.target.classList.contains('solar-system-icon')) { return; } if (event.target.classList.contains('solar-system-icon')) { const ssId = event.target.dataset.solarSystemId; if (ssId) { switchToSolarSystemView(ssId); event.stopPropagation(); return; } } }); }
 
-let isGalaxyPanning = false;
-let galaxyPanStart = { x: 0, y: 0 };
-let galaxyLastPan = { x: 0, y: 0 };
+  let isGalaxyPanning = false;
+  let galaxyPanStart = { x: 0, y: 0 };
+  let galaxyLastPan = { x: 0, y: 0 };
 
-if (galaxyViewport) {
- galaxyViewport.addEventListener('mousedown', (e) => {
-  if (
-   e.button !== 0 ||
-   !galaxyDetailScreen.classList.contains('active') ||
-   e.target.classList.contains('solar-system-icon') ||
-   e.target.closest('button')
-  ) return;
+  if (galaxyViewport) {
+    galaxyViewport.addEventListener('mousedown', (e) => {
+      if (
+        e.button !== 0 ||
+        !galaxyDetailScreen.classList.contains('active') ||
+        e.target.classList.contains('solar-system-icon') ||
+        e.target.closest('button')
+      ) return;
 
-  isGalaxyPanning = true;
-  galaxyPanStart.x = e.clientX;
-  galaxyPanStart.y = e.clientY;
+      isGalaxyPanning = true;
+      galaxyPanStart.x = e.clientX;
+      galaxyPanStart.y = e.clientY;
 
-  const gal = gameSessionData.galaxies.find(g => g.id === gameSessionData.activeGalaxyId);
-  galaxyLastPan.x = gal?.currentPanX || 0;
-  galaxyLastPan.y = gal?.currentPanY || 0;
+      const gal = gameSessionData.galaxies.find(g => g.id === gameSessionData.activeGalaxyId);
+      galaxyLastPan.x = gal?.currentPanX || 0;
+      galaxyLastPan.y = gal?.currentPanY || 0;
 
-  galaxyViewport.classList.add('dragging');
- });
+      galaxyViewport.classList.add('dragging');
+    });
 
- window.addEventListener('mousemove', (e) => {
-  if (!isGalaxyPanning) return;
+    window.addEventListener('mousemove', (e) => {
+      if (!isGalaxyPanning) return;
 
-  const gal = gameSessionData.galaxies.find(g => g.id === gameSessionData.activeGalaxyId);
-  if (!gal) return;
+      const gal = gameSessionData.galaxies.find(g => g.id === gameSessionData.activeGalaxyId);
+      if (!gal) return;
 
-  const dx = e.clientX - galaxyPanStart.x;
-  const dy = e.clientY - galaxyPanStart.y;
+      const dx = e.clientX - galaxyPanStart.x;
+      const dy = e.clientY - galaxyPanStart.y;
 
-  gal.currentPanX = galaxyLastPan.x + dx;
-  gal.currentPanY = galaxyLastPan.y + dy;
+      gal.currentPanX = galaxyLastPan.x + dx;
+      gal.currentPanY = galaxyLastPan.y + dy;
 
-  if (typeof clampGalaxyPan === 'function') {
-   clampGalaxyPan(gal);
+      if (typeof clampGalaxyPan === 'function') {
+        clampGalaxyPan(gal);
+      }
+      renderGalaxyDetailScreen(true);
+    });
+
+    window.addEventListener('mouseup', (e) => {
+      if (isGalaxyPanning) {
+        isGalaxyPanning = false;
+        galaxyViewport.classList.remove('dragging');
+      }
+    });
+
+    startSolarSystemAnimation();
   }
-  renderGalaxyDetailScreen(true);
- });
-
- window.addEventListener('mouseup', (e) => {
-  if (isGalaxyPanning) {
-   isGalaxyPanning = false;
-   galaxyViewport.classList.remove('dragging');
-  }
- });
-}
 
   initializeGame();
 });

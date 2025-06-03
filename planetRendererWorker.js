@@ -287,13 +287,13 @@ self.onmessage = function(e) {
 
                 // Apply inverse rotation to get texture coordinates
                 // This simulates rotating the sphere under a fixed camera
-                const invLatCos = Math.cos(-latitude);
-                const invLatSin = Math.sin(-latitude);
+                const invLatCos = Math.cos(latitude);
+                const invLatSin = Math.sin(latitude);
                 const tempY = y_cam * invLatCos - z_cam * invLatSin;
                 const tempZ = y_cam * invLatSin + z_cam * invLatCos;
 
-                const invLonCos = Math.cos(-longitude);
-                const invLonSin = Math.sin(-longitude);
+                const invLonCos = Math.cos(longitude);
+                const invLonSin = Math.sin(longitude);
                 const x_tex = x_cam * invLonCos + tempZ * invLonSin;
                 const y_tex = tempY;
                 const z_tex = -x_cam * invLonSin + tempZ * invLonCos;

@@ -37,39 +37,36 @@ function quat_multiply(q1, q2) {
 
 // Normalize a quaternion
 function quat_normalize(q) {
-    let len = Math.sqrt(q[0] * q[0] + q[1] * q[1] + q[2] * q[2] + q[3] * q[3]);
-    if (len === 0) return [1, 0, 0, 0]; // Return identity if zero length
-    len = 1 / len;
+    let len_sq = q[0] * q[0] + q[1] * q[1] + q[2] * q[2] + q[3] * q[3];
+    if (len_sq === 0) return [1, 0, 0, 0]; // Return identity if zero length
+    let len = 1 / Math.sqrt(len_sq);
     return [q[0] * len, q[1] * len, q[2] * len, q[3] * len];
 }
 
-// Calculate the inverse of a quaternion (for unit quaternions, it's just the conjugate)
-function quat_inverse(q) {
-    return [q[0], -q[1], -q[2], -q[3]];
-}
-
-// Rotate a 3D vector by a quaternion
+// Rotate a 3D vector [vx, vy, vz] by a quaternion [w, x, y, z]
+// This performs the operation v' = q * v_pure * q_inverse
 function quat_rotate_vector(q, v) {
-    const q_vec = [q[1], q[2], q[3]]; // (x, y, z) component of q
-    const v_vec = v;                  // (x, y, z) component of v
-
-    // q * v * q_inverse (where v is a pure quaternion [0, vx, vy, vz])
-    // The rotation formula is v' = q * v * q_inv
-    // Simplified cross products and dot products for the vector part:
-    // v_rotated = 2 * dot(q_vec, v_vec) * q_vec + (q_w * q_w - dot(q_vec, q_vec)) * v_vec + 2 * q_w * cross(q_vec, v_vec)
-
     const q_w = q[0];
-    const t = [
-        2 * (q_w * q_vec[0] + q_vec[1] * v_vec[2] - q_vec[2] * v_vec[1]),
-        2 * (q_w * q_vec[1] + q_vec[2] * v_vec[0] - q_vec[0] * v_vec[2]),
-        2 * (q_w * q_vec[2] + q_vec[0] * v_vec[1] - q_vec[1] * v_vec[0])
-    ];
+    const q_x = q[1];
+    const q_y = q[2];
+    const q_z = q[3];
 
-    return [
-        v_vec[0] + (q_vec[2] * t[1] - q_vec[1] * t[2]),
-        v_vec[1] + (q_vec[0] * t[2] - q_vec[2] * t[0]),
-        v_vec[2] + (q_vec[1] * t[0] - q_vec[0] * t[1])
-    ];
+    const v_x = v[0];
+    const v_y = v[1];
+    const v_z = v[2];
+
+    // Simplified version of q * [0,v] * q_inv
+    // t = 2 * cross(q_vec, v_vec) + 2 * q_w * v_vec
+    // v_rot = v_vec + cross(q_vec, t)
+    const t_x = 2 * (q_w * v_x + q_y * v_z - q_z * v_y);
+    const t_y = 2 * (q_w * v_y + q_z * v_x - q_x * v_z);
+    const t_z = 2 * (q_w * v_z + q_x * v_y - q_y * v_x);
+
+    const rot_x = v_x + (q_y * t_z - q_z * t_y);
+    const rot_y = v_y + (q_z * t_x - q_x * t_z);
+    const rot_z = v_z + (q_x * t_y - q_y * t_x);
+    
+    return [rot_x, rot_y, rot_z];
 }
 
 
@@ -336,8 +333,8 @@ self.onmessage = function(e) {
     const lightVecX = Math.cos(lightSourceLatitude) * Math.sin(lightSourceLongitude);
     const lightVecY = Math.sin(lightSourceLatitude);
     const lightVecZ = Math.cos(lightSourceLatitude) * Math.cos(lightSourceLongitude);
-    // Light vector in camera space, normalized
-    const lightVectorCameraSpace = quat_normalize([0, lightVecX, lightVecY, lightVecZ]); // treat as pure quaternion for vector operations
+    // Light vector in camera space (normalized, since it's a direction)
+    const lightVectorCameraSpace = quat_normalize([0, lightVecX, lightVecY, lightVecZ]); 
 
     const resultImageData = ctx.createImageData(canvasWidth, canvasHeight);
     const resultData = resultImageData.data;
@@ -358,17 +355,13 @@ self.onmessage = function(e) {
 
         const z_cam = Math.sqrt(1 - x_cam * x_cam - y_cam * y_cam);
 
-        // Point on the sphere in camera space
+        // Point on the sphere in camera space (normalized vector from origin)
         const pointInCameraSpace = [x_cam, y_cam, z_cam];
         
-        // Normal vector at this point in camera space is the same as the point itself since radius is 1
-        // For lighting calculation: The normal vector is just the point on the unit sphere
-        const normalVectorCameraSpace = pointInCameraSpace;
-
-        // Apply the INVERSE of the planet's rotation to get coordinates in texture space (unrotated planet's local space)
-        // This is crucial: if you rotate the *object*, the sampling ray needs to be *counter-rotated*
-        // to find where it hits the *original* texture.
-        const inverseRotationQuaternion = quat_inverse(rotationQuaternion);
+        // Apply the INVERSE of the planet's rotation to get coordinates in texture space (static original sphere)
+        // If the planet has been rotated by Q, then to find which point on the texture corresponds to a given
+        // camera-space coordinate, we need to counter-rotate the camera-space coordinate by Q_inverse.
+        const inverseRotationQuaternion = quat_normalize([rotationQuaternion[0], -rotationQuaternion[1], -rotationQuaternion[2], -rotationQuaternion[3]]);
         const pointInTextureSpace = quat_rotate_vector(inverseRotationQuaternion, pointInCameraSpace);
 
         // Convert texture space Cartesian coordinates back to spherical for texture lookup
@@ -376,9 +369,9 @@ self.onmessage = function(e) {
         const y_tex = pointInTextureSpace[1];
         const z_tex = pointInTextureSpace[2];
 
-        // Ensure y_tex is clamped to [-1, 1] for acos precision issues
+        // Ensure y_tex is clamped to [-1, 1] for acos precision issues, as it can occasionally go slightly out of bounds due to float precision
         let phi_tex = Math.acos(Math.max(-1, Math.min(1, y_tex)));
-        let theta_tex = Math.atan2(x_tex, z_tex); // atan2(x, z) because x is vertical, z is "depth" on texture sphere
+        let theta_tex = Math.atan2(x_tex, z_tex); // atan2(x, z) because x is horizontal, z is "depth" on texture sphere if y is up
         theta_tex = (theta_tex + 2 * Math.PI) % (2 * Math.PI); // Ensure positive angle [0, 2PI)
 
         let texU = theta_tex / (2 * Math.PI);
@@ -401,11 +394,11 @@ self.onmessage = function(e) {
         const ambientLight = 0.25;
         const diffuseLight = 0.75;
         
-        // The normal vector used for lighting is the point's normal *in the planet's current rotated space*.
-        // The pointInCameraSpace is already that normal, assuming a unit sphere centered at origin.
-        const dotProduct = normalVectorCameraSpace[0] * lightVectorCameraSpace[1] + // lightVectorCameraSpace[1] is lightVecX
-                           normalVectorCameraSpace[1] * lightVectorCameraSpace[2] + // lightVectorCameraSpace[2] is lightVecY
-                           normalVectorCameraSpace[2] * lightVectorCameraSpace[3]; // lightVectorCameraSpace[3] is lightVecZ
+        // The normal vector at this point on the sphere in camera space is simply the point itself.
+        // We use the first three components of lightVectorCameraSpace because it was treated as a pure quaternion [0, x, y, z].
+        const dotProduct = pointInCameraSpace[0] * lightVectorCameraSpace[1] + 
+                           pointInCameraSpace[1] * lightVectorCameraSpace[2] + 
+                           pointInCameraSpace[2] * lightVectorCameraSpace[3];
 
         const lightIntensity = Math.max(0, dotProduct) * diffuseLight + ambientLight;
 

@@ -748,33 +748,39 @@ function renderPlanetVisual(planet, rotationLongitude = 0, rotationLatitude = 0)
   const centerY = h / 2;
   const radius = Math.min(w, h) * 0.4;
 
-  // Draw base circle (planet)
   ctx.save();
   ctx.beginPath();
   ctx.arc(centerX, centerY, radius, 0, 2 * Math.PI);
   ctx.closePath();
   ctx.clip();
 
-  // Basic color logic
+  // Draw main planet fill
   if (planet.type === 'terrestrial') {
-    // Simple 2-band planet, more logic can be added here
-    ctx.fillStyle = planet.waterColor || '#3a8ddf';
+    // Water background
+    ctx.fillStyle = planet.waterColor || '#3498db'; // fallback blue
     ctx.fillRect(centerX - radius, centerY - radius, radius * 2, radius * 2);
-    ctx.fillStyle = planet.grassColor || '#6cb552';
+
+    // Grass/landmass overlay
+    ctx.fillStyle = planet.grassColor || '#27ae60'; // fallback green
     ctx.beginPath();
     ctx.arc(centerX, centerY, radius * 0.7, 0, 2 * Math.PI);
     ctx.fill();
   } else if (planet.type === 'normal' && planet.color) {
-    ctx.fillStyle = `hsl(${planet.color.hue},${planet.color.saturation}%,${planet.color.lightness}%)`;
+    // Use HSL or fallback to a nice color
+    const c = planet.color;
+    ctx.fillStyle = (c && typeof c.hue !== "undefined")
+      ? `hsl(${c.hue},${c.saturation}%,${c.lightness}%)`
+      : '#e67e22'; // fallback orange
     ctx.fillRect(centerX - radius, centerY - radius, radius * 2, radius * 2);
   } else {
-    ctx.fillStyle = '#999';
+    // Fallback: show a visible default color
+    ctx.fillStyle = '#e74c3c'; // fallback RED
     ctx.fillRect(centerX - radius, centerY - radius, radius * 2, radius * 2);
   }
 
   ctx.restore();
 
-  // Draw outline
+  // Draw white outline
   ctx.beginPath();
   ctx.arc(centerX, centerY, radius, 0, 2 * Math.PI);
   ctx.strokeStyle = '#fff';

@@ -218,49 +218,28 @@ function generatePlanetFromBasis(basis) {
     planetVisualWorker = new Worker('planetRendererWorker.js');
     designerWorker = new Worker('planetRendererWorker.js');
 
+
 designerWorker.onmessage = function(e) {
-    if (e.data && e.data.imageData) {
-        console.log("Designer worker responded:", e.data); // Your existing log
-        console.log("ImageData received: width =", e.data.imageData.width, "height =", e.data.imageData.height);
-        console.log("Canvas (#planetCanvas) current attributes: width =", planetCanvas.width, "height =", planetCanvas.height);
-        console.log("Canvas (#planetCanvas) current client dimensions: clientWidth =", planetCanvas.clientWidth, "clientHeight =", planetCanvas.clientHeight);
-        console.log("previewCtx object:", previewCtx);
-
-        try {
-            previewCtx.putImageData(e.data.imageData, 0, 0);
-            console.log("putImageData CALLED successfully."); // Confirm it was called
-        } catch (error) {
-            console.error("Error during previewCtx.putImageData:", error); // Catch any direct errors
-        }
-
-        // Check canvas visibility after attempting to draw
-        const canvasStyle = window.getComputedStyle(planetCanvas);
-        console.log("Canvas computed style after draw: display=", canvasStyle.display, "visibility=", canvasStyle.visibility, "opacity=", canvasStyle.opacity);
-
-    } else if (e.data && e.data.error) {
-        console.error("Error from planetRendererWorker:", e.data.error);
-    } else {
-        console.warn("Received unknown message from planetRendererWorker:", e.data);
+   console.log("Designer worker responded:", e.data);
+   const { renderedData, width, height, senderId } = e.data;
+   if (senderId === 'designer-planet-canvas' && designerPlanetCanvas) {
+    const ctx = designerPlanetCanvas.getContext('2d');
+    ctx.clearRect(0, 0, designerPlanetCanvas.width, designerPlanetCanvas.height);
+    if (renderedData && width && height) {
+     try {
+      const clampedArray = new Uint8ClampedArray(renderedData);
+      const imageDataObj = new ImageData(clampedArray, width, height);
+      ctx.putImageData(imageDataObj, 0, 0);
+     } catch (err) {
+      console.error("Error putting ImageData on designerPlanetCanvas:", err);
+     }
     }
-};
-    
-  isRenderingVisualPlanet = false;
-      if (needsPlanetVisualRerender && currentPlanetDisplayedInPanel && planetVisualPanel.classList.contains('visible')) {
-          needsPlanetVisualRerender = false;
-          isRenderingVisualPlanet = true;
-          renderPlanetVisual(currentPlanetDisplayedInPanel, planetVisualRotationQuat, planetVisualCanvas);
-}
-    };
-
-designerWorker.onmessage = function(e) {
-  console.log("Designer worker responded:", e.data);
-  if (!e.data || typeof e.data !== 'object') {
-      console.warn("Received malformed data from designer worker:", e.data);
-      // Decide if isRenderingDesignerPlanet should be reset here based on your app's logic.
-      // If this message could have been for the designer planet, then yes.
-      // isRenderingDesignerPlanet = false; // Potentially
-      return;
-  }
+   }
+   isRenderingDesignerPlanet = false;
+  };
+ } else {
+  console.warn("Web Workers not supported in this browser. Planet rendering will be disabled.");
+ };
 
   const { renderedData, width, height, senderId } = e.data;
 

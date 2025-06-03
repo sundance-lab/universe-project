@@ -835,7 +835,7 @@ document.addEventListener('DOMContentLoaded', () => {
     const radius = Math.min(canvasWidth, canvasHeight) * 0.4;
     const isCurrentlyDragging = (targetCanvas === planetVisualCanvas && isDraggingPlanetVisual) || (targetCanvas === designerPlanetCanvas && isDraggingDesignerPlanet);
 
-    const pixelStep = isCurrentlyDragging ? 3 : 1; // More aggressive pixel step for smoother dragging
+    const pixelStep = isCurrentlyDragging ? 6 : 1;
 
     const lightSourceLongitude = Math.PI / 4;
     const lightSourceLatitude = Math.PI / 8;

@@ -172,10 +172,14 @@ document.addEventListener('DOMContentLoaded', () => {
         ctx.clearRect(0, 0, planetVisualCanvas.width, planetVisualCanvas.height);
         if (renderedData && width && height) {
           try {
-            const imageData = new ImageData(renderedData, width, height);
+            // CORRECTED LINE: Wrap ArrayBuffer in Uint8ClampedArray
+            const clampedArray = new Uint8ClampedArray(renderedData);
+            const imageData = new ImageData(clampedArray, width, height);
             ctx.putImageData(imageData, 0, 0);
           } catch (err) {
             console.error("Error putting ImageData on planetVisualCanvas:", err);
+            // Optional: More detailed logging for debugging if it still fails
+            // console.error("Data length (ArrayBuffer):", renderedData.byteLength, "Expected from w*h*4:", width * height * 4);
           }
         }
       }
@@ -188,10 +192,14 @@ document.addEventListener('DOMContentLoaded', () => {
         ctx.clearRect(0, 0, designerPlanetCanvas.width, designerPlanetCanvas.height);
         if (renderedData && width && height) {
          try {
-            const imageData = new ImageData(renderedData, width, height);
+            // CORRECTED LINE: Wrap ArrayBuffer in Uint8ClampedArray
+            const clampedArray = new Uint8ClampedArray(renderedData);
+            const imageData = new ImageData(clampedArray, width, height);
             ctx.putImageData(imageData, 0, 0);
           } catch (err) {
             console.error("Error putting ImageData on designerPlanetCanvas:", err);
+            // Optional: More detailed logging
+            // console.error("Data length (ArrayBuffer):", renderedData.byteLength, "Expected from w*h*4:", width * height * 4);
           }
         }
       }

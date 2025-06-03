@@ -236,6 +236,7 @@ planetVisualWorker.onmessage = function(e) {
     };
 
     designerWorker.onmessage = function(e) {
+      console.log("Designer worker responded:", e.data);
       const { renderedData, width, height, senderId } = e.data;
       if (senderId === 'designer-planet-canvas' && designerPlanetCanvas) {
         const ctx = designerPlanetCanvas.getContext('2d');
@@ -789,7 +790,7 @@ planetVisualWorker.onmessage = function(e) {
 
   function renderPlanetVisual(planetData, rotationQuaternion, targetCanvas = planetVisualCanvas) {
     if (!planetData || !targetCanvas || !window.Worker) return;
-
+    console.log("renderPlanetVisual called with", planetData, rotationQuaternion, targetCanvas.id);
     if (!planetData.continentSeed) {
       planetData.continentSeed = Math.random();
     }
@@ -1324,10 +1325,11 @@ function renderDesignerPlanetPreview() {
     oceanHeightLevel: DEFAULT_OCEAN_HEIGHT_LEVEL
   };
 
-  function renderDesignerPlanet(planet, rotationQuaternion) {
-    if (!planet || !designerPlanetCanvas) return;
-    renderPlanetVisual(planet, rotationQuaternion, designerPlanetCanvas);
-  }
+function renderDesignerPlanet(planet, rotationQuaternion) {
+  if (!planet || !designerPlanetCanvas) return;
+  console.log("Rendering designer planet:", planet, rotationQuaternion);
+  renderPlanetVisual(planet, rotationQuaternion, designerPlanetCanvas);
+}
 
 function updateDesignerPlanetFromInputs() {
     currentDesignerPlanet.waterColor = designerWaterColorInput.value;

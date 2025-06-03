@@ -1443,10 +1443,6 @@ function updateDesignerPlanetFromInputs() {
 
   designerWaterColorInput.addEventListener('change', updateDesignerPlanetFromInputs);
   designerLandColorInput.addEventListener('change', updateDesignerPlanetFromInputs);
-  if(designerMinHeightInput) designerMinHeightInput.addEventListener('change', updateDesignerPlanetFromInputs);
-  if(designerMaxHeightInput) designerMaxHeightInput.addEventListener('change', updateDesignerPlanetFromInputs);
-  if(designerOceanHeightInput) designerOceanHeightInput.addEventListener('change', updateDesignerPlanetFromInputs);
-
   designerRandomizeBtn.addEventListener('click', randomizeDesignerPlanet);
   designerSaveBtn.addEventListener('click', saveCustomPlanetDesign);
   designerCancelBtn.addEventListener('click', () => setActiveScreen(mainScreen));

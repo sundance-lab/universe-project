@@ -50,18 +50,23 @@
               <button id="designer-randomize-btn" class="modal-button-apply">Randomize</button>
               <button id="designer-save-btn" class="modal-button-apply">Save Design</button>
               <button id="designer-cancel-btn" class="modal-button-cancel">Back</button>
-          </div>
-       <div>
-  <label for="designer-min-height">Min Terrain Height:</label>
-  <input type="number" id="designer-min-height" value="0" step="0.1">
+<div>
+  <label for="designer-min-height-min">Min Terrain Height Range:</label>
+  <input type="number" id="designer-min-height-min" value="0" step="0.1">
+  <span>to</span>
+  <input type="number" id="designer-min-height-max" value="2" step="0.1">
 </div>
 <div>
-  <label for="designer-max-height">Max Terrain Height:</label>
-  <input type="number" id="designer-max-height" value="10" step="0.1">
+  <label for="designer-max-height-min">Max Terrain Height Range:</label>
+  <input type="number" id="designer-max-height-min" value="8" step="0.1">
+  <span>to</span>
+  <input type="number" id="designer-max-height-max" value="12" step="0.1">
 </div>
 <div>
-  <label for="designer-ocean-height">Ocean Height Level:</label>
-  <input type="number" id="designer-ocean-height" value="2" step="0.1">
+  <label for="designer-ocean-height-min">Ocean Height Range:</label>
+  <input type="number" id="designer-ocean-height-min" value="1" step="0.1">
+  <span>to</span>
+  <input type="number" id="designer-ocean-height-max" value="3" step="0.1">
 </div>
           <div class="saved-designs-list">
             <h4>Saved Designs:</h4>

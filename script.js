@@ -70,7 +70,13 @@ document.addEventListener('DOMContentLoaded', () => {
     oceanHeightRange: [1, 3]            // [min, max]
 };
 
-function randomInRange([min, max]) {
+function randomInRange(range) {
+  // Defensive: fallback to [0, 1] if not an array of length 2
+  if (!Array.isArray(range) || range.length !== 2) {
+    console.warn("randomInRange called with invalid range:", range, "Falling back to [0, 1]");
+    return 0 + Math.random() * (1 - 0);
+  }
+  const [min, max] = range;
   return min + Math.random() * (max - min);
 }
 

@@ -58,7 +58,9 @@ document.addEventListener('DOMContentLoaded', () => {
   let isDraggingDesignerPlanet = false;
   let isRenderingVisualPlanet = false;
   let isRenderingDesignerPlanet = false;
+  let needsPlanetVisualRerender = false;
 
+  
   function quat_identity() {
     return [1, 0, 0, 0];
   }
@@ -171,6 +173,11 @@ document.addEventListener('DOMContentLoaded', () => {
         }
       }
       isRenderingVisualPlanet = false;
+      if (needsPlanetVisualRerender && currentPlanetDisplayedInPanel && planetVisualPanel.classList.contains('visible')) {
+          needsPlanetVisualRerender = false;
+          isRenderingVisualPlanet = true;
+          renderPlanetVisual(currentPlanetDisplayedInPanel, planetVisualRotationQuat, planetVisualCanvas);
+}
     };
 
     designerWorker.onmessage = function(e) {
@@ -1196,11 +1203,14 @@ document.addEventListener('DOMContentLoaded', () => {
       const combined_inc_quat = quat_multiply(incY_quat, incX_quat);
       designerPlanetRotationQuat = quat_normalize(quat_multiply(combined_inc_quat, startDragDesignerPlanetQuat));
 
-      if (!isRenderingDesignerPlanet) {
-          isRenderingDesignerPlanet = true;
-          renderDesignerPlanet(currentDesignerPlanet, designerPlanetRotationQuat);
-      }
+    if (!isRenderingVisualPlanet) {
+        isRenderingVisualPlanet = true;
+        renderPlanetVisual(currentPlanetDisplayedInPanel, planetVisualRotationQuat, planetVisualCanvas);
+    } else {
+        // If a render is already ongoing, flag that another is needed
+        needsPlanetVisualRerender = true;
     }
+}
   });
 
   window.addEventListener('mouseup', () => {

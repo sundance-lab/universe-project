@@ -784,8 +784,6 @@ function generateRandomSquigglySegments(planetData, numSegments = 40) {
 }
 function drawSegmentLines(ctx, planetData, currentLon, currentLat, sphereRadius, centerX, centerY) {
   
-    const { latBandStarts, lonSliceStarts } = planetData.segmentsData;
-
     ctx.strokeStyle = 'rgba(255, 255, 255, 0.4)';
     ctx.lineWidth = 1;
     const R = 1; // Unit sphere radius for calculations
@@ -817,8 +815,8 @@ function drawSegmentLines(ctx, planetData, currentLon, currentLat, sphereRadius,
     };
 
     // Draw Latitude lines (parallels)
-    for (let i = 0; i < latBandStarts.length; i++) {
-        const phi = latBandStarts[i];
+    for (let i = 0; i < .length; i++) {
+        const phi = [i];
         ctx.beginPath();
         let prevPoint = null;
         for (let j = 0; j < lonSliceStarts.length; j++) {
@@ -849,61 +847,9 @@ function drawSegmentLines(ctx, planetData, currentLon, currentLat, sphereRadius,
     }
 
     // Draw Longitude lines (meridians)
-    for (let j = 0; j < lonSliceStarts.length; j++) {
-        const theta_raw = lonSliceStarts[j];
-        ctx.beginPath();
-        let prevPoint = null;
-        for (let i = 0; i < latBandStarts.length; i++) {
-            const phi = latBandStarts[i];
-            const currentPoint = getRotatedAndVisiblePoint(phi, theta_raw);
 
-            const canvasX = centerX + currentPoint.x * sphereRadius + (Math.random() - 0.5) * 0.7; // Jitter
-            const canvasY = centerY + currentPoint.y * sphereRadius + (Math.random() - 0.5) * 0.7; // Jitter
 
-            if (currentPoint.isVisible) {
-                if (prevPoint && prevPoint.isVisible) {
-                    ctx.lineTo(canvasX, canvasY);
-                } else {
-                    ctx.moveTo(canvasX, canvasY);
-                }
-            } else if (prevPoint && prevPoint.isVisible) { // Previous point was visible, current is not. Draw to intersection
-                ctx.lineTo(canvasX, canvasY);
-                ctx.stroke();
-                ctx.beginPath();
-            }
-            prevPoint = currentPoint;
-        }
-        ctx.stroke(); // Ensure any remaining partial path is drawn
-    }
-}
 
-  function renderPlanetVisual(planetData, longitude = 0, latitude = 0) {
-    if (!planetVisualCanvas) return;
-
-    const ctx = planetVisualCanvas.getContext('2d', { willReadFrequently: true });
-    const canvasWidth = planetVisualCanvas.width;
-    const canvasHeight = planetVisualCanvas.height;
-    const centerX = canvasWidth / 2;
-    const centerY = canvasHeight / 2;
-
-    ctx.clearRect(0, 0, canvasWidth, canvasHeight);
-
-    const radius = Math.min(canvasWidth, canvasHeight) * 0.4;
-    const steps = isDraggingPlanetVisual
-    ? Math.ceil(radius * 1.0)
-    : Math.ceil(radius * 2);
-
-    // Light source vector (arbitrarily chosen position relative to viewer)
-    const lightSourceLongitude = Math.PI / 4;
-    const lightSourceLatitude = Math.PI / 8;
-
-    const lightVecX = Math.cos(lightSourceLatitude) * Math.sin(lightSourceLongitude); // X in viewer space
-    const lightVecY = Math.sin(lightSourceLatitude); // Y in viewer space
-    const lightVecZ = Math.cos(lightSourceLatitude) * Math.cos(lightSourceLongitude); // Z in viewer space (pointing out/forward)
-
-    if (!planetData.segmentsData) {
-        generateRandomSquigglySegments(planetData, 40);
-    }
 
     // Main pixel rendering loop for both normal and terrestrial planets
     ctx.save();

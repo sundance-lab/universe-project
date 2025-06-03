@@ -54,7 +54,7 @@ document.addEventListener('DOMContentLoaded', () => {
   let isSolarSystemPaused = false;
   let isDraggingPlanetVisual = false;
 
-  // --- Quaternion Math Utilities (Copied from worker) ---
+  // --- Quaternion Math Utilities (Copied from worker and simplified for client where inverse is not needed) ---
   /**
    * Represents a quaternion as [w, x, y, z]
    */
@@ -1352,9 +1352,8 @@ document.addEventListener('DOMContentLoaded', () => {
         if (ssId) {
           switchToSolarSystemView(ssId);
           event.stopPropagation();
-          return;
         }
-      } // Fix was here! Missing closing curly brace for the if(event.target.closest) block.
+      }
     });
   }
   let isGalaxyPanning = false;

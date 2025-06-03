@@ -74,18 +74,24 @@ function randomInRange([min, max]) {
   return min + Math.random() * (max - min);
 }
 
- function generatePlanetFromBasis(basis) {
- const minTerrainHeight = randomInRange(basis.minTerrainHeightRange);
-  const maxTerrainHeight = Math.max(minTerrainHeight + 0.2, randomInRange(basis.maxTerrainHeightRange));
- const oceanHeightLevel = randomInRange(basis.oceanHeightRange);
-   return {
-   waterColor: basis.waterColor,
-   landColor: basis.landColor,
-   continentSeed: Math.random(),
- minTerrainHeight,
- maxTerrainHeight,
-oceanHeightLevel
- };
+function generatePlanetFromBasis(basis) {
+  // Fallback for legacy designs:
+  const minTerrainHeightRange = basis.minTerrainHeightRange || [basis.minTerrainHeight ?? 0, (basis.minTerrainHeight ?? 0) + 1];
+  const maxTerrainHeightRange = basis.maxTerrainHeightRange || [basis.maxTerrainHeight ?? 10, (basis.maxTerrainHeight ?? 10) + 1];
+  const oceanHeightRange = basis.oceanHeightRange || [basis.oceanHeightLevel ?? 2, (basis.oceanHeightLevel ?? 2) + 1];
+
+  const minTerrainHeight = randomInRange(minTerrainHeightRange);
+  const maxTerrainHeight = Math.max(minTerrainHeight + 0.2, randomInRange(maxTerrainHeightRange));
+  const oceanHeightLevel = randomInRange(oceanHeightRange);
+
+  return {
+    waterColor: basis.waterColor,
+    landColor: basis.landColor,
+    continentSeed: Math.random(),
+    minTerrainHeight,
+    maxTerrainHeight,
+    oceanHeightLevel
+  };
 }
   
   function quat_identity() {

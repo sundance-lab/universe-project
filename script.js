@@ -1334,7 +1334,7 @@ document.addEventListener('DOMContentLoaded', () => {
         e.preventDefault();
         handleZoom(e.deltaY < 0 ? 'in' : 'out', e);
       }
-    });
+    };
   }
   if (solarSystemScreen) { solarSystemScreen.addEventListener('mousedown', (e) => { if (solarSystemScreen.classList.contains('active')) { startPan(e, solarSystemScreen, solarSystemContent, gameSessionData.solarSystemView); } }); }
   window.addEventListener('mousemove', panMouseMove);
@@ -1351,7 +1351,7 @@ document.addEventListener('DOMContentLoaded', () => {
           event.stopPropagation();
           return;
         }
-    });
+    };
   }
   let isGalaxyPanning = false;
   let galaxyPanStart = { x: 0, y: 0 };
@@ -1375,7 +1375,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
       galaxyViewport.classList.add('dragging');
       e.preventDefault();
-    });
+    };
 
     window.addEventListener('mousemove', (e) => {
       if (!isGalaxyPanning) return;
@@ -1400,7 +1400,7 @@ document.addEventListener('DOMContentLoaded', () => {
         isGalaxyPanning = false;
         galaxyViewport.classList.remove('dragging');
       }
-    });
+    };
   }
   initializeGame();
-});
+};

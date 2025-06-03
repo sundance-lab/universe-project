@@ -1,5 +1,3 @@
-// script.js (Finalized Panel Rotation & Drag with Quaternion-based Rotation)
-console.log("Script V1.3.10.2 (Full Enhancements) Loaded.");
 document.addEventListener('DOMContentLoaded', () => {
   const mainScreen = document.getElementById('main-screen');
   const galaxyDetailScreen = document.getElementById('galaxy-detail-screen');
@@ -55,56 +53,43 @@ document.addEventListener('DOMContentLoaded', () => {
   let isDraggingPlanetVisual = false;
   let isDraggingDesignerPlanet = false;
 
-  // --- Quaternion Math Utilities (Copied from worker and simplified for client where inverse is not needed) ---
-  /**
-  * Represents a quaternion as [w, x, y, z]
-  */
-
-  // Identity quaternion (no rotation)
   function quat_identity() {
     return [1, 0, 0, 0];
   }
 
-  // Create a quaternion from an axis and an angle (radians)
   function quat_from_axis_angle(axis, angle) {
     const halfAngle = angle * 0.5;
     const s = Math.sin(halfAngle);
     return [
-      Math.cos(halfAngle), // w
-      axis[0] * s,       // x
-      axis[1] * s,       // y
-      axis[2] * s        // z
+      Math.cos(halfAngle),
+      axis[0] * s,
+      axis[1] * s,
+      axis[2] * s
     ];
   }
 
-  // Multiply two quaternions: q1 * q2
   function quat_multiply(q1, q2) {
     const w1 = q1[0], x1 = q1[1], y1 = q1[2], z1 = q1[3];
     const w2 = q2[0], x2 = q2[1], y2 = q2[2], z2 = q2[3];
 
     return [
-      w1 * w2 - x1 * x2 - y1 * y2 - z1 * z2, // w
-      w1 * x2 + x1 * w2 + y1 * z2 - z1 * y2, // x
-      w1 * y2 - x1 * z2 + y1 * w2 + z1 * x2, // y
-      w1 * z2 + x1 * y2 - y1 * x2 + z1 * w2  // z
+      w1 * w2 - x1 * x2 - y1 * y2 - z1 * z2,
+      w1 * x2 + x1 * w2 + y1 * z2 - z1 * y2,
+      w1 * y2 - x1 * z2 + y1 * w2 + z1 * x2,
+      w1 * z2 + x1 * y2 - y1 * x2 + z1 * w2
     ];
   }
 
-  // Normalize a quaternion
   function quat_normalize(q) {
     let len_sq = q[0] * q[0] + q[1] * q[1] + q[2] * q[2] + q[3] * q[3];
-    if (len_sq === 0) return [1, 0, 0, 0]; // Return identity if zero length
+    if (len_sq === 0) return [1, 0, 0, 0];
     let len = 1 / Math.sqrt(len_sq);
     return [q[0] * len, q[1] * len, q[2] * len, q[3] * len];
   }
 
-  // --- End Quaternion Math Utilities ---
-
-  // New: Quaternion to track planet rotation for the visual panel
   let planetVisualRotationQuat = quat_identity();
   let startDragPlanetVisualQuat = quat_identity();
 
-  // New: Quaternion to track designer planet rotation
   let designerPlanetRotationQuat = quat_identity();
   let startDragDesignerPlanetQuat = quat_identity();
   let designerStartDragMouseX = 0;
@@ -122,11 +107,9 @@ document.addEventListener('DOMContentLoaded', () => {
   const DEFAULT_MIN_PLANETS_PER_SYSTEM = 0;
   const DEFAULT_MAX_PLANETS_PER_SYSTEM = 3;
   const DEFAULT_SHOW_PLANET_ORBITS = false;
-  const DEFAULT_PLANET_AXIAL_SPEED = 0.01; // Radians per some internal tick/update
+  const DEFAULT_PLANET_AXIAL_SPEED = 0.01;
   const BASE_MAX_PLANET_DISTANCE_FACTOR = 8;
-
-  // NEW: Controls the overall "speed" or sensitivity of planet rotation when dragging.
-  const PLANET_ROTATION_SENSITIVITY = 0.75; // Adjust this value to make rotation faster/slower
+  const PLANET_ROTATION_SENSITIVITY = 0.75;
 
   let currentNumGalaxies = DEFAULT_NUM_GALAXIES;
   let currentMinSSCount = DEFAULT_MIN_SS_COUNT_CONST;
@@ -135,42 +118,40 @@ document.addEventListener('DOMContentLoaded', () => {
   let currentMinPlanets = DEFAULT_MIN_PLANETS_PER_SYSTEM;
   let currentMaxPlanets = DEFAULT_MAX_PLANETS_PER_SYSTEM;
   let currentShowPlanetOrbits = DEFAULT_SHOW_PLANET_ORBITS;
-  const GALAXY_ICON_SIZE = 60; // px
-  const SOLAR_SYSTEM_BASE_ICON_SIZE = 2.5; // px (relative to parent, initially)
-  const SUN_ICON_SIZE = 60; // px
+  const GALAXY_ICON_SIZE = 60;
+  const SOLAR_SYSTEM_BASE_ICON_SIZE = 2.5;
+  const SUN_ICON_SIZE = 60;
   const MAX_PLACEMENT_ATTEMPTS = 150;
   const GALAXY_VIEW_MIN_ZOOM = 1.0;
   const GALAXY_VIEW_MAX_ZOOM = 5.0;
   const SOLAR_SYSTEM_VIEW_MIN_ZOOM = 0.05;
   const SOLAR_SYSTEM_VIEW_MAX_ZOOM = 10.0;
-  const ZOOM_STEP = 0.2; // 20% zoom per step
+  const ZOOM_STEP = 0.2;
   const MAX_CONNECTIONS_PER_SYSTEM = 3;
   const MAX_NEIGHBOR_CANDIDATES_FOR_ADDITIONAL_CONNECTIONS = 5;
-  const MAX_EUCLIDEAN_CONNECTION_DISTANCE_PERCENT = 0.07; // % of galaxy diameter
-  const MAX_FORCED_CONNECTION_DISTANCE_PERCENT = 0.20; // % of galaxy diameter
-  const MIN_PLANET_SIZE = 5; // px
-  const MAX_PLANET_SIZE = 15; // px
-  let MIN_PLANET_DISTANCE = SUN_ICON_SIZE * 1.5; // Recalculated with multiplier
-  let MAX_PLANET_DISTANCE = (SUN_ICON_SIZE * BASE_MAX_PLANET_DISTANCE_FACTOR) * currentMaxPlanetDistanceMultiplier; // Recalculated
-  let ORBIT_CANVAS_SIZE = MAX_PLANET_DISTANCE * 2.2; // Recalculated
-  const SOLAR_SYSTEM_EXPLORABLE_RADIUS = 3000; // Max content boundary in solar system view
-  const MIN_ORBITAL_SEPARATION = 20; // Minimum pixel separation between orbit paths (center to center)
-  let MIN_ROTATION_SPEED_RAD_PER_PERLIN_UNIT = 0.005; // orbital speed base
-  let MAX_ROTATION_SPEED_RAD_PER_PERLIN_UNIT = 0.01; // orbital speed base
+  const MAX_EUCLIDEAN_CONNECTION_DISTANCE_PERCENT = 0.07;
+  const MAX_FORCED_CONNECTION_DISTANCE_PERCENT = 0.20;
+  const MIN_PLANET_SIZE = 5;
+  const MAX_PLANET_SIZE = 15;
+  let MIN_PLANET_DISTANCE = SUN_ICON_SIZE * 1.5;
+  let MAX_PLANET_DISTANCE = (SUN_ICON_SIZE * BASE_MAX_PLANET_DISTANCE_FACTOR) * currentMaxPlanetDistanceMultiplier;
+  let ORBIT_CANVAS_SIZE = MAX_PLANET_DISTANCE * 2.2;
+  const SOLAR_SYSTEM_EXPLORABLE_RADIUS = 3000;
+  const MIN_ORBITAL_SEPARATION = 20;
+  let MIN_ROTATION_SPEED_RAD_PER_PERLIN_UNIT = 0.005;
+  let MAX_ROTATION_SPEED_RAD_PER_PERLIN_UNIT = 0.01;
   const FIXED_COLORS = { universeBg: "#100520", galaxyIconFill: "#7f00ff", galaxyIconBorder: "#da70d6", solarSystemBaseColor: "#ffd700", sunFill: "#FFD700", sunBorder: "#FFA500", connectionLine: "rgba(255, 255, 255, 0.3)" };
   let gameSessionData = { universe: { diameter: null }, galaxies: [], activeGalaxyId: null, activeSolarSystemId: null, solarSystemView: { zoomLevel: 1.0, currentPanX: 0, currentPanY: 0, planets: [], systemId: null }, isInitialized: false, panning: { isActive: false, startX: 0, startY: 0, initialPanX: 0, initialPanY: 0, targetElement: null, viewportElement: null, dataObject: null }, customPlanetDesigns: [] };
   let renderPending = false;
   let designerRenderPending = false;
 
-  // --- Web Worker Declarations and Initialization ---
   let planetVisualWorker = null;
   let designerWorker = null;
 
-  if (window.Worker) { // Check for Worker support
+  if (window.Worker) {
     planetVisualWorker = new Worker('planetRendererWorker.js');
     designerWorker = new Worker('planetRendererWorker.js');
 
-    // Worker message handlers for rendering results
     planetVisualWorker.onmessage = function(e) {
       const { renderedData, width, height, senderId } = e.data;
       if (senderId === 'planet-visual-canvas' && planetVisualCanvas) {
@@ -205,9 +186,8 @@ document.addEventListener('DOMContentLoaded', () => {
   } else {
     console.warn("Web Workers not supported in this browser. Planet rendering will be disabled.");
   }
-  // --- End Web Worker Declarations and Initialization ---
 
-  class PerlinNoise { // Basic Perlin Noise Implementation
+  class PerlinNoise {
     constructor(seed = Math.random()) {
       this.p = new Array(512);
       this.permutation = new Array(256);
@@ -218,9 +198,8 @@ document.addEventListener('DOMContentLoaded', () => {
       for (let i = 0; i < 256; i++) {
         this.permutation[i] = i;
       }
-      // Shuffle the permutation table using the seed
       for (let i = 0; i < 256; i++) {
-        let r = Math.floor(this.random() * (i + 1)); // Use a seeded random
+        let r = Math.floor(this.random() * (i + 1));
         let tmp = this.permutation[i];
         this.permutation[i] = this.permutation[r];
         this.permutation[r] = tmp;
@@ -229,26 +208,26 @@ document.addEventListener('DOMContentLoaded', () => {
         this.p[i] = this.p[i + 256] = this.permutation[i];
       }
     }
-    random() { // Simple LCG for seeded random
+    random() {
       let x = Math.sin(this.seed++) * 10000;
       return x - Math.floor(x);
     }
-    fade(t) { return t * t * t * (t * (t * 6 - 15) + 10); } // 6t^5 - 15t^4 + 10t^3
+    fade(t) { return t * t * t * (t * (t * 6 - 15) + 10); }
     lerp(a, b, t) { return a + t * (b - a); }
     grad(hash, x, y, z) {
-      hash = hash & 15; // Ensure hash is between 0 and 15
+      hash = hash & 15;
       let u = hash < 8 ? x : y;
       let v = hash < 4 ? y : hash === 12 || hash === 14 ? x : z;
       return ((hash & 1) === 0 ? u : -u) + ((hash & 2) === 0 ? v : -v);
     }
     noise(x, y, z) {
-      let floorX = Math.floor(x) & 255; // & 255 to wrap around 0-255
+      let floorX = Math.floor(x) & 255;
       let floorY = Math.floor(y) & 255;
       let floorZ = Math.floor(z) & 255;
-      x -= Math.floor(x); // Relative x, y, z in cube
+      x -= Math.floor(x);
       y -= Math.floor(y);
       z -= Math.floor(z);
-      let u = this.fade(x); // Compute fade curves for x, y, z
+      let u = this.fade(x);
       let v = this.fade(y);
       let w = this.fade(z);
       let A = this.p[floorX] + floorY;
@@ -257,7 +236,6 @@ document.addEventListener('DOMContentLoaded', () => {
       let B = this.p[floorX + 1] + floorY;
       let BA = this.p[B] + floorZ;
       let BB = this.p[B + 1] + floorZ;
-      // Blend 8 gradient values
       return this.lerp(
         this.lerp(
           this.lerp(this.grad(this.p[AA], x, y, z), this.grad(this.p[BA], x - 1, y, z), u),
@@ -276,20 +254,20 @@ document.addEventListener('DOMContentLoaded', () => {
       let total = 0;
       let frequency = 1;
       let amplitude = 1;
-      let maxValue = 0; // Used for normalizing result to 0.0 - 1.0
+      let maxValue = 0;
       for (let i = 0; i < octaves; i++) {
         total += this.noise(x * frequency, y * frequency, z * frequency) * amplitude;
         maxValue += amplitude;
         amplitude *= persistence;
         frequency *= lacunarity;
       }
-      return total / maxValue; // Normalize
+      return total / maxValue;
     }
   }
   function updateDerivedConstants() {
     MAX_PLANET_DISTANCE = (SUN_ICON_SIZE * BASE_MAX_PLANET_DISTANCE_FACTOR) * currentMaxPlanetDistanceMultiplier;
     MIN_PLANET_DISTANCE = SUN_ICON_SIZE * 1.5 * (currentMaxPlanetDistanceMultiplier > 0.5 ? currentMaxPlanetDistanceMultiplier * 0.8 : 0.5);
-    ORBIT_CANVAS_SIZE = MAX_PLANET_DISTANCE * 2.2; // Ensure orbits fit
+    ORBIT_CANVAS_SIZE = MAX_PLANET_DISTANCE * 2.2;
   }
   function saveCustomizationSettings() {
     const settings = {
@@ -312,9 +290,9 @@ document.addEventListener('DOMContentLoaded', () => {
         currentMinSSCount = parseInt(loadedSettings.minSS, 10) || DEFAULT_MIN_SS_COUNT_CONST;
         currentMaxSSCount = parseInt(loadedSettings.maxSS, 10) || DEFAULT_MAX_SS_COUNT_CONST;
         currentMaxPlanetDistanceMultiplier = parseFloat(loadedSettings.spread) || DEFAULT_MAX_PLANET_DISTANCE_MULTIPLIER;
-        currentMinPlanets = parseInt(loadedSettings.minPlanets, 10); // Default handled by isNaN check below
+        currentMinPlanets = parseInt(loadedSettings.minPlanets, 10);
         if (isNaN(currentMinPlanets)) currentMinPlanets = DEFAULT_MIN_PLANETS_PER_SYSTEM;
-        currentMaxPlanets = parseInt(loadedSettings.maxPlanets, 10); // Default handled by isNaN check below
+        currentMaxPlanets = parseInt(loadedSettings.maxPlanets, 10);
         if (isNaN(currentMaxPlanets)) currentMaxPlanets = DEFAULT_MAX_PLANETS_PER_SYSTEM;
         currentShowPlanetOrbits = typeof loadedSettings.showOrbits === 'boolean' ? loadedSettings.showOrbits : DEFAULT_SHOW_PLANET_ORBITS;
       } catch (e) { console.error("Error loading customization settings:", e); resetToDefaultCustomization(); }
@@ -348,7 +326,6 @@ document.addEventListener('DOMContentLoaded', () => {
         if (loadedState && typeof loadedState.universeDiameter === 'number' && Array.isArray(loadedState.galaxies)) {
           gameSessionData.universe.diameter = loadedState.universeDiameter;
           gameSessionData.galaxies = loadedState.galaxies;
-          // Ensure all expected properties are present with defaults
           gameSessionData.galaxies.forEach(gal => {
             gal.currentZoom = gal.currentZoom || 1.0;
             gal.currentPanX = gal.currentPanX || 0;
@@ -376,7 +353,7 @@ document.addEventListener('DOMContentLoaded', () => {
   function adjustColor(e, t) { let r = parseInt(e.slice(1, 3), 16), o = parseInt(e.slice(3, 5), 16), a = parseInt(e.slice(5, 7), 16); return r = Math.max(0, Math.min(255, r + t)), o = Math.max(0, Math.min(255, o + t)), a = Math.max(0, Math.min(255, a + t)), `#${r.toString(16).padStart(2, "0")}${o.toString(16).padStart(2, "0")}${a.toString(16).padStart(2, "0")}`; }
   function setActiveScreen(screenToShow) {
     [mainScreen, galaxyDetailScreen, solarSystemScreen, planetDesignerScreen].forEach(screen => {
-      if (screen) screen.classList.remove('active', 'panning-active'); // Ensure panning-active also removed
+      if (screen) screen.classList.remove('active', 'panning-active');
     });
     if (screenToShow) {
       screenToShow.classList.add('active');
@@ -385,7 +362,7 @@ document.addEventListener('DOMContentLoaded', () => {
       if (screenToShow === galaxyDetailScreen || screenToShow === solarSystemScreen) zoomControlsElement.classList.add('visible');
       else zoomControlsElement.classList.remove('visible');
     }
-    if (regenerateUniverseButton) { // Safety check if elements exist
+    if (regenerateUniverseButton) {
       regenerateUniverseButton.style.display = (screenToShow === mainScreen || screenToShow === galaxyDetailScreen || screenToShow === solarSystemScreen || screenToShow === planetDesignerScreen) ? 'block' : 'none';
     }
     if (customizeGenerationButton) {
@@ -394,7 +371,6 @@ document.addEventListener('DOMContentLoaded', () => {
     if (createPlanetDesignButton) {
       createPlanetDesignButton.style.display = (screenToShow === mainScreen || screenToShow === galaxyDetailScreen || screenToShow === solarSystemScreen || screenToShow === planetDesignerScreen) ? 'block' : 'none';
     }
-    // Do not hide planet panel if the target screen is the solar system and panel is already visible
     if (!(screenToShow === solarSystemScreen && planetVisualPanel.classList.contains('visible'))) {
          planetVisualPanel.classList.remove('visible');
     }
@@ -404,10 +380,10 @@ document.addEventListener('DOMContentLoaded', () => {
     if (!gameSessionData.universe.diameter) return;
     gameSessionData.galaxies = [];
     const pr = gameSessionData.universe.diameter / 2;
-    const tpr = []; // Temp placed rects
+    const tpr = [];
     for (let i = 0; i < currentNumGalaxies; i++) {
       const id = `galaxy-${i + 1}`, pos = getNonOverlappingPositionInCircle(pr, GALAXY_ICON_SIZE, tpr);
-      if (pos && !isNaN(pos.x) && !isNaN(pos.y)) { //Ensure valid position
+      if (pos && !isNaN(pos.x) && !isNaN(pos.y)) {
         gameSessionData.galaxies.push({ id, x: pos.x, y: pos.y, customName: null, solarSystems: [], lineConnections: [], layoutGenerated: false, currentZoom: 1.0, currentPanX: 0, currentPanY: 0, generationParams: { densityFactor: 0.8 + Math.random() * 0.4 } });
         tpr.push({ x: pos.x, y: pos.y, width: GALAXY_ICON_SIZE, height: GALAXY_ICON_SIZE })
       }
@@ -418,28 +394,26 @@ document.addEventListener('DOMContentLoaded', () => {
   function generateSolarSystemsForGalaxy(galaxyId) {
     const gal = gameSessionData.galaxies.find(g => g.id === galaxyId);
     if (!gal || !galaxyViewport) { console.warn("Cannot find galaxy or viewport for ID:", galaxyId); return; }
-    if (gal.layoutGenerated && !gameSessionData.isForceRegenerating) return; // Don't regenerate if already done, unless forced
-    const pd = galaxyViewport.offsetWidth > 0 ? galaxyViewport.offsetWidth : (gameSessionData.universe.diameter || 500); // Parent diameter
-    const pr = pd / 2; // Parent radius for centering
+    if (gal.layoutGenerated && !gameSessionData.isForceRegenerating) return;
+    const pd = galaxyViewport.offsetWidth > 0 ? galaxyViewport.offsetWidth : (gameSessionData.universe.diameter || 500);
+    const pr = pd / 2;
     if (pd <= 0 || isNaN(pr) || pr <= 0) { console.warn("Invalid dimensions for galaxy layout:", pd, pr); gal.layoutGenerated = true; if (!gameSessionData.isForceRegenerating) saveGameState(); return }
-    gal.solarSystems = []; gal.lineConnections = []; const tpr = []; // Temp placed rects
+    gal.solarSystems = []; gal.lineConnections = []; const tpr = [];
     const numSystemsToAssign = Math.floor(Math.random() * (currentMaxSSCount - currentMinSSCount + 1)) + currentMinSSCount;
     for (let i = 0; i < numSystemsToAssign; i++) {
-      const sysId = `${gal.id}-ss-${i + 1}`; // e.g., "galaxy-1-ss-1"
+      const sysId = `${gal.id}-ss-${i + 1}`;
       const pos = getNonOverlappingPositionInCircle(pr, SOLAR_SYSTEM_BASE_ICON_SIZE, tpr);
-      if (pos && !isNaN(pos.x) && !isNaN(pos.y)) { //Ensure valid position
+      if (pos && !isNaN(pos.x) && !isNaN(pos.y)) {
         gal.solarSystems.push({ id: sysId, customName: null, x: pos.x, y: pos.y, iconSize: SOLAR_SYSTEM_BASE_ICON_SIZE });
         tpr.push({ x: pos.x, y: pos.y, width: SOLAR_SYSTEM_BASE_ICON_SIZE, height: SOLAR_SYSTEM_BASE_ICON_SIZE })
       }
     }
-    // --- MST-based Connection Logic ---
-    if (gal.solarSystems.length < 2) { gal.layoutGenerated = true; if (!gameSessionData.isForceRegenerating) saveGameState(); return; } // Not enough systems to connect
+    if (gal.solarSystems.length < 2) { gal.layoutGenerated = true; if (!gameSessionData.isForceRegenerating) saveGameState(); return; }
     const allSystemCoords = gal.solarSystems.map(ss => ({ ...ss, centerX: ss.x + ss.iconSize / 2, centerY: ss.y + ss.iconSize / 2 }));
-    const systemConnectionCounts = {}; // { systemId: count }
+    const systemConnectionCounts = {};
     const currentGalaxyDiameter = pd;
     const actualMaxEuclideanConnectionDistance = currentGalaxyDiameter * MAX_EUCLIDEAN_CONNECTION_DISTANCE_PERCENT;
     const actualMaxForcedConnectionDistance = currentGalaxyDiameter * MAX_FORCED_CONNECTION_DISTANCE_PERCENT;
-    // Prim-like algorithm for MST to ensure graph connectivity
     let connectedSet = new Set();
     let unconnectedSet = new Set(allSystemCoords.map(s => s.id));
     if (allSystemCoords.length > 0) {
@@ -447,7 +421,7 @@ document.addEventListener('DOMContentLoaded', () => {
       connectedSet.add(firstSysId);
       unconnectedSet.delete(firstSysId);
       while (unconnectedSet.size > 0) {
-        let bestCandidate = null; // { fromId, toId, dist }
+        let bestCandidate = null;
         let minCurrentDist = Infinity;
         for (const unconnId of unconnectedSet) {
           const currentUnconnSys = allSystemCoords.find(s => s.id === unconnId);
@@ -468,7 +442,7 @@ document.addEventListener('DOMContentLoaded', () => {
             systemConnectionCounts[bestCandidate.toId] = (systemConnectionCounts[bestCandidate.toId] || 0) + 1;
             connectedSet.add(bestCandidate.toId);
             unconnectedSet.delete(bestCandidate.toId);
-          } else { // Failed primary, try forced fallback connection
+          } else {
             const systemToConnectId = bestCandidate.toId;
             const systemToConnect = allSystemCoords.find(s => s.id === systemToConnectId);
             let fallbackTargetId = null;
@@ -490,13 +464,13 @@ document.addEventListener('DOMContentLoaded', () => {
               systemConnectionCounts[fallbackTargetId] = (systemConnectionCounts[fallbackTargetId] || 0) + 1;
               connectedSet.add(systemToConnectId);
               unconnectedSet.delete(systemToConnectId);
-            } else { // No forced fallback, try ultimate fallback (any distance)
+            } else {
               let ultimateFallbackId = null;
               let minUltimateFallbackDist = Infinity;
-              for (const currentConnectedId of connectedSet) { // Correct iteration for Set objects
+              for (const currentConnectedId of connectedSet) {
                 const connSys = allSystemCoords.find(s => s.id === currentConnectedId);
                 const dist = getDistance(systemToConnect, connSys);
-                const isPossibleUltimateFallback = tryAddConnection(systemToConnectId, currentConnectedId, gal.lineConnections, systemConnectionCounts, allSystemCoords, null); // No distance limit
+                const isPossibleUltimateFallback = tryAddConnection(systemToConnectId, currentConnectedId, gal.lineConnections, systemConnectionCounts, allSystemCoords, null);
                 if (isPossibleUltimateFallback) {
                   if (dist < minUltimateFallbackDist) {
                     minUltimateFallbackDist = dist;
@@ -511,36 +485,31 @@ document.addEventListener('DOMContentLoaded', () => {
                 connectedSet.add(systemToConnectId);
                 unconnectedSet.delete(systemToConnectId);
               } else {
-                unconnectedSet.delete(systemToConnectId); // Cannot connect, remove from candidates
+                unconnectedSet.delete(systemToConnectId);
               }
             }
           }
-        } else { // No best candidate found, might mean unconnected components
+        } else {
           if (unconnectedSet.size > 0 && connectedSet.size === 0 && allSystemCoords.length > 0) {
-            // This state can happen if the first system could not be placed, try next.
             const nextUnconnectedId = Array.from(unconnectedSet)[0];
             connectedSet.add(nextUnconnectedId);
             unconnectedSet.delete(nextUnconnectedId);
           } else {
-            break; // Exit loop if no more connections can be made
+            break;
           }
         }
       }
     };
-    // --- Add additional connections ---
     allSystemCoords.forEach(ss1 => {
       const desiredConnections = getWeightedNumberOfConnections();
       let currentConnections = systemConnectionCounts[ss1.id] || 0;
       let connectionsToAdd = Math.min(desiredConnections, MAX_CONNECTIONS_PER_SYSTEM - currentConnections);
       if (connectionsToAdd <= 0) return;
-      // Find closest neighbors that are not already at max connections and not already connected
       let potentialTargets = allSystemCoords
-        .filter(ss2 => ss1.id !== ss2.id) // Not itself
+        .filter(ss2 => ss1.id !== ss2.id)
         .map(ss2 => ({ ...ss2, distance: getDistance(ss1, ss2) }))
         .sort((a, b) => a.distance - b.distance);
-      // Only consider targets within the Euclidean connection distance for these additional links
       const limitedPotentialTargets = potentialTargets.filter(ss2 => ss2.distance <= actualMaxEuclideanConnectionDistance);
-      // Take a small pool of the closest candidates to avoid too many long connections
       const finalCandidates = limitedPotentialTargets.slice(0, MAX_NEIGHBOR_CANDIDATES_FOR_ADDITIONAL_CONNECTIONS);
       for (const ss2 of finalCandidates) {
         if (connectionsToAdd <= 0) break;
@@ -557,22 +526,22 @@ document.addEventListener('DOMContentLoaded', () => {
     if (!gameSessionData.isForceRegenerating) { saveGameState(); }
   }
   async function preGenerateAllGalaxyContents() {
-    gameSessionData.isForceRegenerating = true; // Set flag to allow regeneration
+    gameSessionData.isForceRegenerating = true;
     for (const gal of gameSessionData.galaxies) {
-      if (galaxyViewport && (!gal.layoutGenerated || gal.solarSystems.length === 0)) { // Ensure viewport is available
-        await new Promise(resolve => setTimeout(resolve, 0)); // Yield to allow UI updates if necessary
+      if (galaxyViewport && (!gal.layoutGenerated || gal.solarSystems.length === 0)) {
+        await new Promise(resolve => setTimeout(resolve, 0));
         generateSolarSystemsForGalaxy(gal.id);
       }
     }
-    gameSessionData.isForceRegenerating = false; // Reset flag
-    saveGameState(); // Save after all pre-generation is done
+    gameSessionData.isForceRegenerating = false;
+    saveGameState();
   }
   function renderMainScreen() {
     if (mainScreenTitleText) mainScreenTitleText.textContent = "Universe";
     if (!universeCircle) return;
-    universeCircle.innerHTML = ''; // Clear existing galaxies
+    universeCircle.innerHTML = '';
     gameSessionData.galaxies.forEach(gal => {
-      const displayId = gal.id.split('-').pop(); // Get the numeric part of "galaxy-1"
+      const displayId = gal.id.split('-').pop();
       const el = document.createElement('div');
       el.className = 'galaxy-icon';
       el.style.width = `${GALAXY_ICON_SIZE}px`;
@@ -592,16 +561,13 @@ document.addEventListener('DOMContentLoaded', () => {
     const gal = gameSessionData.galaxies.find(g => g.id === gameSessionData.activeGalaxyId);
     if (!gal) { switchToMainView(); return }
     if (!galaxyViewport || !galaxyZoomContent) return;
-    // Set fixed size for viewport (content will scale and pan inside this)
     galaxyViewport.style.width = `${gameSessionData.universe.diameter || 500}px`;
     galaxyViewport.style.height = `${gameSessionData.universe.diameter || 500}px`;
-    // Clear old icons, but preserve canvas
     const icons = galaxyZoomContent.querySelectorAll('.solar-system-icon');
     icons.forEach(i => i.remove());
-    // --- Render Solar System Icons ---
-    const zoomScaleDampening = 0.6; // How much icon size scales with zoom (0 to 1)
+    const zoomScaleDampening = 0.6;
     gal.solarSystems.forEach(ss => {
-      const solarSystemObject = ss; // For clarity
+      const solarSystemObject = ss;
       const el = document.createElement('div');
       el.className = 'solar-system-icon';
       const baseEffectiveZoom = 1 + (gal.currentZoom - GALAXY_VIEW_MIN_ZOOM) * zoomScaleDampening;
@@ -738,7 +704,7 @@ document.addEventListener('DOMContentLoaded', () => {
   }
 
   function renderPlanetVisual(planetData, rotationQuaternion, targetCanvas = planetVisualCanvas) {
-    if (!planetData || !targetCanvas || !window.Worker) return; // Also check for worker support
+    if (!planetData || !targetCanvas || !window.Worker) return;
 
     if (!planetData.continentSeed) {
       planetData.continentSeed = Math.random();
@@ -855,9 +821,6 @@ document.addEventListener('DOMContentLoaded', () => {
 
       gameSessionData.solarSystemView.planets.push(newPlanet);
 
-      // MODIFICATION 2 IS HERE, below this loop, not inside, for efficiency.
-      // We will preload all planets after the loop.
-
       const planetEl = document.createElement('div');
       planetEl.className = 'planet-icon';
       planetEl.style.width = `${newPlanet.size}px`;
@@ -874,24 +837,20 @@ document.addEventListener('DOMContentLoaded', () => {
       planetEl.style.boxShadow = `0 0 ${newPlanet.size / 3}px rgba(255, 255, 255, 0.3)`;
       planetEl.addEventListener('click', (e) => {
         e.stopPropagation();
-        const wasPanelVisible = planetVisualPanel.classList.contains('visible'); // MODIFICATION 3 Check
+        const wasPanelVisible = planetVisualPanel.classList.contains('visible');
         currentPlanetDisplayedInPanel = newPlanet;
         planetVisualTitle.textContent = newPlanet.planetName;
         planetVisualSize.textContent = Math.round(newPlanet.size);
         planetVisualPanel.classList.add('visible');
 
-        // MODIFICATION 3 START: Panel Position Persistence
-        if (!wasPanelVisible) { // Only recenter if the panel was not already visible
+        if (!wasPanelVisible) {
             planetVisualPanel.style.left = '50%';
             planetVisualPanel.style.top = '50%';
             planetVisualPanel.style.transform = 'translate(-50%, -50%)';
-            planetVisualPanel.style.transition = ''; // Remove transition for immediate placement
+            planetVisualPanel.style.transition = '';
         } else {
-            // If panel was already visible, ensure transition is off for content update but don't move panel
             planetVisualPanel.style.transition = 'none';
-            // setTimeout(() => planetVisualPanel.style.transition = '', 0); // Re-enable after a tick if needed for future style changes
         }
-        // MODIFICATION 3 END
 
         planetVisualRotationQuat = quat_identity();
         renderPlanetVisual(newPlanet, planetVisualRotationQuat, planetVisualCanvas);
@@ -900,7 +859,6 @@ document.addEventListener('DOMContentLoaded', () => {
       newPlanet.element = planetEl;
     }
 
-    // MODIFICATION 2 START: Preload all planets in the current solar system view
     if (planetVisualWorker && gameSessionData.solarSystemView.planets) {
         gameSessionData.solarSystemView.planets.forEach(planetToPreload => {
             const preloadData = {
@@ -912,13 +870,12 @@ document.addEventListener('DOMContentLoaded', () => {
                 cmd: 'preloadPlanet',
                 planetData: preloadData,
                 rotationQuaternion: quat_identity(),
-                canvasWidth: planetVisualCanvas?.width || 200, // Use actual or a default
+                canvasWidth: planetVisualCanvas?.width || 200,
                 canvasHeight: planetVisualCanvas?.height || 200,
-                senderId: `preload-${planetToPreload.id}` // Unique senderId for potential tracking
+                senderId: `preload-${planetToPreload.id}`
             });
         });
     }
-    // MODIFICATION 2 END
 
     if (solarSystemTitleText) {
       solarSystemTitleText.textContent = (solarSystemObject && solarSystemObject.customName) ? solarSystemObject.customName : `System ${solarSystemId.substring(solarSystemId.lastIndexOf('-') + 1)}`;
@@ -1149,6 +1106,7 @@ document.addEventListener('DOMContentLoaded', () => {
     planetVisualCanvas.classList.add('dragging');
     e.preventDefault();
   });
+
   window.addEventListener('mousemove', (e) => {
     if (isPanelDragging) {
       planetVisualPanel.style.left = `${e.clientX - visualPanelOffset.x}px`;
@@ -1164,20 +1122,10 @@ document.addEventListener('DOMContentLoaded', () => {
       const deltaMouseY = e.clientY - startDragMouseY;
 
       const rotationAroundX = (deltaMouseY / canvasHeight) * Math.PI * PLANET_ROTATION_SENSITIVITY;
-      // MODIFICATION 1 START: Invert horizontal rotation
-      // Original was: (deltaMouseX / canvasWidth) * (2 * Math.PI) * PLANET_ROTATION_SENSITIVITY;
-      // then incY_quat = quat_from_axis_angle([0, 1, 0], -rotationAroundY);
-      // To invert, make rotationAroundY positive here, or remove negative in quat_from_axis_angle for Y only.
-      // Let's make rotationAroundY have the correct sign directly.
-      const rotationAroundY = -(deltaMouseX / canvasWidth) * (2 * Math.PI) * PLANET_ROTATION_SENSITIVITY;
-      // MODIFICATION 1 END
+      const rotationAroundY = (deltaMouseX / canvasWidth) * (2 * Math.PI) * PLANET_ROTATION_SENSITIVITY;
 
-      const incX_quat = quat_from_axis_angle([1, 0, 0], -rotationAroundX); // Vertical drag rotation (around X-axis)
-      const incY_quat = quat_from_axis_angle([0, 1, 0], rotationAroundY); // Horizontal drag rotation (around Y-axis) - Note: sign of rotationAroundY might be adjusted here or above
-      // MODIFICATION 1 Note: We changed rotationAroundY sign above so this line now uses positive rotationAroundY.
-      // This means if you drag mouse left (negative deltaMouseX), rotationAroundY becomes positive.
-      // A positive rotation around Y-axis (using right-hand rule, thumb along Y+) means rotating from +Z to +X.
-      // This should achieve the effect where dragging left pulls the left side of the planet towards you / rotates the planet to the left.
+      const incX_quat = quat_from_axis_angle([1, 0, 0], -rotationAroundX);
+      const incY_quat = quat_from_axis_angle([0, 1, 0], rotationAroundY);
 
       const combined_inc_quat = quat_multiply(incY_quat, incX_quat);
       planetVisualRotationQuat = quat_normalize(quat_multiply(combined_inc_quat, startDragPlanetVisualQuat));
@@ -1198,12 +1146,10 @@ document.addEventListener('DOMContentLoaded', () => {
       const deltaMouseY = e.clientY - designerStartDragMouseY;
 
       const rotationAroundX = (deltaMouseY / canvasHeight) * Math.PI * PLANET_ROTATION_SENSITIVITY;
-      // MODIFICATION 1 START: Invert horizontal rotation for designer
-      const rotationAroundY = -(deltaMouseX / canvasWidth) * (2 * Math.PI) * PLANET_ROTATION_SENSITIVITY;
-      // MODIFICATION 1 END
+      const rotationAroundY = (deltaMouseX / canvasWidth) * (2 * Math.PI) * PLANET_ROTATION_SENSITIVITY;
 
       const incX_quat = quat_from_axis_angle([1, 0, 0], -rotationAroundX);
-      const incY_quat = quat_from_axis_angle([0, 1, 0], rotationAroundY); // Same logic as above
+      const incY_quat = quat_from_axis_angle([0, 1, 0], rotationAroundY);
 
       const combined_inc_quat = quat_multiply(incY_quat, incX_quat);
       designerPlanetRotationQuat = quat_normalize(quat_multiply(combined_inc_quat, startDragDesignerPlanetQuat));
@@ -1388,20 +1334,16 @@ document.addEventListener('DOMContentLoaded', () => {
     });
   }
   if (solarSystemScreen) { solarSystemScreen.addEventListener('mousedown', (e) => { if (solarSystemScreen.classList.contains('active')) { startPan(e, solarSystemScreen, solarSystemContent, gameSessionData.solarSystemView); } }); }
-  window.addEventListener('mousemove', panMouseMove); // Generic pan move
-  window.addEventListener('mouseup', panMouseUp);   // Generic pan up
+  window.addEventListener('mousemove', panMouseMove);
+  window.addEventListener('mouseup', panMouseUp);
 
-  // Galaxy Specific Panning - This needs to be carefully managed with the generic pan handlers
-  // The current structure has the generic panMouseMove and panMouseUp.
-  // The mousedown for galaxyViewport does NOT call startPan, so it uses its own flags.
-  // This is kept for now but is a candidate for future unification.
   if (galaxyViewport) {
-    galaxyViewport.addEventListener('click', function (event) { // Changed from galaxyZoomContent to galaxyViewport for wider click area if needed, or keep on zoomContent
+    galaxyViewport.addEventListener('click', function (event) {
       if (gameSessionData.panning.isActive && !event.target.closest('.solar-system-icon')) {
         return;
       }
       const ssIcon = event.target.closest('.solar-system-icon');
-      if (ssIcon) { // Check if click was on a solar system icon
+      if (ssIcon) {
         const ssId = ssIcon.dataset.solarSystemId;
         if (ssId) {
           switchToSolarSystemView(ssId);
@@ -1410,7 +1352,7 @@ document.addEventListener('DOMContentLoaded', () => {
       }
     });
 
-    let isGalaxyPanningSpecific = false; // Renamed to avoid confusion with generic panning's isActive
+    let isGalaxyPanningSpecific = false;
     let galaxyPanStartSpecific = { x: 0, y: 0 };
     let galaxyLastPanSpecific = { x: 0, y: 0 };
 
@@ -1422,7 +1364,6 @@ document.addEventListener('DOMContentLoaded', () => {
         e.target.closest('button')
       ) return;
 
-      // Prevent generic panning if we are starting galaxy specific panning
       if (gameSessionData.panning.isActive) return;
 
       isGalaxyPanningSpecific = true;
@@ -1438,16 +1379,6 @@ document.addEventListener('DOMContentLoaded', () => {
       e.preventDefault();
     });
 
-    // Use a single window mousemove listener that branches based on active panning type
-    // This requires modifying the generic panMouseMove or careful flag management.
-    // For now, the multiple window listeners from the original code are problematic.
-    // Let's assume the global panMouseMove ALREADY handles standard panning.
-    // We need to ensure it doesn't interfere with this specific galaxy pan.
-    // The current global panMouseMove checks `gameSessionData.panning.isActive`.
-    // The global panMouseUp checks `gameSessionData.panning.isActive`.
-
-    // This specific mousemove for galaxy only runs if `isGalaxyPanningSpecific` is true.
-    // It should be fine as long as `startPan` is not called for galaxy view background.
     const galaxyMouseMoveHandler = (e) => {
       if (!isGalaxyPanningSpecific) return;
       const gal = gameSessionData.galaxies.find(g => g.id === gameSessionData.activeGalaxyId);
@@ -1469,7 +1400,7 @@ document.addEventListener('DOMContentLoaded', () => {
         isGalaxyPanningSpecific = false;
         galaxyViewport.classList.remove('dragging');
         if (galaxyZoomContent) galaxyZoomContent.style.transition = '';
-        renderGalaxyDetailScreen(false); // Non-interactive render after pan ends
+        renderGalaxyDetailScreen(false);
       }
     };
     window.addEventListener('mouseup', galaxyMouseUpHandler);

@@ -1019,28 +1019,28 @@ function drawSegmentLines(ctx, planetData, currentLon, currentLat, sphereRadius,
             const current_phi = Math.acos(rotatedY); // Use rotatedY here as it's the Y in the final viewer space
             const current_theta = (Math.atan2(rotatedX, rotatedZ) + 2 * Math.PI) % (2 * Math.PI);
 
-            let latBandIndex = -1;
-            for (let k = 0; k < planetData.segmentsData.latBandStarts.length - 1; k++) {
-                if (current_phi >= planetData.segmentsData.latBandStarts[k] && current_phi < planetData.segmentsData.latBandStarts[k + 1]) {
-                    latBandIndex = k;
-                    break;
-                }
-            }
-            if (latBandIndex === -1 && current_phi === Math.PI) latBandIndex = planetData.segmentsData.latBandStarts.length - 2; // Handle South Pole exact match
-
-            let lonBandIndex = -1;
-            for (let k = 0; k < planetData.segmentsData.lonSliceStarts.length - 1; k++) {
-                if (current_theta >= planetData.segmentsData.lonSliceStarts[k] && current_theta < planetData.segmentsData.lonSliceStarts[k + 1]) {
-                    lonBandIndex = k;
-                    break;
-                }
-            }
-            if (lonBandIndex === -1 && current_theta === 2 * Math.PI) lonBandIndex = planetData.segmentsData.lonSliceStarts.length - 2; // Handle 2PI exact match
-
-            const segment = planetData.segmentsData.map.get(`${latBandIndex},${lonBandIndex}`);
-            if (segment && segment.isPink) {
-                r = 255; g = 105; b = 180; // Bright Pink
-            }
+ let minDist = Infinity, closestSeed = null;
+for (let s = 0; s < planetData.segmentsData.seeds.length; s++) {
+    const seed = planetData.segmentsData.seeds[s];
+    const dPhi = current_phi - seed.phi;
+    const dTheta = Math.abs(current_theta - seed.theta);
+    const chord = Math.sqrt(dPhi * dPhi + dTheta * dTheta);
+    const squiggle = 0.12 * Math.sin(13 * current_phi + 17 * current_theta);
+    const dist = chord + squiggle;
+    if (dist < minDist) {
+        minDist = dist;
+        closestSeed = seed;
+    }
+}
+const segmentKey = closestSeed.id;
+let segment = planetData.segmentsData.map.get(segmentKey);
+if (!segment) {
+    segment = { isPink: false };
+    planetData.segmentsData.map.set(segmentKey, segment);
+}
+if (segment && segment.isPink) {
+    r = 255; g = 105; b = 180; // Bright Pink
+}
 
             ctx.fillStyle = `rgba(${r},${g},${b},${a / 255})`;
             ctx.fillRect(centerX + nx * radius, centerY + ny * radius, 1, 1);

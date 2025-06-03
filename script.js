@@ -887,7 +887,7 @@ document.addEventListener('DOMContentLoaded', () => {
         const invLatSin = Math.sin(-latitude);
         const tempY = y_cam * invLatCos - z_cam * invLatSin;
         const tempZ = y_cam * invLatSin + z_cam * invLatCos;
-
+const pixelStep = isCurrentlyDragging ? 6 : 1;
         const invLonCos = Math.cos(-longitude);
         const invLonSin = Math.sin(-longitude);
         const x_tex = x_cam * invLonCos + tempZ * invLonSin;
@@ -1066,8 +1066,6 @@ document.addEventListener('DOMContentLoaded', () => {
     renderSolarSystemScreen(false);
     startSolarSystemAnimation();
   }
-
-    const pixelStep = isCurrentlyDragging ? 1 : 1;
   
   function animateSolarSystem(now) {
     if (!now) now = performance.now();

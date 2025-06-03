@@ -218,30 +218,56 @@ function generatePlanetFromBasis(basis) {
     planetVisualWorker = new Worker('planetRendererWorker.js');
     designerWorker = new Worker('planetRendererWorker.js');
 
-
-designerWorker.onmessage = function(e) {
-   console.log("Designer worker responded:", e.data);
-   const { renderedData, width, height, senderId } = e.data;
-   if (senderId === 'designer-planet-canvas' && designerPlanetCanvas) {
-    const ctx = designerPlanetCanvas.getContext('2d');
-    ctx.clearRect(0, 0, designerPlanetCanvas.width, designerPlanetCanvas.height);
+planetVisualWorker.onmessage = function(e) {
+  const { renderedData, width, height, senderId } = e.data;
+  if (senderId === 'planet-visual-canvas' && planetVisualCanvas) {
+    const ctx = planetVisualCanvas.getContext('2d');
+    ctx.clearRect(0, 0, planetVisualCanvas.width, planetVisualCanvas.height);
     if (renderedData && width && height) {
-     try {
-      const clampedArray = new Uint8ClampedArray(renderedData);
-      const imageDataObj = new ImageData(clampedArray, width, height);
-      ctx.putImageData(imageDataObj, 0, 0);
-     } catch (err) {
-      console.error("Error putting ImageData on designerPlanetCanvas:", err);
-     }
+      try {
+        const clampedArray = new Uint8ClampedArray(renderedData);
+        const imageDataObj = new ImageData(clampedArray, width, height);
+        ctx.putImageData(imageDataObj, 0, 0);
+
+        // ---- STEP D GOES HERE ----
+        planetVisualCanvas.style.transform = ""; // Remove CSS rotation
+        planetVisualRotationQuatDisplayed = planetVisualRotationQuatTarget;
+        // --------------------------
+
+      } catch (err) {
+        console.error("Error putting ImageData on planetVisualCanvas:", err);
+      }
     }
-   }
-   isRenderingDesignerPlanet = false;
-  };
- } else {
-  console.warn("Web Workers not supported in this browser. Planet rendering will be disabled.");
- }
+  }
+  isRenderingVisualPlanet = false;
+      if (needsPlanetVisualRerender && currentPlanetDisplayedInPanel && planetVisualPanel.classList.contains('visible')) {
+          needsPlanetVisualRerender = false;
+          isRenderingVisualPlanet = true;
+          renderPlanetVisual(currentPlanetDisplayedInPanel, planetVisualRotationQuat, planetVisualCanvas);
+}
+    };
 
-
+    designerWorker.onmessage = function(e) {
+      console.log("Designer worker responded:", e.data);
+      const { renderedData, width, height, senderId } = e.data;
+      if (senderId === 'designer-planet-canvas' && designerPlanetCanvas) {
+        const ctx = designerPlanetCanvas.getContext('2d');
+        ctx.clearRect(0, 0, designerPlanetCanvas.width, designerPlanetCanvas.height);
+        if (renderedData && width && height) {
+         try {
+            const clampedArray = new Uint8ClampedArray(renderedData);
+            const imageDataObj = new ImageData(clampedArray, width, height);
+            ctx.putImageData(imageDataObj, 0, 0);
+          } catch (err) {
+            console.error("Error putting ImageData on designerPlanetCanvas:", err);
+          }
+        }
+      }
+      isRenderingDesignerPlanet = false;
+    };
+  } else {
+    console.warn("Web Workers not supported in this browser. Planet rendering will be disabled.");
+  }
 
   class PerlinNoise {
     constructor(seed = Math.random()) {

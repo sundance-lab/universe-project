@@ -734,8 +734,6 @@ const userId = 'sundance-lab';
     renderSolarSystemScreen(false);
   }
 
-// Place this in script.js, making sure planetVisualCanvas exists in your HTML
-
 function renderPlanetVisual(planet, rotationLongitude = 0, rotationLatitude = 0) {
   if (!planet || !window.planetVisualCanvas) return;
   const ctx = planetVisualCanvas.getContext('2d');
@@ -754,27 +752,23 @@ function renderPlanetVisual(planet, rotationLongitude = 0, rotationLatitude = 0)
   ctx.closePath();
   ctx.clip();
 
-  // Draw main planet fill
+  // Always show a visible planet color
   if (planet.type === 'terrestrial') {
-    // Water background
-    ctx.fillStyle = planet.waterColor || '#3498db'; // fallback blue
+    ctx.fillStyle = planet.waterColor || '#3498db';
     ctx.fillRect(centerX - radius, centerY - radius, radius * 2, radius * 2);
 
-    // Grass/landmass overlay
-    ctx.fillStyle = planet.grassColor || '#27ae60'; // fallback green
+    ctx.fillStyle = planet.grassColor || '#27ae60';
     ctx.beginPath();
     ctx.arc(centerX, centerY, radius * 0.7, 0, 2 * Math.PI);
     ctx.fill();
   } else if (planet.type === 'normal' && planet.color) {
-    // Use HSL or fallback to a nice color
     const c = planet.color;
     ctx.fillStyle = (c && typeof c.hue !== "undefined")
       ? `hsl(${c.hue},${c.saturation}%,${c.lightness}%)`
       : '#e67e22'; // fallback orange
     ctx.fillRect(centerX - radius, centerY - radius, radius * 2, radius * 2);
   } else {
-    // Fallback: show a visible default color
-    ctx.fillStyle = '#e74c3c'; // fallback RED
+    ctx.fillStyle = '#e67e22'; // fallback orange (never black/blank)
     ctx.fillRect(centerX - radius, centerY - radius, radius * 2, radius * 2);
   }
 

@@ -1335,9 +1335,6 @@ function renderDesignerPlanetPreview() {
     currentDesignerPlanet.minTerrainHeight = parseFloat(designerMinHeightMinInput.value) || DEFAULT_MIN_TERRAIN_HEIGHT;
     currentDesignerPlanet.maxTerrainHeight = parseFloat(designerMaxHeightMaxInput.value) || DEFAULT_MAX_TERRAIN_HEIGHT;
     currentDesignerPlanet.oceanHeightLevel = parseFloat(designerOceanHeightMinInput.value) || DEFAULT_OCEAN_HEIGHT_LEVEL;
-    if (designerMinHeightInput) currentDesignerPlanet.minTerrainHeight = parseFloat(designerMinHeightInput.value) || DEFAULT_MIN_TERRAIN_HEIGHT;
-    if (designerMaxHeightInput) currentDesignerPlanet.maxTerrainHeight = parseFloat(designerMaxHeightInput.value) || DEFAULT_MAX_TERRAIN_HEIGHT;
-    if (designerOceanHeightInput) currentDesignerPlanet.oceanHeightLevel = parseFloat(designerOceanHeightInput.value) || DEFAULT_OCEAN_HEIGHT_LEVEL;
 
     if (currentDesignerPlanet.minTerrainHeight >= currentDesignerPlanet.maxTerrainHeight) {
         currentDesignerPlanet.minTerrainHeight = currentDesignerPlanet.maxTerrainHeight - 0.1;

@@ -873,7 +873,7 @@ document.addEventListener('DOMContentLoaded', () => {
     ctx.beginPath();
     ctx.arc(centerX, centerY, radius, 0, Math.PI * 2);
     ctx.clip();
-    const pixelStep = isCurrentlyDragging ? 1 : 1;
+    const pixelStep = isCurrentlyDragging ? 2 : 1;
     for (let y = 0; y < canvasHeight; y += pixelStep) {
       for (let x = 0; x < canvasWidth; x += pixelStep) {
         const x_cam = (x - centerX) / radius;

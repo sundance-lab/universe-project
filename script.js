@@ -154,39 +154,40 @@ document.addEventListener('DOMContentLoaded', () => {
       return ((hash & 1) === 0 ? u : -u) + ((hash & 2) === 0 ? v : -v);
     }
 
-    noise(x, y, z) {
-      let floorX = Math.floor(x) & 255;
-      let floorY = Math.floor(y) & 255;
-      let floorZ = Math.floor(z) & 255;
+noise(x, y, z) {
+  let floorX = Math.floor(x) & 255;
+  let floorY = Math.floor(y) & 255;
+  let floorZ = Math.floor(z) & 255;
 
-      x -= Math.floor(x);
-      y -= Math.floor(y);
-      z -= Math.floor(z);
+  x -= Math.floor(x);
+  y -= Math.floor(y);
+  z -= Math.floor(z);
 
-      let u = this.fade(x);
-      let v = this.fade(y);
-      let w = this.fade(z);
+  let u = this.fade(x);
+  let v = this.fade(y);
+  let w = this.fade(z);
 
-      let A = this.p[floorX] + floorY;
-      let AA = this.p[A] + floorZ;
-      let AB = this.p[A + 1] + floorZ;
-      let B = this.p[floorX + 1] + floorY;
-      let BA = this.p[B] + floorZ;
-      let BB = this.p[B + 1] + floorZ;
+  let A = this.p[floorX] + floorY;
+  let AA = this.p[A] + floorZ;
+  let AB = this.p[A + 1] + floorZ;
+  let B = this.p[floorX + 1] + floorY;
+  let BA = this.p[B] + floorZ;
+  let BB = this.p[B + 1] + floorZ;
 
-return this.lerp(
-  this.lerp(
-    this.lerp(this.grad(this.p[AA], x, y, z), this.grad(this.p[BA], x - 1, y, z), u),
-    this.lerp(this.grad(this.p[AB], x, y - 1, z), this.grad(this.p[BB], x - 1, y - 1, z), u),
-    v
-  ),
-  this.lerp(
-    this.lerp(this.grad(this.p[AA + 1], x, y, z - 1), this.grad(this.p[BA + 1], x - 1, y, z - 1), u),
-    this.lerp(this.grad(this.p[AB + 1], x, y - 1, z - 1), this.grad(this.p[BB + 1], x - 1, y - 1, z - 1), u),
-    v
-  ),
-  w
-);
+  return this.lerp(
+    this.lerp(
+      this.lerp(this.grad(this.p[AA], x, y, z), this.grad(this.p[BA], x - 1, y, z), u),
+      this.lerp(this.grad(this.p[AB], x, y - 1, z), this.grad(this.p[BB], x - 1, y - 1, z), u),
+      v
+    ),
+    this.lerp(
+      this.lerp(this.grad(this.p[AA + 1], x, y, z - 1), this.grad(this.p[BA + 1], x - 1, y, z - 1), u),
+      this.lerp(this.grad(this.p[AB + 1], x, y - 1, z - 1), this.grad(this.p[BB + 1], x - 1, y - 1, z - 1), u),
+      v
+    ),
+    w
+  );
+}
 
     fractalNoise(x, y, z, octaves = 4, persistence = 0.5, lacunarity = 2.0) {
       let total = 0;

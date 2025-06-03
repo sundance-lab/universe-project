@@ -884,33 +884,32 @@ planetVisualWorker.onmessage = function(e) {
       } while (attemptCount < 200);
       if (attemptCount === 200) { continue; }
 
-      if (gameSessionData.customPlanetDesigns.length === 0) {
-        continue;
-      }
+if (gameSessionData.customPlanetDesigns.length === 0) {
+  continue;
+}
 
-      const basis = gameSessionData.customPlanetDesigns[Math.floor(Math.random() * gameSessionData.customPlanetDesigns.length)];
-      const newPlanetData = generatePlanetFromBasis(basis);
+const basis = gameSessionData.customPlanetDesigns[Math.floor(Math.random() * gameSessionData.customPlanetDesigns.length)];
+const newPlanetData = generatePlanetFromBasis(basis); // <-- use your randomizer
 
-      usedDistances.push({ distance: planetDistance, size: planetSize });
-      const initialOrbitalAngle = Math.random() * 2 * Math.PI;
-      const orbitalSpeed = MIN_ROTATION_SPEED_RAD_PER_PERLIN_UNIT + Math.random() * (MAX_ROTATION_SPEED_RAD_PER_PERLIN_UNIT - MIN_ROTATION_SPEED_RAD_PER_PERLIN_UNIT);
-      const initialAxialAngle = Math.random() * 2 * Math.PI;
-      const axialSpeed = DEFAULT_PLANET_AXIAL_SPEED * (Math.random() * 0.5 + 0.75);
-      const newPlanet = {
-        id: `planet-${i + 1}`, size: planetSize, distance: planetDistance,
-        currentOrbitalAngle: initialOrbitalAngle, orbitalSpeed: orbitalSpeed,
-        currentAxialAngle: initialAxialAngle, axialSpeed: axialSpeed,
-        element: null,
-        planetName: `Planet ${i + 1}`,
-        type: 'terrestrial',
-        waterColor: randomDesign.waterColor,
-        landColor: randomDesign.landColor,
-        continentSeed: randomDesign.continentSeed,
-        minTerrainHeight: randomDesign.minTerrainHeight ?? DEFAULT_MIN_TERRAIN_HEIGHT,
-        maxTerrainHeight: randomDesign.maxTerrainHeight ?? DEFAULT_MAX_TERRAIN_HEIGHT,
-        oceanHeightLevel: randomDesign.oceanHeightLevel ?? DEFAULT_OCEAN_HEIGHT_LEVEL,
-        sourceDesignId: randomDesign.designId
-      };
+const newPlanet = {
+  id: `planet-${i + 1}`,
+  size: planetSize,
+  distance: planetDistance,
+  currentOrbitalAngle: initialOrbitalAngle,
+  orbitalSpeed: orbitalSpeed,
+  currentAxialAngle: initialAxialAngle,
+  axialSpeed: axialSpeed,
+  element: null,
+  planetName: `Planet ${i + 1}`,
+  type: 'terrestrial',
+  waterColor: newPlanetData.waterColor,
+  landColor: newPlanetData.landColor,
+  continentSeed: newPlanetData.continentSeed,
+  minTerrainHeight: newPlanetData.minTerrainHeight,
+  maxTerrainHeight: newPlanetData.maxTerrainHeight,
+  oceanHeightLevel: newPlanetData.oceanHeightLevel,
+  sourceDesignId: basis.designId
+};
 
       gameSessionData.solarSystemView.planets.push(newPlanet);
 

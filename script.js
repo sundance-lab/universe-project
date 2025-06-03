@@ -218,27 +218,32 @@ function generatePlanetFromBasis(basis) {
     planetVisualWorker = new Worker('planetRendererWorker.js');
     designerWorker = new Worker('planetRendererWorker.js');
 
-planetVisualWorker.onmessage = function(e) {
-  const { renderedData, width, height, senderId } = e.data;
-  if (senderId === 'planet-visual-canvas' && planetVisualCanvas) {
-    const ctx = planetVisualCanvas.getContext('2d');
-    ctx.clearRect(0, 0, planetVisualCanvas.width, planetVisualCanvas.height);
-    if (renderedData && width && height) {
-      try {
-        const clampedArray = new Uint8ClampedArray(renderedData);
-        const imageDataObj = new ImageData(clampedArray, width, height);
-        ctx.putImageData(imageDataObj, 0, 0);
+planetWorker.onmessage = function(e) {
+    if (e.data && e.data.imageData) {
+        console.log("Designer worker responded:", e.data); // Your existing log
+        console.log("ImageData received: width =", e.data.imageData.width, "height =", e.data.imageData.height);
+        console.log("Canvas (#planetCanvas) current attributes: width =", planetCanvas.width, "height =", planetCanvas.height);
+        console.log("Canvas (#planetCanvas) current client dimensions: clientWidth =", planetCanvas.clientWidth, "clientHeight =", planetCanvas.clientHeight);
+        console.log("previewCtx object:", previewCtx);
 
-        // ---- STEP D GOES HERE ----
-        planetVisualCanvas.style.transform = ""; // Remove CSS rotation
-        planetVisualRotationQuatDisplayed = planetVisualRotationQuatTarget;
-        // --------------------------
+        try {
+            previewCtx.putImageData(e.data.imageData, 0, 0);
+            console.log("putImageData CALLED successfully."); // Confirm it was called
+        } catch (error) {
+            console.error("Error during previewCtx.putImageData:", error); // Catch any direct errors
+        }
 
-      } catch (err) {
-        console.error("Error putting ImageData on planetVisualCanvas:", err);
-      }
+        // Check canvas visibility after attempting to draw
+        const canvasStyle = window.getComputedStyle(planetCanvas);
+        console.log("Canvas computed style after draw: display=", canvasStyle.display, "visibility=", canvasStyle.visibility, "opacity=", canvasStyle.opacity);
+
+    } else if (e.data && e.data.error) {
+        console.error("Error from planetRendererWorker:", e.data.error);
+    } else {
+        console.warn("Received unknown message from planetRendererWorker:", e.data);
     }
-  }
+};
+    
   isRenderingVisualPlanet = false;
       if (needsPlanetVisualRerender && currentPlanetDisplayedInPanel && planetVisualPanel.classList.contains('visible')) {
           needsPlanetVisualRerender = false;

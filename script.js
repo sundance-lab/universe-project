@@ -1,4 +1,4 @@
-// script.js (Updated)
+// script.js (Corrected and Updated)
 console.log("Script V1.3.10.2 (Full Enhancements) Loaded.");
 document.addEventListener('DOMContentLoaded', () => {
     const mainScreen = document.getElementById('main-screen');
@@ -276,9 +276,9 @@ document.addEventListener('DOMContentLoaded', () => {
     }
     function loadGameState() {
         try {
-            const savedStateString = localStorage.getItem('galaxyGameSaveData');
+            const savedStateString = localStorage.getItem('galaxyGameSaveData'); // Correct variable name
             if (savedStateString) {
-                const loadedState = JSON.parse(savedStateState);
+                const loadedState = JSON.parse(savedStateString); // Correct variable name
                 if (loadedState && typeof loadedState.universeDiameter === 'number' && Array.isArray(loadedState.galaxies)) {
                     gameSessionData.universe.diameter = loadedState.universeDiameter;
                     gameSessionData.galaxies = loadedState.galaxies;
@@ -355,7 +355,7 @@ document.addEventListener('DOMContentLoaded', () => {
         gal.solarSystems = []; gal.lineConnections = []; const tpr = [];
         const numSystemsToAssign = Math.floor(Math.random() * (currentMaxSSCount - currentMinSSCount + 1)) + currentMinSSCount;
         for (let i = 0; i < numSystemsToAssign; i++) {
-            const sysId = `${gal.id}-ss-${i + 1}`; // Fixed: Corrected variable name from 'id' to 'sysId'
+            const sysId = `${gal.id}-ss-${i + 1}`; // e.g., "galaxy-1-ss-1"
             const pos = getNonOverlappingPositionInCircle(pr, SOLAR_SYSTEM_BASE_ICON_SIZE, tpr);
             if (pos && !isNaN(pos.x) && !isNaN(pos.y)) {
                 gal.solarSystems.push({ id: sysId, customName: null, x: pos.x, y: pos.y, iconSize: SOLAR_SYSTEM_BASE_ICON_SIZE });
@@ -421,7 +421,8 @@ document.addEventListener('DOMContentLoaded', () => {
                         } else {
                             let ultimateFallbackId = null;
                             let minUltimateFallbackDist = Infinity;
-                            for (const currentConnectedId of connectedSet) { // Fixed: iterators for Set
+                            // FIXED: Correct iteration for Set objects
+                            for (const currentConnectedId of connectedSet) {
                                 const connSys = allSystemCoords.find(s => s.id === currentConnectedId);
                                 const dist = getDistance(systemToConnect, connSys);
                                 const isPossibleUltimateFallback = tryAddConnection(systemToConnectId, currentConnectedId, gal.lineConnections, systemConnectionCounts, allSystemCoords, null);
@@ -774,8 +775,8 @@ document.addEventListener('DOMContentLoaded', () => {
             planetVisualWorker.postMessage({
                 cmd: 'preloadPlanet', // New command for preloading
                 planetData: preloadData,
-                longitude: 0, // Dummy rotation
-                latitude: 0,  // Dummy rotation
+                longitude: 0, // Dummy rotation, not used for preloading
+                latitude: 0,  // Dummy rotation, not used for preloading
                 canvasWidth: planetVisualCanvas.width, // Worker needs canvas dimensions for texture generation
                 canvasHeight: planetVisualCanvas.height,
                 senderId: 'preload' // Identifies this as a non-rendering request

@@ -354,7 +354,15 @@ document.addEventListener('DOMContentLoaded', () => {
         if (pd <= 0 || isNaN(pr) || pr <= 0) { gal.layoutGenerated = true; if (!gameSessionData.isForceRegenerating) saveGameState(); return }
         gal.solarSystems = []; gal.lineConnections = []; const tpr = [];
         const numSystemsToAssign = Math.floor(Math.random() * (currentMaxSSCount - currentMinSSCount + 1)) + currentMinSSCount;
-        for (let i = 0; i < numSystemsToAssign; i++) { const sysId = `galaxy-${gal.id.split('-').pop()}-ss-${i + 1}`; const pos = getNonOverlappingPositionInCircle(pr, SOLAR_SYSTEM_BASE_ICON_SIZE, tpr); if (pos && !isNaN(pos.x) && !isNaN(pos.y)) { gal.solarSystems.push({ id: sysId, customName: null, x: pos.x, y: pos.y, iconSize: SOLAR_SYSTEM_BASE_ICON_SIZE }); tpr.push({ x: pos.x, y: pos.y, width: SOLAR_SYSTEM_BASE_ICON_SIZE, height: SOLAR_SYSTEM_BASE_ICON_SIZE }) } }
+        for (let i = 0; i < numSystemsToAssign; i++) {
+            // FIXED: Corrected `id` to `sysId` to match push operation
+            const sysId = `${gal.id}-ss-${i + 1}`; // e.g., "galaxy-1-ss-1"
+            const pos = getNonOverlappingPositionInCircle(pr, SOLAR_SYSTEM_BASE_ICON_SIZE, tpr);
+            if (pos && !isNaN(pos.x) && !isNaN(pos.y)) {
+                gal.solarSystems.push({ id: sysId, customName: null, x: pos.x, y: pos.y, iconSize: SOLAR_SYSTEM_BASE_ICON_SIZE });
+                tpr.push({ x: pos.x, y: pos.y, width: SOLAR_SYSTEM_BASE_ICON_SIZE, height: SOLAR_SYSTEM_BASE_ICON_SIZE })
+            }
+        }
         if (gal.solarSystems.length < 2) { gal.layoutGenerated = true; if (!gameSessionData.isForceRegenerating) saveGameState(); return; }
         const allSystemCoords = gal.solarSystems.map(ss => ({ ...ss, centerX: ss.x + ss.iconSize / 2, centerY: ss.y + ss.iconSize / 2 }));
         const systemConnectionCounts = {};
@@ -414,14 +422,15 @@ document.addEventListener('DOMContentLoaded', () => {
                         } else {
                             let ultimateFallbackId = null;
                             let minUltimateFallbackDist = Infinity;
-                            for (const connId of connectedSet) {
-                                const connSys = allSystemCoords.find(s => s.id === connId);
+                            for (const connId = 0; connId < connectedSet.length; connId++) { // Fixed: iterators for Set needs to be `for (const connId of connectedSet)`
+                                const currentConnectedId = Array.from(connectedSet)[connId]; // Convert Set to Array for current index usage
+                                const connSys = allSystemCoords.find(s => s.id === currentConnectedId); // Use actual ID from Set
                                 const dist = getDistance(systemToConnect, connSys);
-                                const isPossibleUltimateFallback = tryAddConnection(systemToConnectId, connId, gal.lineConnections, systemConnectionCounts, allSystemCoords, null);
+                                const isPossibleUltimateFallback = tryAddConnection(systemToConnectId, currentConnectedId, gal.lineConnections, systemConnectionCounts, allSystemCoords, null);
                                 if (isPossibleUltimateFallback) {
                                     if (dist < minUltimateFallbackDist) {
                                         minUltimateFallbackDist = dist;
-                                        ultimateFallbackId = connId;
+                                        ultimateFallbackId = currentConnectedId;
                                     }
                                 }
                             }
@@ -446,7 +455,7 @@ document.addEventListener('DOMContentLoaded', () => {
                     }
                 }
             }
-        });
+        }
         allSystemCoords.forEach(ss1 => {
             const desiredConnections = getWeightedNumberOfConnections();
             let currentConnections = systemConnectionCounts[ss1.id] || 0;
@@ -554,7 +563,7 @@ document.addEventListener('DOMContentLoaded', () => {
         solarSystemContent.style.transition = isInteractive ? 'none' : 'transform 0.1s ease-out';
         solarSystemContent.style.transform = `translate(${panX}px,${panY}px)scale(${zoom})`;
         // Correctly find galaxy from system id prefix (e.g., "galaxy-1-ss-5" -> "galaxy-1")
-        const galaxyPart = data.systemId.substring(0, data.systemId.indexOf('-ss-'));
+        const galaxyPart = gameSessionData.activeSolarSystemId.substring(0, gameSessionData.activeSolarSystemId.indexOf('-ss-'));
         const activeGalaxy = gameSessionData.galaxies.find(g => g.id === galaxyPart);
 
         let solarSystemObject = null;
@@ -1010,6 +1019,7 @@ document.addEventListener('DOMContentLoaded', () => {
             planetVisualPanel.style.left = `${e.clientX - visualPanelOffset.x}px`;
             planetVisualPanel.style.top = `${e.clientY - visualPanelOffset.y}px`;
         }
+        // Combined logic for planet rotation in both panels
         if (isDraggingPlanetVisual && currentPlanetDisplayedInPanel && planetVisualPanel.classList.contains('visible')) {
             const rect = planetVisualCanvas.getBoundingClientRect();
             const canvasWidth = rect.width;
@@ -1018,10 +1028,10 @@ document.addEventListener('DOMContentLoaded', () => {
             const deltaMouseX = e.clientX - startDragMouseX;
             const deltaMouseY = e.clientY - startDragMouseY;
 
-            // Calculate new rotation based on initial rotation and mouse movement scaled to canvas dimensions
-            // Horizontal drag (deltaMouseX) maps to longitude (2*PI for full width)
-            // Vertical drag (deltaMouseY) maps to latitude (PI for full height from top to bottom)
+            // Arcball-like rotation: map mouse movement over canvas dimensions to angles
+            // Horizontal movement directly rotates longitude from start drag angle
             rotationLongitude = startDragRotationLongitude + (deltaMouseX / canvasWidth) * (2 * Math.PI);
+            // Vertical movement directly rotates latitude from start drag angle
             rotationLatitude = startDragRotationLatitude + (deltaMouseY / canvasHeight) * Math.PI;
 
             if (!renderPending) {
@@ -1029,6 +1039,25 @@ document.addEventListener('DOMContentLoaded', () => {
                 requestAnimationFrame(() => {
                     renderPlanetVisual(currentPlanetDisplayedInPanel, rotationLongitude, rotationLatitude, planetVisualCanvas);
                     renderPending = false;
+                });
+            }
+        } else if (isDraggingDesignerPlanet) {
+            const rect = designerPlanetCanvas.getBoundingClientRect();
+            const canvasWidth = rect.width;
+            const canvasHeight = rect.height;
+
+            const deltaMouseX = e.clientX - designerStartDragMouseX;
+            const deltaMouseY = e.clientY - designerStartDragMouseY;
+
+            // Arcball-like rotation for designer planet
+            designerRotationLongitude = designerStartDragRotationLongitude + (deltaMouseX / canvasWidth) * (2 * Math.PI);
+            designerRotationLatitude = designerStartDragRotationLatitude + (deltaMouseY / canvasHeight) * Math.PI;
+
+            if (!designerRenderPending) {
+                designerRenderPending = true;
+                requestAnimationFrame(() => {
+                    renderDesignerPlanet(currentDesignerPlanet, designerRotationLongitude, designerRotationLatitude);
+                    designerRenderPending = false;
                 });
             }
         }
@@ -1123,52 +1152,6 @@ document.addEventListener('DOMContentLoaded', () => {
         designerPlanetCanvas.classList.add('dragging');
         e.preventDefault();
     });
-    window.addEventListener('mousemove', (e) => {
-        if (isPanelDragging) { // Still keep this for panel dragging
-            planetVisualPanel.style.left = `${e.clientX - visualPanelOffset.x}px`;
-            planetVisualPanel.style.top = `${e.clientY - visualPanelOffset.y}px`;
-        }
-
-        // Combined logic for planet rotation in both panels
-        if (isDraggingPlanetVisual && currentPlanetDisplayedInPanel && planetVisualPanel.classList.contains('visible')) {
-            const rect = planetVisualCanvas.getBoundingClientRect();
-            const canvasWidth = rect.width;
-            const canvasHeight = rect.height;
-
-            const deltaMouseX = e.clientX - startDragMouseX;
-            const deltaMouseY = e.clientY - startDragMouseY;
-
-            rotationLongitude = startDragRotationLongitude + (deltaMouseX / canvasWidth) * (2 * Math.PI);
-            rotationLatitude = startDragRotationLatitude + (deltaMouseY / canvasHeight) * Math.PI;
-
-            if (!renderPending) {
-                renderPending = true;
-                requestAnimationFrame(() => {
-                    renderPlanetVisual(currentPlanetDisplayedInPanel, rotationLongitude, rotationLatitude, planetVisualCanvas);
-                    renderPending = false;
-                });
-            }
-        } else if (isDraggingDesignerPlanet) {
-            const rect = designerPlanetCanvas.getBoundingClientRect();
-            const canvasWidth = rect.width;
-            const canvasHeight = rect.height;
-
-            const deltaMouseX = e.clientX - designerStartDragMouseX;
-            const deltaMouseY = e.clientY - designerStartDragMouseY;
-
-            designerRotationLongitude = designerStartDragRotationLongitude + (deltaMouseX / canvasWidth) * (2 * Math.PI);
-            designerRotationLatitude = designerStartDragRotationLatitude + (deltaMouseY / canvasHeight) * Math.PI;
-
-            if (!designerRenderPending) {
-                designerRenderPending = true;
-                requestAnimationFrame(() => {
-                    renderDesignerPlanet(currentDesignerPlanet, designerRotationLongitude, designerRotationLatitude);
-                    designerRenderPending = false;
-                });
-            }
-        }
-    });
-
     designerWaterColorInput.addEventListener('change', updateDesignerPlanetFromInputs);
     designerLandColorInput.addEventListener('change', updateDesignerPlanetFromInputs);
     designerRandomizeBtn.addEventListener('click', randomizeDesignerPlanet);
@@ -1314,6 +1297,5 @@ document.addEventListener('DOMContentLoaded', () => {
             }
         });
     }
-
     initializeGame();
 });

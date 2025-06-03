@@ -218,7 +218,7 @@ function generatePlanetFromBasis(basis) {
     planetVisualWorker = new Worker('planetRendererWorker.js');
     designerWorker = new Worker('planetRendererWorker.js');
 
-planetWorker.onmessage = function(e) {
+designerWorker.onmessage = function(e) {
     if (e.data && e.data.imageData) {
         console.log("Designer worker responded:", e.data); // Your existing log
         console.log("ImageData received: width =", e.data.imageData.width, "height =", e.data.imageData.height);

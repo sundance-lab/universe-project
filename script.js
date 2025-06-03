@@ -1,4 +1,4 @@
-// script.js (Updated FINAL)
+// script.js (Finalized Panel Rotation & Drag)
 console.log("Script V1.3.10.2 (Full Enhancements) Loaded.");
 document.addEventListener('DOMContentLoaded', () => {
     const mainScreen = document.getElementById('main-screen');
@@ -80,7 +80,7 @@ document.addEventListener('DOMContentLoaded', () => {
     const DEFAULT_PLANET_AXIAL_SPEED = 0.01;
     const BASE_MAX_PLANET_DISTANCE_FACTOR = 8;
     // NEW: Controls the overall "speed" or sensitivity of planet rotation when dragging.
-    // 1.0 means a full drag across canvas width rotates 2*PI radians. Lower values decrease sensitivity.
+    // 1.0 means a full drag across canvas width rotates 2*PI radians / PI for height. Lower values decrease sensitivity.
     const PLANET_ROTATION_SENSITIVITY = 0.75;
 
 
@@ -350,7 +350,7 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     }
     function getDistance(sys1, sys2) { return Math.sqrt(Math.pow(sys1.centerX - sys2.centerX, 2) + Math.pow(sys1.centerY - sys2.centerY, 2)); }
-    function tryAddConnection(fromId, toId, currentConnectionsArray, currentCountsObject, allSystemsLookup, maxDistanceLimit) { if (!fromId || !toId || fromId === toId || fromId === null || toId === null) return false; if ((currentCountsObject[fromId] || 0) >= MAX_CONNECTIONS_PER_SYSTEM || (currentCountsObject[toId] || 0) >= MAX_CONNECTIONS_PER_SYSTEM) { return false; } const key = [fromId, toId].sort().join('-'); if (currentConnectionsArray.some(conn => ([conn.fromId, conn.toId].sort().join('-') === key))) { return false; } if (maxDistanceLimit !== undefined && maxDistanceLimit !== null) { const sys1 = allSystemsLookup.find(s => s.id === fromId); const sys2 = allSystems.find(s => s.id === toId); if (sys1 && sys2 && getDistance(sys1, sys2) > maxDistanceLimit) { return false; } } return true; }
+    function tryAddConnection(fromId, toId, currentConnectionsArray, currentCountsObject, allSystemsLookup, maxDistanceLimit) { if (!fromId || !toId || fromId === toId || fromId === null || toId === null) return false; if ((currentCountsObject[fromId] || 0) >= MAX_CONNECTIONS_PER_SYSTEM || (currentCountsObject[toId] || 0) >= MAX_CONNECTIONS_PER_SYSTEM) { return false; } const key = [fromId, toId].sort().join('-'); if (currentConnectionsArray.some(conn => ([conn.fromId, conn.toId].sort().join('-') === key))) { return false; } if (maxDistanceLimit !== undefined && maxDistanceLimit !== null) { const sys1 = allSystemsLookup.find(s => s.id === fromId); const sys2 = allSystemsLookup.find(s => s.id === toId); if (sys1 && sys2 && getDistance(sys1, sys2) > maxDistanceLimit) { return false; } } return true; }
     function generateSolarSystemsForGalaxy(galaxyId) {
         const gal = gameSessionData.galaxies.find(g => g.id === galaxyId);
         if (!gal || !galaxyViewport) { return; }
@@ -460,7 +460,7 @@ document.addEventListener('DOMContentLoaded', () => {
                     }
                 }
             }
-        };
+        });
         allSystemCoords.forEach(ss1 => {
             const desiredConnections = getWeightedNumberOfConnections();
             let currentConnections = systemConnectionCounts[ss1.id] || 0;
@@ -1034,23 +1034,36 @@ document.addEventListener('DOMContentLoaded', () => {
     }
     let isPanelDragging = false;
     let visualPanelOffset = { x: 0, y: 0 };
-    if (planetVisualPanelHeader) {
-        planetVisualPanelHeader.addEventListener('mousedown', (e) => {
-            if (e.button !== 0) return;
+
+    // Change event listener from header to the entire panel for dragging
+    if (planetVisualPanel) { // Ensure the panel element exists
+        planetVisualPanel.addEventListener('mousedown', (e) => {
+            if (e.button !== 0) return; // Only left-click
+            // If the target is the canvas or a button, don't drag the panel
+            if (e.target === planetVisualCanvas || e.target.closest('button')) {
+                // Let the specific handlers for the canvas/buttons take over
+                return;
+            }
+
             isPanelDragging = true;
-            planetVisualPanelHeader.classList.add('dragging');
-            planetVisualPanel.style.transition = 'none';
+            // Add a class directly to the panel for visual feedback (e.g., cursor)
+            planetVisualPanel.classList.add('dragging');
+            
+            planetVisualPanel.style.transition = 'none'; // Disable transition during drag
             const rect = planetVisualPanel.getBoundingClientRect();
             visualPanelOffset.x = e.clientX - rect.left;
             visualPanelOffset.y = e.clientY - rect.top;
+            
+            // Set initial position to fixed pixel values for easier dragging calculus
             planetVisualPanel.style.left = `${rect.left}px`;
             planetVisualPanel.style.top = `${rect.top}px`;
-            planetVisualPanel.style.transform = 'none';
-            planetVisualPanel.style.right = 'auto';
+            planetVisualPanel.style.transform = 'none'; // Reset transform to avoid conflicts
+            planetVisualPanel.style.right = 'auto'; // Clear other position properties
             planetVisualPanel.style.bottom = 'auto';
-            e.preventDefault();
+            e.preventDefault(); // Prevent default browser drag behavior (e.g., text selection)
         });
     }
+    
     planetVisualCanvas.addEventListener('mousedown', (e) => {
         if (e.button !== 0 || !currentPlanetDisplayedInPanel) return;
         isDraggingPlanetVisual = true;
@@ -1077,10 +1090,10 @@ document.addEventListener('DOMContentLoaded', () => {
             const deltaMouseY = e.clientY - startDragMouseY;
 
             // Arcball-like rotation: map mouse movement over canvas dimensions to angles
-            // Horizontal movement directly rotates longitude (no inversion needed for intuitive left/right drag)
+            // Horizontal movement: drag right -> surface moves right (longitude increases)
             rotationLongitude = startDragRotationLongitude + (deltaMouseX / canvasWidth) * (2 * Math.PI) * PLANET_ROTATION_SENSITIVITY;
-            // Vertical movement directly rotates latitude (inverted for intuitive up/down drag)
-            rotationLatitude = startDragRotationLatitude - (deltaMouseY / canvasHeight) * Math.PI * PLANET_ROTATION_SENSITIVITY;
+            // Vertical movement: drag down -> surface moves down (latitude increases)
+            rotationLatitude = startDragRotationLatitude + (deltaMouseY / canvasHeight) * Math.PI * PLANET_ROTATION_SENSITIVITY;
 
 
             if (!renderPending) {
@@ -1098,9 +1111,9 @@ document.addEventListener('DOMContentLoaded', () => {
             const deltaMouseX = e.clientX - designerStartDragMouseX;
             const deltaMouseY = e.clientY - designerStartDragMouseY;
 
-            // Arcball-like rotation for designer planet (vertical drag inverted)
+            // Arcball-like rotation for designer planet (direct mapping)
             designerRotationLongitude = designerStartDragRotationLongitude + (deltaMouseX / canvasWidth) * (2 * Math.PI) * PLANET_ROTATION_SENSITIVITY;
-            designerRotationLatitude = designerStartDragRotationLatitude - (deltaMouseY / canvasHeight) * Math.PI * PLANET_ROTATION_SENSITIVITY;
+            designerRotationLatitude = designerStartDragRotationLatitude + (deltaMouseY / canvasHeight) * Math.PI * PLANET_ROTATION_SENSITIVITY;
 
             if (!designerRenderPending) {
                 designerRenderPending = true;
@@ -1115,7 +1128,8 @@ document.addEventListener('DOMContentLoaded', () => {
     window.addEventListener('mouseup', () => {
         if (isPanelDragging) {
             isPanelDragging = false;
-            planetVisualPanelHeader.classList.remove('dragging');
+            // Assuming dragging class is added to the panel itself now
+            planetVisualPanel.classList.remove('dragging'); 
             planetVisualPanel.style.transition = '';
         }
         if (isDraggingPlanetVisual) {

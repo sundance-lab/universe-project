@@ -74,7 +74,7 @@ class PerlinNoise {
         amplitude *= persistence;
         frequency *= lacunarity;
       }
-      return maxValue === 0 ? 0 : total / maxValue; // Normalize to approx [-1, 1] or [0,1] depending on noise range
+      return maxValue === 0 ? 0 : total / maxValue;
     }
 }
 
@@ -92,7 +92,7 @@ function quat_rotate_vector(q, v) {
 }
 
 function hexToRgb(hex) {
-    if (!hex || typeof hex !== 'string' || hex.length < 6) return { r:0, g:0, b:0}; // Default to black on error
+    if (!hex || typeoff hex !== 'string' || hex.length < 6) return { r:0, g:0, b:0};
     const r = parseInt(hex.slice(1, 3), 16);
     const g = parseInt(hex.slice(3, 5), 16);
     const b = parseInt(hex.slice(5, 7), 16);
@@ -141,6 +141,12 @@ self.onmessage = function(e) {
         const planetCenter_x = canvasWidth / 2;
         const planetCenter_y = canvasHeight / 2;
 
+        // Parameters for ocean texture noise
+        const waterNoiseScale = 5.0; // Adjust for finer/coarser water texture
+        const waterNoiseOctaves = 3;
+        const waterNoisePersistence = 0.4;
+        const waterBrightnessVariation = 0.15; // How much brightness varies (e.g., 0.1 = 10% variation)
+
         for (let j = 0; j < canvasHeight; j++) {
             for (let i = 0; i < canvasWidth; i++) {
                 const x_canvas = i - planetCenter_x;
@@ -168,8 +174,8 @@ self.onmessage = function(e) {
                     const noise_y = local_vec[1];
                     const noise_z = local_vec[2];
 
-                    const baseContinentNoise = (perlin.fractalNoise(noise_x * 0.8, noise_y * 0.8, noise_z * 0.8, 3, 0.6, 2.0) + 1) / 2; // Range [0, 1]
-                    const mountainNoise = (perlin.fractalNoise(noise_x * 3.5, noise_y * 3.5, noise_z * 3.5, 4, 0.4, 2.2) + 1) / 2; // Range [0, 1]
+                    const baseContinentNoise = (perlin.fractalNoise(noise_x * 0.8, noise_y * 0.8, noise_z * 0.8, 3, 0.6, 2.0) + 1) / 2;
+                    const mountainNoise = (perlin.fractalNoise(noise_x * 3.5, noise_y * 3.5, noise_z * 3.5, 4, 0.4, 2.2) + 1) / 2;
                     
                     let normalizedHeight01 = baseContinentNoise;
                     normalizedHeight01 = normalizedHeight01 + (mountainNoise - 0.5) * 0.4 * baseContinentNoise;
@@ -179,14 +185,30 @@ self.onmessage = function(e) {
 
                     let r, g, b;
                     if (currentPointHeight <= planetData.oceanHeightLevel) {
-                        r = waterRgb.r;
-                        g = waterRgb.g;
-                        b = waterRgb.b;
+                        // Add ocean texture
+                        const waterPattern = (perlin.fractalNoise(
+                            noise_x * waterNoiseScale, 
+                            noise_y * waterNoiseScale, 
+                            noise_z * waterNoiseScale, // Static relative to planet surface
+                            waterNoiseOctaves, 
+                            waterNoisePersistence, 
+                            2.0 
+                        ) + 1) / 2; // Noise in [0, 1]
+
+                        // Modulate brightness: make it brighter or darker based on pattern
+                        // A range of [1 - variation, 1 + variation] might be too much if variation is large
+                        // Let's aim for base brightness and modulate slightly up and down.
+                        const brightnessMod = 1.0 - waterBrightnessVariation + (waterPattern * waterBrightnessVariation * 2);
+                        
+                        r = Math.max(0, Math.min(255, waterRgb.r * brightnessMod));
+                        g = Math.max(0, Math.min(255, waterRgb.g * brightnessMod));
+                        b = Math.max(0, Math.min(255, waterRgb.b * brightnessMod));
+
                     } else {
                         const heightAboveOcean = currentPointHeight - planetData.oceanHeightLevel;
                         const totalLandHeightRange = planetData.maxTerrainHeight - planetData.oceanHeightLevel;
                         let shadingFactor = 0.7 + (totalLandHeightRange > 0.001 ? (heightAboveOcean / totalLandHeightRange) * 0.3 : 0.15);
-                        shadingFactor = Math.max(0.7, Math.min(1.0, shadingFactor)); // Clamp shading
+                        shadingFactor = Math.max(0.7, Math.min(1.0, shadingFactor)); 
                         
                         r = Math.min(255, landRgb.r * shadingFactor);
                         g = Math.min(255, landRgb.g * shadingFactor);

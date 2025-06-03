@@ -903,6 +903,11 @@ if (gameSessionData.customPlanetDesigns.length === 0) {
 const basis = gameSessionData.customPlanetDesigns[Math.floor(Math.random() * gameSessionData.customPlanetDesigns.length)];
 const newPlanetData = generatePlanetFromBasis(basis); // <-- use your randomizer
 
+const initialOrbitalAngle = Math.random() * 2 * Math.PI;
+const orbitalSpeed = Math.random() * (MAX_ROTATION_SPEED_RAD_PER_PERLIN_UNIT - MIN_ROTATION_SPEED_RAD_PER_PERLIN_UNIT) + MIN_ROTATION_SPEED_RAD_PER_PERLIN_UNIT;
+const initialAxialAngle = Math.random() * 2 * Math.PI;
+const axialSpeed = DEFAULT_PLANET_AXIAL_SPEED;
+
 const newPlanet = {
   id: `planet-${i + 1}`,
   size: planetSize,

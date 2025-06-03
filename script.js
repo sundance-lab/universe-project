@@ -252,27 +252,49 @@ planetWorker.onmessage = function(e) {
 }
     };
 
-    designerWorker.onmessage = function(e) {
-      console.log("Designer worker responded:", e.data);
-      const { renderedData, width, height, senderId } = e.data;
-      if (senderId === 'designer-planet-canvas' && designerPlanetCanvas) {
-        const ctx = designerPlanetCanvas.getContext('2d');
-        ctx.clearRect(0, 0, designerPlanetCanvas.width, designerPlanetCanvas.height);
-        if (renderedData && width && height) {
-         try {
-            const clampedArray = new Uint8ClampedArray(renderedData);
-            const imageDataObj = new ImageData(clampedArray, width, height);
-            ctx.putImageData(imageDataObj, 0, 0);
-          } catch (err) {
-            console.error("Error putting ImageData on designerPlanetCanvas:", err);
-          }
-        }
-      }
-      isRenderingDesignerPlanet = false;
-    };
-  } else {
-    console.warn("Web Workers not supported in this browser. Planet rendering will be disabled.");
+designerWorker.onmessage = function(e) {
+  console.log("Designer worker responded:", e.data);
+  if (!e.data || typeof e.data !== 'object') {
+      console.warn("Received malformed data from designer worker:", e.data);
+      // Decide if isRenderingDesignerPlanet should be reset here based on your app's logic.
+      // If this message could have been for the designer planet, then yes.
+      // isRenderingDesignerPlanet = false; // Potentially
+      return;
   }
+
+  const { renderedData, width, height, senderId } = e.data;
+
+  if (senderId === 'designer-planet-canvas') { // Primary check for this specific task
+    if (designerPlanetCanvas && designerPlanetCanvas instanceof HTMLCanvasElement) {
+      const ctx = designerPlanetCanvas.getContext('2d');
+      if (!ctx) {
+          console.error("Failed to get 2D context from designerPlanetCanvas.");
+          isRenderingDesignerPlanet = false; // Reset for this specific task
+          return;
+      }
+
+      ctx.clearRect(0, 0, designerPlanetCanvas.width, designerPlanetCanvas.height);
+
+      if (renderedData && width > 0 && height > 0) { // Added > 0 check for width/height
+        try {
+          const clampedArray = new Uint8ClampedArray(renderedData);
+          const imageDataObj = new ImageData(clampedArray, width, height);
+          ctx.putImageData(imageDataObj, 0, 0);
+        } catch (err) {
+          console.error("Error putting ImageData on designerPlanetCanvas:", err);
+        }
+      } else {
+        console.warn("Rendered data, width, or height missing or invalid for designer-planet-canvas.");
+      }
+    } else {
+      console.warn("designerPlanetCanvas not found or not a canvas element.");
+    }
+    isRenderingDesignerPlanet = false; // Reset flag AFTER processing for this senderId
+  } else {
+    // Handle other messages from the worker if any, or just ignore if none are expected.
+    console.log("Received message from worker for different senderId:", senderId);
+  }
+};
 
   class PerlinNoise {
     constructor(seed = Math.random()) {

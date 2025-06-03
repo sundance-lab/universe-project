@@ -47,9 +47,9 @@ document.addEventListener('DOMContentLoaded', () => {
   const designerPlanetCanvas = document.getElementById('designer-planet-canvas');
   const designerWaterColorInput = document.getElementById('designer-water-color');
   const designerLandColorInput = document.getElementById('designer-land-color');
-  const designerRandomizeBtn = document = document.getElementById('designer-randomize-btn');
-  const designerSaveBtn = document = document.getElementById('designer-save-btn');
-  const designerCancelBtn = document = document.getElementById('designer-cancel-btn');
+  const designerRandomizeBtn = document.getElementById('designer-randomize-btn');
+  const designerSaveBtn = document.getElementById('designer-save-btn');
+  const designerCancelBtn = document.getElementById('designer-cancel-btn');
   const savedDesignsUl = document.getElementById('saved-designs-ul');
 
   let linesCtx;
@@ -760,7 +760,7 @@ document.addEventListener('DOMContentLoaded', () => {
     return canvas;
   }
 
-  function drawContinentOutlinesOnSphere(ctx, planetData, currentLon, currentLat, sphereRadius, centerX, centerY) {
+  function drawContinentOutlinesOnSphere(ctx, planetData, currentLon, currentLat, sphereRadius, centerX, centerY, pixelStep) {
     if (!planetData.outlineTextureCanvas || planetData.waterColor !== planetData._cachedOutlineWaterColor || planetData.landColor !== planetData._cachedOutlineLandColor || planetData.continentSeed !== planetData._cachedOutlineContinentSeed) {
       planetData.outlineTextureCanvas = createOutlineTexture(planetData.waterColor, planetData.landColor, planetData.continentSeed);
       planetData._cachedOutlineWaterColor = planetData.waterColor;
@@ -774,14 +774,16 @@ document.addEventListener('DOMContentLoaded', () => {
     const textureWidth = outlineTextureCanvas.width;
     const textureHeight = outlineTextureCanvas.height;
 
-    for (let y = 0; y < ctx.canvas.height; y++) {
-      for (let x = 0; x < ctx.canvas.width; x++) {
+    for (let y = 0; y < ctx.canvas.height; y += pixelStep) {
+      for (let x = 0; x < ctx.canvas.width; x += pixelStep) {
         const x_cam = (x - centerX) / sphereRadius;
         const y_cam = (y - centerY) / sphereRadius;
 
         if (x_cam * x_cam + y_cam * y_cam > 1) continue;
 
         const z_cam = Math.sqrt(1 - x_cam * x_cam - y_cam * y_cam);
+
+        if (isNaN(z_cam)) continue;
 
         const invLatCos = Math.cos(-currentLat);
         const invLatSin = Math.sin(-currentLat);
@@ -812,7 +814,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
         if (alpha > 0) {
           ctx.fillStyle = 'white';
-          ctx.fillRect(x, y, 1, 1);
+          ctx.fillRect(x, y, pixelStep, pixelStep);
         }
       }
     }
@@ -833,7 +835,7 @@ document.addEventListener('DOMContentLoaded', () => {
     const radius = Math.min(canvasWidth, canvasHeight) * 0.4;
     const isCurrentlyDragging = (targetCanvas === planetVisualCanvas && isDraggingPlanetVisual) || (targetCanvas === designerPlanetCanvas && isDraggingDesignerPlanet);
 
-    const pixelStep = isCurrentlyDragging ? 2 : 1;
+    const pixelStep = isCurrentlyDragging ? 3 : 1; // More aggressive pixel step for smoother dragging
 
     const lightSourceLongitude = Math.PI / 4;
     const lightSourceLatitude = Math.PI / 8;
@@ -928,7 +930,7 @@ document.addEventListener('DOMContentLoaded', () => {
     }
     ctx.restore();
 
-    drawContinentOutlinesOnSphere(ctx, planetData, longitude, latitude, radius, centerX, centerY);
+    drawContinentOutlinesOnSphere(ctx, planetData, longitude, latitude, radius, centerX, centerY, pixelStep);
   }
 
   function switchToSolarSystemView(solarSystemId) {
@@ -1176,8 +1178,8 @@ document.addEventListener('DOMContentLoaded', () => {
     if (isDraggingPlanetVisual && currentPlanetDisplayedInPanel && planetVisualPanel.classList.contains('visible')) {
       const deltaX = e.clientX - lastDragX;
       const deltaY = e.clientY - lastDragY;
-      rotationLongitude += deltaX * 0.015; // Increased sensitivity
-      rotationLatitude += deltaY * 0.015; // Increased sensitivity
+      rotationLongitude += deltaX * 0.015;
+      rotationLatitude += deltaY * 0.015;
       lastDragX = e.clientX;
       lastDragY = e.clientY;
       if (!renderPending) {
@@ -1292,8 +1294,8 @@ document.addEventListener('DOMContentLoaded', () => {
     if (isDraggingDesignerPlanet) {
       const deltaX = e.clientX - designerLastDragX;
       const deltaY = e.clientY - designerLastDragY;
-      designerRotationLongitude += deltaX * 0.015; // Increased sensitivity
-      designerRotationLatitude += deltaY * 0.015; // Increased sensitivity
+      designerRotationLongitude += deltaX * 0.015;
+      designerRotationLatitude += deltaY * 0.015;
       designerLastDragX = e.clientX;
       designerLastDragY = e.clientY;
       if (!designerRenderPending) {

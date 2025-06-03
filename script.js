@@ -81,15 +81,25 @@ document.addEventListener('DOMContentLoaded', () => {
 };
 
 function resizeDesignerCanvasToDisplaySize() {
-    const canvas = designerPlanetCanvas;
-    // Gets the rendered size of the canvas in the layout
-    const displayWidth = canvas.offsetWidth;
-    const displayHeight = canvas.offsetHeight;
-    // Only update if the size has changed (resizing clears the canvas)
-    if (canvas.width !== displayWidth || canvas.height !== displayHeight) {
+  const canvas = designerPlanetCanvas;
+  const displayWidth = canvas.offsetWidth;
+  const displayHeight = canvas.offsetHeight;
+  
+  // console.log(`[Debug] Attempting to resize designer canvas. CSS display: ${displayWidth}x${displayHeight}. Current buffer: ${canvas.width}x${canvas.height}`);
+  
+  if (canvas.width !== displayWidth || canvas.height !== displayHeight) {
+    // Ensure non-zero dimensions before setting, or default to a minimum if necessary,
+    // though requestAnimationFrame should typically prevent 0x0 after layout.
+    if (displayWidth > 0 && displayHeight > 0) {
         canvas.width = displayWidth;
         canvas.height = displayHeight;
+        // console.log(`[Debug] Designer canvas buffer resized to: ${canvas.width}x${canvas.height}`);
+    } else {
+        // console.warn(`[Debug] Designer canvas displayWidth or displayHeight is zero. Not resizing buffer from ${canvas.width}x${canvas.height}.`);
+        // If it still appears as 0,0 here, it means the layout hasn't given it space.
+        // You might need to ensure the CSS for .designer-preview and its parents guarantees a size.
     }
+  }
 }
   
 function randomInRange(range) {
@@ -1445,20 +1455,17 @@ function updateDesignerPlanetFromInputs() {
       savedDesignsUl.appendChild(li);
     });
   }
+
   function switchToPlanetDesignerScreen() {
-    setActiveScreen(planetDesignerScreen);
-    randomizeDesignerPlanet();
-    populateSavedDesignsList();
-  }
-  designerPlanetCanvas.addEventListener('mousedown', (e) => {
-    if (e.button !== 0) return;
-    isDraggingDesignerPlanet = true;
-    designerStartDragMouseX = e.clientX;
-    designerStartDragMouseY = e.clientY;
-    startDragDesignerPlanetQuat = [...designerPlanetRotationQuat];
-    designerPlanetCanvas.classList.add('dragging');
-    e.preventDefault();
+  setActiveScreen(planetDesignerScreen);
+  populateSavedDesignsList(); // This can be called early as it doesn't depend on canvas rendering
+
+  // Defer the randomization and rendering of the planet until the browser
+  // has had a chance to compute the layout of the newly visible screen.
+  requestAnimationFrame(() => {
+    randomizeDesignerPlanet(); // This function internally handles the initial planet data and rendering
   });
+}
 
   designerWaterColorInput.addEventListener('change', updateDesignerPlanetFromInputs);
   designerLandColorInput.addEventListener('change', updateDesignerPlanetFromInputs);

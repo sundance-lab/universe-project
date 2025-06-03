@@ -1,3 +1,4 @@
+// script.js
 console.log("Script V1.3.10.2 (Full Enhancements) Loaded.");
 document.addEventListener('DOMContentLoaded', () => {
     const mainScreen = document.getElementById('main-screen');
@@ -115,6 +116,8 @@ document.addEventListener('DOMContentLoaded', () => {
         const { renderedData, width, height, senderId } = e.data;
         if (senderId === 'planet-visual-canvas') {
             const ctx = planetVisualCanvas.getContext('2d');
+            // Clear the canvas ONLY when the new image data has arrived.
+            ctx.clearRect(0, 0, planetVisualCanvas.width, planetVisualCanvas.height);
             const imageData = new ImageData(renderedData, width, height);
             ctx.putImageData(imageData, 0, 0);
         }
@@ -124,6 +127,8 @@ document.addEventListener('DOMContentLoaded', () => {
         const { renderedData, width, height, senderId } = e.data;
         if (senderId === 'designer-planet-canvas') {
             const ctx = designerPlanetCanvas.getContext('2d');
+            // Clear the canvas ONLY when the new image data has arrived.
+            ctx.clearRect(0, 0, designerPlanetCanvas.width, designerPlanetCanvas.height);
             const imageData = new ImageData(renderedData, width, height);
             ctx.putImageData(imageData, 0, 0);
         }
@@ -341,7 +346,7 @@ document.addEventListener('DOMContentLoaded', () => {
         if (pd <= 0 || isNaN(pr) || pr <= 0) { gal.layoutGenerated = true; if (!gameSessionData.isForceRegenerating) saveGameState(); return }
         gal.solarSystems = []; gal.lineConnections = []; const tpr = [];
         const numSystemsToAssign = Math.floor(Math.random() * (currentMaxSSCount - currentMinSSCount + 1)) + currentMinSSCount;
-        for (let i = 0; i < numSystemsToAssign; i++) { const sysId = `${gal.id}-ss-${i + 1}`; const pos = getNonOverlappingPositionInCircle(pr, SOLAR_SYSTEM_BASE_ICON_SIZE, tpr); if (pos && !isNaN(pos.x) && !isNaN(pos.y)) { gal.solarSystems.push({ id: sysId, customName: null, x: pos.x, y: pos.y, iconSize: SOLAR_SYSTEM_BASE_ICON_SIZE }); tpr.push({ x: pos.x, y: pos.y, width: SOLAR_SYSTEM_BASE_ICON_SIZE, height: SOLAR_SYSTEM_BASE_ICON_SIZE }) } }
+        for (let i = 0; i < numSystemsToAssign; i++) { const sysId = `galaxy-${gal.id}-ss-${i + 1}`; const pos = getNonOverlappingPositionInCircle(pr, SOLAR_SYSTEM_BASE_ICON_SIZE, tpr); if (pos && !isNaN(pos.x) && !isNaN(pos.y)) { gal.solarSystems.push({ id: sysId, customName: null, x: pos.x, y: pos.y, iconSize: SOLAR_SYSTEM_BASE_ICON_SIZE }); tpr.push({ x: pos.x, y: pos.y, width: SOLAR_SYSTEM_BASE_ICON_SIZE, height: SOLAR_SYSTEM_BASE_ICON_SIZE }) } }
         if (gal.solarSystems.length < 2) { gal.layoutGenerated = true; if (!gameSessionData.isForceRegenerating) saveGameState(); return; }
         const allSystemCoords = gal.solarSystems.map(ss => ({ ...ss, centerX: ss.x + ss.iconSize / 2, centerY: ss.y + ss.iconSize / 2 }));
         const systemConnectionCounts = {};
@@ -472,7 +477,11 @@ document.addEventListener('DOMContentLoaded', () => {
         if (!universeCircle) return;
         universeCircle.innerHTML = '';
         gameSessionData.galaxies.forEach(gal => {
-            const el = document.createElement('div'); el.className = 'galaxy-icon'; el.style.width = `${GALAXY_ICON_SIZE}px`; el.style.height = `${GALAXY_ICON_SIZE}px`; el.style.left = `${gal.x}px`; el.style.top = `${gal.y}px`; el.style.backgroundColor = FIXED_COLORS.galaxyIconFill; el.style.border = `3px solid ${FIXED_COLORS.galaxyIconBorder}`; el.title = gal.customName || `Galaxy ${gal.id.split('-')[1]}`; el.dataset.galaxyId = gal.id; el.addEventListener('click', () => switchToGalaxyDetailView(gal.id)); universeCircle.appendChild(el)
+            // Fix for galaxy ID, original used `galaxy-id-ss-` pattern which leads to wrong ID
+            const galaxyIdParts = gal.id.split('-'); // e.g., ["galaxy", "1"]
+            const displayId = galaxyIdParts.length > 1 ? galaxyIdParts[galaxyIdParts.length - 1] : ''; // Get the "1"
+
+            const el = document.createElement('div'); el.className = 'galaxy-icon'; el.style.width = `${GALAXY_ICON_SIZE}px`; el.style.height = `${GALAXY_ICON_SIZE}px`; el.style.left = `${gal.x}px`; el.style.top = `${gal.y}px`; el.style.backgroundColor = FIXED_COLORS.galaxyIconFill; el.style.border = `3px solid ${FIXED_COLORS.galaxyIconBorder}`; el.title = gal.customName ? gal.customName : (displayId ? `Galaxy ${displayId}` : 'Unnamed Galaxy'); el.dataset.galaxyId = gal.id; el.addEventListener('click', () => switchToGalaxyDetailView(gal.id)); universeCircle.appendChild(el)
         });
     }
     function drawGalaxyLines(galaxy) { if (!solarSystemLinesCanvasEl || !galaxyZoomContent) return; if (galaxyZoomContent.offsetWidth > 0 && solarSystemLinesCanvasEl.width !== galaxyZoomContent.offsetWidth) solarSystemLinesCanvasEl.width = galaxyZoomContent.offsetWidth; if (galaxyZoomContent.offsetHeight > 0 && solarSystemLinesCanvasEl.height !== galaxyZoomContent.offsetHeight) solarSystemLinesCanvasEl.height = galaxyZoomContent.offsetHeight; if (!linesCtx) linesCtx = solarSystemLinesCanvasEl.getContext('2d'); linesCtx.clearRect(0, 0, solarSystemLinesCanvasEl.width, solarSystemLinesCanvasEl.height); if (!galaxy || !galaxy.lineConnections || !galaxy.solarSystems) return; linesCtx.strokeStyle = FIXED_COLORS.connectionLine; linesCtx.lineWidth = 0.5; linesCtx.setLineDash([]); const spos = {}; galaxy.solarSystems.forEach(ss => { spos[ss.id] = { x: ss.x + ss.iconSize / 2, y: ss.y + ss.iconSize / 2 } }); galaxy.lineConnections.forEach(conn => { const f = spos[conn.fromId], t = spos[conn.toId]; if (f && t) { linesCtx.beginPath(); linesCtx.moveTo(f.x, f.y); linesCtx.lineTo(t.x, t.y); linesCtx.stroke() } }) }
@@ -511,7 +520,8 @@ document.addEventListener('DOMContentLoaded', () => {
         galaxyZoomContent.style.transition = isInteractive ? 'none' : 'transform 0.1s ease-out';
         galaxyZoomContent.style.transform = `translate(${gal.currentPanX}px,${gal.currentPanY}px)scale(${gal.currentZoom})`;
         if (galaxyDetailTitleText) {
-            galaxyDetailTitleText.textContent = gal.customName || `Galaxy ${gal.id.split('-')[1]}`;
+            const displayId = gal.id.split('-').pop(); // "galaxy-1" -> "1"
+            galaxyDetailTitleText.textContent = gal.customName || `Galaxy ${displayId}`;
         }
     }
     function drawAllOrbits() {
@@ -538,7 +548,7 @@ document.addEventListener('DOMContentLoaded', () => {
         let zoom = data.zoomLevel || SOLAR_SYSTEM_VIEW_MIN_ZOOM;
         solarSystemContent.style.transition = isInteractive ? 'none' : 'transform 0.1s ease-out';
         solarSystemContent.style.transform = `translate(${panX}px,${panY}px)scale(${zoom})`;
-        const activeGalaxy = gameSessionData.galaxies.find(g => data.systemId && data.systemId.startsWith(g.id));
+        const activeGalaxy = gameSessionData.galaxies.find(g => data.systemId && data.systemId.startsWith(g.id.split('-')[0] + '-' + data.systemId.split('-')[1])); // Correctly find galaxy from system id prefix
         let solarSystemObject = null;
         if (activeGalaxy && activeGalaxy.solarSystems) {
             solarSystemObject = activeGalaxy.solarSystems.find(ss => ss.id === data.systemId);
@@ -575,16 +585,18 @@ document.addEventListener('DOMContentLoaded', () => {
         if (!gal) { switchToMainView(); return; }
         gameSessionData.activeGalaxyId = galaxyId;
         if (backToGalaxyButton) {
+            const displayId = gal.id.split('-').pop();
             backToGalaxyButton.textContent = gal.customName
                 ? `← ${gal.customName}`
-                : `← Galaxy ${gal.id.split('-')[1]}`;
+                : `← Galaxy ${displayId}`;
         }
         gameSessionData.activeSolarSystemId = null;
         gal.currentZoom = gal.currentZoom || 1.0;
         gal.currentPanX = gal.currentPanX || 0;
         gal.currentPanY = gal.currentPanY || 0;
         if (galaxyDetailTitleText) {
-            galaxyDetailTitleText.textContent = gal.customName || `Galaxy ${gal.id.split('-')[1]}`;
+            const displayId = gal.id.split('-').pop(); // "galaxy-1" -> "1"
+            galaxyDetailTitleText.textContent = gal.customName || `Galaxy ${displayId}`;
             galaxyDetailTitleText.style.display = 'inline-block';
         }
         if (galaxyDetailTitleInput) galaxyDetailTitleInput.style.display = 'none';
@@ -592,8 +604,9 @@ document.addEventListener('DOMContentLoaded', () => {
         makeTitleEditable(galaxyDetailTitleText, galaxyDetailTitleInput, (newName) => {
             gal.customName = newName || null;
             saveGameState();
-            renderMainScreen();
-            return gal.customName || `Galaxy ${gal.id.split('-')[1]}`;
+            renderMainScreen(); // Re-render main screen to update galaxy name there
+            const displayId = gal.id.split('-').pop();
+            return gal.customName || `Galaxy ${displayId}`;
         });
         if (galaxyViewport && gameSessionData.universe.diameter) { galaxyViewport.style.width = `${gameSessionData.universe.diameter}px`; galaxyViewport.style.height = `${gameSessionData.universe.diameter}px`; }
         if (!gal.layoutGenerated) {
@@ -633,10 +646,9 @@ document.addEventListener('DOMContentLoaded', () => {
             planetData.type = 'terrestrial'; // Assume terrestrial if colors are set this way
         }
 
-        // Clear the canvas immediately on the main thread for responsiveness
-        // The worker will send the actual pixel data later.
-        const ctx = targetCanvas.getContext('2d');
-        ctx.clearRect(0, 0, targetCanvas.width, targetCanvas.height);
+        // --- IMPORTANT CHANGE HERE: Removed ctx.clearRect() from here ---
+        // Clearing is now done in the worker's onmessage handler
+        // on the main thread, just before ctx.putImageData.
 
         const dataToSend = {
             waterColor: planetData.waterColor,
@@ -675,7 +687,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
     function switchToSolarSystemView(solarSystemId) {
         gameSessionData.activeSolarSystemId = solarSystemId;
-        const activeGalaxy = gameSessionData.galaxies.find(g => solarSystemId.startsWith(g.id));
+        const activeGalaxy = gameSessionData.galaxies.find(g => solarSystemId.startsWith(g.id.split('-')[0] + '-' + solarSystemId.split('-')[1])); // Correctly find galaxy from system id prefix
         let solarSystemObject = null;
         if (activeGalaxy && activeGalaxy.solarSystems) {
             solarSystemObject = activeGalaxy.solarSystems.find(ss => ss.id === solarSystemId);
@@ -905,7 +917,7 @@ document.addEventListener('DOMContentLoaded', () => {
             currentRenderFunction(true); // Render interactively (no transition)
         }
     }
-    function startPan(event, viewportEl, contentEl, dataObjectRef) { if (event.button !== 0 || event.target.closest('button')) return; if (viewportEl === galaxyViewport && (event.target.classList.contains('solar-system-icon') || event.target.closest('.solar-system-icon'))) return; const pS = gameSessionData.panning; pS.isActive = true; pS.startX = event.clientX; pS.startY = event.clientY; pS.initialPanX = dataObjectRef.currentPanX || 0; pS.initialPanY = dataObjectRef.currentPanY || 0; pS.targetElement = contentEl; pS.viewportElement = viewportEl; pS.dataObject = dataObjectRef; viewportEl.classList.add('dragging'); if (contentEl) contentEl.style.transition = 'none'; event.preventDefault() }
+    function startPan(event, viewportEl, contentEl, dataObjectRef) { if (event.button !== 0 || event.target.closest('button')) return; if (viewportEl === galaxyViewport && (event.target.classList.contains('solar-system-icon') || event.target.closest('solar-system-icon'))) return; const pS = gameSessionData.panning; pS.isActive = true; pS.startX = event.clientX; pS.startY = event.clientY; pS.initialPanX = dataObjectRef.currentPanX || 0; pS.initialPanY = dataObjectRef.currentPanY || 0; pS.targetElement = contentEl; pS.viewportElement = viewportEl; pS.dataObject = dataObjectRef; viewportEl.classList.add('dragging'); if (contentEl) contentEl.style.transition = 'none'; event.preventDefault() }
     function panMouseMove(event) {
         if (!gameSessionData.panning.isActive) return;
         const pS = gameSessionData.panning, dX = event.clientX - pS.startX, dY = event.clientY - pS.startY;
@@ -1218,11 +1230,11 @@ document.addEventListener('DOMContentLoaded', () => {
     if (galaxyZoomContent) {
         galaxyZoomContent.addEventListener('click', function (event) {
             // If currently panning the galaxy, prevent clicks from triggering SS view
-            if (gameSessionData.panning.isActive && !event.target.classList.contains('solar-system-icon')) {
+            if (gameSessionData.panning.isActive && !event.target.closest('.solar-system-icon')) { // Use closest for robustness
                 return;
             }
-            if (event.target.classList.contains('solar-system-icon')) {
-                const ssId = event.target.dataset.solarSystemId;
+            if (event.target.closest('.solar-system-icon')) { // Use closest for robustness
+                const ssId = event.target.closest('.solar-system-icon').dataset.solarSystemId;
                 if (ssId) {
                     switchToSolarSystemView(ssId);
                     event.stopPropagation(); // Stop event propagation to prevent pan end detection from reacting to icon click
@@ -1240,7 +1252,7 @@ document.addEventListener('DOMContentLoaded', () => {
             if (
                 e.button !== 0 ||
                 !galaxyDetailScreen.classList.contains('active') ||
-                e.target.classList.contains('solar-system-icon') ||
+                e.target.closest('.solar-system-icon') || // Use closest for robustness
                 e.target.closest('button') // Check if the clicked element or any of its ancestors is a button
             ) return;
 

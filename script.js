@@ -1,4 +1,4 @@
-// script.js (Corrected and Updated)
+// script.js (Updated FINAL)
 console.log("Script V1.3.10.2 (Full Enhancements) Loaded.");
 document.addEventListener('DOMContentLoaded', () => {
     const mainScreen = document.getElementById('main-screen');
@@ -79,6 +79,11 @@ document.addEventListener('DOMContentLoaded', () => {
     const DEFAULT_SHOW_PLANET_ORBITS = false; // Changed to false as requested
     const DEFAULT_PLANET_AXIAL_SPEED = 0.01;
     const BASE_MAX_PLANET_DISTANCE_FACTOR = 8;
+    // NEW: Controls the overall "speed" or sensitivity of planet rotation when dragging.
+    // 1.0 means a full drag across canvas width rotates 2*PI radians. Lower values decrease sensitivity.
+    const PLANET_ROTATION_SENSITIVITY = 0.75;
+
+
     let currentNumGalaxies = DEFAULT_NUM_GALAXIES;
     let currentMinSSCount = DEFAULT_MIN_SS_COUNT_CONST;
     let currentMaxSSCount = DEFAULT_MAX_SS_COUNT_CONST;
@@ -120,6 +125,7 @@ document.addEventListener('DOMContentLoaded', () => {
     planetVisualWorker = new Worker('planetRendererWorker.js');
     designerWorker = new Worker('planetRendererWorker.js');
 
+    // Worker message handlers for rendering results
     planetVisualWorker.onmessage = function(e) {
         const { renderedData, width, height, senderId } = e.data;
         if (senderId === 'planet-visual-canvas') {
@@ -344,7 +350,7 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     }
     function getDistance(sys1, sys2) { return Math.sqrt(Math.pow(sys1.centerX - sys2.centerX, 2) + Math.pow(sys1.centerY - sys2.centerY, 2)); }
-    function tryAddConnection(fromId, toId, currentConnectionsArray, currentCountsObject, allSystemsLookup, maxDistanceLimit) { if (!fromId || !toId || fromId === toId || fromId === null || toId === null) return false; if ((currentCountsObject[fromId] || 0) >= MAX_CONNECTIONS_PER_SYSTEM || (currentCountsObject[toId] || 0) >= MAX_CONNECTIONS_PER_SYSTEM) { return false; } const key = [fromId, toId].sort().join('-'); if (currentConnectionsArray.some(conn => ([conn.fromId, conn.toId].sort().join('-') === key))) { return false; } if (maxDistanceLimit !== undefined && maxDistanceLimit !== null) { const sys1 = allSystemsLookup.find(s => s.id === fromId); const sys2 = allSystemsLookup.find(s => s.id === toId); if (sys1 && sys2 && getDistance(sys1, sys2) > maxDistanceLimit) { return false; } } return true; }
+    function tryAddConnection(fromId, toId, currentConnectionsArray, currentCountsObject, allSystemsLookup, maxDistanceLimit) { if (!fromId || !toId || fromId === toId || fromId === null || toId === null) return false; if ((currentCountsObject[fromId] || 0) >= MAX_CONNECTIONS_PER_SYSTEM || (currentCountsObject[toId] || 0) >= MAX_CONNECTIONS_PER_SYSTEM) { return false; } const key = [fromId, toId].sort().join('-'); if (currentConnectionsArray.some(conn => ([conn.fromId, conn.toId].sort().join('-') === key))) { return false; } if (maxDistanceLimit !== undefined && maxDistanceLimit !== null) { const sys1 = allSystemsLookup.find(s => s.id === fromId); const sys2 = allSystems.find(s => s.id === toId); if (sys1 && sys2 && getDistance(sys1, sys2) > maxDistanceLimit) { return false; } } return true; }
     function generateSolarSystemsForGalaxy(galaxyId) {
         const gal = gameSessionData.galaxies.find(g => g.id === galaxyId);
         if (!gal || !galaxyViewport) { return; }
@@ -454,7 +460,7 @@ document.addEventListener('DOMContentLoaded', () => {
                     }
                 }
             }
-        };
+        });
         allSystemCoords.forEach(ss1 => {
             const desiredConnections = getWeightedNumberOfConnections();
             let currentConnections = systemConnectionCounts[ss1.id] || 0;
@@ -775,8 +781,8 @@ document.addEventListener('DOMContentLoaded', () => {
             planetVisualWorker.postMessage({
                 cmd: 'preloadPlanet', // New command for preloading
                 planetData: preloadData,
-                longitude: 0, // Dummy rotation, not used for preloading
-                latitude: 0,  // Dummy rotation, not used for preloading
+                longitude: 0, // Dummy rotation, not used for preloading calculation
+                latitude: 0,  // Dummy rotation, not used for preloading calculation
                 canvasWidth: planetVisualCanvas.width, // Worker needs canvas dimensions for texture generation
                 canvasHeight: planetVisualCanvas.height,
                 senderId: 'preload' // Identifies this as a non-rendering request
@@ -803,12 +809,13 @@ document.addEventListener('DOMContentLoaded', () => {
                 planetVisualTitle.textContent = newPlanet.planetName;
                 planetVisualSize.textContent = Math.round(newPlanet.size);
                 planetVisualPanel.classList.add('visible');
+                // Center the panel
                 planetVisualPanel.style.left = '50%';
                 planetVisualPanel.style.top = '50%';
                 planetVisualPanel.style.transform = 'translate(-50%, -50%)';
-                planetVisualPanel.style.transition = '';
-                rotationLongitude = 0;
-                rotationLatitude = 0;
+                planetVisualPanel.style.transition = ''; // Remove transition for immediate placement
+                rotationLongitude = 0; // Reset rotation for new planet
+                rotationLatitude = 0; // Reset rotation for new planet
                 renderPlanetVisual(newPlanet, rotationLongitude, rotationLatitude, planetVisualCanvas);
             });
             solarSystemContent.appendChild(planetEl);
@@ -835,15 +842,17 @@ document.addEventListener('DOMContentLoaded', () => {
 
     function animateSolarSystem(now) {
         if (!now) now = performance.now();
-        if (lastAnimationTime === null) lastAnimationTime = now;
-        const deltaTime = (now - lastAnimationTime) / 1000;
+        if (lastAnimationTime === null) lastAnimationTime = now; // Initialize if first frame
+        const deltaTime = (now - lastAnimationTime) / 1000; // Calculate delta time in seconds
         lastAnimationTime = now;
 
         const activeSysView = gameSessionData.solarSystemView;
         if (activeSysView && solarSystemScreen.classList.contains('active') && activeSysView.planets) {
             activeSysView.planets.forEach(planet => {
+                // Update orbital angle based on delta time and orbital speed
                 planet.currentOrbitalAngle += planet.orbitalSpeed * 6 * deltaTime;
-                planet.currentAxialAngle += planet.axialSpeed * 60 * deltaTime;
+                // Update axial angle based on delta time and axial speed
+                planet.currentAxialAngle += planet.axialSpeed * 60 * deltaTime; // 60 for better visual rotation speed
 
                 const planetScreenX = planet.distance * activeSysView.zoomLevel * Math.cos(planet.currentOrbitalAngle);
                 const planetScreenY = planet.distance * activeSysView.zoomLevel * Math.sin(planet.currentOrbitalAngle);
@@ -855,12 +864,12 @@ document.addEventListener('DOMContentLoaded', () => {
             animationFrameId = requestAnimationFrame(animateSolarSystem);
         } else {
             if (animationFrameId) { cancelAnimationFrame(animationFrameId); animationFrameId = null; }
-            lastAnimationTime = null;
+            lastAnimationTime = null; // Reset last animation time when animation stops
         }
     }
     function startSolarSystemAnimation() {
         if (!animationFrameId && solarSystemScreen.classList.contains('active')) {
-            lastAnimationTime = null;
+            lastAnimationTime = null; // Ensure fresh start
             animateSolarSystem();
         }
     }
@@ -870,11 +879,11 @@ document.addEventListener('DOMContentLoaded', () => {
             return;
         }
         const zm = dataObject.zoomLevel;
-        const contentWidth = SOLAR_SYSTEM_EXPLORABLE_RADIUS * 2;
+        const contentWidth = SOLAR_SYSTEM_EXPLORABLE_RADIUS * 2; // Total width of the "universe" in solar system view
         const contentHeight = SOLAR_SYSTEM_EXPLORABLE_RADIUS * 2;
         const scaledContentWidth = contentWidth * zm;
         const scaledContentHeight = contentHeight * zm;
-        const maxPanX = Math.max(0, (scaledContentWidth - viewportWidth) / 2);
+        const maxPanX = Math.max(0, (scaledContentWidth - viewportWidth) / 2); // Max positive pan, relative to 0,0 being center of content
         const maxPanY = Math.max(0, (scaledContentHeight - viewportHeight) / 2);
         dataObject.currentPanX = Math.max(-maxPanX, Math.min(maxPanX, dataObject.currentPanX));
         dataObject.currentPanY = Math.max(-maxPanY, Math.min(maxPanY, dataObject.currentPanY));
@@ -920,18 +929,34 @@ document.addEventListener('DOMContentLoaded', () => {
         if (Math.abs(oldZoom - newCalculatedZoom) < 0.0001) return;
         targetData[currentZoomProp] = newCalculatedZoom;
         if (mouseEvent) {
+            // Get mouse position relative to the viewport's top-left corner
             const rect = viewportElement.getBoundingClientRect();
-            const mX = mouseEvent.clientX - rect.left;
-            const mY = mouseEvent.clientY - rect.top;
+            const mouseXInViewport = mouseEvent.clientX - rect.left;
+            const mouseYInViewport = mouseEvent.clientY - rect.top;
 
-            const oPX = targetData[currentPanXProp] || 0;
-            const oPY = targetData[currentPanYProp] || 0;
+            // Get the viewport's center coordinates
+            const viewportCenterX = viewportElement.offsetWidth / 2;
+            const viewportCenterY = viewportElement.offsetHeight / 2;
 
-            const worldX = (mX - viewportElement.offsetWidth / 2 - oPX) / oldZoom;
-            const worldY = (mY - viewportElement.offsetHeight / 2 - oPY) / oldZoom;
+            // Calculate mouse position relative to the viewport's CENTER
+            const mouseXRelativeToCenter = mouseXInViewport - viewportCenterX;
+            const mouseYRelativeToCenter = mouseYInViewport - viewportCenterY;
 
-            targetData[currentPanXProp] = (mX - viewportElement.offsetWidth / 2) - (worldX * newCalculatedZoom);
-            targetData[currentPanYProp] = (mY - viewportElement.offsetHeight / 2) - (worldY * newCalculatedZoom);
+            // Current pan (offset of content's center from viewport's center)
+            const currentPanX = targetData[currentPanXProp] || 0;
+            const currentPanY = targetData[currentPanYProp] || 0;
+
+            // Calculate the "world" coordinates (coordinates in the content's unscaled, unpanned space)
+            // of the point that is currently under the mouse.
+            const worldX = (mouseXRelativeToCenter - currentPanX) / oldZoom;
+            const worldY = (mouseYRelativeToCenter - currentPanY) / oldZoom;
+
+            // Calculate the new pan values
+            // The goal is for the 'worldX, worldY' point to remain under the mouse after the new zoom.
+            // new_mouse_relative_to_center_after_zoom = (worldX * newZoom) + newPanX
+            // So, newPanX = mouse_relative_to_center - (worldX * newZoom)
+            targetData[currentPanXProp] = mouseXRelativeToCenter - (worldX * newCalculatedZoom);
+            targetData[currentPanYProp] = mouseYRelativeToCenter - (worldY * newCalculatedZoom);
         }
         if (isSolarView) {
             currentClampFunction(targetData, viewportElement.offsetWidth, viewportElement.offsetHeight);
@@ -1052,10 +1077,11 @@ document.addEventListener('DOMContentLoaded', () => {
             const deltaMouseY = e.clientY - startDragMouseY;
 
             // Arcball-like rotation: map mouse movement over canvas dimensions to angles
-            // Horizontal movement directly rotates longitude from start drag angle
-            rotationLongitude = startDragRotationLongitude + (deltaMouseX / canvasWidth) * (2 * Math.PI);
-            // Vertical movement directly rotates latitude from start drag angle (inverted for natural feel)
-            rotationLatitude = startDragRotationLatitude - (deltaMouseY / canvasHeight) * Math.PI; // INVERTED HERE
+            // Horizontal movement directly rotates longitude (no inversion needed for intuitive left/right drag)
+            rotationLongitude = startDragRotationLongitude + (deltaMouseX / canvasWidth) * (2 * Math.PI) * PLANET_ROTATION_SENSITIVITY;
+            // Vertical movement directly rotates latitude (inverted for intuitive up/down drag)
+            rotationLatitude = startDragRotationLatitude - (deltaMouseY / canvasHeight) * Math.PI * PLANET_ROTATION_SENSITIVITY;
+
 
             if (!renderPending) {
                 renderPending = true;
@@ -1072,9 +1098,9 @@ document.addEventListener('DOMContentLoaded', () => {
             const deltaMouseX = e.clientX - designerStartDragMouseX;
             const deltaMouseY = e.clientY - designerStartDragMouseY;
 
-            // Arcball-like rotation for designer planet (inverted vertical drag)
-            designerRotationLongitude = designerStartDragRotationLongitude + (deltaMouseX / canvasWidth) * (2 * Math.PI);
-            designerRotationLatitude = designerStartDragRotationLatitude - (deltaMouseY / canvasHeight) * Math.PI; // INVERTED HERE
+            // Arcball-like rotation for designer planet (vertical drag inverted)
+            designerRotationLongitude = designerStartDragRotationLongitude + (deltaMouseX / canvasWidth) * (2 * Math.PI) * PLANET_ROTATION_SENSITIVITY;
+            designerRotationLatitude = designerStartDragRotationLatitude - (deltaMouseY / canvasHeight) * Math.PI * PLANET_ROTATION_SENSITIVITY;
 
             if (!designerRenderPending) {
                 designerRenderPending = true;

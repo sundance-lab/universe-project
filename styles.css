@@ -59,18 +59,6 @@ body {font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background-c
 .planet-icon.clickable-when-paused { cursor: pointer; }
 
 
-.sun-icon {
-  position: absolute;
-  left: 50%;
-  top: 50%;
-  transform: translate(-50%, -50%); /* Center the sun */
-  border-radius: 50%;
-  /* background-color is set by FIXED_COLORS.sunFill in JS */
-  /* border is set by FIXED_COLORS.sunBorder in JS */
-  box-sizing: border-box;
-  z-index: 0; /* Ensure sun is generally behind closer elements like planets */
-}
-
 .sun-animated {
   /* Main pulse animation */
   animation: sunPulse 3.5s infinite ease-in-out;
@@ -80,23 +68,24 @@ body {font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background-c
     0 0 15px 3px var(--sun-glow-color1, #FFF352), /* Inner intense glow */
     0 0 35px 10px var(--sun-glow-color2, #FFC940), /* Middle softer glow */
     0 0 70px 20px var(--sun-glow-color3, rgba(255, 165, 0, 0.5)), /* Outer haze */
-    inset 0 0 10px 2px var(--sun-inset-glow, rgba(255,255,200,0.3)); /* Subtle inner highlight */
+    /* Consider a slightly more intense inset glow for the textured look */
+    inset 0 0 15px 4px var(--sun-inset-glow, rgba(255,255,200,0.4)); /* Enhanced inner highlight */
 
   /* Variables for easier color changes if desired */
   --sun-glow-color1: #FFFAA0; /* Light yellow for inner glow */
   --sun-glow-color2: #FFD700; /* Gold for middle glow */
   --sun-glow-color3: rgba(255,165,0,0.4); /* Orange haze */
-  --sun-inset-glow: rgba(255,255,224,0.2); /* Pale yellow inset */
+  --sun-inset-glow: rgba(255,255,230,0.35); /* Pale yellow inset, slightly more opaque */
 }
 
 @keyframes sunPulse {
   0%, 100% {
     transform: translate(-50%, -50%) scale(1);
-    opacity: 1;
+    opacity: 1; /* Base opacity of the sun element itself */
   }
   50% {
-    transform: translate(-50%, -50%) scale(1.03); /* Slightly larger */
-    opacity: 0.95; /* Slightly dimmer at peak expansion a bit to simulate activity */
+    transform: translate(-50%, -50%) scale(1.03); /* Slightly larger pulsating effect */
+    opacity: 0.95; /* Slightly dimmer at peak expansion to simulate activity */
   }
 }
 
@@ -105,50 +94,72 @@ body {font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background-c
 .sun-animated::after {
   content: '';
   position: absolute;
-  top: 0; /* Cover the exact dimensions of the sun */
+  top: 0;
   left: 0;
   width: 100%;
   height: 100%;
   border-radius: 50%;
-  mix-blend-mode: overlay; /* Experiment with 'screen', 'soft-light', 'hard-light' */
-  opacity: 0.3; /* Keep it subtle */
+  mix-blend-mode: overlay; /* Overlay usually works well for light effects on a bright base */
 }
 
 .sun-animated::before {
+  /* Texture layer 1: More varied, brighter spots and slightly darker "cooler" (but still hot) areas */
   background:
-    radial-gradient(circle at 20% 30%, rgba(255, 255, 220, 0.7) 5%, transparent 40%),
-    radial-gradient(circle at 80% 70%, rgba(255, 230, 180, 0.6) 10%, transparent 50%);
-  animation: sunSurfaceTexture1 10s infinite linear alternate; /* Slower, different timing */
+    /* Bright, almost white hot spots */
+    radial-gradient(circle at 20% 30%, hsla(50, 100%, 95%, 0.85) 2%, transparent 20%), /* Intense, small highlight */
+    radial-gradient(circle at 75% 65%, hsla(45, 100%, 90%, 0.75) 5%, transparent 30%), /* Bright yellow spot */
+    /* Slightly darker, more orange "cooler" patches */
+    radial-gradient(circle at 40% 70%, hsla(38, 100%, 75%, 0.4) 10%, transparent 40%), /* Orange-yellow patch */
+    radial-gradient(circle at 60% 20%, hsla(42, 90%, 80%, 0.35) 8%, transparent 35%); /* Lighter orange-yellow patch */
+  animation: sunSurfaceTexture1 12s infinite linear alternate; /* Duration 12s */
+  opacity: 0.65; /* Increased base opacity for this texture layer */
 }
 
 .sun-animated::after {
+  /* Texture layer 2: Broader, softer variations, perhaps some streaky elements for a different feel */
   background:
-    radial-gradient(ellipse at 50% 50%, rgba(255,215,0,0.5) 0%, rgba(255,165,0,0.3) 40%, transparent 70%),
-    radial-gradient(ellipse at 10% 80%, rgba(255,255,100,0.4) 5%, transparent 30%);
-  animation: sunSurfaceTexture2 13s infinite linear alternate-reverse; /* Different timing and direction */
+    /* Softer, larger yellow-orange glows */
+    radial-gradient(ellipse at 50% 50%, hsla(48, 100%, 80%, 0.55) 0%, hsla(40, 100%, 70%, 0.35) 40%, transparent 70%),
+    /* Streaky/elongated features using eccentric ellipses */
+    radial-gradient(ellipse at 10% 80%, hsla(55, 100%, 85%, 0.45) 3% 15%, transparent 30%), /* Elongated highlight */
+    radial-gradient(ellipse at 85% 15%, hsla(50, 100%, 88%, 0.4) 4% 12%, transparent 35%); /* Another elongated highlight */
+  animation: sunSurfaceTexture2 15s infinite linear alternate-reverse; /* Duration 15s, and reversed */
+  opacity: 0.55; /* Slightly lower base opacity for this layer to allow the first to show through */
+  transform-origin: 40% 60%; /* Shifted transform origin for different rotation behavior */
 }
 
 @keyframes sunSurfaceTexture1 {
-  0%, 100% {
-    transform: rotate(0deg) scale(1);
-    opacity: 0.3;
+  0% {
+    transform: rotate(0deg) scale(1) translateX(0px) translateY(0px);
+    opacity: 0.6; /* Animated opacity to make texture pulse */
   }
   50% {
-    transform: rotate(180deg) scale(1.05); /* Slightly increased scale */
-    opacity: 0.5; /* Slightly increased opacity */
+    /* More pronounced scaling and some slight positional shift for a "boiling" feel */
+    transform: rotate(180deg) scale(1.1) translateX(3px) translateY(-2px);
+    opacity: 0.85; /* Texture becomes more prominent */
+  }
+  100% {
+    transform: rotate(360deg) scale(1) translateX(0px) translateY(0px);
+    opacity: 0.6;
   }
 }
 
 @keyframes sunSurfaceTexture2 {
-  0%, 100% {
-    transform: rotate(0deg) scale(1);
-    opacity: 0.25;
+  0% {
+    transform: rotate(0deg) scale(1) skewX(0deg);
+    opacity: 0.5; /* Animated opacity for this texture layer */
   }
   50% {
-    transform: rotate(-150deg) scale(1.07); /* Slightly increased scale */
-    opacity: 0.45; /* Slightly increased opacity */
+    /* Different scaling, rotation direction, and add a skew for more varied motion */
+    transform: rotate(-150deg) scale(1.12) skewX(-4deg);
+    opacity: 0.75; /* Texture becomes more prominent */
+  }
+  100% {
+    transform: rotate(-360deg) scale(1) skewX(0deg);
+    opacity: 0.5;
   }
 }
+
 #solar-system-orbit-canvas {
   position: absolute;
   top: 50%;

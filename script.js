@@ -799,13 +799,29 @@ document.addEventListener('DOMContentLoaded', () => {
     }
     currentSunSize = Math.max(currentSunSize, 5); // Ensure minimum visible size
 
-    const sunEl = document.createElement('div');
-    sunEl.className = 'sun-icon sun-animated'; // Add sun-animated class
-    sunEl.style.width = `${currentSunSize}px`;
-    sunEl.style.height = `${currentSunSize}px`;
-    sunEl.style.backgroundColor = FIXED_COLORS.sunFill; // Set base fill
-    sunEl.style.border = `3px solid ${FIXED_COLORS.sunBorder}`; // Set base border
-    solarSystemContent.appendChild(sunEl);
+   const sunEl = document.createElement('div');
+  sunEl.className = 'sun-icon sun-animated'; // Add sun-animated class
+  sunEl.style.width = `$px`;
+  sunEl.style.height = `$px`;
+
+  // Set CSS variables for the gradient and border in .sun-icon
+  const coreColor = FIXED_COLORS.sunFill; // e.g., #FFD700 (bright yellow/gold)
+  
+  // Mid color can be the original border color or a slightly less bright version of coreColor
+  const midColor = FIXED_COLORS.sunBorder; // e.g., #FFA500 (orange)
+  
+  // Edge color should be darker to give depth. We use the existing adjustColor function.
+  // The -40 value can be tweaked to make it darker or lighter.
+  const edgeColor = adjustColor(FIXED_COLORS.sunBorder, -40); 
+
+  const actualBorderColor = FIXED_COLORS.sunBorder; // Or choose a specific border color, like edgeColor
+
+  sunEl.style.setProperty('--sun-core-color', coreColor);
+  sunEl.style.setProperty('--sun-mid-color', midColor);
+  sunEl.style.setProperty('--sun-edge-color', edgeColor);
+  sunEl.style.setProperty('--sun-actual-border-color', actualBorderColor);
+
+  solarSystemContent.appendChild(sunEl);
 
     solarSystemOrbitCanvasEl = document.createElement('canvas');
     solarSystemOrbitCanvasEl.id = 'solar-system-orbit-canvas';

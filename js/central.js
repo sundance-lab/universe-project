@@ -1,4 +1,4 @@
-// js/main.js
+// js/central.js
 
 import * as WorkerManager from 'js/workers/worker_manager.js';
 import * as GameLifecycle from 'js/core/game_lifecycle.js';

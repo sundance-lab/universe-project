@@ -1,12 +1,12 @@
 // js/core/game_lifecycle.js
 
-import * as Config from '../config.js';
-import * as State from '../state.js'; // Import State as module, access properties as State.appSettings.property
-import * as DOM from '../dom_elements.js';
-import * as ScreenManager from '../ui/screen_manager.js';
-import * as GameGeneration from './game_generation.js';
-import * as AnimationManager from './animation_manager.js';
-import * as GalaxyUI from '../ui/galaxy_ui.js'; // Needed for renderMainScreen
+import * as Config from 'js/config.js';
+import * as State from 'js/state.js'; // Import State as module, access properties as State.appSettings.property
+import * as DOM from 'js/dom_elements.js';
+import * as ScreenManager from 'js/ui/screen_manager.js';
+import * as GameGeneration from 'js/game_generation.js';
+import * as AnimationManager from 'js/animation_manager.js';
+import * as GalaxyUI from 'js/ui/galaxy_ui.js'; // Needed for renderMainScreen
 
 /**
  * Saves the current customization settings to local storage.

@@ -1,11 +1,11 @@
 // js/ui/screen_manager.js
 
-import * as DOM from 'js/dom_elements.js';
-import * as State from 'js/state.js';
-import * as Config from 'js/config.js';
-import * as AnimationManager from 'js/core/animation_manager.js';
-import * as GameLifecycle from 'js/core/game_lifecycle.js';
-import * as GalaxyUI from 'js/galaxy_ui.js';
+import * as DOM from './dom_elements.js';
+import * as State from './state.js';
+import * as Config from './config.js';
+import * as AnimationManager from './core/animation_manager.js';
+import * as GameLifecycle from './core/game_lifecycle.js';
+import * as GalaxyUI from './galaxy_ui.js';
 
 export function setActiveScreen(screenToShow) {
     // Hide all screens and remove panning class

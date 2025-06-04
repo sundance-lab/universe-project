@@ -493,14 +493,15 @@ document.addEventListener('DOMContentLoaded', () => {
     });
   }
 
-  function switchToPlanetDesignerScreen() {
+function switchToPlanetDesignerScreen() {
     setActiveScreen(planetDesignerScreen);
-    populateDesignerInputsFromBasis(); 
+    populateDesignerInputsFromBasis();
     populateSavedDesignsList();
+	resizeDesignerCanvasToDisplaySize(); // Add this line
     requestAnimationFrame(() => {
-      generateAndRenderDesignerPreviewInstance(true); 
+        generateAndRenderDesignerPreviewInstance(true);
     });
-  }
+}
   // --- END PLANET DESIGNER CORE LOGIC ---
 
   // Event listeners for designer range inputs (now call the new central handler)

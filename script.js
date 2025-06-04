@@ -11,6 +11,24 @@ function generatePlanetInstanceFromBasis(basis) {
     };
 }
 
+function resizeDesignerCanvasToDisplaySize() {
+  const canvas = designerPlanetCanvas;
+  if (!canvas) return; // Exit if the canvas doesn't exist
+  const displayWidth = canvas.offsetWidth;
+  const displayHeight = canvas.offsetHeight;
+
+    // Check if dimensions are available (offsetWidth/offsetHeight may be 0 initially)
+    if (displayWidth && displayHeight) {
+      if (canvas.width !== displayWidth || canvas.height !== displayHeight) {
+            canvas.width = displayWidth;
+            canvas.height = displayHeight;
+        }
+    } else {
+        // If dimensions not available, try again on the next animation frame
+        requestAnimationFrame(resizeDesignerCanvasToDisplaySize);
+    }
+}
+
 document.addEventListener('DOMContentLoaded', () => {
   const mainScreen = document.getElementById('main-screen');
   const galaxyDetailScreen = document.getElementById('galaxy-detail-screen');

@@ -1,7 +1,7 @@
 // js/core/animation_manager.js
 
-import * as State from '../state.js';
-import * as DOM from '../dom_elements.js';
+import * as State from 'js/state.js';
+import * as DOM from 'js/dom_elements.js';
 
 /**
  * Animates the orbital and axial rotation of planets in the solar system view.

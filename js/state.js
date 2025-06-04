@@ -1,8 +1,7 @@
 // js/state.js
 
-import * as Config from './config.js';
+import * as Config from 'js/config.js';
 
-// --- Game Session Data (Properties will be mutated, not the object itself) ---
 export const gameSessionData = {
     universe: { diameter: null },
     galaxies: [],
@@ -23,8 +22,6 @@ export const gameSessionData = {
     customPlanetDesigns: [] // Stores saved custom planet designs
 };
 
-// --- Customization Settings (User Defined) - GROUPED INTO AN OBJECT ---
-// We use 'const' here because we intend to mutate its properties, not reassign `appSettings` itself.
 export const appSettings = {
     currentNumGalaxies: Config.DEFAULT_NUM_GALAXIES,
     currentMinSSCount: Config.DEFAULT_MIN_SS_COUNT_CONST,

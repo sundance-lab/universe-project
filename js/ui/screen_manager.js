@@ -3,8 +3,8 @@
 import * as DOM from './dom_elements.js';
 import * as State from './state.js';
 import * as Config from './config.js';
-import * as AnimationManager from './core/animation_manager.js';
-import * as GameLifecycle from './core/game_lifecycle.js';
+import * as AnimationManager from '../core/animation_manager.js';
+import * as GameLifecycle from '../core/game_lifecycle.js';
 import * as GalaxyUI from './galaxy_ui.js';
 
 export function setActiveScreen(screenToShow) {

@@ -263,68 +263,25 @@ document.addEventListener('DOMContentLoaded', () => {
     }
     }
 
-  function resizeDesignerCanvasToDisplaySize() { /* ... ( unchanged) ... */ 
-    const canvas = designerPlanetCanvas;
-    const displayWidth = canvas.offsetWidth;
-    const displayHeight = canvas.offsetHeight;    
-    if (canvas.width !== displayWidth || canvas.height !== displayHeight) {
-        if (displayWidth > 0 && displayHeight > 0) {
+function resizeDesignerCanvasToDisplaySize() {
+  const canvas = designerPlanetCanvas;
+  if (!canvas) return; // Exit if the canvas doesn't exist
+  const displayWidth = canvas.offsetWidth;
+  const displayHeight = canvas.offsetHeight;
+
+    // Check if dimensions are available (offsetWidth/offsetHeight may be 0 initially)
+    if (displayWidth && displayHeight) {
+      if (canvas.width !== displayWidth || canvas.height !== displayHeight) {
             canvas.width = displayWidth;
             canvas.height = displayHeight;
         }
+    } else {
+        // If dimensions not available, try again on the next animation frame
+        requestAnimationFrame(resizeDesignerCanvasToDisplaySize);
     }
-  }
-  
-  // --- PLANET DESIGNER (RANGE BASED) CORE FUNCTIONS ---
-  function randomInRange(range) {
-    if (!Array.isArray(range) || range.length !== 2) {
-      console.warn("randomInRange called with invalid range. Using [0,1]. Input:", range);
-      return Math.random();
-    }
-    let [min, max] = range.map(Number); // Ensure numbers
-    if (isNaN(min) || isNaN(max)) {
-        console.warn("randomInRange received NaN in range. Using [0,1]. Input:", range);
-        return Math.random();
-    }
-    if (min > max) [min, max] = [max, min]; // Swap if min > max
-    return min + Math.random() * (max - min);
-  }
+}
 
-  function generatePlanetInstanceFromBasis(basis) {
-    const minRange = (Array.isArray(basis.minTerrainHeightRange) && basis.minTerrainHeightRange.length === 2)
-      ? basis.minTerrainHeightRange
-      : [basis.minTerrainHeight ?? DEFAULT_MIN_TERRAIN_HEIGHT, (basis.minTerrainHeight ?? DEFAULT_MIN_TERRAIN_HEIGHT) + 1.0];
-
-    const maxRange = (Array.isArray(basis.maxTerrainHeightRange) && basis.maxTerrainHeightRange.length === 2)
-      ? basis.maxTerrainHeightRange
-      : [basis.maxTerrainHeight ?? DEFAULT_MAX_TERRAIN_HEIGHT, (basis.maxTerrainHeight ?? DEFAULT_MAX_TERRAIN_HEIGHT) + 2.0];
-
-    const oceanRange = (Array.isArray(basis.oceanHeightRange) && basis.oceanHeightRange.length === 2)
-      ? basis.oceanHeightRange
-      : [basis.oceanHeightLevel ?? DEFAULT_OCEAN_HEIGHT_LEVEL, (basis.oceanHeightLevel ?? DEFAULT_OCEAN_HEIGHT_LEVEL) + 1.0];
-
-    let minH = randomInRange(minRange);
-    let maxH = randomInRange(maxRange);
-    
-    minH = Math.max(0, minH); // Min height cannot be negative
-    if (minH >= maxH) { // Ensure maxH is greater than minH
-      maxH = minH + Math.max(0.2, (maxRange[1] - minRange[0]) * 0.1); // Add at least 0.2 or a fraction of potential total range
-    }
-    
-    let oceanH = randomInRange(oceanRange);
-    oceanH = Math.max(minH, Math.min(maxH, oceanH)); // Clamp oceanH: minH <= oceanH <= maxH
-
-    return {
-      waterColor: basis.waterColor,
-      landColor: basis.landColor,
-      continentSeed: Math.random(), // New seed for each instance
-      minTerrainHeight: parseFloat(minH.toFixed(1)),
-      maxTerrainHeight: parseFloat(maxH.toFixed(1)),
-      oceanHeightLevel: parseFloat(oceanH.toFixed(1))
-    };
-  }
-  
-  function populateDesignerInputsFromBasis() {
+function populateDesignerInputsFromBasis() {
     designerWaterColorInput.value = currentDesignerBasis.waterColor;
     designerLandColorInput.value = currentDesignerBasis.landColor;
 
@@ -336,9 +293,9 @@ document.addEventListener('DOMContentLoaded', () => {
 
     designerOceanHeightMinInput.value = currentDesignerBasis.oceanHeightRange[0].toFixed(1);
     designerOceanHeightMaxInput.value = currentDesignerBasis.oceanHeightRange[1].toFixed(1);
-  }
+}
 
-  function updateBasisAndRefreshDesignerPreview() {
+function updateBasisAndRefreshDesignerPreview() {
     currentDesignerBasis.waterColor = designerWaterColorInput.value;
     currentDesignerBasis.landColor = designerLandColorInput.value;
 
@@ -358,37 +315,37 @@ document.addEventListener('DOMContentLoaded', () => {
     minH_min = Math.max(0, minH_min); minH_max = Math.max(0, minH_max);
     maxH_min = Math.max(0, maxH_min); maxH_max = Math.max(0, maxH_max);
     oceanH_min = Math.max(0, oceanH_min); oceanH_max = Math.max(0, oceanH_max);
-    
+
     currentDesignerBasis.minTerrainHeightRange = [minH_min, minH_max];
     currentDesignerBasis.maxTerrainHeightRange = [maxH_min, maxH_max];
     currentDesignerBasis.oceanHeightRange = [oceanH_min, oceanH_max];
 
     populateDesignerInputsFromBasis(); // Reflect corrections to inputs
     generateAndRenderDesignerPreviewInstance();
-  }
+}
 
-  function generateAndRenderDesignerPreviewInstance(resetRotation = false) {
+function generateAndRenderDesignerPreviewInstance(resetRotation = false) {
     currentDesignerPlanetInstance = generatePlanetInstanceFromBasis(currentDesignerBasis);
     if (resetRotation) designerPlanetRotationQuat = quat_identity();
-
+    resizeDesignerCanvasToDisplaySize(); // Add this
     if (!isRenderingDesignerPlanet) {
-      isRenderingDesignerPlanet = true;
-      renderDesignerPlanet(currentDesignerPlanetInstance, designerPlanetRotationQuat);
+        isRenderingDesignerPlanet = true;
+        renderDesignerPlanet(currentDesignerPlanetInstance, designerPlanetRotationQuat);
     }
-  }
+}
 
-  function renderDesignerPlanet(planetToRender, rotationQuaternion) {
+function renderDesignerPlanet(planetToRender, rotationQuaternion) {
     if (!planetToRender || !designerPlanetCanvas) return;
-    resizeDesignerCanvasToDisplaySize();
+    //resizeDesignerCanvasToDisplaySize(); //Reset on render call
     if (designerPlanetCanvas.width === 0 || designerPlanetCanvas.height === 0) {
-      console.warn("Designer canvas has 0 dimensions. Aborting render.");
-      isRenderingDesignerPlanet = false; 
-      return;
+        console.warn("Designer canvas has 0 dimensions. Aborting render.");
+        isRenderingDesignerPlanet = false;
+        return;
     }
     renderPlanetVisual(planetToRender, rotationQuaternion, designerPlanetCanvas);
-  }
-  
-  function randomizeDesignerPlanet() {
+}
+
+function randomizeDesignerPlanet() {
     currentDesignerBasis.waterColor = `#${Math.floor(Math.random() * 16777215).toString(16).padStart(6, '0')}`;
     currentDesignerBasis.landColor = `#${Math.floor(Math.random() * 16777215).toString(16).padStart(6, '0')}`;
     currentDesignerBasis.continentSeed = Math.random();
@@ -396,11 +353,11 @@ document.addEventListener('DOMContentLoaded', () => {
     let minH_min_rand = parseFloat((Math.random() * 2.0).toFixed(1)); // 0 to 2
     let minH_max_rand = parseFloat((minH_min_rand + Math.random() * 2.0 + 0.1).toFixed(1)); // min_min to min_min + 2.1
 
-    let oceanH_min_rand = parseFloat((minH_max_rand + Math.random() * 1.5 + 0.1).toFixed(1)); 
+    let oceanH_min_rand = parseFloat((minH_max_rand + Math.random() * 1.5 + 0.1).toFixed(1));
     let oceanH_max_rand = parseFloat((oceanH_min_rand + Math.random() * 2.5 + 0.1).toFixed(1));
-    
-    let maxH_min_rand = parseFloat((oceanH_max_rand + Math.random() * 2.0 + 0.1).toFixed(1)); 
-    let maxH_max_rand = parseFloat((maxH_min_rand + Math.random() * 5.0 + 0.5).toFixed(1)); 
+
+    let maxH_min_rand = parseFloat((oceanH_max_rand + Math.random() * 2.0 + 0.1).toFixed(1));
+    let maxH_max_rand = parseFloat((maxH_min_rand + Math.random() * 5.0 + 0.5).toFixed(1));
 
     currentDesignerBasis.minTerrainHeightRange = [minH_min_rand, minH_max_rand];
     currentDesignerBasis.maxTerrainHeightRange = [maxH_min_rand, maxH_max_rand];
@@ -408,114 +365,118 @@ document.addEventListener('DOMContentLoaded', () => {
 
     populateDesignerInputsFromBasis();
     generateAndRenderDesignerPreviewInstance(true);
-  }
+}
 
   function saveCustomPlanetDesign() {
-    updateBasisAndRefreshDesignerPreview(); // Ensure basis reflects current inputs
+      updateBasisAndRefreshDesignerPreview(); // Ensure basis reflects current inputs
 
-    const newDesign = {
-      designId: `design-${Date.now()}`,
-      name: `Custom Design ${gameSessionData.customPlanetDesigns.length + 1}`,
-      waterColor: currentDesignerBasis.waterColor,
-      landColor: currentDesignerBasis.landColor,
-      continentSeed: currentDesignerBasis.continentSeed,
-      minTerrainHeightRange: [...currentDesignerBasis.minTerrainHeightRange],
-      maxTerrainHeightRange: [...currentDesignerBasis.maxTerrainHeightRange],
-      oceanHeightRange: [...currentDesignerBasis.oceanHeightRange]
-    };
-    gameSessionData.customPlanetDesigns.push(newDesign);
-    saveGameState();
-    populateSavedDesignsList();
-    // console.log("Saved design basis:", newDesign);
-  }
-
-  function loadAndPreviewDesign(designId) {
-    const designToLoad = gameSessionData.customPlanetDesigns.find(d => d.designId === designId);
-    if (designToLoad) {
-        currentDesignerBasis.waterColor = designToLoad.waterColor;
-        currentDesignerBasis.landColor = designToLoad.landColor;
-        currentDesignerBasis.continentSeed = designToLoad.continentSeed || Math.random();
-        
-        currentDesignerBasis.minTerrainHeightRange = (Array.isArray(designToLoad.minTerrainHeightRange) && designToLoad.minTerrainHeightRange.length === 2) 
-            ? [...designToLoad.minTerrainHeightRange] 
-            : [designToLoad.minTerrainHeight ?? 0.0, (designToLoad.minTerrainHeight ?? 0.0) + 1.0];
-        
-        currentDesignerBasis.maxTerrainHeightRange = (Array.isArray(designToLoad.maxTerrainHeightRange) && designToLoad.maxTerrainHeightRange.length === 2)
-            ? [...designToLoad.maxTerrainHeightRange]
-            : [designToLoad.maxTerrainHeight ?? 10.0, (designToLoad.maxTerrainHeight ?? 10.0) + 2.0];
-
-        currentDesignerBasis.oceanHeightRange = (Array.isArray(designToLoad.oceanHeightRange) && designToLoad.oceanHeightRange.length === 2)
-            ? [...designToLoad.oceanHeightRange]
-            : [designToLoad.oceanHeightLevel ?? 2.0, (designToLoad.oceanHeightLevel ?? 2.0) + 1.0];
-
-        populateDesignerInputsFromBasis();
-        generateAndRenderDesignerPreviewInstance(true); 
-    }
-  }
-  
-  function populateSavedDesignsList() {
-    savedDesignsUl.innerHTML = '';
-    if (gameSessionData.customPlanetDesigns.length === 0) {
-      savedDesignsUl.innerHTML = '<li>No designs saved yet.</li>';
-      return;
-    }
-    gameSessionData.customPlanetDesigns.forEach(design => {
-      const li = document.createElement('li');
-      li.dataset.designId = design.designId;
-      
-      const designNameSpan = document.createElement('span');
-      designNameSpan.className = 'design-item-name';
-      designNameSpan.textContent = design.name || `Design ${design.designId.slice(-4)}`;
-      li.appendChild(designNameSpan);
-
-      const loadBtn = document.createElement('button');
-      loadBtn.className = 'design-item-load modal-button-apply';
-      loadBtn.textContent = 'Load';
-      loadBtn.title = `Load ${design.name || 'design'}`;
-      loadBtn.style.marginLeft = "10px"; loadBtn.style.padding = "3px 6px"; loadBtn.style.fontSize = "0.8em";
-      loadBtn.onclick = (e) => { e.stopPropagation(); loadAndPreviewDesign(design.designId); };
-      li.appendChild(loadBtn);
-
-      const deleteBtn = document.createElement('button');
-      deleteBtn.className = 'design-item-delete';
-      deleteBtn.textContent = 'x';
-      deleteBtn.title = `Delete ${design.name || 'design'}`;
-      deleteBtn.onclick = (e) => {
-        e.stopPropagation();
-        if (confirm(`Delete design "${design.name || 'this design'}"? This cannot be undone.`)) {
-          gameSessionData.customPlanetDesigns = gameSessionData.customPlanetDesigns.filter(d => d.designId !== design.designId);
-          saveGameState();
-          populateSavedDesignsList();
-        }
+      const newDesign = {
+          designId: `design-${Date.now()}`,
+          name: `Custom Design ${gameSessionData.customPlanetDesigns.length + 1}`,
+          waterColor: currentDesignerBasis.waterColor,
+          landColor: currentDesignerBasis.landColor,
+          continentSeed: currentDesignerBasis.continentSeed,
+          minTerrainHeightRange: [...currentDesignerBasis.minTerrainHeightRange],
+          maxTerrainHeightRange: [...currentDesignerBasis.maxTerrainHeightRange],
+          oceanHeightRange: [...currentDesignerBasis.oceanHeightRange]
       };
-      li.appendChild(deleteBtn);
-      savedDesignsUl.appendChild(li);
-    });
+      gameSessionData.customPlanetDesigns.push(newDesign);
+      saveGameState();
+      populateSavedDesignsList();
+      // console.log("Saved design basis:", newDesign);
   }
 
-function switchToPlanetDesignerScreen() {
-    setActiveScreen(planetDesignerScreen);
-    populateDesignerInputsFromBasis();
-    populateSavedDesignsList();
-	resizeDesignerCanvasToDisplaySize(); // Add this line
-    requestAnimationFrame(() => {
-        generateAndRenderDesignerPreviewInstance(true);
-    });
-}
-  // --- END PLANET DESIGNER CORE LOGIC ---
+   function loadAndPreviewDesign(designId) {
+       const designToLoad = gameSessionData.customPlanetDesigns.find(d => d.designId === designId);
+       if (designToLoad) {
+           currentDesignerBasis.waterColor = designToLoad.waterColor;
+           currentDesignerBasis.landColor = designToLoad.landColor;
+           currentDesignerBasis.continentSeed = designToLoad.continentSeed || Math.random();
 
-  // Event listeners for designer range inputs (now call the new central handler)
-  [designerMinHeightMinInput, designerMinHeightMaxInput,
-   designerMaxHeightMinInput, designerMaxHeightMaxInput,
-   designerOceanHeightMinInput, designerOceanHeightMaxInput,
-   designerWaterColorInput, designerLandColorInput].forEach(input => {
-       input.addEventListener('change', updateBasisAndRefreshDesignerPreview);
-   });
+           currentDesignerBasis.minTerrainHeightRange = (Array.isArray(designToLoad.minTerrainHeightRange) && designToLoad.minTerrainHeightRange.length === 2)
+               ? [...designToLoad.minTerrainHeightRange]
+               : [designToLoad.minTerrainHeight ?? 0.0, (designToLoad.minTerrainHeight ?? 0.0) + 1.0];
 
-  designerRandomizeBtn.addEventListener('click', randomizeDesignerPlanet);
-  designerSaveBtn.addEventListener('click', saveCustomPlanetDesign);
-  designerCancelBtn.addEventListener('click', () => setActiveScreen(mainScreen));
-  createPlanetDesignButton.addEventListener('click', switchToPlanetDesignerScreen);
+           currentDesignerBasis.maxTerrainHeightRange = (Array.isArray(designToLoad.maxTerrainHeightRange) && designToLoad.maxTerrainHeightRange.length === 2)
+               ? [...designToLoad.maxTerrainHeightRange]
+               : [designToLoad.maxTerrainHeight ?? 10.0, (designToLoad.maxTerrainHeight ?? 10.0) + 2.0];
+
+           currentDesignerBasis.oceanHeightRange = (Array.isArray(designToLoad.oceanHeightRange) && designToLoad.oceanHeightRange.length === 2)
+               ? [...designToLoad.oceanHeightRange]
+               : [designToLoad.oceanHeightLevel ?? 2.0, (designToLoad.oceanHeightLevel ?? 2.0) + 1.0];
+
+           populateDesignerInputsFromBasis();
+           generateAndRenderDesignerPreviewInstance(true);
+       }
+   }
+
+
+  function populateSavedDesignsList() {
+      savedDesignsUl.innerHTML = '';
+      if (gameSessionData.customPlanetDesigns.length === 0) {
+          savedDesignsUl.innerHTML = '<li>No designs saved yet.</li>';
+          return;
+      }
+      gameSessionData.customPlanetDesigns.forEach(design => {
+          const li = document.createElement('li');
+          li.dataset.designId = design.designId;
+
+          const designNameSpan = document.createElement('span');
+          designNameSpan.className = 'design-item-name';
+          designNameSpan.textContent = design.name || `Design ${design.designId.slice(-4)}`;
+          li.appendChild(designNameSpan);
+
+          const loadBtn = document.createElement('button');
+          loadBtn.className = 'design-item-load modal-button-apply';
+          loadBtn.textContent = 'Load';
+          loadBtn.title = `Load ${design.name || 'design'}`;
+          loadBtn.style.marginLeft = "10px"; loadBtn.style.padding = "3px 6px"; loadBtn.style.fontSize = "0.8em";
+          loadBtn.onclick = (e) => { e.stopPropagation(); loadAndPreviewDesign(design.designId); };
+          li.appendChild(loadBtn);
+
+          const deleteBtn = document.createElement('button');
+          deleteBtn.className = 'design-item-delete';
+          deleteBtn.textContent = 'x';
+          deleteBtn.title = `Delete ${design.name || 'design'}`;
+          deleteBtn.onclick = (e) => {
+              e.stopPropagation();
+              if (confirm(`Delete design "${design.name || 'this design'}"? This cannot be undone.`)) {
+                  gameSessionData.customPlanetDesigns = gameSessionData.customPlanetDesigns.filter(d => d.designId !== design.designId);
+                  saveGameState();
+                  populateSavedDesignsList();
+              }
+          };
+          li.appendChild(deleteBtn);
+          savedDesignsUl.appendChild(li);
+      });
+  }
+
+  function switchToPlanetDesignerScreen() {
+      setActiveScreen(planetDesignerScreen);
+      populateDesignerInputsFromBasis();
+      populateSavedDesignsList();
+      resetCanvasSize(); //Fix
+      requestAnimationFrame(() => {
+          generateAndRenderDesignerPreviewInstance(true);
+      });
+  }
+
+// --- END PLANET DESIGNER CORE LOGIC ---
+
+// Event listeners for designer range inputs (now call the new central handler)
+[designerMinHeightMinInput, designerMinHeightMaxInput,
+    designerMaxHeightMinInput, designerMaxHeightMaxInput,
+    designerOceanHeightMinInput, designerOceanHeightMaxInput,
+    designerWaterColorInput, designerLandColorInput].forEach(input => {
+    input.addEventListener('change', updateBasisAndRefreshDesignerPreview);
+});
+
+designerRandomizeBtn.addEventListener('click', randomizeDesignerPlanet);
+designerSaveBtn.addEventListener('click', saveCustomPlanetDesign);
+designerCancelBtn.addEventListener('click', () => setActiveScreen(mainScreen));
+createPlanetDesignButton.addEventListener('click', switchToPlanetDesignerScreen);
+
+// ... (Rest of the code remains the same) ...
 
   function quat_identity() { /* ... ( unchanged) ... */ return [1,0,0,0]; }
   function quat_from_axis_angle(axis, angle) { /* ... ( unchanged) ... */ const hA = angle*0.5, s=Math.sin(hA); return [Math.cos(hA),axis[0]*s,axis[1]*s,axis[2]*s];}

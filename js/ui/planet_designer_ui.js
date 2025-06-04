@@ -1,21 +1,14 @@
 // js/ui/planet_designer_ui.js
 
-import * as DOM from '../dom_elements.js';
-import * as State from '../state.js';
-import * as Config from '../config.js';
-import * as MathUtils from '../utils/math_utils.js';
-import * as ScreenManager from './screen_manager.js';
-import * as WorkerManager from '../workers/worker_manager.js';
-import * as GameLifecycle from '../core/game_lifecycle.js';
-import * as CoreGeneration from '../core/game_generation.js'; // Needs access to some generation helpers for randomness
+import * as DOM from 'js/dom_elements.js';
+import * as State from 'js/state.js';
+import * as Config from 'js/config.js';
+import * as MathUtils from 'js/utils/math_utils.js';
+import * as ScreenManager from 'js/screen_manager.js';
+import * as WorkerManager from 'js/workers/worker_manager.js';
+import * as GameLifecycle from 'js/core/game_lifecycle.js';
+import * as CoreGeneration from 'js/core/game_generation.js'; // Needs access to some generation helpers for randomness
 
-/**
- * Generates a full planet instance based on a provided basis object (colors, height ranges, seed).
- * If isForDesignerPreview is true, the continentSeed will be preserved if already set in the basis.
- * @param {object} basis - The base properties for the planet (waterColor, landColor, height ranges).
- * @param {boolean} isForDesignerPreview - If true, reuses continentSeed for consistent preview.
- * @returns {object} A complete planet instance with interpolated values for min/max/ocean height.
- */
 export function generatePlanetInstanceFromBasis(basis, isForDesignerPreview = false) {
     // Helper to get a random number within a range.
     const getValueFromRange = (range, defaultValue, defaultSpread = 1.0) => {
@@ -75,9 +68,6 @@ export function resizeDesignerCanvasToDisplaySize() {
     }
 }
 
-/**
- * Populates the designer input fields with values from the currentDesignerBasis state.
- */
 export function populateDesignerInputsFromBasis() {
     if (!DOM.designerWaterColorInput) return; // Guard against null elements
 
@@ -94,10 +84,6 @@ export function populateDesignerInputsFromBasis() {
     DOM.designerOceanHeightMaxInput.value = State.currentDesignerBasis.oceanHeightRange[1].toFixed(1);
 }
 
-/**
- * Updates the currentDesignerBasis state from input fields and refreshes the preview.
- * Includes validation and clamping for height ranges.
- */
 export function updateBasisAndRefreshDesignerPreview() {
     if (!DOM.designerWaterColorInput) return;
 
@@ -121,8 +107,6 @@ export function updateBasisAndRefreshDesignerPreview() {
     maxH_min = Math.max(0, maxH_min); maxH_max = Math.max(0, maxH_max);
     oceanH_min = Math.max(0, oceanH_min); oceanH_max = Math.max(0, oceanH_max);
 
-    // Apply logical constraints between ranges (Min < Ocean < Max)
-    // Adjust ocean min if it's too low compared to terrain min max
     if (minH_max > oceanH_min) {
         oceanH_min = parseFloat((minH_max + 0.1).toFixed(1));
     }
@@ -148,16 +132,11 @@ export function updateBasisAndRefreshDesignerPreview() {
     generateAndRenderDesignerPreviewInstance();
 }
 
-/**
- * Generates a new planet instance for the designer preview and renders it.
- * @param {boolean} [resetRotation=false] - If true, resets the preview planet's rotation to identity.
- */
 export function generateAndRenderDesignerPreviewInstance(resetRotation = false) {
     State.currentDesignerPlanetInstance = generatePlanetInstanceFromBasis(State.currentDesignerBasis, true);
     if (resetRotation) State.designerPlanetRotationQuat = MathUtils.quat_identity();
     resizeDesignerCanvasToDisplaySize(); // Ensure canvas is correctly sized before rendering
 
-    // Render if not already rendering and worker is available
     if (!State.isRenderingDesignerPlanet && WorkerManager.designerWorker) {
         State.isRenderingDesignerPlanet = true;
         WorkerManager.renderPlanet(State.currentDesignerPlanetInstance, State.designerPlanetRotationQuat, DOM.designerPlanetCanvas.id);
@@ -166,11 +145,6 @@ export function generateAndRenderDesignerPreviewInstance(resetRotation = false) 
     }
 }
 
-/**
- * Renders the designer planet preview using the worker.
- * @param {object} planetToRender - The planet data for the preview.
- * @param {number[]} rotationQuaternion - The rotation quaternion for the preview.
- */
 export function renderDesignerPlanet(planetToRender, rotationQuaternion) {
     if (!planetToRender || !DOM.designerPlanetCanvas) return;
 
@@ -193,10 +167,6 @@ export function renderDesignerPlanet(planetToRender, rotationQuaternion) {
     WorkerManager.renderPlanet(planetToRender, rotationQuaternion, DOM.designerPlanetCanvas.id, fixedRadius);
 }
 
-/**
- * Randomizes the current designer basis properties (colors, height ranges, seed)
- * and updates the preview.
- */
 export function randomizeDesignerPlanet() {
     State.currentDesignerBasis.waterColor = `#${Math.floor(Math.random() * 16777215).toString(16).padStart(6, '0')}`;
     State.currentDesignerBasis.landColor = `#${Math.floor(Math.random() * 16777215).toString(16).padStart(6, '0')}`;
@@ -220,9 +190,6 @@ export function randomizeDesignerPlanet() {
     generateAndRenderDesignerPreviewInstance(true); // Generate and render new preview, resetting rotation
 }
 
-/**
- * Saves the current design in the designer to the list of custom planet designs.
- */
 export function saveCustomPlanetDesign() {
     updateBasisAndRefreshDesignerPreview(); // Ensure input values are incorporated into basis
 
@@ -241,11 +208,6 @@ export function saveCustomPlanetDesign() {
     populateSavedDesignsList(); // Refresh the list in the UI
 }
 
-
-/**
- * Loads a selected custom planet design into the designer for modification or preview.
- * @param {string} designId - The ID of the design to load.
- */
 export function loadAndPreviewDesign(designId) {
     const designToLoad = State.gameSessionData.customPlanetDesigns.find(d => d.designId === designId);
     if (designToLoad) {
@@ -283,9 +245,6 @@ export function loadAndPreviewDesign(designId) {
     }
 }
 
-/**
- * Populates the list of saved custom planet designs in the UI.
- */
 export function populateSavedDesignsList() {
     if (!DOM.savedDesignsUl) return;
 
@@ -330,15 +289,11 @@ export function populateSavedDesignsList() {
     });
 }
 
-/**
- * Switches the primary view to the planet designer screen.
- */
 export function switchToPlanetDesignerScreen() {
     ScreenManager.setActiveScreen(DOM.planetDesignerScreen);
     populateDesignerInputsFromBasis(); // Populate inputs with current basis
     populateSavedDesignsList(); // Load and display saved designs
     resizeDesignerCanvasToDisplaySize(); // Ensure canvas is sized correctly
-    // Request animation frame to ensure canvas has rendered before drawing, then generate preview
     requestAnimationFrame(() => {
         generateAndRenderDesignerPreviewInstance(true);
     });

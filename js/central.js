@@ -1,7 +1,7 @@
 // js/main.js
 
-import * as WorkerManager from './workers/worker_manager.js';
-import * as GameLifecycle from './core/game_lifecycle.js';
+import * as WorkerManager from '../workers/worker_manager.js';
+import * as GameLifecycle from '../core/game_lifecycle.js';
 import * as Events from './events.js';
 
 // Ensure the DOM is fully loaded before initializing the application

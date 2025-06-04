@@ -3,12 +3,12 @@
 import * as DOM from './dom_elements.js';
 import * as State from './state.js';
 import * as Config from './config.js';
-import * as MathUtils from './utils/math_utils.js';
-import * as ColorUtils from './utils/color_utils.js';
+import * as MathUtils from '../utils/math_utils.js';
+import * as ColorUtils from '../utils/color_utils.js';
 import * as ScreenManager from './screen_manager.js';
-import * as AnimationManager from './core/animation_manager.js';
-import * as WorkerManager from './workers/worker_manager.js';
-import * as GameLifecycle from './core/game_lifecycle.js';
+import * as AnimationManager from '../core/animation_manager.js';
+import * as WorkerManager from '../workers/worker_manager.js';
+import * as GameLifecycle from '../core/game_lifecycle.js';
 import * as PlanetDesignerUI from './planet_designer_ui.js'; // For generatePlanetInstanceFromBasis
 
 /**

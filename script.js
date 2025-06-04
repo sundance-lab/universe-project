@@ -345,20 +345,21 @@ document.addEventListener('DOMContentLoaded', () => {
     let B = this.p[floorX + 1] + floorY;
     let BA = this.p[B] + floorZ;
     let BB = this.p[B + 1] + floorZ;
-    return this.lerp(
-      this.lerp(
-        this.grad(this.p[AA], x, y, z), this.grad(this.p[BA], x - 1, y, z), u),
-      this.lerp(this.grad(this.p[AB], x, y - 1, z), this.grad(this.p[BB], x - 1, y - 1, z), u),
-      v
-    ),
-    this.lerp(
-      this.lerp(this.grad(this.p[AA + 1], x, y, z - 1), this.grad(this.p[BA + 1], x - 1, y, z - 1), u),
-      this.lerp(this.grad(this.p[AB + 1], x, y - 1, z - 1), this.grad(this.p[BB + 1], x - 1, y - 1, z - 1), u),
-      v
-    ),
-    w
-    );
+  return this.lerp(
+  this.lerp(
+    this.lerp(this.grad(this.p[AA], x, y, z), this.grad(this.p[BA], x - 1, y, z), u),
+    this.lerp(this.grad(this.p[AB], x, y - 1, z), this.grad(this.p[BB], x - 1, y - 1, z), u),
+    v
+  ),
+  this.lerp(
+    this.lerp(this.grad(this.p[AA + 1], x, y, z - 1), this.grad(this.p[BA + 1], x - 1, y, z - 1), u),
+    this.lerp(this.grad(this.p[AB + 1], x, y - 1, z - 1), this.grad(this.p[BB + 1], x - 1, y - 1, z - 1), u),
+    v
+  ),
+  w
+);
   }
+  
   fractalNoise(x, y, z, octaves = 4, persistence = 0.5, lacunarity = 2.0) {
     let total = 0;
     let frequency = 1;

@@ -10,8 +10,8 @@ import * as ColorUtils from '../utils/color_utils.js';
  * Updates dynamic session constants based on current customization settings.
  */
 export function updateDerivedConstants() {
-    State.MAX_PLANET_DISTANCE = (Config.SUN_ICON_SIZE * Config.BASE_MAX_PLANET_DISTANCE_FACTOR) * State.currentMaxPlanetDistanceMultiplier;
-    State.MIN_PLANET_DISTANCE = Config.SUN_ICON_SIZE * 3.0 * (State.currentMaxPlanetDistanceMultiplier > 0.5 ? State.currentMaxPlanetDistanceMultiplier * 0.8 : 0.5);
+    State.MAX_PLANET_DISTANCE = (Config.SUN_ICON_SIZE * Config.BASE_MAX_PLANET_DISTANCE_FACTOR) * State.appSettings.currentMaxPlanetDistanceMultiplier;
+    State.MIN_PLANET_DISTANCE = Config.SUN_ICON_SIZE * 3.0 * (State.appSettings.currentMaxPlanetDistanceMultiplier > 0.5 ? State.appSettings.currentMaxPlanetDistanceMultiplier * 0.8 : 0.5);
     State.ORBIT_CANVAS_SIZE = State.MAX_PLANET_DISTANCE * 2.2; // Expand for larger orbits
     State.SOLAR_SYSTEM_EXPLORABLE_RADIUS = State.MAX_PLANET_DISTANCE * 1.2;
 }
@@ -42,7 +42,7 @@ export function generateGalaxies() {
     const centerRadius = State.gameSessionData.universe.diameter / 2;
     const existingRects = []; // Store positions of placed galaxies to avoid overlap
 
-    for (let i = 0; i < State.currentNumGalaxies; i++) {
+    for (let i = 0; i < State.appSettings.currentNumGalaxies; i++) {
         const id = `galaxy-${i + 1}`;
         const pos = getNonOverlappingPositionInCircle(centerRadius, Config.GALAXY_ICON_SIZE, existingRects);
 
@@ -91,7 +91,7 @@ export function generateSolarSystemsForGalaxy(galaxyId) {
     galaxy.lineConnections = [];
     const tmpPlacementRects = [];
     // Number of solar systems to attempt to place
-    const numSystemsToAttempt = Math.floor(Math.random() * (State.currentMaxSSCount - State.currentMinSSCount + 1)) + State.currentMinSSCount;
+    const numSystemsToAttempt = Math.floor(Math.random() * (State.appSettings.currentMaxSSCount - State.appSettings.currentMinSSCount + 1)) + State.appSettings.currentMinSSCount;
 
     // Place solar system icons, avoiding overlaps
     for (let i = 0; i < numSystemsToAttempt; i++) {

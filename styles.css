@@ -226,7 +226,6 @@ body {
         0 0 15px 3px var(--sun-glow-color1, #FFF352),
         0 0 35px 10px var(--sun-glow-color2, #FFC940),
         0 0 70px 20px var(--sun-glow-color3, rgba(255, 165, 0, 0.5)),
-        /* Consider a slightly more intense inset glow for the textured look */
         inset 0 0 15px 4px var(--sun-inset-glow, rgba(255, 255, 200, 0.4));
 
     /* Variables for easier color changes if desired */
@@ -248,74 +247,8 @@ body {
     }
 }
 
-/* Pseudo-elements for animated surface texture */
-.sun-animated::before,
-.sun-animated::after {
-    content: '';
-    position: absolute;
-    top: 0;
-    left: 0;
-    width: 100%;
-    height: 100%;
-    border-radius: 50%;
-    mix-blend-mode: overlay;
-}
-
-.sun-animated::before {
-    /* Texture layer 1: More varied, brighter spots and slightly darker "cooler" (but still hot) areas */
-    background:
-        /* Bright, almost white hot spots */
-        radial-gradient(circle at 20% 30%, hsla(50, 100%, 95%, 0.85) 2%, transparent 20%),
-        radial-gradient(circle at 75% 65%, hsla(45, 100%, 90%, 0.75) 5%, transparent 30%),
-        /* Slightly darker, more orange "cooler" patches */
-        radial-gradient(circle at 40% 70%, hsla(38, 100%, 75%, 0.4) 10%, transparent 40%),
-        radial-gradient(circle at 60% 20%, hsla(42, 90%, 80%, 0.35) 8%, transparent 35%);
-    animation: sunSurfaceTexture1 12s infinite linear alternate;
-    opacity: 0.65;
-}
-
-.sun-animated::after {
-    /* Texture layer 2: Broader, softer variations, perhaps some streaky elements for a different feel */
-    background:
-        /* Softer, larger yellow-orange glows */
-        radial-gradient(ellipse at 50% 50%, hsla(48, 100%, 80%, 0.55) 0%, hsla(40, 100%, 70%, 0.35) 40%, transparent 70%),
-        /* Streaky/elongated features using eccentric ellipses */
-        radial-gradient(ellipse at 10% 80%, hsla(55, 100%, 85%, 0.45) 3% 15%, transparent 30%),
-        radial-gradient(ellipse at 85% 15%, hsla(50, 100%, 88%, 0.4) 4% 12%, transparent 35%);
-    animation: sunSurfaceTexture2 15s infinite linear alternate-reverse;
-    opacity: 0.55;
-    transform-origin: 40% 60%;
-}
-
-@keyframes sunSurfaceTexture1 {
-    0% {
-        transform: rotate(0deg) scale(1) translateX(0px) translateY(0px);
-        opacity: 0.6;
-    }
-    50% {
-        transform: rotate(180deg) scale(1.1) translateX(3px) translateY(-2px);
-        opacity: 0.85;
-    }
-    100% {
-        transform: rotate(360deg) scale(1) translateX(0px) translateY(0px);
-        opacity: 0.6;
-    }
-}
-
-@keyframes sunSurfaceTexture2 {
-    0% {
-        transform: rotate(0deg) scale(1) skewX(0deg);
-        opacity: 0.5;
-    }
-    50% {
-        transform: rotate(-150deg) scale(1.12) skewX(-4deg);
-        opacity: 0.75;
-    }
-    100% {
-        transform: rotate(-360deg) scale(1) skewX(0deg);
-        opacity: 0.5;
-    }
-}
+/* Removed .sun-animated::before and .sun-animated::after rules, and their respective @keyframes,
+   to remove the "oval" animation/texture on the sun. */
 
 #solar-system-orbit-canvas {
     position: absolute;
@@ -395,59 +328,54 @@ body {
     transform: scale(.95);
 }
 
+/* Redesigned control buttons */
 .control-button {
-    padding: 8px 12px;
-    font-size: 0.9em;
+    position: fixed; /* Keep fixed positioning */
+    padding: 10px 15px;
+    font-size: 1em;
     color: white;
-    border-radius: 5px;
+    border-radius: 8px;
     cursor: pointer;
-    margin: 5px;
-    line-height: 1.4;
-    max-width: 160px;
     text-align: center;
     border: none;
+    width: 180px; /* Fixed width for uniform look */
+    /* No margin here, use `top` property for spacing */
+    transition: background-color 0.2s ease, box-shadow 0.2s ease, transform 0.1s ease;
+    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.4);
 }
 
+.control-button:hover {
+    transform: translateY(-2px); /* Slight lift on hover */
+    box-shadow: 0 6px 12px rgba(0, 0, 0, 0.6); /* More pronounced shadow on hover */
+}
 
-/* Adjust top positions for the buttons to give them space */
 #regenerate-universe-btn {
-    position: fixed;
     top: 15px;
     left: 15px;
     z-index: 301;
-    background-color: #c0392b;
+    background-color: #c0392b; /* Dark red */
     border: 1.1px solid #a93226;
 }
-
-#regenerate-universe-btn:hover {
-    background-color: #e74c3c;
-}
+#regenerate-universe-btn:hover { background-color: #e74c3c; /* Brighter red */ }
 
 #customize-generation-btn {
-    position: fixed;
-    top: 60px;
+    top: 66px; /* 15px (btn1 top) + 36px (btn1 height) + 15px (gap) = 66px */
     left: 15px;
     z-index: 301;
-    background-color: #2980b9;
+    background-color: #2980b9; /* Dark blue */
     border: 1.1px solid #2471a3;
 }
-
-#customize-generation-btn:hover {
-    background-color: #3498db;
-}
+#customize-generation-btn:hover { background-color: #3498db; /* Brighter blue */ }
 
 #create-planet-design-btn {
-    position: fixed;
-    top: 105px;
+    top: 117px; /* 66px (btn2 top) + 36px (btn2 height) + 15px (gap) = 117px */
     left: 15px;
     z-index: 301;
-    background-color: #2b7a9f;
+    background-color: #2b7a9f; /* Teal blue */
     border: 1.1px solid #226688;
 }
+#create-planet-design-btn:hover { background-color: #348bb9; /* Brighter teal */ }
 
-#create-planet-design-btn:hover {
-    background-color: #348bb9;
-}
 
 .modal-overlay {
     position: fixed;

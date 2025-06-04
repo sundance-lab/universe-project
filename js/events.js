@@ -1,4 +1,4 @@
-// js/ui/events.js
+// js/events.js
 
 import * as DOM from 'js/dom_elements.js';
 import * as State from 'js/state.js';
@@ -338,10 +338,6 @@ export function setupGlobalEventListeners() {
         if (input) input.addEventListener('change', PlanetDesignerUI.updateBasisAndRefreshDesignerPreview);
     });
 
-
-    // --- Window Resize Listener ---
-    // The previous implementation was trying to reassign `State.gameSessionData` itself, which is a `const` export.
-    // Instead, we re-initialize its *properties*.
     window.addEventListener('resize', () => {
         const activeScreenElement = document.querySelector('.screen.active');
         const currentScreenId = activeScreenElement ? activeScreenElement.id : 'main-screen';
@@ -356,7 +352,6 @@ export function setupGlobalEventListeners() {
         State.gameSessionData.activeSolarSystemId = null;
         State.gameSessionData.solarSystemView = { zoomLevel: 1.0, currentPanX: 0, currentPanY: 0, planets: [], systemId: null };
         State.gameSessionData.isInitialized = false;
-        // Re-initialize panning state properties as well, rather than replacing the object
         State.gameSessionData.panning.isActive = false;
         State.gameSessionData.panning.startX = 0;
         State.gameSessionData.panning.startY = 0;
@@ -404,7 +399,6 @@ export function setupGlobalEventListeners() {
             ScreenManager.setActiveScreen(DOM.mainScreen); // Fallback
         }
 
-        // Handle re-rendering of planet visuals if a panel was open
         if (DOM.planetVisualPanel.classList.contains('visible') && State.currentPlanetDisplayedInPanel && DOM.planetVisualCanvas) {
             SolarSystemUI.renderPlanetVisualPanel(State.currentPlanetDisplayedInPanel, State.planetVisualRotationQuat, DOM.planetVisualCanvas);
         }

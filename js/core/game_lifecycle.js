@@ -1,7 +1,7 @@
 // js/core/game_lifecycle.js
 
 import * as Config from '../config.js';
-import * as State from '../state.js';
+import * as State from '../state.js'; // Import State as module, access properties as State.appSettings.property
 import * as DOM from '../dom_elements.js';
 import * as ScreenManager from '../ui/screen_manager.js';
 import * as GameGeneration from './game_generation.js';
@@ -13,13 +13,13 @@ import * as GalaxyUI from '../ui/galaxy_ui.js'; // Needed for renderMainScreen
  */
 export function saveCustomizationSettings() {
     const settings = {
-        numGalaxies: State.currentNumGalaxies,
-        minSS: State.currentMinSSCount,
-        maxSS: State.currentMaxSSCount,
-        spread: State.currentMaxPlanetDistanceMultiplier,
-        minPlanets: State.currentMinPlanets,
-        maxPlanets: State.currentMaxPlanets,
-        showOrbits: State.currentShowPlanetOrbits
+        numGalaxies: State.appSettings.currentNumGalaxies, // Access via appSettings
+        minSS: State.appSettings.currentMinSSCount,
+        maxSS: State.appSettings.currentMaxSSCount,
+        spread: State.appSettings.currentMaxPlanetDistanceMultiplier,
+        minPlanets: State.appSettings.currentMinPlanets,
+        maxPlanets: State.appSettings.currentMaxPlanets,
+        showOrbits: State.appSettings.currentShowPlanetOrbits
     };
     localStorage.setItem('galaxyCustomizationSettings', JSON.stringify(settings));
 }
@@ -32,18 +32,17 @@ export function loadCustomizationSettings() {
     if (storedSettings) {
         try {
             const parsedSettings = JSON.parse(storedSettings);
-            State.currentNumGalaxies = parseInt(parsedSettings.numGalaxies, 10) || Config.DEFAULT_NUM_GALAXIES;
-            State.currentMinSSCount = parseInt(parsedSettings.minSS, 10) || Config.DEFAULT_MIN_SS_COUNT_CONST;
-            State.currentMaxSSCount = parseInt(parsedSettings.maxSS, 10) || Config.DEFAULT_MAX_SS_COUNT_CONST;
-            State.currentMaxPlanetDistanceMultiplier = parseFloat(parsedSettings.spread) || Config.DEFAULT_MAX_PLANET_DISTANCE_MULTIPLIER;
+            State.appSettings.currentNumGalaxies = parseInt(parsedSettings.numGalaxies, 10) || Config.DEFAULT_NUM_GALAXIES; // Assign to appSettings.property
+            State.appSettings.currentMinSSCount = parseInt(parsedSettings.minSS, 10) || Config.DEFAULT_MIN_SS_COUNT_CONST;
+            State.appSettings.currentMaxSSCount = parseInt(parsedSettings.maxSS, 10) || Config.DEFAULT_MAX_SS_COUNT_CONST;
+            State.appSettings.currentMaxPlanetDistanceMultiplier = parseFloat(parsedSettings.spread) || Config.DEFAULT_MAX_PLANET_DISTANCE_MULTIPLIER;
 
-            // Ensure planets ranges don't cause issues if loaded from older saves
-            State.currentMinPlanets = parseInt(parsedSettings.minPlanets, 10);
-            if (isNaN(State.currentMinPlanets)) State.currentMinPlanets = Config.DEFAULT_MIN_PLANETS_PER_SYSTEM;
-            State.currentMaxPlanets = parseInt(parsedSettings.maxPlanets, 10);
-            if (isNaN(State.currentMaxPlanets)) State.currentMaxPlanets = Config.DEFAULT_MAX_PLANETS_PER_SYSTEM;
+            State.appSettings.currentMinPlanets = parseInt(parsedSettings.minPlanets, 10);
+            if (isNaN(State.appSettings.currentMinPlanets)) State.appSettings.currentMinPlanets = Config.DEFAULT_MIN_PLANETS_PER_SYSTEM;
+            State.appSettings.currentMaxPlanets = parseInt(parsedSettings.maxPlanets, 10);
+            if (isNaN(State.appSettings.currentMaxPlanets)) State.appSettings.currentMaxPlanets = Config.DEFAULT_MAX_PLANETS_PER_SYSTEM;
 
-            State.currentShowPlanetOrbits = typeof parsedSettings.showOrbits === 'boolean' ? parsedSettings.showOrbits : Config.DEFAULT_SHOW_PLANET_ORBITS;
+            State.appSettings.currentShowPlanetOrbits = typeof parsedSettings.showOrbits === 'boolean' ? parsedSettings.showOrbits : Config.DEFAULT_SHOW_PLANET_ORBITS;
         } catch (e) {
             console.error("Error loading customization settings:", e);
             resetToDefaultCustomization();
@@ -58,13 +57,13 @@ export function loadCustomizationSettings() {
  * Resets all customization settings to their default values.
  */
 export function resetToDefaultCustomization() {
-    State.currentNumGalaxies = Config.DEFAULT_NUM_GALAXIES;
-    State.currentMinSSCount = Config.DEFAULT_MIN_SS_COUNT_CONST;
-    State.currentMaxSSCount = Config.DEFAULT_MAX_SS_COUNT_CONST;
-    State.currentMaxPlanetDistanceMultiplier = Config.DEFAULT_MAX_PLANET_DISTANCE_MULTIPLIER;
-    State.currentMinPlanets = Config.DEFAULT_MIN_PLANETS_PER_SYSTEM;
-    State.currentMaxPlanets = Config.DEFAULT_MAX_PLANETS_PER_SYSTEM;
-    State.currentShowPlanetOrbits = Config.DEFAULT_SHOW_PLANET_ORBITS;
+    State.appSettings.currentNumGalaxies = Config.DEFAULT_NUM_GALAXIES; // Assign to appSettings.property
+    State.appSettings.currentMinSSCount = Config.DEFAULT_MIN_SS_COUNT_CONST;
+    State.appSettings.currentMaxSSCount = Config.DEFAULT_MAX_SS_COUNT_CONST;
+    State.appSettings.currentMaxPlanetDistanceMultiplier = Config.DEFAULT_MAX_PLANET_DISTANCE_MULTIPLIER;
+    State.appSettings.currentMinPlanets = Config.DEFAULT_MIN_PLANETS_PER_SYSTEM;
+    State.appSettings.currentMaxPlanets = Config.DEFAULT_MAX_PLANETS_PER_SYSTEM;
+    State.appSettings.currentShowPlanetOrbits = Config.DEFAULT_SHOW_PLANET_ORBITS;
 }
 
 /**
@@ -94,6 +93,7 @@ export function loadGameState() {
         if (savedStateString) {
             const loadedState = JSON.parse(savedStateString);
             if (loadedState && typeof loadedState.universeDiameter === 'number' && Array.isArray(loadedState.galaxies)) {
+                // Mutate properties of the existing gameSessionData object
                 State.gameSessionData.universe.diameter = loadedState.universeDiameter;
                 State.gameSessionData.galaxies = loadedState.galaxies;
 
@@ -129,15 +129,15 @@ export function loadGameState() {
                     };
 
                     migratedDesign.minTerrainHeightRange = ensureRange(
-                        migratedDesign.minTerrainHeightRange, migratedDesign.minTerrainHeight,
+                        migratedDesign.minTerrainHeightRange, (migratedDesign).minTerrainHeight, // Casting to any for old format access
                         Config.DEFAULT_MIN_TERRAIN_HEIGHT, 1.0
                     );
                     migratedDesign.maxTerrainHeightRange = ensureRange(
-                        migratedDesign.maxTerrainHeightRange, migratedDesign.maxTerrainHeight,
+                        migratedDesign.maxTerrainHeightRange, (migratedDesign).maxTerrainHeight,
                         Config.DEFAULT_MAX_TERRAIN_HEIGHT, 2.0
                     );
                     migratedDesign.oceanHeightRange = ensureRange(
-                        migratedDesign.oceanHeightRange, migratedDesign.oceanHeightLevel,
+                        migratedDesign.oceanHeightRange, (migratedDesign).oceanHeightLevel,
                         Config.DEFAULT_OCEAN_HEIGHT_LEVEL, 1.0
                     );
                     delete migratedDesign.minTerrainHeight; // Clean up old properties
@@ -167,15 +167,15 @@ export function regenerateCurrentUniverseState(force = false) {
 
     localStorage.removeItem('galaxyGameSaveData'); // Clear saved game data
 
-    // Reset all game state variables
+    // Mutate properties of the existing gameSessionData object
     State.gameSessionData.universe = { diameter: null };
     State.gameSessionData.galaxies = [];
     State.gameSessionData.activeGalaxyId = null;
     State.gameSessionData.activeSolarSystemId = null;
     State.gameSessionData.solarSystemView = { zoomLevel: 1.0, currentPanX: 0, currentPanY: 0, planets: [], systemId: null };
+    State.gameSessionData.isInitialized = false;
     // customPlanetDesigns are preserved by default, if needed uncomment next line to clear:
     // State.gameSessionData.customPlanetDesigns = [];
-    State.gameSessionData.isInitialized = false;
 
     // Clear UI elements
     if (DOM.universeCircle) DOM.universeCircle.innerHTML = '';

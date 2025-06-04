@@ -578,39 +578,43 @@ document.addEventListener('DOMContentLoaded', () => {
   function switchToMainView() { /* ... ( unchanged) ... */ gameSessionData.activeGalaxyId=null;gameSessionData.activeSolarSystemId=null;setActiveScreen(mainScreen);}
   function makeTitleEditable(tTE, tIE, oSC) { /* ... ( unchanged) ... */ tTE.ondblclick=()=>{tTE.style.display='none';tIE.style.display='inline-block';tIE.value=tTE.textContent;tIE.focus();tIE.select();};const sN=()=>{const nN=tIE.value.trim();const dN=oSC(nN||null);tTE.textContent=nN||dN;tIE.style.display='none';tTE.style.display='inline-block';};tIE.onblur=sN;tIE.onkeydown=(e)=>{if(e.key==='Enter'){tIE.blur();}else if(e.key==='Escape'){tIE.value=tTE.textContent;tIE.blur();}};}
   function switchToGalaxyDetailView(galaxyId) { /* ... ( unchanged) ... */ const g=gameSessionData.galaxies.find(gl=>gl.id===galaxyId);if(!g){switchToMainView();return;}gameSessionData.activeGalaxyId=galaxyId;const dId=g.id.split('-').pop();if(backToGalaxyButton){backToGalaxyButton.textContent=g.customName?`← ${g.customName}`:`← Galaxy ${dId}`;}gameSessionData.activeSolarSystemId=null;g.currentZoom=g.currentZoom||1.0;g.currentPanX=g.currentPanX||0;g.currentPanY=g.currentPanY||0;if(galaxyDetailTitleText){galaxyDetailTitleText.textContent=g.customName||`Galaxy ${dId}`;galaxyDetailTitleText.style.display='inline-block';}if(galaxyDetailTitleInput)galaxyDetailTitleInput.style.display='none';setActiveScreen(galaxyDetailScreen);makeTitleEditable(galaxyDetailTitleText,galaxyDetailTitleInput,(nN)=>{g.customName=nN||null;saveGameState();renderMainScreen();return g.customName||`Galaxy ${dId}`;});if(galaxyViewport&&gameSessionData.universe.diameter){galaxyViewport.style.width=`${gameSessionData.universe.diameter}px`;galaxyViewport.style.height=`${gameSessionData.universe.diameter}px`;}if(!g.layoutGenerated){setTimeout(()=>{function aLG(rL=5){if(galaxyViewport&&galaxyViewport.offsetWidth>0){generateSolarSystemsForGalaxy(galaxyId);renderGalaxyDetailScreen(false);}else if(rL>0){requestAnimationFrame(()=>aLG(rL-1));}else{g.layoutGenerated=true;renderGalaxyDetailScreen(false);}}aLG();},50);}else{renderGalaxyDetailScreen(false);}}
-  function renderPlanetVisual(planetData, rotationQuaternion, targetCanvas = planetVisualCanvas) { /* ... (Logic unchanged, but ensures canvas width/height are passed and are non-zero before calling) ... */
+
+  function renderPlanetVisual(planetData, rotationQuaternion, targetCanvas = planetVisualCanvas) {
     if (!planetData || !targetCanvas || !window.Worker) return;
     if (targetCanvas.width === 0 || targetCanvas.height === 0) {
-        // console.warn(`renderPlanetVisual: Target canvas ${targetCanvas.id} has zero dimensions. Aborting worker call.`);
+        // console.warn(renderPlanetVisual: Target canvas ${targetCanvas.id} has zero dimensions. Aborting worker call.);
         if (targetCanvas === designerPlanetCanvas) isRenderingDesignerPlanet = false;
         if (targetCanvas === planetVisualCanvas) isRenderingVisualPlanet = false;
         return;
     }
-    // console.log("renderPlanetVisual called for:", targetCanvas.id, "with dims:", targetCanvas.width, "x", targetCanvas.height);
 
-    const pD = { ...planetData }; // Clone to avoid modifying original object if it's from state
+    // console.log("renderPlanetVisual called for:", targetCanvas.id, "with dims:", targetCanvas.width, "x", targetCanvas.height);
+	// Ensure that we clone planetData if it is from the session state
+	const pD = { ...planetData }; // Clone to avoid modifying original object if it's from state
+
     if (!pD.continentSeed) pD.continentSeed = Math.random();
     if (!pD.waterColor) { /* Default color logic */
-      pD.waterColor = '#000080'; pD.landColor = '#006400';
+        pD.waterColor = '#000080'; pD.landColor = '#006400';
     }
     pD.minTerrainHeight = pD.minTerrainHeight ?? DEFAULT_MIN_TERRAIN_HEIGHT;
     pD.maxTerrainHeight = pD.maxTerrainHeight ?? DEFAULT_MAX_TERRAIN_HEIGHT;
     pD.oceanHeightLevel = pD.oceanHeightLevel ?? DEFAULT_OCEAN_HEIGHT_LEVEL;
 
     const dataToSend = {
-      waterColor: pD.waterColor, landColor: pD.landColor, continentSeed: pD.continentSeed,
-      minTerrainHeight: pD.minTerrainHeight, maxTerrainHeight: pD.maxTerrainHeight, oceanHeightLevel: pD.oceanHeightLevel,
+        waterColor: pD.waterColor, landColor: pD.landColor, continentSeed: pD.continentSeed,
+        minTerrainHeight: pD.minTerrainHeight, maxTerrainHeight: pD.maxTerrainHeight, oceanHeightLevel: pD.oceanHeightLevel,
     };
     const canvasId = targetCanvas.id;
     const workerToUse = targetCanvas === planetVisualCanvas ? planetVisualWorker : designerWorker;
 
     if (workerToUse) {
-      workerToUse.postMessage({
-        cmd: 'renderPlanet', planetData: dataToSend, rotationQuaternion,
-        canvasWidth: targetCanvas.width, canvasHeight: targetCanvas.height, senderId: canvasId
-      });
+        workerToUse.postMessage({
+            cmd: 'renderPlanet', planetData: dataToSend, rotationQuaternion,
+            canvasWidth: targetCanvas.width, canvasHeight: targetCanvas.height, senderId: canvasId
+        });
     }
-  }
+}
+  
   function switchToSolarSystemView(solarSystemId) { /* ... (Major parts unchanged, ensure generatePlanetInstanceFromBasis is used) ... */
     gameSessionData.activeSolarSystemId = solarSystemId;
     const galaxyPart = solarSystemId.substring(0, solarSystemId.indexOf('-ss-'));

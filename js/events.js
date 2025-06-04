@@ -1,15 +1,16 @@
-// js/events.js
+// js/ui/events.js
 
-import * as DOM from './dom_elements.js';
-import * as State from './state.js';
-import * as Config from './config.js';
-import * as MathUtils from './utils/math_utils.js';
-import * as ScreenManager from './ui/screen_manager.js';
-import * as GalaxyUI from './ui/galaxy_ui.js';
-import * as SolarSystemUI from './ui/solar_system_ui.js';
-import * as PlanetDesignerUI from './ui/planet_designer_ui.js';
-import * as GameLifecycle from './core/game_lifecycle.js';
-import * as WorkerManager from './workers/worker_manager.js';
+import * as DOM from '../dom_elements.js';
+import * as State from '../state.js';
+import * as Config from '../config.js';
+import * as MathUtils from '../utils/math_utils.js';
+import * as ScreenManager from './screen_manager.js';
+import * as GalaxyUI from './galaxy_ui.js';
+import * as SolarSystemUI from './solar_system_ui.js';
+import * as PlanetDesignerUI from './planet_designer_ui.js';
+import * as GameLifecycle from '../core/game_lifecycle.js';
+import * as WorkerManager from '../workers/worker_manager.js';
+import * as AnimationManager from '../core/animation_manager.js'; // Needed to stop animation on resize
 
 export function setupGlobalEventListeners() {
     // --- Global Screen Navigation ---
@@ -32,13 +33,13 @@ export function setupGlobalEventListeners() {
     if (DOM.regenerateUniverseButton) DOM.regenerateUniverseButton.addEventListener('click', () => GameLifecycle.regenerateCurrentUniverseState(false));
     if (DOM.customizeGenerationButton) DOM.customizeGenerationButton.addEventListener('click', () => {
         if (!DOM.numGalaxiesInput) return; // Guard against null element
-        DOM.numGalaxiesInput.value = State.currentNumGalaxies;
-        DOM.minSSInput.value = State.currentMinSSCount;
-        DOM.maxSSInput.value = State.currentMaxSSCount;
-        DOM.ssSpreadInput.value = State.currentMaxPlanetDistanceMultiplier.toFixed(1);
-        DOM.minPlanetsInput.value = State.currentMinPlanets;
-        DOM.maxPlanetsInput.value = State.currentMaxPlanets;
-        DOM.showOrbitsInput.checked = State.currentShowPlanetOrbits;
+        DOM.numGalaxiesInput.value = State.appSettings.currentNumGalaxies; // Access appSettings
+        DOM.minSSInput.value = State.appSettings.currentMinSSCount;
+        DOM.maxSSInput.value = State.appSettings.currentMaxSSCount;
+        DOM.ssSpreadInput.value = State.appSettings.currentMaxPlanetDistanceMultiplier.toFixed(1);
+        DOM.minPlanetsInput.value = State.appSettings.currentMinPlanets;
+        DOM.maxPlanetsInput.value = State.appSettings.currentMaxPlanets;
+        DOM.showOrbitsInput.checked = State.appSettings.currentShowPlanetOrbits;
         DOM.customizationModal.classList.add('visible');
     });
     if (DOM.createPlanetDesignButton) DOM.createPlanetDesignButton.addEventListener('click', PlanetDesignerUI.switchToPlanetDesignerScreen);
@@ -65,14 +66,14 @@ export function setupGlobalEventListeners() {
             alert("Invalid input values. Please check ranges and ensure Max >= Min. Ranges are: Galaxies (1-100), Solar Systems (1-1000, Max up to 2000), Spread (0.1-5.0), Planets (0-20, Max up to 20).");
             return;
         }
-        // Apply settings to state
-        State.currentNumGalaxies = nG;
-        State.currentMinSSCount = mSS;
-        State.currentMaxSSCount = mxSS;
-        State.currentMaxPlanetDistanceMultiplier = sp;
-        State.currentMinPlanets = mP;
-        State.currentMaxPlanets = mxP;
-        State.currentShowPlanetOrbits = DOM.showOrbitsInput.checked;
+        // Apply settings to appSettings object
+        State.appSettings.currentNumGalaxies = nG;
+        State.appSettings.currentMinSSCount = mSS;
+        State.appSettings.currentMaxSSCount = mxSS;
+        State.appSettings.currentMaxPlanetDistanceMultiplier = sp;
+        State.appSettings.currentMinPlanets = mP;
+        State.appSettings.currentMaxPlanets = mxP;
+        State.appSettings.currentShowPlanetOrbits = DOM.showOrbitsInput.checked;
 
         GameLifecycle.saveCustomizationSettings(); // Save these settings
         DOM.customizationModal.classList.remove('visible'); // Hide modal
@@ -199,7 +200,7 @@ export function setupGlobalEventListeners() {
             const rect = DOM.designerPlanetCanvas.getBoundingClientRect();
             const canvasEffectiveWidth = (DOM.designerPlanetCanvas.width > 0 ? DOM.designerPlanetCanvas.width : rect.width) || 1;
             const canvasEffectiveHeight = (DOM.designerPlanetCanvas.height > 0 ? DOM.designerPlanetCanvas.height : rect.height) || 1;
-            if (canvasEffectiveWidth === 0 || canvasEffectiveHeight === 0) return;
+            if (canvasEffectiveWidth === 0 || canvasEffectiveWidth === 0) return;
 
             const deltaX = e.clientX - State.designerStartDragMouseX;
             const deltaY = e.clientY - State.designerStartDragMouseY;
@@ -339,6 +340,8 @@ export function setupGlobalEventListeners() {
 
 
     // --- Window Resize Listener ---
+    // The previous implementation was trying to reassign `State.gameSessionData` itself, which is a `const` export.
+    // Instead, we re-initialize its *properties*.
     window.addEventListener('resize', () => {
         const activeScreenElement = document.querySelector('.screen.active');
         const currentScreenId = activeScreenElement ? activeScreenElement.id : 'main-screen';
@@ -346,17 +349,26 @@ export function setupGlobalEventListeners() {
         // Preserve current custom planet designs across resize regeneration
         const preservedCustomDesigns = [...State.gameSessionData.customPlanetDesigns];
 
-        // Reset all game state variables and re-initialize
-        State.gameSessionData = {
-            universe: { diameter: null },
-            galaxies: [],
-            activeGalaxyId: null,
-            activeSolarSystemId: null,
-            solarSystemView: { zoomLevel: 1.0, currentPanX: 0, currentPanY: 0, planets: [], systemId: null },
-            isInitialized: false,
-            panning: { isActive: false, startX: 0, startY: 0, initialPanX: 0, initialPanY: 0, targetElement: null, viewportElement: null, dataObject: null },
-            customPlanetDesigns: preservedCustomDesigns // Restore preserved designs
-        };
+        // Mute properties of the existing State.gameSessionData object to clear it effectively
+        State.gameSessionData.universe.diameter = null;
+        State.gameSessionData.galaxies = [];
+        State.gameSessionData.activeGalaxyId = null;
+        State.gameSessionData.activeSolarSystemId = null;
+        State.gameSessionData.solarSystemView = { zoomLevel: 1.0, currentPanX: 0, currentPanY: 0, planets: [], systemId: null };
+        State.gameSessionData.isInitialized = false;
+        // Re-initialize panning state properties as well, rather than replacing the object
+        State.gameSessionData.panning.isActive = false;
+        State.gameSessionData.panning.startX = 0;
+        State.gameSessionData.panning.startY = 0;
+        State.gameSessionData.panning.initialPanX = 0;
+        State.gameSessionData.panning.initialPanY = 0;
+        State.gameSessionData.panning.targetElement = null;
+        State.gameSessionData.panning.viewportElement = null;
+        State.gameSessionData.panning.dataObject = null;
+        State.gameSessionData.panning.clampFunction = null;
+        State.gameSessionData.panning.renderFunction = null;
+
+        State.gameSessionData.customPlanetDesigns = preservedCustomDesigns; // Restore preserved designs
 
         // Clear UI elements
         if (DOM.universeCircle) DOM.universeCircle.innerHTML = '';

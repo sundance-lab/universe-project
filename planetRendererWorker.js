@@ -34,8 +34,8 @@ class PerlinNoise {
 
   // This random() is not used by the primary noise generation, only potentially by initPermutationTable if not using seeded shuffle.
   // random() { 
-  //   let x = Math.sin(this.seed++) * 10000; // this.seed here is the original seed, which isn't ideal for repeated calls
-  //   return x - Math.floor(x);
+  //  let x = Math.sin(this.seed++) * 10000; // this.seed here is the original seed, which isn't ideal for repeated calls
+  //  return x - Math.floor(x);
   // }
 
   fade(t) { return t * t * t * (t * (t * 6 - 15) + 10); }
@@ -64,16 +64,16 @@ class PerlinNoise {
     let BB = this.p[B + 1] + floorZ;
     return this.lerp(
       this.lerp(
-        this.lerp(this.grad(this.p[AA], x, y, z), this.grad(this.p[BA], x - 1, y, z), u),
-        this.lerp(this.grad(this.p[AB], x, y - 1, z), this.grad(this.p[BB], x - 1, y - 1, z), u),
-        v
-      ),
-      this.lerp(
-        this.lerp(this.grad(this.p[AA + 1], x, y, z - 1), this.grad(this.p[BA + 1], x - 1, y, z - 1), u),
-        this.lerp(this.grad(this.p[AB + 1], x, y - 1, z - 1), this.grad(this.p[BB + 1], x - 1, y - 1, z - 1), u),
-        v
-      ),
-      w
+        this.grad(this.p[AA], x, y, z), this.grad(this.p[BA], x - 1, y, z), u),
+      this.lerp(this.grad(this.p[AB], x, y - 1, z), this.grad(this.p[BB], x - 1, y - 1, z), u),
+      v
+    ),
+    this.lerp(
+      this.lerp(this.grad(this.p[AA + 1], x, y, z - 1), this.grad(this.p[BA + 1], x - 1, y, z - 1), u),
+      this.lerp(this.grad(this.p[AB + 1], x, y - 1, z - 1), this.grad(this.p[BB + 1], x - 1, y - 1, z - 1), u),
+      v
+    ),
+    w
     );
   }
   fractalNoise(x, y, z, octaves = 4, persistence = 0.5, lacunarity = 2.0) {
@@ -82,10 +82,10 @@ class PerlinNoise {
     let amplitude = 1;
     let maxValue = 0;
     for (let i = 0; i < octaves; i++) {
-      total += this.noise(x * frequency, y * frequency, z * frequency) * amplitude;
-      maxValue += amplitude;
-      amplitude *= persistence;
-      frequency *= lacunarity;
+    total += this.noise(x * frequency, y * frequency, z * frequency) * amplitude;
+    maxValue += amplitude;
+    amplitude *= persistence;
+    frequency *= lacunarity;
     }
     return maxValue === 0 ? 0 : total / maxValue;
   }
@@ -110,15 +110,15 @@ function quat_rotate_vector(q, v) {
 
 function hexToRgb(hex) {
   if (!hex || typeof hex !== 'string' || hex.length < 6 || hex[0] !== '#') {
-      console.warn("Invalid hex color format:", hex, "Using default black.");
-      return { r: 0, g: 0, b: 0 };
+    console.warn("Invalid hex color format:", hex, "Using default black.");
+    return { r: 0, g: 0, b: 0 };
   }
   const r = parseInt(hex.slice(1, 3), 16);
   const g = parseInt(hex.slice(3, 5), 16);
   const b = parseInt(hex.slice(5, 7), 16);
   if (isNaN(r) || isNaN(g) || isNaN(b)) {
-      console.warn("Failed to parse hex color:", hex, "Using default black.");
-      return { r: 0, g: 0, b: 0 };
+    console.warn("Failed to parse hex color:", hex, "Using default black.");
+    return { r: 0, g: 0, b: 0 };
   }
   return { r, g, b };
 }

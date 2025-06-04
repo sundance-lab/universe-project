@@ -1,8 +1,8 @@
 // js/ui/events.js
 
-import * as DOM from '../dom_elements.js';
-import * as State from '../state.js';
-import * as Config from '../config.js';
+import * as DOM from './dom_elements.js';
+import * as State from './state.js';
+import * as Config from './config.js';
 import * as MathUtils from '../utils/math_utils.js';
 import * as ScreenManager from './screen_manager.js';
 import * as GalaxyUI from './galaxy_ui.js';

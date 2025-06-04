@@ -1,13 +1,13 @@
 // js/ui/galaxy_ui.js
 
-import * as DOM from 'js/dom_elements.js';
-import * as State from 'js/state.js';
-import * as Config from 'js/config.js';
-import * as MathUtils from 'js/utils/math_utils.js';
-import * as ScreenManager from 'js/screen_manager.js';
-import * as GameLifecycle from 'js/core/game_lifecycle.js';
-import * as GameGeneration from 'js/core/game_generation.js';
-import * as SolarSystemUI from 'js/solar_system_ui.js'; // To call switchToSolarSystemView
+import * as DOM from './dom_elements.js';
+import * as State from './state.js';
+import * as Config from './config.js';
+import * as MathUtils from './utils/math_utils.js';
+import * as ScreenManager from './screen_manager.js';
+import * as GameLifecycle from './core/game_lifecycle.js';
+import * as GameGeneration from './core/game_generation.js';
+import * as SolarSystemUI from './solar_system_ui.js'; // To call switchToSolarSystemView
 
 // Variable for canvas 2D rendering context
 let linesCtx;

@@ -1,6 +1,6 @@
-import * as DOM from '../dom_elements.js';
-import * as State from '../state.js';
-import * as Config from '../config.js';
+import * as DOM from './dom_elements.js';
+import * as State from './state.js';
+import * as Config from './config.js';
 // ... any other modules needed for processing worker messages
 
 export let planetVisualWorker = null;

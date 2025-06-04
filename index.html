@@ -31,52 +31,60 @@
   <button class="back-button" id="back-to-galaxy">&larr; Galaxy</button>
  </div>
 
- <div id="planet-designer-screen" class="screen">
+<div id="planet-designer-screen" class="screen">
+    <div class="designer-panel">
+        <div class="designer-controls">
+            <h3>Planet Colors</h3>
+            <div class="color-control">
+                <label for="designer-water-color">Water Color:</label>
+                <input type="color" id="designer-water-color" value="#000080">
+            </div>
+            <div class="color-control">
+                <label for="designer-land-color">Land Color:</label>
+                <input type="color" id="designer-land-color" value="#006400">
+            </div>
 
-  <div class="designer-panel">
-   <div class="designer-controls">
-     <h3>Planet Colors</h3>
-     <div class="color-control">
-       <label for="designer-water-color">Water Color:</label>
-       <input type="color" id="designer-water-color" value="#000080">
-     </div>
-     <div class="color-control">
-       <label for="designer-land-color">Land Color:</label>
-       <input type="color" id="designer-land-color" value="#006400">
-     </div>
-     <div class="designer-actions">
-       <button id="designer-randomize-btn" class="modal-button-apply">Randomize</button>
-       <button id="designer-save-btn" class="modal-button-apply">Save Design</button>
-       <button id="designer-cancel-btn" class="modal-button-cancel">Back</button>
-<div>
- <label for="designer-min-height-min">Min Terrain Height Range:</label>
- <input type="number" id="designer-min-height-min" value="0" step="0.1">
- <span>to</span>
- <input type="number" id="designer-min-height-max" value="2" step="0.1">
+            <!-- Action buttons in their own div -->
+            <div class="designer-actions">
+                <button id="designer-randomize-btn" class="modal-button-apply">Randomize</button>
+                <button id="designer-save-btn" class="modal-button-apply">Save Design</button>
+                <button id="designer-cancel-btn" class="modal-button-cancel">Back</button>
+            </div>
+
+            <!-- Terrain Height Ranges as direct children of designer-controls -->
+            <div>
+                <label for="designer-min-height-min">Min Terrain Height Range:</label>
+                <input type="number" id="designer-min-height-min" value="0" step="0.1">
+                <span>to</span>
+                <input type="number" id="designer-min-height-max" value="2" step="0.1">
+            </div>
+            <div>
+                <label for="designer-max-height-min">Max Terrain Height Range:</label>
+                <input type="number" id="designer-max-height-min" value="8" step="0.1">
+                <span>to</span>
+                <input type="number" id="designer-max-height-max" value="12" step="0.1">
+            </div>
+            <div>
+                <label for="designer-ocean-height-min">Ocean Height Range:</label>
+                <input type="number" id="designer-ocean-height-min" value="1" step="0.1">
+                <span>to</span>
+                <input type="number" id="designer-ocean-height-max" value="3" step="0.1">
+            </div>
+
+            <!-- Saved Designs list as a direct child of designer-controls -->
+            <div class="saved-designs-list">
+                <h4>Saved Designs:</h4>
+                <ul id="saved-designs-ul">
+                    <!-- List items will be populated by JS -->
+                </ul>
+            </div>
+        </div> <!-- END OF designer-controls -->
+
+        <div class="designer-preview">
+            <canvas id="designer-planet-canvas" width="300" height="300"></canvas>
+        </div>
+    </div>
 </div>
-<div>
- <label for="designer-max-height-min">Max Terrain Height Range:</label>
- <input type="number" id="designer-max-height-min" value="8" step="0.1">
- <span>to</span>
- <input type="number" id="designer-max-height-max" value="12" step="0.1">
-</div>
-<div>
- <label for="designer-ocean-height-min">Ocean Height Range:</label>
- <input type="number" id="designer-ocean-height-min" value="1" step="0.1">
- <span>to</span>
- <input type="number" id="designer-ocean-height-max" value="3" step="0.1">
-</div>
-     <div class="saved-designs-list">
-      <h4>Saved Designs:</h4>
-      <ul id="saved-designs-ul"></ul>
-     </div>
-   </div>
-   <div class="designer-preview">
-     <canvas id="designer-planet-canvas" width="300" height="300"></canvas>
-   </div>
-  </div>
- </div>
- </div>
 
  <div class="controls-overlay">
  <div id="zoom-controls"><button id="zoom-out-btn">-</button><button id="zoom-in-btn">+</button></div>

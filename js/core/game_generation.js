@@ -1,10 +1,10 @@
 // js/core/game_generation.js
 
-import * as Config from 'js/config.js';
-import * as State from 'js/state.js';
-import * as DOM from 'js/dom_elements.js';
-import * as MathUtils from 'js/utils/math_utils.js';
-import * as ColorUtils from 'js/utils/color_utils.js';
+import * as Config from './config.js';
+import * as State from './state.js';
+import * as DOM from './dom_elements.js';
+import * as MathUtils from '../utils/math_utils.js';
+import * as ColorUtils from '../utils/color_utils.js';
 
 /**
  * Updates dynamic session constants based on current customization settings.

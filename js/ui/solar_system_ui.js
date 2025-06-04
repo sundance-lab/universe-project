@@ -1,15 +1,15 @@
 // js/ui/solar_system_ui.js
 
-import * as DOM from '../dom_elements.js';
-import * as State from '../state.js';
-import * as Config from '../config.js';
-import * as MathUtils from '../utils/math_utils.js';
-import * as ColorUtils from '../utils/color_utils.js';
-import * as ScreenManager from './screen_manager.js';
-import * as AnimationManager from '../core/animation_manager.js';
-import * as WorkerManager from '../workers/worker_manager.js';
-import * as GameLifecycle from '../core/game_lifecycle.js';
-import * as PlanetDesignerUI from './planet_designer_ui.js'; // For generatePlanetInstanceFromBasis
+import * as DOM from 'js/dom_elements.js';
+import * as State from 'js/state.js';
+import * as Config from 'js/config.js';
+import * as MathUtils from 'js/utils/math_utils.js';
+import * as ColorUtils from 'js/utils/color_utils.js';
+import * as ScreenManager from 'js/screen_manager.js';
+import * as AnimationManager from 'js/core/animation_manager.js';
+import * as WorkerManager from 'js/workers/worker_manager.js';
+import * as GameLifecycle from 'js/core/game_lifecycle.js';
+import * as PlanetDesignerUI from 'js/planet_designer_ui.js'; // For generatePlanetInstanceFromBasis
 
 /**
  * Draws the orbital paths for all planets in the solar system view.

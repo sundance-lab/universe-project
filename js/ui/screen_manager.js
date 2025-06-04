@@ -1,28 +1,22 @@
 // js/ui/screen_manager.js
 
-import * as DOM from '../dom_elements.js';
-import * as State from '../state.js';
-import * as Config from '../config.js';
-import * as AnimationManager from '../core/animation_manager.js';
-import * as GameLifecycle from '../core/game_lifecycle.js';
-import * as GalaxyUI from './galaxy_ui.js';
+import * as DOM from 'js/dom_elements.js';
+import * as State from 'js/state.js';
+import * as Config from 'js/config.js';
+import * as AnimationManager from 'js/core/animation_manager.js';
+import * as GameLifecycle from 'js/core/game_lifecycle.js';
+import * as GalaxyUI from 'js/galaxy_ui.js';
 
-/**
- * Sets the currently active screen and manages visibility of global UI elements.
- * @param {HTMLElement} screenToShow - The DOM element of the screen to make active.
- */
 export function setActiveScreen(screenToShow) {
     // Hide all screens and remove panning class
     [DOM.mainScreen, DOM.galaxyDetailScreen, DOM.solarSystemScreen, DOM.planetDesignerScreen].forEach(s => {
         if (s) s.classList.remove('active', 'panning-active');
     });
 
-    // Make the selected screen active
     if (screenToShow) {
         screenToShow.classList.add('active');
     }
 
-    // Manage visibility of zoom controls
     if (DOM.zoomControlsElement) {
         if (screenToShow === DOM.galaxyDetailScreen || screenToShow === DOM.solarSystemScreen) {
             DOM.zoomControlsElement.classList.add('visible');
@@ -54,12 +48,6 @@ export function switchToMainView() {
     setActiveScreen(DOM.mainScreen);
 }
 
-/**
- * Makes a title element editable by double-clicking it.
- * @param {HTMLElement} titleTextElement - The <span> element displaying the title.
- * @param {HTMLInputElement} inputElement - The <input> element used for editing.
- * @param {Function} onSaveCallback - A callback function (newName) that saves the new name to the game state and returns the effective name to display.
- */
 export function makeTitleEditable(titleTextElement, inputElement, onSaveCallback) {
     if (!titleTextElement || !inputElement) return;
 
@@ -95,16 +83,6 @@ export function makeTitleEditable(titleTextElement, inputElement, onSaveCallback
     };
 }
 
-
-/**
- * Sets up and manages panning behavior for zoomable screens.
- * @param {MouseEvent} event - The mousedown event.
- * @param {HTMLElement} viewportEl - The main container element for the view (e.g., galaxyViewport, solarSystemScreen).
- * @param {HTMLElement} contentEl - The transformable content element within the viewport (e.g., galaxyZoomContent, solarSystemContent).
- * @param {object} dataObjRef - The data object holding currentPanX, currentPanY, zoomLevel (e.g., activeGalaxy object, State.gameSessionData.solarSystemView).
- * @param {Function} clampFunction - The function to call to clamp pan values (e.g., GalaxyUI.clampGalaxyPan, SolarSystemUI.clampSolarSystemPan).
- * @param {Function} renderFunction - The function to call to re-render the screen (e.g., GalaxyUI.renderGalaxyDetailScreen, SolarSystemUI.renderSolarSystemScreen).
- */
 export function startPan(event, viewportEl, contentEl, dataObjRef, clampFunction, renderFunction) {
     if (event.button !== 0 || event.target.closest('button')) return; // Only left-click and not on a button
     // Prevent panning if clicking directly on a solar system icon *within* the galaxy view
@@ -126,11 +104,6 @@ export function startPan(event, viewportEl, contentEl, dataObjRef, clampFunction
     event.preventDefault(); // Prevent default browser drag behavior (e.g., image drag)
 }
 
-/**
- * Handles mouse movement during a panning operation, updating the content position.
- * Should be attached to `window.mousemove`.
- * @param {MouseEvent} event - The mousemove event.
- */
 export function panMouseMove(event) {
     if (!State.gameSessionData.panning.isActive) return;
     const panning = State.gameSessionData.panning;
@@ -168,11 +141,8 @@ export function panMouseUp() {
 
     // Re-render non-interactively to apply final transitions
     if (panning.viewportElement === DOM.galaxyDetailScreen) GalaxyUI.renderGalaxyDetailScreen(false);
-    else if (panning.viewportElement === DOM.solarSystemScreen) GalaxyUI.renderGalaxyDetailScreen(false); // Call galaxyUI if SS is active, for consistency
-                                                                                                           // No, it should be SolarSystemUI.
-    // This is getting complex with direct imports and render functions.
-    // For now, I'll keep the call to the relevant UI render function.
-    // This is a spot where a global 'renderActiveScreen' function could simplify things.
+    else if (panning.viewportElement === DOM.solarSystemScreen) GalaxyUI.renderGalaxyDetailScreen(false); 
+                                                                                                  
     if (panning.renderFunction) {
         // Pass false for isInteractive to allow transition
         panning.renderFunction(false);

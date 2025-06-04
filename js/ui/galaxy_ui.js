@@ -1,20 +1,17 @@
 // js/ui/galaxy_ui.js
 
-import * as DOM from '../dom_elements.js';
-import * as State from '../state.js';
-import * as Config from '../config.js';
-import * as MathUtils from '../utils/math_utils.js';
-import * as ScreenManager from './screen_manager.js';
-import * as GameLifecycle from '../core/game_lifecycle.js';
-import * as GameGeneration from '../core/game_generation.js';
-import * as SolarSystemUI from './solar_system_ui.js'; // To call switchToSolarSystemView
+import * as DOM from 'js/dom_elements.js';
+import * as State from 'js/state.js';
+import * as Config from 'js/config.js';
+import * as MathUtils from 'js/utils/math_utils.js';
+import * as ScreenManager from 'js/screen_manager.js';
+import * as GameLifecycle from 'js/core/game_lifecycle.js';
+import * as GameGeneration from 'js/core/game_generation.js';
+import * as SolarSystemUI from 'js/solar_system_ui.js'; // To call switchToSolarSystemView
 
 // Variable for canvas 2D rendering context
 let linesCtx;
 
-/**
- * Renders the main universe screen, displaying galaxy icons and their titles.
- */
 export function renderMainScreen() {
     if (DOM.mainScreenTitleText) DOM.mainScreenTitleText.textContent = "Universe";
     if (!DOM.universeCircle) return;
@@ -155,10 +152,6 @@ export function renderGalaxyDetailScreen(isInteractive = false) {
     }
 }
 
-/**
- * Clamps the galaxy's pan coordinates to prevent panning outside the viewable area.
- * @param {object} galaxy - The galaxy data object.
- */
 export function clampGalaxyPan(galaxy) {
     if (!galaxy || !DOM.galaxyViewport) return;
 
@@ -185,11 +178,6 @@ export function clampGalaxyPan(galaxy) {
     }
 }
 
-/**
- * Handles zooming in or out for the galaxy detail screen.
- * @param {'in'|'out'} direction - The direction of zoom.
- * @param {MouseEvent} [mouseEvent=null] - The mouse event (if triggered by wheel) to fix zoom on mouse position.
- */
 export function handleGalaxyZoom(direction, mouseEvent = null) {
     const galaxy = State.gameSessionData.galaxies.find(g => g.id === State.gameSessionData.activeGalaxyId);
     if (!galaxy) return;
@@ -231,11 +219,6 @@ export function handleGalaxyZoom(direction, mouseEvent = null) {
     renderGalaxyDetailScreen(true); // Re-render interactively
 }
 
-
-/**
- * Switches the view to a specific galaxy's detail screen.
- * @param {string} galaxyId - The ID of the galaxy to display.
- */
 export function switchToGalaxyDetailView(galaxyId) {
     const galaxy = State.gameSessionData.galaxies.find(g => g.id === galaxyId);
     if (!galaxy) {

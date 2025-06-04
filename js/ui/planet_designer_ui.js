@@ -3,11 +3,11 @@
 import * as DOM from './dom_elements.js';
 import * as State from './state.js';
 import * as Config from './config.js';
-import * as MathUtils from './utils/math_utils.js';
+import * as MathUtils from '../utils/math_utils.js';
 import * as ScreenManager from './screen_manager.js';
-import * as WorkerManager from './workers/worker_manager.js';
-import * as GameLifecycle from './core/game_lifecycle.js';
-import * as CoreGeneration from './core/game_generation.js'; // Needs access to some generation helpers for randomness
+import * as WorkerManager from '../workers/worker_manager.js';
+import * as GameLifecycle from '../core/game_lifecycle.js';
+import * as CoreGeneration from '../core/game_generation.js'; // Needs access to some generation helpers for randomness
 
 export function generatePlanetInstanceFromBasis(basis, isForDesignerPreview = false) {
     // Helper to get a random number within a range.

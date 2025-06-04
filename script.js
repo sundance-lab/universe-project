@@ -282,89 +282,97 @@ document.addEventListener('DOMContentLoaded', () => {
   }
 
 
-  class PerlinNoise { /* ... PerlinNoise class code ... */
-    constructor(seed = Math.random()) {
-      this.p = new Array(512);
-      this.permutation = new Array(256);
-      this.seed = seed;
-      this.initPermutationTable();
-    }
-    initPermutationTable() {
-      for (let i = 0; i < 256; i++) {
+ class PerlinNoise {
+  constructor(seed = Math.random()) {
+    this.p = new Array(512);
+    this.permutation = new Array(256);
+    this.seed = seed; // Store the original seed
+    this.initPermutationTable();
+  }
+
+  initPermutationTable() {
+    for (let i = 0; i < 256; i++) {
       this.permutation[i] = i;
-      }
-      // Fisher-Yates shuffle using the seeded random
-      let currentSeed = this.seed;
-      const seededRandom = () => {
-          let x = Math.sin(currentSeed++) * 10000;
-          return x - Math.floor(x);
-      };
-      for (let i = 255; i > 0; i--) {
-          let r = Math.floor(seededRandom() * (i + 1));
-          let tmp = this.permutation[i];
-          this.permutation[i] = this.permutation[r];
-          this.permutation[r] = tmp;
-      }
-      for (let i = 0; i < 256; i++) {
+    }
+
+    // Fisher-Yates shuffle using a seeded random number generator
+    let currentSeedState = this.seed;
+    const seededRandom = () => {
+        // Simple LCG for seeded random - can be replaced with a more robust one if needed
+        currentSeedState = (currentSeedState * 1664525 + 1013904223) % 4294967296;
+        return currentSeedState / 4294967296;
+    };
+
+    for (let i = 255; i > 0; i--) { // Iterate downwards for Fisher-Yates
+      let r = Math.floor(seededRandom() * (i + 1));
+      let tmp = this.permutation[i];
+      this.permutation[i] = this.permutation[r];
+      this.permutation[r] = tmp;
+    }
+
+    for (let i = 0; i < 256; i++) {
       this.p[i] = this.p[i + 256] = this.permutation[i];
-      }
     }
-    random() { // This method is only used by the original initPermutationTable if seed was not used in shuffle
-      let x = Math.sin(this.seed++) * 10000;
-      return x - Math.floor(x);
-    }
-    fade(t) { return t * t * t * (t * (t * 6 - 15) + 10); }
-    lerp(a, b, t) { return a + t * (b - a); }
-    grad(hash, x, y, z) {
-      hash = hash & 15;
-      let u = hash < 8 ? x : y;
-      let v = hash < 4 ? y : hash === 12 || hash === 14 ? x : z;
-      return ((hash & 1) === 0 ? u : -u) + ((hash & 2) === 0 ? v : -v);
-    }
-    noise(x, y, z) {
-      let floorX = Math.floor(x) & 255;
-      let floorY = Math.floor(y) & 255;
-      let floorZ = Math.floor(z) & 255;
-      x -= Math.floor(x);
-      y -= Math.floor(y);
-      z -= Math.floor(z);
-      let u = this.fade(x);
-      let v = this.fade(y);
-      let w = this.fade(z);
-      let A = this.p[floorX] + floorY;
-      let AA = this.p[A] + floorZ;
-      let AB = this.p[A + 1] + floorZ;
-      let B = this.p[floorX + 1] + floorY;
-      let BA = this.p[B] + floorZ;
-      let BB = this.p[B + 1] + floorZ;
-      return this.lerp(
+  }
+
+  // This random() is not used by the primary noise generation, only potentially by initPermutationTable if not using seeded shuffle.
+  // random() { 
+  //  let x = Math.sin(this.seed++) * 10000; // this.seed here is the original seed, which isn't ideal for repeated calls
+  //  return x - Math.floor(x);
+  // }
+
+  fade(t) { return t * t * t * (t * (t * 6 - 15) + 10); }
+  lerp(a, b, t) { return a + t * (b - a); }
+  grad(hash, x, y, z) {
+    hash = hash & 15;
+    let u = hash < 8 ? x : y;
+    let v = hash < 4 ? y : hash === 12 || hash === 14 ? x : z;
+    return ((hash & 1) === 0 ? u : -u) + ((hash & 2) === 0 ? v : -v);
+  }
+  noise(x, y, z) {
+    let floorX = Math.floor(x) & 255;
+    let floorY = Math.floor(y) & 255;
+    let floorZ = Math.floor(z) & 255;
+    x -= Math.floor(x);
+    y -= Math.floor(y);
+    z -= Math.floor(z);
+    let u = this.fade(x);
+    let v = this.fade(y);
+    let w = this.fade(z);
+    let A = this.p[floorX] + floorY;
+    let AA = this.p[A] + floorZ;
+    let AB = this.p[A + 1] + floorZ;
+    let B = this.p[floorX + 1] + floorY;
+    let BA = this.p[B] + floorZ;
+    let BB = this.p[B + 1] + floorZ;
+    return this.lerp(
       this.lerp(
         this.grad(this.p[AA], x, y, z), this.grad(this.p[BA], x - 1, y, z), u),
       this.lerp(this.grad(this.p[AB], x, y - 1, z), this.grad(this.p[BB], x - 1, y - 1, z), u),
       v
-      ),
-      this.lerp(
+    ),
+    this.lerp(
       this.lerp(this.grad(this.p[AA + 1], x, y, z - 1), this.grad(this.p[BA + 1], x - 1, y, z - 1), u),
       this.lerp(this.grad(this.p[AB + 1], x, y - 1, z - 1), this.grad(this.p[BB + 1], x - 1, y - 1, z - 1), u),
       v
-      ),
-      w
-      );
-    }
-    fractalNoise(x, y, z, octaves = 4, persistence = 0.5, lacunarity = 2.0) {
-      let total = 0;
-      let frequency = 1;
-      let amplitude = 1;
-      let maxValue = 0;
-      for (let i = 0; i < octaves; i++) {
-      total += this.noise(x * frequency, y * frequency, z * frequency) * amplitude;
-      maxValue += amplitude;
-      amplitude *= persistence;
-      frequency *= lacunarity;
-      }
-      return maxValue === 0 ? 0 : total / maxValue;
-    }
+    ),
+    w
+    );
   }
+  fractalNoise(x, y, z, octaves = 4, persistence = 0.5, lacunarity = 2.0) {
+    let total = 0;
+    let frequency = 1;
+    let amplitude = 1;
+    let maxValue = 0;
+    for (let i = 0; i < octaves; i++) {
+    total += this.noise(x * frequency, y * frequency, z * frequency) * amplitude;
+    maxValue += amplitude;
+    amplitude *= persistence;
+    frequency *= lacunarity;
+    }
+    return maxValue === 0 ? 0 : total / maxValue;
+  }
+}
 
 
   function populateDesignerInputsFromBasis() {

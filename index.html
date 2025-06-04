@@ -8,125 +8,122 @@
 </head>
 <body>
  <div class="screen-container">
-  <div id="main-screen" class="screen active">
-    <div id="main-screen-title-container" class="editable-title-container">
-      <span id="main-screen-title-text" class="editable-title-text">Universe</span>
-    </div>
-    <div id="universe-circle"></div>
+ <div id="main-screen" class="screen active">
+  <div id="main-screen-title-container" class="editable-title-container">
+   <span id="main-screen-title-text" class="editable-title-text">Universe</span>
   </div>
-  <div id="galaxy-detail-screen" class="screen">
-   <div id="galaxy-detail-title-container" class="editable-title-container">
-     <span id="galaxy-detail-title-text" class="editable-title-text">Galaxy</span>
-     <input type="text" id="galaxy-detail-title-input" class="editable-title-input">
-   </div>
-   <div id="galaxy-viewport"><div id="galaxy-zoom-content"><canvas id="solar-system-lines-canvas"></canvas></div></div>
-   <button class="back-button" id="back-to-main">&larr; Universe</button>
+  <div id="universe-circle"></div>
+ </div>
+ <div id="galaxy-detail-screen" class="screen">
+  <div id="galaxy-detail-title-container" class="editable-title-container">
+   <span id="galaxy-detail-title-text" class="editable-title-text">Galaxy</span>
+   <input type="text" id="galaxy-detail-title-input" class="editable-title-input">
   </div>
-  <div id="solar-system-screen" class="screen">
-   <div id="solar-system-title-container" class="editable-title-container">
-     <span id="solar-system-title-text" class="editable-title-text">Solar System</span>
-     <input type="text" id="solar-system-title-input" class="editable-title-input">
-   </div>
-   <div id="solar-system-content"></div>
-   <button class="back-button" id="back-to-galaxy">&larr; Galaxy</button>
+  <div id="galaxy-viewport"><div id="galaxy-zoom-content"><canvas id="solar-system-lines-canvas"></canvas></div></div>
+  <button class="back-button" id="back-to-main">&larr; Universe</button>
+ </div>
+ <div id="solar-system-screen" class="screen">
+  <div id="solar-system-title-container" class="editable-title-container">
+   <span id="solar-system-title-text" class="editable-title-text">Solar System</span>
+   <input type="text" id="solar-system-title-input" class="editable-title-input">
   </div>
+  <div id="solar-system-content"></div>
+  <button class="back-button" id="back-to-galaxy">&larr; Galaxy</button>
+ </div>
 
-  <div id="planet-designer-screen" class="screen">
+ <div id="planet-designer-screen" class="screen">
 
-   <div class="designer-panel">
-      <div class="designer-controls">
-          <h3>Planet Colors</h3>
-          <div class="color-control">
-              <label for="designer-water-color">Water Color:</label>
-              <input type="color" id="designer-water-color" value="#000080">
-          </div>
-          <div class="color-control">
-              <label for="designer-land-color">Land Color:</label>
-              <input type="color" id="designer-land-color" value="#006400">
-          </div>
-          <div class="designer-actions">
-              <button id="designer-randomize-btn" class="modal-button-apply">Randomize</button>
-              <button id="designer-save-btn" class="modal-button-apply">Save Design</button>
-              <button id="designer-cancel-btn" class="modal-button-cancel">Back</button>
+  <div class="designer-panel">
+   <div class="designer-controls">
+     <h3>Planet Colors</h3>
+     <div class="color-control">
+       <label for="designer-water-color">Water Color:</label>
+       <input type="color" id="designer-water-color" value="#000080">
+     </div>
+     <div class="color-control">
+       <label for="designer-land-color">Land Color:</label>
+       <input type="color" id="designer-land-color" value="#006400">
+     </div>
+     <div class="designer-actions">
+       <button id="designer-randomize-btn" class="modal-button-apply">Randomize</button>
+       <button id="designer-save-btn" class="modal-button-apply">Save Design</button>
+       <button id="designer-cancel-btn" class="modal-button-cancel">Back</button>
 <div>
-  <label for="designer-min-height-min">Min Terrain Height Range:</label>
-  <input type="number" id="designer-min-height-min" value="0" step="0.1">
-  <span>to</span>
-  <input type="number" id="designer-min-height-max" value="2" step="0.1">
+ <label for="designer-min-height-min">Min Terrain Height Range:</label>
+ <input type="number" id="designer-min-height-min" value="0" step="0.1">
+ <span>to</span>
+ <input type="number" id="designer-min-height-max" value="2" step="0.1">
 </div>
 <div>
-  <label for="designer-max-height-min">Max Terrain Height Range:</label>
-  <input type="number" id="designer-max-height-min" value="8" step="0.1">
-  <span>to</span>
-  <input type="number" id="designer-max-height-max" value="12" step="0.1">
+ <label for="designer-max-height-min">Max Terrain Height Range:</label>
+ <input type="number" id="designer-max-height-min" value="8" step="0.1">
+ <span>to</span>
+ <input type="number" id="designer-max-height-max" value="12" step="0.1">
 </div>
 <div>
-  <label for="designer-ocean-height-min">Ocean Height Range:</label>
-  <input type="number" id="designer-ocean-height-min" value="1" step="0.1">
-  <span>to</span>
-  <input type="number" id="designer-ocean-height-max" value="3" step="0.1">
+ <label for="designer-ocean-height-min">Ocean Height Range:</label>
+ <input type="number" id="designer-ocean-height-min" value="1" step="0.1">
+ <span>to</span>
+ <input type="number" id="designer-ocean-height-max" value="3" step="0.1">
 </div>
-          <div class="saved-designs-list">
-            <h4>Saved Designs:</h4>
-            <ul id="saved-designs-ul"></ul>
-          </div>
-      </div>
-      <div class="designer-preview">
-          <canvas id="designer-planet-canvas" width="300" height="300"></canvas>
-      </div>
+     <div class="saved-designs-list">
+      <h4>Saved Designs:</h4>
+      <ul id="saved-designs-ul"></ul>
+     </div>
+   </div>
+   <div class="designer-preview">
+     <canvas id="designer-planet-canvas" width="300" height="300"></canvas>
    </div>
   </div>
+ </div>
  </div>
 
  <div class="controls-overlay">
-  <div id="zoom-controls"><button id="zoom-out-btn">-</button><button id="zoom-in-btn">+</button></div>
-  <button id="regenerate-universe-btn" class="control-button">Generate New Universe</button>
-  <button id="customize-generation-btn" class="control-button">Customize Generation</button>
-  <button id="create-planet-design-btn" class="control-button">Create Planet Designs</button>
+ <div id="zoom-controls"><button id="zoom-out-btn">-</button><button id="zoom-in-btn">+</button></div>
+ <button id="regenerate-universe-btn" class="control-button">Generate New Universe</button>
+ <button id="customize-generation-btn" class="control-button">Customize Generation</button>
+ <button id="create-planet-design-btn" class="control-button">Create Planet Designs</button>
  </div>
 
  <div id="customization-modal" class="modal-overlay">
-  <div class="modal-content">
-   <h2>Customize Generation</h2>
-   <label for="num-galaxies-input">Number of Galaxies (1-10):</label>
-   <input type="number" id="num-galaxies-input" min="1" max="10">
+ <div class="modal-content">
+  <h2>Customize Generation</h2>
+  <label for="num-galaxies-input">Number of Galaxies (1-10):</label>
+  <input type="number" id="num-galaxies-input" min="1" max="10">
+  <label for="min-ss-input">Min Solar Systems per Galaxy (10-500):</label>
+  <input type="number" id="min-ss-input" min="10" max="500">
+  <label for="max-ss-input">Max Solar Systems per Galaxy (Min Systems-1000):</label>
+  <input type="number" id="max-ss-input" min="10" max="1000">
+  
+  <label for="ss-spread-input">Solar System Spread Multiplier (0.5-3.0):</label>
+  <input type="number" id="ss-spread-input" min="0.1" max="5.0" step="0.1">
 
-   <label for="min-ss-input">Min Solar Systems per Galaxy (10-500):</label>
-   <input type="number" id="min-ss-input" min="10" max="500">
+  <label for="min-planets-input">Min Planets per System (0-5):</label>
+  <input type="number" id="min-planets-input" min="0" max="5">
 
-   <label for="max-ss-input">Max Solar Systems per Galaxy (Min Systems-1000):</label>
-   <input type="number" id="max-ss-input" min="10" max="1000">
-   
-   <label for="ss-spread-input">Solar System Spread Multiplier (0.5-3.0):</label>
-   <input type="number" id="ss-spread-input" min="0.1" max="5.0" step="0.1">
-
-   <label for="min-planets-input">Min Planets per System (0-5):</label>
-   <input type="number" id="min-planets-input" min="0" max="5">
-
-   <label for="max-planets-input">Max Planets per System (Min Planets-8):</label>
-   <input type="number" id="max-planets-input" min="0" max="8">
-   
-   <div class="checkbox-label">
-    <input type="checkbox" id="show-orbits-input">
-    <label for="show-orbits-input" style="margin-bottom: 0;">Show Planet Orbits</label>
-   </div>
-
-   <div class="modal-actions">
-    <button id="cancel-customization-btn" class="modal-button-cancel">Cancel</button>
-    <button id="apply-customization-btn" class="modal-button-apply">Apply & Regenerate</button>
-   </div>
+  <label for="max-planets-input">Max Planets per System (Min Planets-8):</label>
+  <input type="number" id="max-planets-input" min="0" max="8">
+  
+  <div class="checkbox-label">
+  <input type="checkbox" id="show-orbits-input">
+  <label for="show-orbits-input" style="margin-bottom: 0;">Show Planet Orbits</label>
   </div>
+  <div class="modal-actions">
+  <button id="cancel-customization-btn" class="modal-button-cancel">Cancel</button>
+  <button id="apply-customization-btn" class="modal-button-apply">Apply & Regenerate</button>
+  </div>
+ </div>
  </div>
 
  <div id="planet-visual-panel" class="planet-visual-panel">
-  <div class="panel-header" id="planet-visual-panel-header">
-   <span id="planet-visual-title">Planet</span>
-   <button class="close-button" id="close-planet-visual-panel">&times;</button>
-  </div>
-  <div class="panel-body">
-   <p><strong>Size:</strong> <span id="planet-visual-size">N/A</span> px</p>
-   <canvas id="planet-visual-canvas" width="600" height="600"></canvas>
-  </div>
+ <div class="panel-header" id="planet-visual-panel-header">
+  <span id="planet-visual-title">Planet</span>
+  <button class="close-button" id="close-planet-visual-panel">&times;</button>
+ </div>
+ <div class="panel-body">
+  <p><strong>Size:</strong> <span id="planet-visual-size">N/A</span> px</p>
+  <canvas id="planet-visual-canvas" width="600" height="600"></canvas>
+ </div>
  </div>
  
 <script src="script.js"></script>

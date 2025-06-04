@@ -3,10 +3,10 @@
 import * as DOM from './dom_elements.js';
 import * as State from './state.js';
 import * as Config from './config.js';
-import * as MathUtils from './utils/math_utils.js';
+import * as MathUtils from '../utils/math_utils.js';
 import * as ScreenManager from './screen_manager.js';
-import * as GameLifecycle from './core/game_lifecycle.js';
-import * as GameGeneration from './core/game_generation.js';
+import * as GameLifecycle from '../core/game_lifecycle.js';
+import * as GameGeneration from '../core/game_generation.js';
 import * as SolarSystemUI from './solar_system_ui.js'; // To call switchToSolarSystemView
 
 // Variable for canvas 2D rendering context

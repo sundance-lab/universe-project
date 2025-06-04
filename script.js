@@ -1,3 +1,16 @@
+function generatePlanetInstanceFromBasis(basis) {
+    // ... your planet instance generation logic here ...
+    // Example return (replace with your actual planet data)
+    return {
+        waterColor: basis.waterColor || '#0000FF',
+        landColor: basis.landColor || '#008000',
+        continentSeed: Math.random(),
+        minTerrainHeight: 0,
+        maxTerrainHeight: 10,
+        oceanHeightLevel: 2
+    };
+}
+
 document.addEventListener('DOMContentLoaded', () => {
   const mainScreen = document.getElementById('main-screen');
   const galaxyDetailScreen = document.getElementById('galaxy-detail-screen');

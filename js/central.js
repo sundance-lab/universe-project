@@ -1,10 +1,9 @@
-// js/main.js
+// js/central.js
 
-import * as WorkerManager from '../workers/worker_manager.js';
-import * as GameLifecycle from '../core/game_lifecycle.js';
+import * as WorkerManager from './workers/worker_manager.js'; // Corrected path
+import * as GameLifecycle from './core/game_lifecycle.js';     // Corrected path
 import * as Events from './events.js';
 
-// Ensure the DOM is fully loaded before initializing the application
 document.addEventListener('DOMContentLoaded', () => {
     console.log("DOM Content Loaded. Initializing Galaxies Reimagined.");
 

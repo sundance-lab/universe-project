@@ -1,6 +1,6 @@
 // planetDesigner.js
 
-const PlanetDesigner = (() => {
+window.PlanetDesigner = (() => {
     console.log("PlanetDesigner.js: Script loaded.");
     // DOM Elements - will be fetched in init
     let designerPlanetCanvas, designerWaterColorInput, designerLandColorInput,

@@ -402,25 +402,27 @@ document.addEventListener('DOMContentLoaded', () => {
         return `#${r.toString(16).padStart(2, "0")}${g.toString(16).padStart(2, "0")}${b.toString(16).padStart(2, "0")}`;
     }
 
-    window.setActiveScreen = function (screenToShow) {
-        [mainScreen, galaxyDetailScreen, solarSystemScreen, planetDesignerScreen].forEach(s => {
-            if (s) s.classList.remove('active', 'panning-active');
-        });
-        if (screenToShow) { screenToShow.classList.add('active'); }
+window.setActiveScreen = function(screenToShow) {
+  [mainScreen, galaxyDetailScreen, solarSystemScreen, planetDesignerScreen].forEach(s => { // customizationModal removed from array
+    if (s) s.classList.remove('active', 'panning-active');
+  });
+  if (screenToShow) { screenToShow.classList.add('active'); }
 
-        if (zoomControlsElement) {
-            zoomControlsElement.classList.toggle('visible', screenToShow === galaxyDetailScreen || screenToShow === solarSystemScreen);
-        }
-        const isOnOverlayScreen = screenToShow === planetDesignerScreen || (customizationModal && customizationModal.classList.contains('visible'));
-        if (regenerateUniverseButton) regenerateUniverseButton.style.display = isOnOverlayScreen ? 'none' : 'block';
-        if (customizeGenerationButton) customizeGenerationButton.style.display = isOnOverlayScreen ? 'none' : 'block';
-        if (createPlanetDesignButton) createPlanetDesignButton.style.display = isOnOverlayScreen ? 'none' : 'block';
+  if (zoomControlsElement) {
+      zoomControlsElement.classList.toggle('visible', screenToShow === galaxyDetailScreen || screenToShow === solarSystemScreen);
+  }
+  // Check if planetDesignerScreen itself is the screenToShow for isOnOverlayScreen
+  const isOnOverlayScreen = screenToShow === planetDesignerScreen; 
 
-        if (screenToShow !== solarSystemScreen && planetVisualPanel) {
-            planetVisualPanel.classList.remove('visible');
-            currentPlanetDisplayedInPanel = null; // Clear when leaving solar system view
-        }
-    }
+  if (regenerateUniverseButton) regenerateUniverseButton.style.display = isOnOverlayScreen ? 'none' : 'block';
+  if (customizeGenerationButton) customizeGenerationButton.style.display = isOnOverlayScreen ? 'none' : 'block'; // This button is gone, but the variable might still be there
+  if (createPlanetDesignButton) createPlanetDesignButton.style.display = isOnOverlayScreen ? 'none' : 'block';
+
+  if (screenToShow !== solarSystemScreen && planetVisualPanel) {
+      planetVisualPanel.classList.remove('visible');
+      currentPlanetDisplayedInPanel = null;
+  }
+}
     window.mainScreen = mainScreen; // Expose for PlanetDesigner cancel button
 
     function generateUniverseLayout() {

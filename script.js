@@ -273,31 +273,6 @@ document.addEventListener('DOMContentLoaded', () => {
         console.warn("Web Workers not supported in this browser. Planet rendering will be limited or disabled.");
     }
 
-    // --- MATH HELPER FUNCTIONS (formerly malformed) ---
-    function quat_identity() { return [1, 0, 0, 0]; }
-    function quat_from_axis_angle(axis, angle) {
-        const hA = angle * 0.5;
-        const s = Math.sin(hA);
-        return [Math.cos(hA), axis[0] * s, axis[1] * s, axis[2] * s];
-    }
-    function quat_multiply(q1, q2) {
-        const w1 = q1[0], x1 = q1[1], y1 = q1[2], z1 = q1[3];
-        const w2 = q2[0], x2 = q2[1], y2 = q2[1], z2 = q2[3]; // Fixed accidental reuse of y2
-        return [
-            w1 * w2 - x1 * x2 - y1 * y2 - z1 * z2,
-            w1 * x2 + x1 * w2 + y1 * z2 - z1 * y2,
-            w1 * y2 - x1 * z2 + y1 * w2 + z1 * x2,
-            w1 * z2 + x1 * y2 - y1 * x2 + z1 * w2
-        ];
-    }
-    function quat_normalize(q) {
-        let l = q[0] * q[0] + q[1] * q[1] + q[2] * q[2] + q[3] * q[3];
-        if (l === 0) return [1, 0, 0, 0];
-        l = 1 / Math.sqrt(l);
-        return [q[0] * l, q[1] * l, q[2] * l, q[3] * l];
-    }
-    // --- END MATH HELPER FUNCTIONS ---
-
     function populateDesignerInputsFromBasis() {
         if (!designerWaterColorInput) return; // protect against null elements
         designerWaterColorInput.value = currentDesignerBasis.waterColor;

@@ -1,349 +1,543 @@
-/* styles.css */
+/* styles.css (Complete) */
 
 * {
-  margin: 0;
-  padding: 0;
-  box-sizing: border-box;
+ margin: 0;
+ padding: 0;
+ box-sizing: border-box;
 }
 
 body {
-  font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-  background-color: #000;
-  color: #fff;
-  display: flex;
-  justify-content: center;
-  align-items: center;
-  min-height: 100vh;
-  overflow: hidden;
+ font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+ background-color: #000;
+ color: #fff;
+ display: flex;
+ justify-content: center;
+ align-items: center;
+ min-height: 100vh;
+ overflow: hidden;
 }
 
 .screen-container {
-  width: 100vw;
-  height: 100vh;
-  position: relative;
-  overflow: hidden;
+ width: 100vw;
+ height: 100vh;
+ position: relative;
+ overflow: hidden;
 }
 
 .screen {
-  width: 100%;
-  height: 100%;
-  position: absolute;
-  top: 0;
-  left: 0;
-  display: flex;
-  justify-content: center;
-  align-items: center;
-  visibility: hidden;
-  opacity: 0;
-  transition: opacity 0.3s ease-in-out, visibility 0s linear 0.3s;
-  overflow: hidden;
+ width: 100%;
+ height: 100%;
+ position: absolute;
+ top: 0;
+ left: 0;
+ display: flex;
+ justify-content: center;
+ align-items: center;
+ visibility: hidden;
+ opacity: 0;
+ transition: opacity 0.3s ease-in-out, visibility 0s linear 0.3s;
+ overflow: hidden;
 }
 
 .screen.active {
-  visibility: visible;
-  opacity: 1;
-  transition-delay: 0s;
-  z-index: 1;
+ visibility: visible;
+ opacity: 1;
+ transition-delay: 0s;
+ z-index: 1;
 }
 
 .screen.active.panning-active {
-  z-index: 2;
+ z-index: 2;
 }
 
 .editable-title-container {
-  position: absolute;
-  top: 15px;
-  left: 20px;
-  z-index: 100;
+ position: absolute;
+ top: 15px;
+ left: 20px;
+ z-index: 100;
 }
 
 .editable-title-text {
-  color: rgba(230, 230, 255, 0.9);
-  font-size: 1.7em;
-  font-weight: 700;
-  text-shadow: 1px 1px 2px rgba(0, 0, 0, 0.7);
-  cursor: text;
-  display: inline-block;
-  pointer-events: all;
-  user-select: none;
-  -webkit-user-select: none;
+ color: rgba(230, 230, 255, 0.9);
+ font-size: 1.7em;
+ font-weight: 700;
+ text-shadow: 1px 1px 2px rgba(0, 0, 0, 0.7);
+ cursor: text;
+ display: inline-block;
+ pointer-events: all;
+ user-select: none;
+ -webkit-user-select: none;
 }
 
 .editable-title-input {
-  font-size: 1.7em;
-  font-weight: 700;
-  color: #fff;
-  background-color: rgba(0, 0, 0, 0.7);
-  border: 1px solid #fff;
-  padding: 0px 5px;
-  width: auto;
-  display: none;
-  line-height: 1.2;
-  font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+ font-size: 1.7em;
+ font-weight: 700;
+ color: #fff;
+ background-color: rgba(0, 0, 0, 0.7);
+ border: 1px solid #fff;
+ padding: 0px 5px;
+ width: auto;
+ display: none;
+ line-height: 1.2;
+ font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
 }
 
 #main-screen {
-  background-color: #000;
+ background-color: #000;
 }
 
 #universe-circle {
-  position: relative;
-  border-radius: 50%;
-  background-color: #100520;
-  box-shadow: 0 0 30px rgba(100, 0, 150, 0.5);
+ position: relative;
+ border-radius: 50%;
+ background-color: #100520;
+ box-shadow: 0 0 30px rgba(100, 0, 150, 0.5);
 }
 
 .galaxy-icon {
-  position: absolute;
-  border-radius: 50%;
-  cursor: pointer;
-  background-color: #7f00ff;
-  border: 3px solid #da70d6;
-  transition: transform 0.1s ease-out, box-shadow 0.2s ease-out;
-  box-shadow: 0 0 10px #7f00ff;
+ position: absolute;
+ border-radius: 50%;
+ cursor: pointer;
+ background-color: #7f00ff;
+ border: 3px solid #da70d6;
+ transition: transform 0.1s ease-out, box-shadow 0.2s ease-out;
+ box-shadow: 0 0 10px #7f00ff;
 }
 .galaxy-icon:hover { transform: scale(1.1); box-shadow: 0 0 20px #da70d6; }
 
 #galaxy-detail-screen { background-color: #000; }
 #galaxy-viewport {
-  position: relative; border-radius: 50%; overflow: hidden;
-  background-color: #100520; cursor: grab;
+ position: relative; border-radius: 50%; overflow: hidden;
+ background-color: #100520; cursor: grab;
 }
 #galaxy-viewport.dragging { cursor: grabbing; }
 #galaxy-zoom-content {
-  width: 100%; height: 100%; position: absolute;
-  top: 0; left: 0; transform-origin: center center;
+ width: 100%; height: 100%; position: absolute;
+ top: 0; left: 0; transform-origin: center center;
 }
 #solar-system-lines-canvas {
-  position: absolute; top: 0; left: 0;
-  width: 100%; height: 100%; pointer-events: none; z-index: 1;
+ position: absolute; top: 0; left: 0;
+ width: 100%; height: 100%; pointer-events: none; z-index: 1;
 }
 .solar-system-icon {
-  position: absolute; border-radius: 50%;
-  background-color: #ffd700; cursor: pointer; z-index: 2;
-  box-shadow: 0 0 5px #ffd700;
-  transition: transform 0.1s ease-out, box-shadow 0.2s ease-out;
+ position: absolute; border-radius: 50%;
+ background-color: #ffd700; cursor: pointer; z-index: 2;
+ box-shadow: 0 0 5px #ffd700;
+ transition: transform 0.1s ease-out, box-shadow 0.2s ease-out;
 }
 .solar-system-icon:hover { transform: scale(1.1); box-shadow: 0 0 10px #fff; }
 
 #solar-system-screen { cursor: grab; background-color: #080210; }
 #solar-system-screen.dragging { cursor: grabbing; }
 #solar-system-content {
-  width: 100%; height: 100%; position: absolute;
-  top: 0; left: 0; transform-origin: center center;
+ width: 100%; height: 100%; position: absolute;
+ top: 0; left: 0; transform-origin: center center;
 }
 
 .sun-icon {
-  position: absolute; left: 50%; top: 50%;
-  transform: translate(-50%, -50%); 
-  border-radius: 50%; box-sizing: border-box; z-index: 0; 
-  background: radial-gradient(ellipse at center,
-      var(--sun-core-color, #FFEA00) 89%, 
-      var(--sun-mid-color, #FFD700) 95.6%, 
-      var(--sun-edge-color, #FFA500) 99% 
-    );
-  border: 2px solid var(--sun-actual-border-color, #FFA500); 
+ position: absolute; left: 50%; top: 50%;
+ transform: translate(-50%, -50%); 
+ border-radius: 50%; box-sizing: border-box; z-index: 0; 
+ background: radial-gradient(ellipse at center,
+   var(--sun-core-color, #FFEA00) 89%, 
+   var(--sun-mid-color, #FFD700) 95.6%, 
+   var(--sun-edge-color, #FFA500) 99% 
+  );
+ border: 2px solid var(--sun-actual-border-color, #FFA500); 
 }
 .sun-animated {
-  animation: sunPulse 3.5s infinite ease-in-out;
-  box-shadow:
-    0 0 15px 3px var(--sun-glow-color1, #FFF352),
-    0 0 35px 10px var(--sun-glow-color2, #FFC940),
-    0 0 70px 20px var(--sun-glow-color3, rgba(255, 165, 0, 0.5)),
-    inset 0 0 15px 4px var(--sun-inset-glow, rgba(255, 255, 200, 0.4));
-  --sun-glow-color1: #FFFAA0;
-  --sun-glow-color2: #FFD700;
-  --sun-glow-color3: rgba(255, 165, 0, 0.4);
-  --sun-inset-glow: rgba(255, 255, 230, 0.35);
+ animation: sunPulse 3.5s infinite ease-in-out;
+ box-shadow:
+  0 0 15px 3px var(--sun-glow-color1, #FFF352),
+  0 0 35px 10px var(--sun-glow-color2, #FFC940),
+  0 0 70px 20px var(--sun-glow-color3, rgba(255, 165, 0, 0.5)),
+  inset 0 0 15px 4px var(--sun-inset-glow, rgba(255, 255, 200, 0.4));
+ --sun-glow-color1: #FFFAA0;
+ --sun-glow-color2: #FFD700;
+ --sun-glow-color3: rgba(255, 165, 0, 0.4);
+ --sun-inset-glow: rgba(255, 255, 230, 0.35);
 }
 @keyframes sunPulse {
-  0%, 100% { transform: translate(-50%, -50%) scale(1); opacity: 1; }
-  50% { transform: translate(-50%, -50%) scale(1.03); opacity: 0.95; }
+ 0%, 100% { transform: translate(-50%, -50%) scale(1); opacity: 1; }
+ 50% { transform: translate(-50%, -50%) scale(1.03); opacity: 0.95; }
 }
 
 .planet-icon {
-  position: absolute;
-  border-radius: 50%;
-  z-index: 4;
-  cursor: default; /* Default cursor, becomes pointer if .clickable-when-paused is added */
-  transform-origin: center center;
-  box-shadow: 0 0 3px rgba(150, 150, 200, 0.2); /* Optional subtle outer glow/shadow for the div */
-  /* No direct background here, as the canvas child will provide the texture */
+ position: absolute;
+ border-radius: 50%;
+ z-index: 4;
+ cursor: default; /* Default cursor, becomes pointer if .clickable-when-paused is added */
+ transform-origin: center center;
+ box-shadow: 0 0 3px rgba(150, 150, 200, 0.2); /* Optional subtle outer glow/shadow for the div */
+ /* No direct background here, as the canvas child will provide the texture */
 }
 
 .planet-icon.clickable-when-paused {
-  cursor: pointer;
+ cursor: pointer;
 }
 
 .planet-icon canvas {
-  display: block; /* Removes extra space below canvas if it were inline */
-  width: 100%;    /* Canvas fills the parent .planet-icon div */
-  height: 100%;
-  border-radius: 50%; /* Ensures the rendered image itself looks round */
-  object-fit: cover; /* Helpful if aspect ratio of rendered data isn't perfectly square for the div */
+ display: block; /* Removes extra space below canvas if it were inline */
+ width: 100%;  /* Canvas fills the parent .planet-icon div */
+ height: 100%;
+ border-radius: 50%; /* Ensures the rendered image itself looks round */
+ object-fit: cover; /* Helpful if aspect ratio of rendered data isn't perfectly square for the div */
 }
 
 #solar-system-orbit-canvas {
-  position: absolute; top: 50%; left: 50%;
-  transform: translate(-50%, -50%);
-  pointer-events: none; z-index: 3;
+ position: absolute; top: 50%; left: 50%;
+ transform: translate(-50%, -50%);
+ pointer-events: none; z-index: 3;
 }
 
 .controls-overlay {
-  position: fixed; top: 0; left: 0;
-  width: 100%; height: auto; z-index: 200;
-  pointer-events: none;
+ position: fixed; top: 0; left: 0;
+ width: 100%; height: auto; z-index: 200;
+ pointer-events: none;
 }
 .controls-overlay > * { pointer-events: all; }
 
 #zoom-controls {
-  position: fixed; bottom: 15px; right: 15px;
-  display: none; gap: 8px; z-index: 201;
+ position: fixed; bottom: 15px; right: 15px;
+ display: none; gap: 8px; z-index: 201;
 }
 #zoom-controls.visible { display: flex; }
 #zoom-controls button {
-  width: 36px; height: 36px; font-size: 1.3em; font-weight: 700;
-  background-color: rgba(44, 44, 44, .8); color: #fff;
-  border: 1px solid #4f4f4f; border-radius: 50%;
-  cursor: pointer; line-height: 34px; padding: 0;
+ width: 36px; height: 36px; font-size: 1.3em; font-weight: 700;
+ background-color: rgba(44, 44, 44, .8); color: #fff;
+ border: 1px solid #4f4f4f; border-radius: 50%;
+ cursor: pointer; line-height: 34px; padding: 0;
 }
 #zoom-controls button:hover { background-color: rgba(79, 79, 79, .9); }
 
 .back-button {
-  position: fixed; bottom: 15px; left: 15px;
-  padding: 10px 20px; font-size: 1.1em; font-weight: 700;
-  cursor: pointer; background-color: #2c2c2c; color: #fff;
-  border: 2px solid #4f4f4f; border-radius: 8px;
-  transition: background-color .2s, transform .1s; z-index: 201;
+ position: fixed; bottom: 15px; left: 15px;
+ padding: 10px 20px; font-size: 1.1em; font-weight: 700;
+ cursor: pointer; background-color: #2c2c2c; color: #fff;
+ border: 2px solid #4f4f4f; border-radius: 8px;
+ transition: background-color .2s, transform .1s; z-index: 201;
 }
 .back-button:hover { background-color: #4f4f4f; }
 .back-button:active { transform: scale(.95); }
 
 .control-button {
-  position: fixed; padding: 10px 15px; font-size: 1em;
-  color: white; border-radius: 8px; cursor: pointer;
-  text-align: center; border: none; width: 180px; 
-  transition: background-color 0.2s ease, box-shadow 0.2s ease, transform 0.1s ease;
-  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.4);
+ position: fixed; padding: 10px 15px; font-size: 1em;
+ color: white; border-radius: 8px; cursor: pointer;
+ text-align: center; border: none; width: 180px; 
+ transition: background-color 0.2s ease, box-shadow 0.2s ease, transform 0.1s ease;
+ box-shadow: 0 4px 8px rgba(0, 0, 0, 0.4);
 }
 .control-button:hover { transform: translateY(-2px); box-shadow: 0 6px 12px rgba(0, 0, 0, 0.6); }
 
 #regenerate-universe-btn {
-  top: 15px; left: 15px; z-index: 301;
-  background-color: #c0392b; border: 1.1px solid #a93226;
+ top: 15px; left: 15px; z-index: 301;
+ background-color: #c0392b; border: 1.1px solid #a93226;
 }
 #regenerate-universe-btn:hover { background-color: #e74c3c; }
 
-/* Styles for customize-generation-btn are removed as the button was removed */
-
 #create-planet-design-btn {
-  /* Adjusted 'top' if customize-generation-btn was removed */
-  top: 66px; /* Or 15px if it's now the second button */
-  left: 15px; z-index: 301;
-  background-color: #2b7a9f; border: 1.1px solid #226688;
+ top: 66px; 
+ left: 15px; z-index: 301;
+ background-color: #2b7a9f; border: 1.1px solid #226688;
 }
 #create-planet-design-btn:hover { background-color: #348bb9; }
 
-/* Modal styles (kept for Planet Designer buttons) */
-.modal-overlay { /* This generic class is not strictly needed if customization-modal is gone */
-  position: fixed; top: 0; left: 0; width: 100%; height: 100%;
-  background-color: rgba(0, 0, 0, 0.7);
-  display: none; justify-content: center; align-items: center;
-  z-index: 1000;
+.modal-overlay { 
+ position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+ background-color: rgba(0, 0, 0, 0.7);
+ display: none; justify-content: center; align-items: center;
+ z-index: 1000;
 }
-.modal-overlay.visible { display: flex; } /* This would only apply if a modal were to use it */
+.modal-overlay.visible { display: flex; } 
 
-.modal-content { /* May be used by other modals if you add them later */
-  background-color: #2c3e50; padding: 25px;
-  border-radius: 8px; box-shadow: 0 5px 15px rgba(0, 0, 0, 0.5);
-  min-width: 380px; max-width: 90%;
+.modal-content { 
+ background-color: #2c3e50; padding: 25px;
+ border-radius: 8px; box-shadow: 0 5px 15px rgba(0, 0, 0, 0.5);
+ min-width: 380px; max-width: 90%;
 }
 .modal-content h2 { margin-top: 0; margin-bottom: 20px; color: #ecf0f1; }
-/* Other .modal-content specific styles for inputs/labels can be removed if no other modals use them */
 
 .modal-actions { text-align: right; margin-top: 20px; }
-.modal-actions button { /* General style for buttons inside modal-actions */
-  padding: 10px 18px; margin-left: 10px; border-radius: 5px; 
-  border: none; cursor: pointer; font-weight: bold; 
+.modal-actions button { 
+ padding: 10px 18px; margin-left: 10px; border-radius: 5px; 
+ border: none; cursor: pointer; font-weight: bold; 
 }
 .modal-button-apply { background-color: #27ae60; color: white; }
 .modal-button-apply:hover { background-color: #2ecc71; }
 .modal-button-cancel { background-color: #7f8c8d; color: #2c3e50; }
 .modal-button-cancel:hover { background-color: #95a5a6; }
 
-.planet-visual-panel { /* ... as before ... */ }
-.planet-visual-panel.visible { /* ... as before ... */ }
-.planet-visual-panel:not(.dragging) { /* ... as before ... */ }
-.panel-header { /* ... as before ... */ }
-.panel-header.dragging { /* ... as before ... */ }
-.panel-body { /* ... as before ... */ }
-.panel-body p { /* ... as before ... */ }
-.close-button { /* ... as before ... */ }
-.close-button:hover { /* ... as before ... */ }
-#planet-visual-canvas { /* ... as before ... */ }
-#planet-visual-canvas.dragging { /* ... as before ... */ }
+.planet-visual-panel {
+  position: fixed;
+  width: 350px; /* Or your original desired width */
+  max-width: 90vw;
+  background-color: #2c3e50; /* Dark slate blue/gray */
+  border: 1px solid #4a6572; /* Slightly lighter border */
+  border-radius: 8px;
+  box-shadow: 0 8px 25px rgba(0,0,0,0.5);
+  z-index: 500; /* Ensure it's above game content but below modals */
+  visibility: hidden;
+  opacity: 0;
+  transform: translate(-50%, -50%) scale(0.95);
+  top: 50%; /* For centering */
+  left: 50%; /* For centering */
+  transition: opacity 0.2s ease-out, transform 0.2s ease-out, visibility 0s linear 0.2s;
+  overflow: hidden; /* To keep rounded corners on children */
+}
+.planet-visual-panel.visible {
+  visibility: visible;
+  opacity: 1;
+  transform: translate(-50%, -50%) scale(1);
+  transition-delay: 0s;
+}
+.planet-visual-panel:not(.dragging) {
+  /* Only apply transition if not actively being dragged by its header */
+  transition: opacity 0.2s ease-out, transform 0.2s ease-out, visibility 0s linear 0s, top 0.15s ease-out, left 0.15s ease-out;
+}
+.panel-header {
+  background-color: #34495e; /* Slightly darker header */
+  color: #ecf0f1; /* Light text */
+  padding: 10px 15px;
+  cursor: move;
+  border-bottom: 1px solid #4a6572;
+  border-top-left-radius: 8px;
+  border-top-right-radius: 8px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+.panel-header.dragging {
+  background-color: #4a6572; /* Indicate dragging */
+}
+.panel-body {
+  padding: 15px;
+  text-align: center; /* Center the content like size and canvas */
+}
+.panel-body p {
+  margin-bottom: 10px;
+  color: #bdc3c7; /* Lighter gray for text */
+  font-size: 0.95em;
+}
+.close-button {
+  background: none;
+  border: none;
+  color: #ecf0f1;
+  font-size: 1.6em;
+  font-weight: bold;
+  cursor: pointer;
+  padding: 0 5px;
+  line-height: 1;
+}
+.close-button:hover {
+  color: #e74c3c; /* Red on hover for close */
+}
+#planet-visual-canvas {
+  width: 100%; /* Canvas takes full width of its container */
+  height: auto;
+  aspect-ratio: 1 / 1; /* Maintain square aspect ratio */
+  max-height: 280px; /* Limit max height */
+  border-radius: 50%;
+  background-color: #1c2833; /* Dark background for the canvas itself */
+  border: 2px solid #4a6572;
+  /* transition: transform 0.3s ease-in-out; remove if not used or if causing issues */
+  cursor: grab;
+}
+#planet-visual-canvas.dragging {
+  cursor: grabbing;
+}
 
-#planet-designer-screen { /* ... as before ... */ }
-.designer-panel, .designer-controls, .designer-preview { /* ... as before ... */ }
-.designer-panel { /* ... as before ... */ }
-.designer-actions-fixed { /* ... as before ... */ }
-.designer-actions-fixed button { /* Uses .modal-button-apply/cancel */ }
-@media (min-width: 700px) { /* ... as before ... */ }
-.designer-controls { /* ... as before ... */ }
-.designer-preview { /* ... as before ... */ }
-#designer-planet-canvas { /* ... as before ... */ }
-@media (max-width: 800px) { /* ... as before ... */ }
-#designer-planet-canvas.dragging { /* ... as before ... */ }
+
+#planet-designer-screen { 
+  background-color: #1f2b38; 
+  justify-content: center; 
+  align-items: stretch; 
+  padding: 20px; 
+}
+.designer-panel, .designer-controls, .designer-preview { color: #dde; }
+.designer-panel {
+  display: flex;
+  gap: 20px;
+  width: 100%;
+  max-width: 1200px; /* Max width for the designer */
+  height: calc(100vh - 120px); /* Full height minus padding and actions bar */
+  background-color: #2c3e50; /* Slightly lighter than screen bg */
+  padding: 20px;
+  border-radius: 8px;
+  box-shadow: 0 0 15px rgba(0,0,0,0.3);
+}
+.designer-actions-fixed { 
+  position: fixed; 
+  bottom: 20px; 
+  left: 50%; 
+  transform: translateX(-50%); 
+  background-color: #233140;
+  padding: 15px 25px; 
+  border-radius: 8px; 
+  box-shadow: 0 -2px 10px rgba(0,0,0,0.2);
+  z-index: 300;
+  display: flex;
+  gap: 15px;
+}
+.designer-actions-fixed button { /* Uses .modal-button-apply/cancel or new specific ones */ }
+
+@media (min-width: 700px) {
+  #planet-designer-screen { align-items: center; }
+}
+
+.designer-controls {
+  flex: 1; /* Takes up available space */
+  min-width: 280px; /* Minimum width for controls */
+  padding: 15px;
+  background-color: #34495e; /* Controls background */
+  border-radius: 6px;
+  overflow-y: auto; /* Scroll if content overflows */
+  max-height: 100%;
+}
+.designer-preview {
+  flex-basis: 400px; /* Start with a fixed basis for preview */
+  min-width: 300px; /* Min width for preview */
+  max-width: 500px; /* Max width for preview */
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  background-color: #233140; /* Preview area background */
+  border-radius: 6px;
+  padding: 15px;
+}
+#designer-planet-canvas {
+  width: 100%;
+  height: auto;
+  aspect-ratio: 1 / 1;
+  max-width: 400px; /* Max display size */
+  max-height: 400px;
+  border-radius: 50%;
+  cursor: grab;
+  background-color: #000; /* Black behind the rendering */
+}
+@media (max-width: 800px) { /* Stack controls and preview on smaller screens */
+  .designer-panel { flex-direction: column; }
+  .designer-preview { flex-basis: auto; min-height: 300px; } /* Auto basis, min height */
+}
+#designer-planet-canvas.dragging { cursor: grabbing; }
 
 .designer-controls .designer-range-control {
-    display: flex;
-    flex-direction: column; 
-    gap: 5px; 
-    margin-bottom: 10px; 
+  display: flex;
+  flex-direction: column; 
+  gap: 5px; 
+  margin-bottom: 10px; 
 }
-/* Removed .input-row explicit style, assuming inputs and span flow adequately or are block within flex column */
 .designer-controls .designer-range-control label {
-    margin-bottom: 2px; 
-    font-size: 0.9em; 
-    display: block; 
+  margin-bottom: 2px; 
+  font-size: 0.9em; 
+  display: block; 
 }
 .designer-controls .designer-range-control input[type="number"] {
-    width: 70px; 
-    padding: 6px; 
-    margin-bottom: 0; 
+  width: 70px; 
+  padding: 6px; 
+  margin-bottom: 0; 
+  background-color: #2c3e50;
+  color: #ecf0f1;
+  border: 1px solid #4a6572;
+  border-radius: 3px;
 }
 .designer-controls .designer-range-control span { 
-    margin: 0 5px; /* Add some space around "to" */
-    align-self: center; /* Center "to" text if inputs are on same line in future */
+  margin: 0 5px; 
+  align-self: center; 
 }
-/* If inputs are on separate lines due to label above, span might need different styling or wrapping. */
-/* Assuming inputs are on the same line, a quick fix for "to" centering: */
-.designer-controls .designer-range-control > div { /* If inputs and 'to' are inside a div */
-    display: flex;
-    align-items: center;
+.designer-controls .designer-range-control > div { 
+  display: flex;
+  align-items: center;
+}
+.designer-controls .color-control {
+    margin-bottom: 15px;
+}
+.designer-controls .color-control label {
+    display: block;
+    margin-bottom: 5px;
+}
+.designer-controls .color-control input[type="color"] {
+    width: 100%;
+    height: 35px;
+    border: 1px solid #4a6572;
+    border-radius: 3px;
+    cursor: pointer;
+    padding: 2px; /* Small padding around color input */
 }
 
+
 .saved-designs-list {
-  margin-top: 30px; border-top: 1px solid #5a7d9b; padding-top: 20px;
+ margin-top: 30px; border-top: 1px solid #5a7d9b; padding-top: 20px;
 }
 .saved-designs-list h4 { margin-top: 0; margin-bottom: 10px; color: #bdc3c7; }
 #saved-designs-ul {
-  list-style: none; padding: 0; max-height: 200px; overflow-y: auto;
-  border: 1px solid #34495e; border-radius: 4px; background-color: #34495e;
+ list-style: none; padding: 0; max-height: 200px; overflow-y: auto;
+ border: 1px solid #34495e; border-radius: 4px; background-color: #2c3e50; /* Slightly lighter than controls background */
 }
 #saved-designs-ul li {
-  padding: 8px 10px; border-bottom: 1px solid #2c3e50;
-  display: flex; justify-content: space-between; align-items: center;
+ padding: 8px 10px; border-bottom: 1px solid #34495e;
+ display: flex; justify-content: space-between; align-items: center;
+  color: #ecf0f1;
 }
 #saved-designs-ul li:last-child { border-bottom: none; }
 #saved-designs-ul li:hover { background-color: #3b5062; }
 .design-item-name { flex-grow: 1; }
-.design-item-load {
-  margin-left: 10px; padding: 3px 6px; font-size: 0.8em;
-  white-space: nowrap; 
+.design-item-load { /* Uses modal-button-apply */
+ margin-left: 10px; padding: 3px 6px; font-size: 0.8em;
+ white-space: nowrap; 
 }
 .design-item-delete {
-  background: none; border: none; color: #e74c3c;
-  font-size: 1.2em; cursor: pointer; margin-left: 10px;
+ background: none; border: none; color: #e74c3c;
+ font-size: 1.2em; cursor: pointer; margin-left: 10px;
 }
 .design-item-delete:hover { color: #c0392b; }
+
+
+/* ADDED: Styles for the new Planet Detail View Screen */
+#planet-detail-view-screen {
+  background-color: #050208; /* Darker background for focus */
+  flex-direction: column; /* Align title and content vertically */
+  justify-content: flex-start; /* Align to top */
+  align-items: center;
+  padding-top: 60px; /* Space for the title */
+}
+
+#planet-detail-view-title-container {
+  position: absolute;
+  top: 15px;
+  left: 50%; /* Center the title container */
+  transform: translateX(-50%);
+  width: auto;
+  text-align: center;
+}
+
+#planet-detail-view-title-text {
+  font-size: 1.8em; /* Slightly larger title */
+}
+
+#planet-detail-view-content {
+  width: 95vw; /* Almost full width */
+  height: calc(95vh - 70px); /* Almost full height, accounting for top padding and potential bottom button area */
+  max-width: 1600px; /* Max size for very large screens */
+  max-height: 1200px;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  border: 1px solid #333;
+  background-color: #000; /* Black background for the canvas area */
+  overflow: hidden; 
+}
+
+#planet-detail-view-canvas {
+  max-width: 100%;
+  max-height: 100%;
+  /* The canvas width/height attributes will be set by JS to be square.
+     These CSS rules ensure it fits within the #planet-detail-view-content div */
+}
+
+#back-to-solar-system-from-detail {
+  z-index: 201; 
+}
+
+#view-full-planet-map-btn { /* Button in the planet visual panel */
+  display: block; 
+  margin-bottom: 15px; 
+}

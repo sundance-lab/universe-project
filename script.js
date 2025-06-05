@@ -244,73 +244,105 @@ document.addEventListener('DOMContentLoaded', () => {
     console.warn("Web Workers not supported in this browser. Planet rendering will be limited or disabled.");
   }
 
-window.renderPlanetVisual = function (planetData, rotationQuaternion, targetCanvas) {
-    // **** AGGRESSIVE DEBUG LOG - VERY FIRST LINE ****
-    console.log("%%% ENTERING RENDER_PLANET_VISUAL %%%", "Canvas ID:", targetCanvas ? targetCanvas.id : "targetCanvas_UNDEFINED", "PlanetData exists:", !!planetData);
 
-    if (!targetCanvas) {
-        console.error("renderPlanetVisual: FATAL - targetCanvas is undefined or null. EXITING.");
+window.renderPlanetVisual = function(planetDataInput, rotationQuaternionInput, targetCanvasInput) {
+    // --- Log Entry ---
+    console.log("[NEW] === Entering window.renderPlanetVisual ===");
+    console.log("[NEW] Received targetCanvas id: ", targetCanvasInput ? targetCanvasInput.id : "UNDEFINED/NULL canvas");
+    console.log("[NEW] Received planetData: ", planetDataInput ? "Exists" : "UNDEFINED/NULL planetData");
+    console.log("[NEW] Received rotationQuaternion: ", rotationQuaternionInput ? "Exists" : "UNDEFINED/NULL rotation");
+
+    // --- Basic Validations ---
+    if (!targetCanvasInput || typeof targetCanvasInput.getContext !== 'function') {
+        console.error("[NEW] EXIT: targetCanvasInput is invalid or not a canvas element.");
+        // If this was for the panel, reset its rendering flag if it was set by a PREVIOUS, FAILED call.
+        // However, the flag is typically set AFTER this check.
         return;
     }
-    const canvasId = targetCanvas.id; // Get canvasId early for logging
+    const canvasId = targetCanvasInput.id; // Safe to get id now
 
-    // **** AGGRESSIVE DEBUG LOG - AFTER targetCanvas CHECK ****
-    console.log("%%% RPV_DEBUG %%% Checked targetCanvas. ID:", canvasId);
+    if (!planetDataInput) {
+        console.error(`[NEW] EXIT for ${canvasId}: planetDataInput is null or undefined.`);
+        return;
+    }
+    if (!rotationQuaternionInput) {
+        console.error(`[NEW] EXIT for ${canvasId}: rotationQuaternionInput is null or undefined.`);
+        return;
+    }
+    console.log(`[NEW] For ${canvasId}: Initial argument checks passed.`);
 
-    const workerToUse = targetCanvas.id === 'planet-visual-canvas' ? planetVisualWorker :
-                     (targetCanvas.id.startsWith('planet-icon-canvas-') ? planetVisualWorker : window.designerWorker);
+    // --- Determine Worker ---
+    let workerToUse = null;
+    // These global variables (planetVisualWorker, window.designerWorker) must be correctly defined in script.js scope
+    if (canvasId === 'planet-visual-canvas') {
+        workerToUse = planetVisualWorker;
+    } else if (canvasId === 'designer-planet-canvas') {
+        workerToUse = window.designerWorker;
+    } else if (canvasId && canvasId.startsWith('planet-icon-canvas-')) {
+        workerToUse = planetVisualWorker; // Icons use the planetVisualWorker
+    }
 
-    // **** AGGRESSIVE DEBUG LOG - AFTER workerToUse ****
-    console.log("%%% RPV_DEBUG %%% Determined workerToUse. Target ID:", canvasId, "Worker exists:", !!workerToUse);
+    if (!workerToUse) {
+        console.error(`[NEW] EXIT for ${canvasId}: Could not determine a valid workerToUse. planetVisualWorker or window.designerWorker might be null.`);
+        // If this was for the panel, reset its rendering flag
+        if (canvasId === 'planet-visual-canvas' && isRenderingVisualPlanet) {
+            isRenderingVisualPlanet = false;
+            console.log(`[NEW] For ${canvasId}: Reset isRenderingVisualPlanet = false due to no worker.`);
+        }
+        return;
+    }
+    console.log(`[NEW] For ${canvasId}: Determined workerToUse. Worker object exists:`, !!workerToUse);
 
-
-    if (targetCanvas.id === 'planet-visual-canvas') {
+    // --- Specific Handling for Panel Rendering State ---
+    // These global variables (isRenderingVisualPlanet, needsPlanetVisualRerender) must be correctly defined in script.js scope
+    if (canvasId === 'planet-visual-canvas') {
         if (isRenderingVisualPlanet) {
-            console.log("[renderPlanetVisual] Visual panel rendering already in progress for " + canvasId + ". Queuing rerender if needed.");
+            console.log(`[NEW] For ${canvasId}: Visual panel rendering already in progress. Queuing rerender.`);
             needsPlanetVisualRerender = true;
             return;
         }
         isRenderingVisualPlanet = true;
+        console.log(`[NEW] For ${canvasId}: Set isRenderingVisualPlanet = true.`);
     }
+    // Note: PlanetDesigner manages its own 'isRenderingDesignerPlanet' state. Icon rendering doesn't have a dedicated flag.
 
-    if (!planetData || !rotationQuaternion || !workerToUse) {
-        console.warn("renderPlanetVisual: Missing data, rotation, or appropriate worker for " + canvasId + ".",
-            { planetDataExists: !!planetData, rotationQuaternionExists: !!rotationQuaternion, targetCanvasId: targetCanvas?.id, workerExists: !!workerToUse });
-        if (targetCanvas.id === 'planet-visual-canvas' && isRenderingVisualPlanet) {
-            isRenderingVisualPlanet = false;
+    // --- Canvas Dimension Check ---
+    if (targetCanvasInput.width === 0 || targetCanvasInput.height === 0) {
+        console.warn(`[NEW] For ${canvasId}: Canvas has zero dimensions (W:${targetCanvasInput.width}, H:${targetCanvasInput.height}).`);
+        if (canvasId === 'planet-visual-canvas') {
+            if(isRenderingVisualPlanet) isRenderingVisualPlanet = false; // Reset flag if it was set
+            console.log(`[NEW] For ${canvasId}: Reset isRenderingVisualPlanet = false due to zero dimensions.`);
+        } else if (canvasId === 'designer-planet-canvas') {
+            // PlanetDesigner has its own isRenderingDesignerPlanet flag, managed by PlanetDesigner.js
+            // but we should still log that a render was attempted on a zero-dim canvas.
+            console.warn(`[NEW] Designer canvas ${canvasId} is zero-dim. PlanetDesigner module should handle this.`);
         }
-        return;
-    }
 
-    // **** AGGRESSIVE DEBUG LOG - BEFORE DIMENSION CHECK ****
-    console.log("%%% RPV_DEBUG %%% Data/worker checks passed for " + canvasId + ". Canvas W:", targetCanvas.width, "H:", targetCanvas.height);
-
-    if (targetCanvas.width === 0 || targetCanvas.height === 0) {
-        console.warn(`renderPlanetVisual: Target canvas ${canvasId} has zero dimensions (W:${targetCanvas.width}, H:${targetCanvas.height}). Aborting worker call.`);
-        if (targetCanvas.id === 'planet-visual-canvas' && isRenderingVisualPlanet) {
-            isRenderingVisualPlanet = false;
-        }
-        // For zero-dimension icons, let's try to defer via rAF
+        // Special handling for icons: defer and retry
         if (canvasId.startsWith('planet-icon-canvas-')) {
-            console.log(`%%% RPV_DEBUG %%% Deferring render for zero-dim icon ${canvasId} via rAF.`);
+            console.log(`[NEW] For ${canvasId}: Deferring render for zero-dim icon via rAF.`);
             requestAnimationFrame(() => {
-                console.log(`%%% RPV_DEBUG %%% rAF callback for ${canvasId}. Retrying renderPlanetVisual.`);
-                window.renderPlanetVisual(planetData, rotationQuaternion, targetCanvas);
+                console.log(`[NEW] rAF callback for ${canvasId}. Retrying renderPlanetVisual.`);
+                // Recursive call with original inputs
+                window.renderPlanetVisual(planetDataInput, rotationQuaternionInput, targetCanvasInput);
             });
         }
-        return;
+        return; // Exit after handling zero-dim
     }
+    console.log(`[NEW] For ${canvasId}: Canvas dimensions OK (W:${targetCanvasInput.width}, H:${targetCanvasInput.height}).`);
 
-    const pD = { ...planetData };
+    // --- Prepare Data to Send (defensive copy and defaults) ---
+    const pD = { ...planetDataInput }; // Shallow copy
 
-    if (pD.continentSeed === undefined) pD.continentSeed = Math.random();
-    if (!pD.waterColor) pD.waterColor = '#000080';
-    if (!pD.landColor) pD.landColor = '#006400';
+    // Ensure critical visual properties have defaults if missing from pD
+    pD.continentSeed = (typeof pD.continentSeed === 'number' && !isNaN(pD.continentSeed)) ? pD.continentSeed : Math.random();
+    pD.waterColor = typeof pD.waterColor === 'string' ? pD.waterColor : '#000080';
+    pD.landColor = typeof pD.landColor === 'string' ? pD.landColor : '#006400';
     pD.minTerrainHeight = (typeof pD.minTerrainHeight === 'number' && !isNaN(pD.minTerrainHeight)) ? pD.minTerrainHeight : (window.DEFAULT_MIN_TERRAIN_HEIGHT || 0.0);
     pD.maxTerrainHeight = (typeof pD.maxTerrainHeight === 'number' && !isNaN(pD.maxTerrainHeight)) ? pD.maxTerrainHeight : (window.DEFAULT_MAX_TERRAIN_HEIGHT || 10.0);
     pD.oceanHeightLevel = (typeof pD.oceanHeightLevel === 'number' && !isNaN(pD.oceanHeightLevel)) ? pD.oceanHeightLevel : (window.DEFAULT_OCEAN_HEIGHT_LEVEL || 2.0);
 
-    const dataToSend = {
+    const dataToSendToWorker = {
         waterColor: pD.waterColor,
         landColor: pD.landColor,
         continentSeed: pD.continentSeed,
@@ -319,35 +351,48 @@ window.renderPlanetVisual = function (planetData, rotationQuaternion, targetCanv
         oceanHeightLevel: pD.oceanHeightLevel,
     };
 
-    // **** THIS IS THE CRUCIAL ORIGINAL DEBUG LOGGING ****
-    console.log(`[renderPlanetVisual] Preparing to render for canvas: "${canvasId}"`,
-        `Seed: ${dataToSend.continentSeed.toFixed(4)}, ` +
-        `OceanLvl: ${dataToSend.oceanHeightLevel.toFixed(2)}, ` +
-        `MinH: ${dataToSend.minTerrainHeight.toFixed(2)}, ` +
-        `MaxH: ${dataToSend.maxTerrainHeight.toFixed(2)}`
+    console.log(`[NEW] For ${canvasId}: Preparing to postMessage. Parsed Data: ` +
+        `Seed: ${dataToSendToWorker.continentSeed.toFixed(4)}, ` +
+        `OceanLvl: ${dataToSendToWorker.oceanHeightLevel.toFixed(2)}, ` +
+        `MinH: ${dataToSendToWorker.minTerrainHeight.toFixed(2)}, ` +
+        `MaxH: ${dataToSendToWorker.maxTerrainHeight.toFixed(2)}`
     );
 
-    let radiusOverride;
+    // --- Determine Radius Override ---
+    let radiusOverride = undefined; // Default to no override, worker will use canvas size
     if (canvasId === 'designer-planet-canvas' || canvasId.startsWith('planet-icon-canvas-')) {
-        radiusOverride = Math.min(targetCanvas.width, targetCanvas.height) / 2 * 0.9;
+        radiusOverride = Math.min(targetCanvasInput.width, targetCanvasInput.height) / 2 * 0.9;
+        console.log(`[NEW] For ${canvasId}: Calculated radiusOverride: ${radiusOverride}`);
     }
 
-    // **** AGGRESSIVE DEBUG LOG - BEFORE POSTMESSAGE ****
-    console.log("%%% RPV_DEBUG %%% About to postMessage to worker for " + canvasId);
-
-    workerToUse.postMessage({
-        cmd: 'renderPlanet',
-        planetData: dataToSend,
-        rotationQuaternion,
-        canvasWidth: targetCanvas.width,
-        canvasHeight: targetCanvas.height,
-        senderId: canvasId,
-        planetRadiusOverride: radiusOverride
-    });
-
-    // **** AGGRESSIVE DEBUG LOG - AFTER POSTMESSAGE ****
-    console.log("%%% RPV_DEBUG %%% Message posted to worker for " + canvasId);
+    // --- Post Message to Worker ---
+    try {
+        workerToUse.postMessage({
+            cmd: 'renderPlanet',
+            planetData: dataToSendToWorker,
+            rotationQuaternion: rotationQuaternionInput,
+            canvasWidth: targetCanvasInput.width,
+            canvasHeight: targetCanvasInput.height,
+            senderId: canvasId,
+            planetRadiusOverride: radiusOverride
+        });
+        console.log(`[NEW] For ${canvasId}: Message posted to worker successfully.`);
+    } catch (error) {
+        console.error(`[NEW] For ${canvasId}: CRITICAL ERROR during postMessage!`, error);
+        if (canvasId === 'planet-visual-canvas') {
+            if(isRenderingVisualPlanet) isRenderingVisualPlanet = false;
+            console.log(`[NEW] For ${canvasId}: Reset isRenderingVisualPlanet = false due to postMessage error.`);
+        } else if (canvasId === 'designer-planet-canvas') {
+            // Optionally, inform PlanetDesigner module that its render attempt failed
+            if (window.PlanetDesigner && typeof window.PlanetDesigner.handleRenderError === 'function') {
+                 window.PlanetDesigner.handleRenderError(); // Requires adding handleRenderError method to PlanetDesigner
+            }
+        }
+    }
+    console.log("[NEW] === Exiting window.renderPlanetVisual for " + canvasId + " ===");
 };
+// END OF REPLACEMENT BLOCK
+  
   function switchToPlanetDesignerScreen() {
     setActiveScreen(planetDesignerScreen);
     if (window.PlanetDesigner && typeof window.PlanetDesigner.activate === 'function') {

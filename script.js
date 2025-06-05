@@ -58,7 +58,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
   // --- FUNCTION DEFINITIONS ---
 
-  // This function needs to be accessible by planetDesigner.js
+  // This function needs to be accessible by .js
   window.generatePlanetInstanceFromBasis = function(basis, isForDesignerPreview = false) {
     const getValueFromRange = (range, defaultValue, defaultSpread = 1.0) => {
       if (Array.isArray(range) && range.length === 2 && typeof range[0] === 'number' && typeof range[1] === 'number') {
@@ -134,7 +134,7 @@ document.addEventListener('DOMContentLoaded', () => {
   let MAX_ROTATION_SPEED_RAD_PER_PERLIN_UNIT = 0.01;
   const FIXED_COLORS = { universeBg: "#100520", galaxyIconFill: "#7f00ff", galaxyIconBorder: "#da70d6", solarSystemBaseColor: "#ffd700", sunFill: "#FFD700", sunBorder: "#FFA500", connectionLine: "rgba(255, 255, 255, 0.3)" };
 
-  // gameSessionData needs to be globally accessible by planetDesigner.js
+  // gameSessionData needs to be globally accessible by .js
   window.gameSessionData = {
     universe: { diameter: null },
     galaxies: [],
@@ -143,12 +143,12 @@ document.addEventListener('DOMContentLoaded', () => {
     solarSystemView: { zoomLevel: 1.0, currentPanX: 0, currentPanY: 0, planets: [], systemId: null },
     isInitialized: false,
     panning: { isActive: false, startX: 0, startY: 0, initialPanX: 0, initialPanY: 0, targetElement: null, viewportElement: null, dataObject: null },
-    customPlanetDesigns: [] // This will be managed by planetDesigner.js but stored here
+    customPlanetDesigns: [] // This will be managed by .js but stored here
   };
 
   // --- WEB WORKER SETUP ---
   let planetVisualWorker = null;
-  window.designerWorker = null; // Make designerWorker globally accessible for planetDesigner.js
+  window.designerWorker = null; // Make designerWorker globally accessible for .js
 
   if (window.Worker) {
     try {
@@ -192,15 +192,15 @@ if (window.designerWorker) {
         const { renderedData, width, height, senderId } = e.data;
         console.log(`script.js: designerWorker.onmessage received - senderId: ${senderId}`); // ADD THIS LOG
 
-        if (senderId === 'designer-planet-canvas') {
-            if (window.PlanetDesigner && typeof window.PlanetDesigner.handleDesignerWorkerMessage === 'function') {
-                console.log("script.js: Forwarding message to PlanetDesigner.handleDesignerWorkerMessage"); // ADD THIS LOG
-                window.PlanetDesigner.handleDesignerWorkerMessage({ renderedData, width, height });
-            } else {
-                console.error("script.js: PlanetDesigner module or handleDesignerWorkerMessage not found in worker callback.");
-            }
-        }
-        // If designerWorker handles other senderIds, that logic would go here.
+// In script.js, inside window.designerWorker.onmessage
+if (senderId === 'designer-planet-canvas') {
+  if (window.PlanetDesigner && typeof window.PlanetDesigner.handleDesignerWorkerMessage === 'function') {
+    console.log("script.js: Forwarding message to PlanetDesigner.handleDesignerWorkerMessage");
+    window.PlanetDesigner.handleDesignerWorkerMessage({ renderedData, width, height });
+  } else {
+    console.error("script.js: PlanetDesigner module or handleDesignerWorkerMessage not found in worker callback.");
+  }
+}
     };
     window.designerWorker.onerror = function(error) { // Ensure this is also present
         console.error("Error in designerWorker (from script.js):", error.message, error.filename, error.lineno);

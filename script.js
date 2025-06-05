@@ -923,14 +923,16 @@ if (window.designerWorker) {
     const gMUH=()=>{if(iGPS){iGPS=false;if(galaxyViewport)galaxyViewport.classList.remove('dragging');if(galaxyZoomContent)galaxyZoomContent.style.transition='';renderGalaxyDetailScreen(false);window.gameSessionData.panning.isActive=false;}};window.addEventListener('mouseup',gMUH);
   }
 
-  // --- INITIALIZATION ---
-  // Initialize PlanetDesigner module if it exists
-  if (window.PlanetDesigner && typeof window.PlanetDesigner.init === 'function') {
-      window.PlanetDesigner.init();
-  } else {
-      console.error("PlanetDesigner module not found or init function is missing. Ensure planetDesigner.js is loaded correctly.");
-  }
+// In script.js, near the end of DOMContentLoaded, before initializeGame()
+console.log("script.js: Attempting to initialize PlanetDesigner."); // ADD THIS LOG
+if (window.PlanetDesigner && typeof window.PlanetDesigner.init === 'function') {
+    window.PlanetDesigner.init();
+    console.log("script.js: PlanetDesigner.init() called."); // ADD THIS LOG
+} else {
+    console.error("script.js: PlanetDesigner module not found or init function is missing. Ensure planetDesigner.js is loaded before script.js and defines PlanetDesigner correctly.");
+}
 
-  initializeGame();
+// --- INITIALIZATION ---
+initializeGame();
 
 }); // End of DOMContentLoaded

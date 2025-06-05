@@ -1,237 +1,454 @@
 // planetDesigner.js
 
 window.PlanetDesigner = (() => {
-    console.log("PlanetDesigner.js: Script loaded.");
-    // DOM Elements - will be fetched in init
-    let designerPlanetCanvas, designerWaterColorInput, designerLandColorInput,
+  console.log("PlanetDesigner.js: Script loaded.");
+  // DOM Elements - will be fetched in init
+  let designerPlanetCanvas, designerWaterColorInput, designerLandColorInput,
+    designerMinHeightMinInput, designerMinHeightMaxInput,
+    designerMaxHeightMinInput, designerMaxHeightMaxInput,
+    designerOceanHeightMinInput, designerOceanHeightMaxInput,
+    savedDesignsUl, designerRandomizeBtn, designerSaveBtn, designerCancelBtn,
+    planetDesignerScreenElement; // For reference if needed
+
+  // State specific to the Planet Designer
+  let currentDesignerBasis = {
+    waterColor: '#000080',
+    landColor: '#006400',
+    continentSeed: Math.random(),
+    minTerrainHeightRange: [0.0, 2.0], // Will be overwritten by defaults in init
+    maxTerrainHeightRange: [8.0, 12.0], // Will be overwritten by defaults in init
+    oceanHeightRange: [1.0, 3.0]      // Will be overwritten by defaults in init
+  };
+  let currentDesignerPlanetInstance = null;
+  let designerPlanetRotationQuat = [1, 0, 0, 0];
+  let startDragDesignerPlanetQuat = [1, 0, 0, 0];
+  let designerStartDragMouseX = 0;
+  let designerStartDragMouseY = 0;
+  let isDraggingDesignerPlanet = false;
+  let isRenderingDesignerPlanet = false;
+
+  // --- HELPER FUNCTIONS ---
+  function _generateUUID() {
+    if (crypto && crypto.randomUUID) {
+        return crypto.randomUUID();
+    } else {
+        console.warn("PlanetDesigner: crypto.randomUUID not available, using Math.random fallback for UUID.");
+        return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, function(c) {
+            const r = Math.random() * 16 | 0, v = c === 'x' ? r : (r & 0x3 | 0x8);
+            return v.toString(16);
+        });
+    }
+  }
+
+  function _getRandomHexColor() {
+    let n = (Math.random() * 0xfffff * 1000000).toString(16);
+    return '#' + n.slice(0, 6).padStart(6, '0');
+  }
+
+  function _getRandomFloat(min, max, precision = 1) {
+    const factor = Math.pow(10, precision);
+    return parseFloat((Math.random() * (max - min) + min).toFixed(precision));
+  }
+
+
+  // --- UI AND BASIS MANAGEMENT ---
+  function _populateDesignerInputsFromBasis() {
+    if (!designerWaterColorInput || !designerLandColorInput || !designerMinHeightMinInput) {
+        console.warn("PlanetDesigner: Cannot populate inputs, DOM elements not ready.");
+        return;
+    }
+    designerWaterColorInput.value = currentDesignerBasis.waterColor;
+    designerLandColorInput.value = currentDesignerBasis.landColor;
+    designerMinHeightMinInput.value = currentDesignerBasis.minTerrainHeightRange 0 .toFixed(1);
+    designerMinHeightMaxInput.value = currentDesignerBasis.minTerrainHeightRange 1 .toFixed(1);
+    designerMaxHeightMinInput.value = currentDesignerBasis.maxTerrainHeightRange 0 .toFixed(1);
+    designerMaxHeightMaxInput.value = currentDesignerBasis.maxTerrainHeightRange 1 .toFixed(1);
+    designerOceanHeightMinInput.value = currentDesignerBasis.oceanHeightRange 0 .toFixed(1);
+    designerOceanHeightMaxInput.value = currentDesignerBasis.oceanHeightRange.toFixed(1);
+  }
+
+  function _updateBasisAndRefreshDesignerPreview() {
+    if (!designerWaterColorInput) { // Check if DOM elements are ready
+        console.warn("PlanetDesigner: Inputs not ready for _updateBasisAndRefreshDesignerPreview");
+        return;
+    }
+    currentDesignerBasis.waterColor = designerWaterColorInput.value;
+    currentDesignerBasis.landColor = designerLandColorInput.value;
+
+    let minH_min = parseFloat(designerMinHeightMinInput.value) || 0.0;
+    let minH_max = parseFloat(designerMinHeightMaxInput.value) || 0.0;
+    let maxH_min = parseFloat(designerMaxHeightMinInput.value) || 0.0;
+    let maxH_max = parseFloat(designerMaxHeightMaxInput.value) || 0.0;
+    let oceanH_min = parseFloat(designerOceanHeightMinInput.value) || 0.0;
+    let oceanH_max = parseFloat(designerOceanHeightMaxInput.value) || 0.0;
+
+    // Ensure min <= max for each individual range
+    if (minH_min > minH_max) [minH_min, minH_max] = [minH_max, minH_min];
+    if (maxH_min > maxH_max) [maxH_min, maxH_max] = [maxH_max, maxH_min];
+    if (oceanH_min > oceanH_max) [oceanH_min, oceanH_max] = [oceanH_max, oceanH_min];
+
+    // Ensure non-negative values
+    minH_min = Math.max(0, minH_min); minH_max = Math.max(0, minH_max);
+    maxH_min = Math.max(0, maxH_min); maxH_max = Math.max(0, maxH_max);
+    oceanH_min = Math.max(0, oceanH_min); oceanH_max = Math.max(0, oceanH_max);
+
+    // Cascade adjustments to prevent illogical overlaps (somewhat opinionated ordering)
+    // 1. Ensure min terrain max is above ocean min
+    if (minH_max >= oceanH_min) oceanH_min = parseFloat((minH_max + 0.1).toFixed(1));
+    // 2. Ensure ocean max is above new ocean min
+    if (oceanH_min >= oceanH_max) oceanH_max = parseFloat((oceanH_min + 0.1).toFixed(1));
+    // 3. Ensure max terrain min is above new ocean max
+    if (oceanH_max >= maxH_min) maxH_min = parseFloat((oceanH_max + 0.1).toFixed(1));
+    // 4. Ensure max terrain max is above new max terrain min
+    if (maxH_min >= maxH_max) maxH_max = parseFloat((maxH_min + 0.1).toFixed(1));
+
+
+    currentDesignerBasis.minTerrainHeightRange = [minH_min, minH_max];
+    currentDesignerBasis.maxTerrainHeightRange = [maxH_min, maxH_max];
+    currentDesignerBasis.oceanHeightRange = [oceanH_min, oceanH_max];
+    // ContinentSeed is not changed by these inputs
+
+    _populateDesignerInputsFromBasis(); // Re-populate to reflect any auto-corrections
+    _generateAndRenderDesignerPreviewInstance(false); // Don't reset rotation if user is just tweaking sliders
+  }
+
+  function _randomizeDesignerPlanet() {
+    currentDesignerBasis.waterColor = _getRandomHexColor();
+    currentDesignerBasis.landColor = _getRandomHexColor();
+    currentDesignerBasis.continentSeed = Math.random();
+
+    // Generate somewhat logical random ranges for terrain
+    let minH_min = _getRandomFloat(0.0, 1.0);
+    let minH_max = _getRandomFloat(minH_min + 0.5, minH_min + 2.5);
+
+    let oceanH_min = _getRandomFloat(minH_max + 0.1, minH_max + 1.0);
+    let oceanH_max = _getRandomFloat(oceanH_min + 0.5, oceanH_min + 2.0);
+
+    let maxH_min = _getRandomFloat(oceanH_max + 0.1, oceanH_max + 3.0);
+    let maxH_max = _getRandomFloat(maxH_min + 1.0, maxH_min + 5.0);
+
+    currentDesignerBasis.minTerrainHeightRange = [minH_min, minH_max];
+    currentDesignerBasis.maxTerrainHeightRange = [maxH_min, maxH_max];
+    currentDesignerBasis.oceanHeightRange = [oceanH_min, oceanH_max];
+
+    _populateDesignerInputsFromBasis();
+    _generateAndRenderDesignerPreviewInstance(true); // Reset rotation for a new random look
+  }
+
+  // --- SAVED DESIGNS MANAGEMENT ---
+  function _saveCustomPlanetDesign() {
+    const designName = prompt("Enter a name for this planet design:", "My Custom Planet"); // [2, 3, 4, 5, 6]
+    if (designName === null || designName.trim() === "") { // User cancelled or entered nothing
+        return;
+    }
+
+    const newDesign = {
+        designId: _generateUUID(),
+        designName: designName.trim(),
+        ...JSON.parse(JSON.stringify(currentDesignerBasis)) // Deep copy of basis values
+    };
+
+    if (window.gameSessionData && Array.isArray(window.gameSessionData.customPlanetDesigns)) {
+        window.gameSessionData.customPlanetDesigns.push(newDesign);
+        if (typeof window.saveGameState === 'function') {
+            window.saveGameState(); // Persist to localStorage via script.js
+        } else {
+            console.warn("PlanetDesigner: window.saveGameState function not found.");
+        }
+        _populateSavedDesignsList();
+    } else {
+        console.error("PlanetDesigner: window.gameSessionData.customPlanetDesigns is not available.");
+    }
+  }
+
+  function _loadAndPreviewDesign(designId) {
+    if (window.gameSessionData && Array.isArray(window.gameSessionData.customPlanetDesigns)) {
+        const designToLoad = window.gameSessionData.customPlanetDesigns.find(d => d.designId === designId);
+        if (designToLoad) {
+            currentDesignerBasis = { ...JSON.parse(JSON.stringify(designToLoad)) }; // Deep copy
+            // Remove designId and designName from basis if they were copied
+            delete currentDesignerBasis.designId;
+            delete currentDesignerBasis.designName;
+            
+            _populateDesignerInputsFromBasis();
+            _generateAndRenderDesignerPreviewInstance(true); // Reset rotation when loading a saved design
+        } else {
+            console.warn("PlanetDesigner: Could not find design with ID:", designId);
+        }
+    } else {
+        console.error("PlanetDesigner: window.gameSessionData.customPlanetDesigns is not available for loading.");
+    }
+  }
+
+  function _deleteCustomPlanetDesign(designId) {
+     if (window.gameSessionData && Array.isArray(window.gameSessionData.customPlanetDesigns)) {
+        const initialLength = window.gameSessionData.customPlanetDesigns.length;
+        window.gameSessionData.customPlanetDesigns = window.gameSessionData.customPlanetDesigns.filter(d => d.designId !== designId);
+        
+        if (window.gameSessionData.customPlanetDesigns.length < initialLength) {
+            if (typeof window.saveGameState === 'function') {
+                window.saveGameState();
+            }
+            _populateSavedDesignsList(); // Refresh the list UI
+            console.log("PlanetDesigner: Deleted design ID:", designId);
+        } else {
+            console.warn("PlanetDesigner: Design ID not found for deletion:", designId);
+        }
+    } else {
+        console.error("PlanetDesigner: window.gameSessionData.customPlanetDesigns is not available for deletion.");
+    }
+  }
+
+
+  function _populateSavedDesignsList() {
+    if (!savedDesignsUl) {
+        console.warn("PlanetDesigner: savedDesignsUl element not found.");
+        return;
+    }
+    savedDesignsUl.innerHTML = ''; // Clear existing list
+
+    if (window.gameSessionData && Array.isArray(window.gameSessionData.customPlanetDesigns) && window.gameSessionData.customPlanetDesigns.length > 0) {
+        window.gameSessionData.customPlanetDesigns.forEach(design => {
+            const li = document.createElement('li');
+            
+            const nameSpan = document.createElement('span');
+            nameSpan.className = 'design-item-name';
+            nameSpan.textContent = design.designName || 'Unnamed Design';
+            li.appendChild(nameSpan);
+
+            const loadBtn = document.createElement('button');
+            loadBtn.className = 'design-item-load modal-button-apply'; // Reusing modal style
+            loadBtn.textContent = 'Load';
+            loadBtn.dataset.id = design.designId;
+            li.appendChild(loadBtn);
+
+            const deleteBtn = document.createElement('button');
+            deleteBtn.className = 'design-item-delete';
+            deleteBtn.innerHTML = '&times;'; // Using a times symbol for delete
+            deleteBtn.title = 'Delete Design';
+            deleteBtn.dataset.id = design.designId;
+            li.appendChild(deleteBtn);
+
+            savedDesignsUl.appendChild(li);
+        });
+    } else {
+        const li = document.createElement('li');
+        li.textContent = 'No saved designs yet.';
+        li.style.textAlign = 'center';
+        li.style.fontStyle = 'italic';
+        savedDesignsUl.appendChild(li);
+    }
+  }
+
+  // --- RENDERING AND PLANET INTERACTION ---
+  function _resizeDesignerCanvasToDisplaySize() {
+    if (!designerPlanetCanvas) {
+      console.warn("PlanetDesigner: _resizeDesignerCanvasToDisplaySize - canvas not found.");
+      return;
+    }
+    const displayWidth = designerPlanetCanvas.offsetWidth;
+    const displayHeight = designerPlanetCanvas.offsetHeight;
+    if (displayWidth && displayHeight) {
+      if (designerPlanetCanvas.width !== displayWidth || designerPlanetCanvas.height !== displayHeight) {
+        designerPlanetCanvas.width = displayWidth;
+        designerPlanetCanvas.height = displayHeight;
+        console.log(`PlanetDesigner: Canvas resized to ${designerPlanetCanvas.width}x${designerPlanetCanvas.height}`);
+      }
+    } else {
+      // If canvas is not yet in layout / display:none, offsetWidth/Height might be 0.
+      // Retry on next frame, hoping CSS has kicked in.
+      requestAnimationFrame(_resizeDesignerCanvasToDisplaySize);
+    }
+  }
+
+  function _renderDesignerPlanetInternal() {
+    if (isRenderingDesignerPlanet || !window.designerWorker || !currentDesignerPlanetInstance || !designerPlanetCanvas) {
+      // ... (logging as before) ...
+      return;
+    }
+    if (designerPlanetCanvas.width === 0 || designerPlanetCanvas.height === 0) {
+      // ... (handling for 0-dim canvas as before) ...
+      requestAnimationFrame(() => {
+        _resizeDesignerCanvasToDisplaySize();
+        if (designerPlanetCanvas.width > 0 && designerPlanetCanvas.height > 0) {
+          _renderDesignerPlanetInternal();
+        }
+      });
+      return;
+    }
+    isRenderingDesignerPlanet = true;
+    window.renderPlanetVisual(currentDesignerPlanetInstance, designerPlanetRotationQuat, designerPlanetCanvas);
+  }
+
+  function _generateAndRenderDesignerPreviewInstance(resetRotation = false) {
+    if (typeof window.generatePlanetInstanceFromBasis !== 'function') {
+        console.error("PlanetDesigner: window.generatePlanetInstanceFromBasis is not defined!");
+        return;
+    }
+    currentDesignerPlanetInstance = window.generatePlanetInstanceFromBasis(currentDesignerBasis, true); // true for designer preview (uses currentDesignerBasis.continentSeed)
+    if (resetRotation && typeof window.quat_identity === 'function') {
+        designerPlanetRotationQuat = window.quat_identity();
+    }
+    _resizeDesignerCanvasToDisplaySize(); 
+    _renderDesignerPlanetInternal();
+  }
+
+  // --- MOUSE EVENT HANDLERS for planet rotation ---
+  function _onDesignerCanvasMouseDown(e) {
+    if (e.button !== 0 || !currentDesignerPlanetInstance || !designerPlanetCanvas) return;
+    isDraggingDesignerPlanet = true;
+    startDragDesignerPlanetQuat = [...designerPlanetRotationQuat];
+    designerStartDragMouseX = e.clientX;
+    designerStartDragMouseY = e.clientY;
+    if (designerPlanetCanvas) designerPlanetCanvas.classList.add('dragging');
+    e.preventDefault();
+  }
+
+  function _onWindowMouseMove(e) {
+    if (isDraggingDesignerPlanet && designerPlanetCanvas) {
+      const rect = designerPlanetCanvas.getBoundingClientRect();
+      const canvasEffectiveWidth = (designerPlanetCanvas.width > 0 ? designerPlanetCanvas.width : designerPlanetCanvas.offsetWidth) || 1;
+      const canvasEffectiveHeight = (designerPlanetCanvas.height > 0 ? designerPlanetCanvas.height : designerPlanetCanvas.offsetHeight) || 1;
+      if (canvasEffectiveWidth === 0 || canvasEffectiveHeight === 0) return;
+
+      const deltaX = e.clientX - designerStartDragMouseX;
+      const deltaY = e.clientY - designerStartDragMouseY;
+      const rotationSensitivity = typeof window.PLANET_ROTATION_SENSITIVITY === 'number' ? window.PLANET_ROTATION_SENSITIVITY : 0.75;
+
+      const rotationAroundX = (deltaY / canvasEffectiveHeight) * Math.PI * rotationSensitivity;
+      const rotationAroundY = (deltaX / canvasEffectiveWidth) * (2 * Math.PI) * rotationSensitivity;
+
+      if (typeof window.quat_from_axis_angle !== 'function' || typeof window.quat_multiply !== 'function' || typeof window.quat_normalize !== 'function') {
+          console.error("PlanetDesigner: Quaternion math functions not found on window!");
+          isDraggingDesignerPlanet = false; // Stop dragging if math is broken
+          return;
+      }
+      const xAxisRotationQuat = window.quat_from_axis_angle([1, 0, 0], -rotationAroundX);
+      const yAxisRotationQuat = window.quat_from_axis_angle([0, 1, 0], rotationAroundY);
+      const incrementalRotationQuat = window.quat_multiply(yAxisRotationQuat, xAxisRotationQuat);
+      designerPlanetRotationQuat = window.quat_normalize(window.quat_multiply(incrementalRotationQuat, startDragDesignerPlanetQuat));
+      _renderDesignerPlanetInternal();
+    }
+  }
+
+  function _onWindowMouseUp() {
+    if (isDraggingDesignerPlanet) {
+      isDraggingDesignerPlanet = false;
+      if(designerPlanetCanvas) designerPlanetCanvas.classList.remove('dragging');
+    }
+  }
+
+  // --- PUBLIC API ---
+  return {
+    init: () => {
+      designerPlanetCanvas = document.getElementById('designer-planet-canvas');
+      designerWaterColorInput = document.getElementById('designer-water-color');
+      designerLandColorInput = document.getElementById('designer-land-color');
+      designerMinHeightMinInput = document.getElementById('designer-min-height-min');
+      designerMinHeightMaxInput = document.getElementById('designer-min-height-max');
+      designerMaxHeightMinInput = document.getElementById('designer-max-height-min');
+      designerMaxHeightMaxInput = document.getElementById('designer-max-height-max');
+      designerOceanHeightMinInput = document.getElementById('designer-ocean-height-min');
+      designerOceanHeightMaxInput = document.getElementById('designer-ocean-height-max');
+      savedDesignsUl = document.getElementById('saved-designs-ul');
+      designerRandomizeBtn = document.getElementById('designer-randomize-btn');
+      designerSaveBtn = document.getElementById('designer-save-btn');
+      designerCancelBtn = document.getElementById('designer-cancel-btn');
+      planetDesignerScreenElement = document.getElementById('planet-designer-screen');
+
+      console.log("PlanetDesigner.init called. designerPlanetCanvas:", !!designerPlanetCanvas, "window.designerWorker:", !!window.designerWorker);
+
+      if (typeof window.quat_identity === 'function') {
+        designerPlanetRotationQuat = window.quat_identity();
+        startDragDesignerPlanetQuat = window.quat_identity();
+      } else {
+        console.error("PlanetDesigner: window.quat_identity function not found! Rotation may fail.");
+        designerPlanetRotationQuat = [1,0,0,0]; // Fallback
+        startDragDesignerPlanetQuat = [1,0,0,0];
+      }
+      
+      // Ensure all defaults are assigned *after* window.DEFAULT_... constants are set by script.js
+      currentDesignerBasis.minTerrainHeightRange = [window.DEFAULT_MIN_TERRAIN_HEIGHT || 0.0, (window.DEFAULT_MIN_TERRAIN_HEIGHT || 0.0) + 2.0];
+      currentDesignerBasis.maxTerrainHeightRange = [window.DEFAULT_MAX_TERRAIN_HEIGHT || 8.0, (window.DEFAULT_MAX_TERRAIN_HEIGHT || 8.0) + 4.0];
+      currentDesignerBasis.oceanHeightRange = [window.DEFAULT_OCEAN_HEIGHT_LEVEL || 1.0, (window.DEFAULT_OCEAN_HEIGHT_LEVEL || 1.0) + 2.0];
+      currentDesignerBasis.continentSeed = Math.random(); // Initialize with a random seed
+
+      // Event Listeners
+      if (designerPlanetCanvas) designerPlanetCanvas.addEventListener('mousedown', _onDesignerCanvasMouseDown);
+      window.addEventListener('mousemove', _onWindowMouseMove); // Shared listeners
+      window.addEventListener('mouseup', _onWindowMouseUp);     // Shared listeners
+
+      const inputsToWatch = [
+        designerWaterColorInput, designerLandColorInput,
         designerMinHeightMinInput, designerMinHeightMaxInput,
         designerMaxHeightMinInput, designerMaxHeightMaxInput,
-        designerOceanHeightMinInput, designerOceanHeightMaxInput,
-        savedDesignsUl, designerRandomizeBtn, designerSaveBtn, designerCancelBtn;
+        designerOceanHeightMinInput, designerOceanHeightMaxInput
+      ];
+      inputsToWatch.forEach(input => {
+        if (input) input.addEventListener('change', _updateBasisAndRefreshDesignerPreview);
+      });
 
-    // State specific to the Planet Designer
-    let currentDesignerBasis = {
-        waterColor: '#000080',
-        landColor: '#006400',
-        continentSeed: Math.random(),
-        minTerrainHeightRange: [0.0, 2.0],
-        maxTerrainHeightRange: [8.0, 12.0],
-        oceanHeightRange: [1.0, 3.0]
-    };
-    let currentDesignerPlanetInstance = null;
-    let designerPlanetRotationQuat = [1, 0, 0, 0];
-    let startDragDesignerPlanetQuat = [1, 0, 0, 0];
-    let designerStartDragMouseX = 0;
-    let designerStartDragMouseY = 0;
-    let isDraggingDesignerPlanet = false;
-    let isRenderingDesignerPlanet = false;
+      if (designerRandomizeBtn) designerRandomizeBtn.addEventListener('click', _randomizeDesignerPlanet);
+      if (designerSaveBtn) designerSaveBtn.addEventListener('click', _saveCustomPlanetDesign);
+      if (designerCancelBtn) {
+          designerCancelBtn.addEventListener('click', () => {
+              if (window.setActiveScreen && window.mainScreen) {
+                  window.setActiveScreen(window.mainScreen);
+              } else if (window.switchToMainView) { 
+                  window.switchToMainView();
+              } else {
+                  console.warn("PlanetDesigner: Cannot navigate back.");
+              }
+          });
+      }
 
-    function _resizeDesignerCanvasToDisplaySize() {
-        if (!designerPlanetCanvas) {
-            console.warn("PlanetDesigner: _resizeDesignerCanvasToDisplaySize - canvas not found.");
-            return;
+      if (savedDesignsUl) {
+          savedDesignsUl.addEventListener('click', (e) => {
+              const target = e.target;
+              if (target.classList.contains('design-item-load') && target.dataset.id) {
+                  _loadAndPreviewDesign(target.dataset.id);
+              } else if (target.classList.contains('design-item-delete') && target.dataset.id) {
+                  if (confirm("Are you sure you want to delete this planet design?")) {
+                      _deleteCustomPlanetDesign(target.dataset.id);
+                  }
+              }
+          });
+      }
+    },
+    activate: () => {
+      console.log("PlanetDesigner.activate called.");
+       // Re-ensure canvas is available (in case activate is called before element fully in DOM, though unlikely with DOMContentLoaded)
+      if (!designerPlanetCanvas) designerPlanetCanvas = document.getElementById('designer-planet-canvas');
+
+      _populateDesignerInputsFromBasis();
+      _populateSavedDesignsList();
+      _resizeDesignerCanvasToDisplaySize(); 
+      requestAnimationFrame(() => { 
+        console.log("PlanetDesigner: rAF in activate firing for initial render.");
+        _generateAndRenderDesignerPreviewInstance(true); // Reset rotation on activation
+      });
+    },
+    handleDesignerWorkerMessage: ({ renderedData, width, height }) => {
+      console.log("PlanetDesigner: handleDesignerWorkerMessage received from worker.");
+      if (designerPlanetCanvas) {
+        const ctx = designerPlanetCanvas.getContext('2d');
+        if (!ctx) {
+          console.error("PlanetDesigner: Failed to get 2D context from designerPlanetCanvas in worker message handler.");
+          isRenderingDesignerPlanet = false;
+          return;
         }
-        const displayWidth = designerPlanetCanvas.offsetWidth;
-        const displayHeight = designerPlanetCanvas.offsetHeight;
-        // console.log(`PlanetDesigner: Resizing. Offset W/H: ${displayWidth}/${displayHeight}. Current W/H: ${designerPlanetCanvas.width}/${designerPlanetCanvas.height}`);
-        if (displayWidth && displayHeight) {
-            if (designerPlanetCanvas.width !== displayWidth || designerPlanetCanvas.height !== displayHeight) {
-                designerPlanetCanvas.width = displayWidth;
-                designerPlanetCanvas.height = displayHeight;
-                console.log(`PlanetDesigner: Canvas resized to ${designerPlanetCanvas.width}x${designerPlanetCanvas.height}`);
-            }
-        } else {
-            requestAnimationFrame(_resizeDesignerCanvasToDisplaySize);
+        ctx.clearRect(0, 0, designerPlanetCanvas.width, designerPlanetCanvas.height);
+        if (renderedData && width && height) {
+          try {
+            const clampedArray = new Uint8ClampedArray(renderedData);
+            const imageDataObj = new ImageData(clampedArray, width, height);
+            ctx.putImageData(imageDataObj, 0, 0);
+          } catch (err) {
+            console.error("PlanetDesigner: Error putting ImageData on designerPlanetCanvas:", err);
+          }
         }
+      }
+      isRenderingDesignerPlanet = false;
     }
-
-    function _populateDesignerInputsFromBasis() {
-        // ... (content is the same, removed for brevity in this example, ensure yours is complete)
-         if (!designerWaterColorInput) return;
-            designerWaterColorInput.value = currentDesignerBasis.waterColor;
-            designerLandColorInput.value = currentDesignerBasis.landColor;
-            designerMinHeightMinInput.value = currentDesignerBasis.minTerrainHeightRange[0].toFixed(1);
-            designerMinHeightMaxInput.value = currentDesignerBasis.minTerrainHeightRange[1].toFixed(1);
-            designerMaxHeightMinInput.value = currentDesignerBasis.maxTerrainHeightRange[0].toFixed(1);
-            designerMaxHeightMaxInput.value = currentDesignerBasis.maxTerrainHeightRange[1].toFixed(1);
-            designerOceanHeightMinInput.value = currentDesignerBasis.oceanHeightRange[0].toFixed(1);
-            designerOceanHeightMaxInput.value = currentDesignerBasis.oceanHeightRange[1].toFixed(1);
-    }
-
-    function _renderDesignerPlanetInternal() {
-        console.log("PlanetDesigner: Attempting _renderDesignerPlanetInternal. isRendering:", isRenderingDesignerPlanet, "Worker?", !!window.designerWorker, "Instance?", !!currentDesignerPlanetInstance, "Canvas?", !!designerPlanetCanvas);
-        if (isRenderingDesignerPlanet || !window.designerWorker || !currentDesignerPlanetInstance || !designerPlanetCanvas) {
-            if (!window.designerWorker) console.warn("PlanetDesigner: Worker not available for preview rendering.");
-            if (!currentDesignerPlanetInstance) console.warn("PlanetDesigner: Instance not available for preview rendering.");
-            if (!designerPlanetCanvas) console.warn("PlanetDesigner: Canvas not available for preview rendering.");
-            if (isRenderingDesignerPlanet) console.log("PlanetDesigner: Bailed: Already rendering designer planet.");
-            return;
-        }
-         if (designerPlanetCanvas.width === 0 || designerPlanetCanvas.height === 0) {
-            console.warn(`PlanetDesigner: Canvas has 0 dimensions (W:${designerPlanetCanvas.width}, H:${designerPlanetCanvas.height}, offsetW:${designerPlanetCanvas.offsetWidth}). Scheduling resize and retry.`);
-            requestAnimationFrame(() => {
-                console.log("PlanetDesigner: rAF for resize/retry triggered for 0-dim canvas.");
-                _resizeDesignerCanvasToDisplaySize();
-                if (designerPlanetCanvas.width > 0 && designerPlanetCanvas.height > 0) {
-                     console.log("PlanetDesigner: Canvas now has dimensions after rAF. Retrying render.");
-                     _renderDesignerPlanetInternal();
-                } else {
-                    console.warn("PlanetDesigner: Canvas still 0 dimensions after rAF.offsetWidth:", designerPlanetCanvas.offsetWidth);
-                }
-            });
-            return;
-        }
-
-        console.log("PlanetDesigner: Setting isRenderingDesignerPlanet = true and calling window.renderPlanetVisual for designerPlanetCanvas");
-        isRenderingDesignerPlanet = true;
-        window.renderPlanetVisual(currentDesignerPlanetInstance, designerPlanetRotationQuat, designerPlanetCanvas);
-    }
-
-    function _generateAndRenderDesignerPreviewInstance(resetRotation = false) {
-        console.log("PlanetDesigner: _generateAndRenderDesignerPreviewInstance called. Reset rotation:", resetRotation);
-        currentDesignerPlanetInstance = window.generatePlanetInstanceFromBasis(currentDesignerBasis, true);
-        if (resetRotation) designerPlanetRotationQuat = window.quat_identity();
-        _resizeDesignerCanvasToDisplaySize(); // Ensure size before render attempt
-        _renderDesignerPlanetInternal();
-    }
-
-    function _updateBasisAndRefreshDesignerPreview() {
-         // ... (content is the same, ensure yours is complete)
-        if (!designerWaterColorInput) return;
-        currentDesignerBasis.waterColor = designerWaterColorInput.value;
-        currentDesignerBasis.landColor = designerLandColorInput.value;
-        let minH_min = parseFloat(designerMinHeightMinInput.value) || 0.0;
-        let minH_max = parseFloat(designerMinHeightMaxInput.value) || 0.0;
-        let maxH_min = parseFloat(designerMaxHeightMinInput.value) || 0.0;
-        let maxH_max = parseFloat(designerMaxHeightMaxInput.value) || 0.0;
-        let oceanH_min = parseFloat(designerOceanHeightMinInput.value) || 0.0;
-        let oceanH_max = parseFloat(designerOceanHeightMaxInput.value) || 0.0;
-        if (minH_min > minH_max) [minH_min, minH_max] = [minH_max, minH_min];
-        if (maxH_min > maxH_max) [maxH_min, maxH_max] = [maxH_max, maxH_min];
-        if (oceanH_min > oceanH_max) [oceanH_min, oceanH_max] = [oceanH_max, oceanH_min];
-        minH_min = Math.max(0, minH_min); minH_max = Math.max(0, minH_max);
-        maxH_min = Math.max(0, maxH_min); maxH_max = Math.max(0, maxH_max);
-        oceanH_min = Math.max(0, oceanH_min); oceanH_max = Math.max(0, oceanH_max);
-        if (minH_max > oceanH_min) oceanH_min = parseFloat((minH_max + 0.1).toFixed(1));
-        if (oceanH_min > oceanH_max) oceanH_max = parseFloat((oceanH_min + 0.1).toFixed(1));
-        if (oceanH_max > maxH_min) maxH_min = parseFloat((oceanH_max + 0.1).toFixed(1));
-        if (maxH_min > maxH_max) maxH_max = parseFloat((maxH_min + 0.1).toFixed(1));
-        currentDesignerBasis.minTerrainHeightRange = [minH_min, minH_max];
-        currentDesignerBasis.maxTerrainHeightRange = [maxH_min, maxH_max];
-        currentDesignerBasis.oceanHeightRange = [oceanH_min, oceanH_max];
-        _populateDesignerInputsFromBasis();
-        _generateAndRenderDesignerPreviewInstance();
-    }
-
-    function _randomizeDesignerPlanet() {
-        // ... (content is the same, ensure yours is complete)
-        _populateDesignerInputsFromBasis(); // ensure this is called
-        _generateAndRenderDesignerPreviewInstance(true); // ensure this is called
-    }
-
-    function _saveCustomPlanetDesign() {
-        // ... (content is the same, ensure yours is complete)
-        _populateSavedDesignsList(); // ensure this is called
-    }
-
-    function _loadAndPreviewDesign(designId) {
-        // ... (content is the same, ensure yours is complete)
-        _populateDesignerInputsFromBasis(); // ensure this is called
-        _generateAndRenderDesignerPreviewInstance(true); // ensure this is called
-    }
-
-    function _populateSavedDesignsList() {
-        // ... (content is the same for brevity, ensure yours is complete)
-    }
-
-    function _onDesignerCanvasMouseDown(e) {
-        // ... (content is the same)
-    }
-
-    function _onWindowMouseMove(e) { // This only handles designer planet drag now
-        if (isDraggingDesignerPlanet && designerPlanetCanvas) {
-            // ... (rest of the designer planet drag logic, ensure it calls _renderDesignerPlanetInternal or similar)
-            // For brevity, assuming the logic for calculating rotation and calling _renderDesignerPlanetInternal is correct
-            const rect = designerPlanetCanvas.getBoundingClientRect();
-            const canvasEffectiveWidth = (designerPlanetCanvas.width > 0 ? designerPlanetCanvas.width : rect.width) || 1;
-            const canvasEffectiveHeight = (designerPlanetCanvas.height > 0 ? designerPlanetCanvas.height : rect.height) || 1;
-            if (canvasEffectiveWidth === 0 || canvasEffectiveHeight === 0) return;
-
-            const deltaX = e.clientX - designerStartDragMouseX;
-            const deltaY = e.clientY - designerStartDragMouseY;
-
-            const rotationAroundX = (deltaY / canvasEffectiveHeight) * Math.PI * window.PLANET_ROTATION_SENSITIVITY;
-            const rotationAroundY = (deltaX / canvasEffectiveWidth) * (2 * Math.PI) * window.PLANET_ROTATION_SENSITIVITY;
-
-            const xAxisRotationQuat = window.quat_from_axis_angle([1, 0, 0], -rotationAroundX);
-            const yAxisRotationQuat = window.quat_from_axis_angle([0, 1, 0], rotationAroundY);
-
-            const incrementalRotationQuat = window.quat_multiply(yAxisRotationQuat, xAxisRotationQuat);
-            designerPlanetRotationQuat = window.quat_normalize(window.quat_multiply(incrementalRotationQuat, startDragDesignerPlanetQuat));
-
-            _renderDesignerPlanetInternal(); // Request render due to drag
-        }
-    }
-
-    function _onWindowMouseUp() {  // This only handles designer planet drag mouseup
-        if (isDraggingDesignerPlanet) {
-            isDraggingDesignerPlanet = false;
-            if(designerPlanetCanvas) designerPlanetCanvas.classList.remove('dragging');
-        }
-    }
-
-    return {
-        init: () => {
-            designerPlanetCanvas = document.getElementById('designer-planet-canvas');
-            // ... (get other designer DOM elements) ...
-            console.log("PlanetDesigner.init called. designerPlanetCanvas:", !!designerPlanetCanvas, "window.designerWorker:", !!window.designerWorker);
-
-            designerPlanetRotationQuat = window.quat_identity();
-            startDragDesignerPlanetQuat = window.quat_identity();
-            // Ensure all defaults are assigned *after* window.DEFAULT_... constants are set by script.js
-            currentDesignerBasis.minTerrainHeightRange = [window.DEFAULT_MIN_TERRAIN_HEIGHT || 0.0, (window.DEFAULT_MIN_TERRAIN_HEIGHT || 0.0) + 2.0];
-            currentDesignerBasis.maxTerrainHeightRange = [window.DEFAULT_MAX_TERRAIN_HEIGHT || 8.0, (window.DEFAULT_MAX_TERRAIN_HEIGHT || 8.0) + 4.0];
-            currentDesignerBasis.oceanHeightRange = [window.DEFAULT_OCEAN_HEIGHT_LEVEL || 1.0, (window.DEFAULT_OCEAN_HEIGHT_LEVEL || 1.0) + 2.0];
-
-            // ... (attach event listeners as before) ...
-            if (designerPlanetCanvas) designerPlanetCanvas.addEventListener('mousedown', _onDesignerCanvasMouseDown);
-            window.addEventListener('mousemove', _onWindowMouseMove);
-            window.addEventListener('mouseup', _onWindowMouseUp);
-            // Other listeners for buttons, inputs as they were
-        },
-        activate: () => {
-            console.log("PlanetDesigner.activate called.");
-            _populateDesignerInputsFromBasis();
-            _populateSavedDesignsList();
-            _resizeDesignerCanvasToDisplaySize(); // Call resize first
-            requestAnimationFrame(() => { // Then render on next frame
-                console.log("PlanetDesigner: rAF in activate firing for initial render.");
-                _generateAndRenderDesignerPreviewInstance(true);
-            });
-        },
-        handleDesignerWorkerMessage: ({ renderedData, width, height }) => {
-            console.log("PlanetDesigner: handleDesignerWorkerMessage received from worker.");
-            if (designerPlanetCanvas) {
-                const ctx = designerPlanetCanvas.getContext('2d');
-                if (!ctx) {
-                    console.error("PlanetDesigner: Failed to get 2D context from designerPlanetCanvas in worker message handler.");
-                    isRenderingDesignerPlanet = false;
-                    return;
-                }
-                ctx.clearRect(0, 0, designerPlanetCanvas.width, designerPlanetCanvas.height);
-                if (renderedData && width && height) {
-                    try {
-                        const clampedArray = new Uint8ClampedArray(renderedData);
-                        const imageDataObj = new ImageData(clampedArray, width, height);
-                        ctx.putImageData(imageDataObj, 0, 0);
-                        console.log("PlanetDesigner: Image data put on designer canvas.");
-                    } catch (err) {
-                        console.error("PlanetDesigner: Error putting ImageData on designerPlanetCanvas:", err);
-                    }
-                }
-            }
-            isRenderingDesignerPlanet = false;
-            console.log("PlanetDesigner: Set isRenderingDesignerPlanet = false.");
-        }
-    };
+  };
 })();

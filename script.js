@@ -43,21 +43,9 @@ document.addEventListener('DOMContentLoaded', () => {
     const zoomInButton = document.getElementById('zoom-in-btn');
     const zoomOutButton = document.getElementById('zoom-out-btn');
     const regenerateUniverseButton = document.getElementById('regenerate-universe-btn');
-    const customizeGenerationButton = document.getElementById('customize-generation-btn');
-    
-    console.log("customizeGenerationButton element:", customizeGenerationButton); 
+    const customizeGenerationButton = document.getElementById('customize-generation-btn');  
     
     const createPlanetDesignButton = document.getElementById('create-planet-design-btn');
-    const customizationModal = document.getElementById('customization-modal');
-    const applyCustomizationButton = document.getElementById('apply-customization-btn');
-    const cancelCustomizationButton = document.getElementById('cancel-customization-btn');
-    const numGalaxiesInput = document.getElementById('num-galaxies-input');
-    const minSSInput = document.getElementById('min-ss-input');
-    const maxSSInput = document.getElementById('max-ss-input');
-    const ssSpreadInput = document.getElementById('ss-spread-input');
-    const minPlanetsInput = document.getElementById('min-planets-input');
-    const maxPlanetsInput = document.getElementById('max-planets-input');
-    const showOrbitsInput = document.getElementById('show-orbits-input');
     const planetVisualPanel = document.getElementById('planet-visual-panel');
     const closePlanetVisualPanelBtn = document.getElementById('close-planet-visual-panel');
     const planetVisualPanelHeader = document.getElementById('planet-visual-panel-header');
@@ -415,7 +403,7 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     window.setActiveScreen = function (screenToShow) {
-        [mainScreen, galaxyDetailScreen, solarSystemScreen, planetDesignerScreen, customizationModal].forEach(s => {
+        [mainScreen, galaxyDetailScreen, solarSystemScreen, planetDesignerScreen].forEach(s => {
             if (s) s.classList.remove('active', 'panning-active');
         });
         if (screenToShow) { screenToShow.classList.add('active'); }
@@ -818,9 +806,6 @@ document.addEventListener('DOMContentLoaded', () => {
 
     // --- EVENT LISTENERS ---
     if (regenerateUniverseButton) regenerateUniverseButton.addEventListener('click', () => regenerateCurrentUniverseState(false));
-    if (customizeGenerationButton) customizeGenerationButton.addEventListener('click', () => { /* ... as before ... */ });
-    if (cancelCustomizationButton) cancelCustomizationButton.addEventListener('click', () => { customizationModal.classList.remove('visible'); window.setActiveScreen(mainScreen); });
-    if (applyCustomizationButton) applyCustomizationButton.addEventListener('click', () => { /* ... as before ... then: */ regenerateCurrentUniverseState(true); window.setActiveScreen(mainScreen); });
     if (createPlanetDesignButton) createPlanetDesignButton.addEventListener('click', switchToPlanetDesignerScreen);
 
     if (closePlanetVisualPanelBtn) closePlanetVisualPanelBtn.addEventListener('click', () => { if (planetVisualPanel) planetVisualPanel.classList.remove('visible'); currentPlanetDisplayedInPanel = null; });

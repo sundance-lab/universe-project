@@ -245,83 +245,109 @@ document.addEventListener('DOMContentLoaded', () => {
   }
 
 window.renderPlanetVisual = function (planetData, rotationQuaternion, targetCanvas) {
- if (!targetCanvas) {
-  console.error("renderPlanetVisual: targetCanvas is undefined or null.");
-  return;
- }
- const workerToUse = targetCanvas.id === 'planet-visual-canvas' ? planetVisualWorker :
-       (targetCanvas.id.startsWith('planet-icon-canvas-') ? planetVisualWorker : window.designerWorker);
+    // **** AGGRESSIVE DEBUG LOG - VERY FIRST LINE ****
+    console.log("%%% ENTERING RENDER_PLANET_VISUAL %%%", "Canvas ID:", targetCanvas ? targetCanvas.id : "targetCanvas_UNDEFINED", "PlanetData exists:", !!planetData);
 
- if (targetCanvas.id === 'planet-visual-canvas') {
-  if (isRenderingVisualPlanet) {
-   console.log("[renderPlanetVisual] Visual panel rendering already in progress. Queuing rerender if needed.");
-   needsPlanetVisualRerender = true;
-   return;
-  }
-  isRenderingVisualPlanet = true; 
- }
+    if (!targetCanvas) {
+        console.error("renderPlanetVisual: FATAL - targetCanvas is undefined or null. EXITING.");
+        return;
+    }
+    const canvasId = targetCanvas.id; // Get canvasId early for logging
 
- if (!planetData || !rotationQuaternion || !workerToUse) {
-  console.warn("renderPlanetVisual: Missing data, rotation, or appropriate worker.",
-   { planetDataExists: !!planetData, rotationQuaternionExists: !!rotationQuaternion, targetCanvasId: targetCanvas?.id, workerExists: !!workerToUse });
-  if (targetCanvas.id === 'planet-visual-canvas' && isRenderingVisualPlanet) {
-   isRenderingVisualPlanet = false; 
-  }
-  return;
- }
+    // **** AGGRESSIVE DEBUG LOG - AFTER targetCanvas CHECK ****
+    console.log("%%% RPV_DEBUG %%% Checked targetCanvas. ID:", canvasId);
 
- if (targetCanvas.width === 0 || targetCanvas.height === 0) {
-  console.warn(`renderPlanetVisual: Target canvas ${targetCanvas.id} has zero dimensions (W:${targetCanvas.width}, H:${targetCanvas.height}). Aborting worker call.`);
-  if (targetCanvas.id === 'planet-visual-canvas' && isRenderingVisualPlanet) {
-   isRenderingVisualPlanet = false; 
-  }
-  return;
- }
+    const workerToUse = targetCanvas.id === 'planet-visual-canvas' ? planetVisualWorker :
+                     (targetCanvas.id.startsWith('planet-icon-canvas-') ? planetVisualWorker : window.designerWorker);
 
- const pD = { ...planetData }; 
-
- if (pD.continentSeed === undefined) pD.continentSeed = Math.random();
- if (!pD.waterColor) pD.waterColor = '#000080'; 
- if (!pD.landColor) pD.landColor = '#006400';  
- pD.minTerrainHeight = (typeof pD.minTerrainHeight === 'number' && !isNaN(pD.minTerrainHeight)) ? pD.minTerrainHeight : (window.DEFAULT_MIN_TERRAIN_HEIGHT || 0.0);
- pD.maxTerrainHeight = (typeof pD.maxTerrainHeight === 'number' && !isNaN(pD.maxTerrainHeight)) ? pD.maxTerrainHeight : (window.DEFAULT_MAX_TERRAIN_HEIGHT || 10.0);
- pD.oceanHeightLevel = (typeof pD.oceanHeightLevel === 'number' && !isNaN(pD.oceanHeightLevel)) ? pD.oceanHeightLevel : (window.DEFAULT_OCEAN_HEIGHT_LEVEL || 2.0);
+    // **** AGGRESSIVE DEBUG LOG - AFTER workerToUse ****
+    console.log("%%% RPV_DEBUG %%% Determined workerToUse. Target ID:", canvasId, "Worker exists:", !!workerToUse);
 
 
- const dataToSend = {
-  waterColor: pD.waterColor,
-  landColor: pD.landColor,
-  continentSeed: pD.continentSeed,
-  minTerrainHeight: pD.minTerrainHeight,
-  maxTerrainHeight: pD.maxTerrainHeight,
-  oceanHeightLevel: pD.oceanHeightLevel,
- };
- const canvasId = targetCanvas.id;
+    if (targetCanvas.id === 'planet-visual-canvas') {
+        if (isRenderingVisualPlanet) {
+            console.log("[renderPlanetVisual] Visual panel rendering already in progress for " + canvasId + ". Queuing rerender if needed.");
+            needsPlanetVisualRerender = true;
+            return;
+        }
+        isRenderingVisualPlanet = true;
+    }
 
- // **** THIS IS THE CRUCIAL DEBUG LOGGING ****
- console.log(`[renderPlanetVisual] Preparing to render for canvas: "${canvasId}"`,
-  `Seed: ${dataToSend.continentSeed.toFixed(4)}, ` +
-  `OceanLvl: ${dataToSend.oceanHeightLevel.toFixed(2)}, ` +
-  `MinH: ${dataToSend.minTerrainHeight.toFixed(2)}, ` +
-  `MaxH: ${dataToSend.maxTerrainHeight.toFixed(2)}`
- );
+    if (!planetData || !rotationQuaternion || !workerToUse) {
+        console.warn("renderPlanetVisual: Missing data, rotation, or appropriate worker for " + canvasId + ".",
+            { planetDataExists: !!planetData, rotationQuaternionExists: !!rotationQuaternion, targetCanvasId: targetCanvas?.id, workerExists: !!workerToUse });
+        if (targetCanvas.id === 'planet-visual-canvas' && isRenderingVisualPlanet) {
+            isRenderingVisualPlanet = false;
+        }
+        return;
+    }
 
- let radiusOverride;
- if (canvasId === 'designer-planet-canvas' || canvasId.startsWith('planet-icon-canvas-')) {
-  radiusOverride = Math.min(targetCanvas.width, targetCanvas.height) / 2 * 0.9; 
- }
+    // **** AGGRESSIVE DEBUG LOG - BEFORE DIMENSION CHECK ****
+    console.log("%%% RPV_DEBUG %%% Data/worker checks passed for " + canvasId + ". Canvas W:", targetCanvas.width, "H:", targetCanvas.height);
 
- workerToUse.postMessage({
-  cmd: 'renderPlanet',
-  planetData: dataToSend,
-  rotationQuaternion,
-  canvasWidth: targetCanvas.width,
-  canvasHeight: targetCanvas.height,
-  senderId: canvasId,
-  planetRadiusOverride: radiusOverride
- });
-}
+    if (targetCanvas.width === 0 || targetCanvas.height === 0) {
+        console.warn(`renderPlanetVisual: Target canvas ${canvasId} has zero dimensions (W:${targetCanvas.width}, H:${targetCanvas.height}). Aborting worker call.`);
+        if (targetCanvas.id === 'planet-visual-canvas' && isRenderingVisualPlanet) {
+            isRenderingVisualPlanet = false;
+        }
+        // For zero-dimension icons, let's try to defer via rAF
+        if (canvasId.startsWith('planet-icon-canvas-')) {
+            console.log(`%%% RPV_DEBUG %%% Deferring render for zero-dim icon ${canvasId} via rAF.`);
+            requestAnimationFrame(() => {
+                console.log(`%%% RPV_DEBUG %%% rAF callback for ${canvasId}. Retrying renderPlanetVisual.`);
+                window.renderPlanetVisual(planetData, rotationQuaternion, targetCanvas);
+            });
+        }
+        return;
+    }
 
+    const pD = { ...planetData };
+
+    if (pD.continentSeed === undefined) pD.continentSeed = Math.random();
+    if (!pD.waterColor) pD.waterColor = '#000080';
+    if (!pD.landColor) pD.landColor = '#006400';
+    pD.minTerrainHeight = (typeof pD.minTerrainHeight === 'number' && !isNaN(pD.minTerrainHeight)) ? pD.minTerrainHeight : (window.DEFAULT_MIN_TERRAIN_HEIGHT || 0.0);
+    pD.maxTerrainHeight = (typeof pD.maxTerrainHeight === 'number' && !isNaN(pD.maxTerrainHeight)) ? pD.maxTerrainHeight : (window.DEFAULT_MAX_TERRAIN_HEIGHT || 10.0);
+    pD.oceanHeightLevel = (typeof pD.oceanHeightLevel === 'number' && !isNaN(pD.oceanHeightLevel)) ? pD.oceanHeightLevel : (window.DEFAULT_OCEAN_HEIGHT_LEVEL || 2.0);
+
+    const dataToSend = {
+        waterColor: pD.waterColor,
+        landColor: pD.landColor,
+        continentSeed: pD.continentSeed,
+        minTerrainHeight: pD.minTerrainHeight,
+        maxTerrainHeight: pD.maxTerrainHeight,
+        oceanHeightLevel: pD.oceanHeightLevel,
+    };
+
+    // **** THIS IS THE CRUCIAL ORIGINAL DEBUG LOGGING ****
+    console.log(`[renderPlanetVisual] Preparing to render for canvas: "${canvasId}"`,
+        `Seed: ${dataToSend.continentSeed.toFixed(4)}, ` +
+        `OceanLvl: ${dataToSend.oceanHeightLevel.toFixed(2)}, ` +
+        `MinH: ${dataToSend.minTerrainHeight.toFixed(2)}, ` +
+        `MaxH: ${dataToSend.maxTerrainHeight.toFixed(2)}`
+    );
+
+    let radiusOverride;
+    if (canvasId === 'designer-planet-canvas' || canvasId.startsWith('planet-icon-canvas-')) {
+        radiusOverride = Math.min(targetCanvas.width, targetCanvas.height) / 2 * 0.9;
+    }
+
+    // **** AGGRESSIVE DEBUG LOG - BEFORE POSTMESSAGE ****
+    console.log("%%% RPV_DEBUG %%% About to postMessage to worker for " + canvasId);
+
+    workerToUse.postMessage({
+        cmd: 'renderPlanet',
+        planetData: dataToSend,
+        rotationQuaternion,
+        canvasWidth: targetCanvas.width,
+        canvasHeight: targetCanvas.height,
+        senderId: canvasId,
+        planetRadiusOverride: radiusOverride
+    });
+
+    // **** AGGRESSIVE DEBUG LOG - AFTER POSTMESSAGE ****
+    console.log("%%% RPV_DEBUG %%% Message posted to worker for " + canvasId);
+};
   function switchToPlanetDesignerScreen() {
     setActiveScreen(planetDesignerScreen);
     if (window.PlanetDesigner && typeof window.PlanetDesigner.activate === 'function') {

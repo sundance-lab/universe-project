@@ -142,7 +142,8 @@
     </div>
 
   <script src="mathUtils.js"></script>
-  <script src="planetDesigner.js"></script>
-  <script src="script.js"></script>
+  <script src="planetDesigner.js"></script> {/* THIS MUST BE BEFORE script.js */}
+  <script src="planetVisualPanelManager.js"></script> {/* Order relative to script.js is also important if script.js calls its init */}
+  <script src="script.js"></script>   {/* Main script last, or at least after its dependencies */}
 </body>
 </html>

@@ -186,23 +186,28 @@ document.addEventListener('DOMContentLoaded', () => {
         console.error("Error in planetVisualWorker:", error.message, error.filename, error.lineno);
       };
 
-      // Modified: designerWorker messages are now handled by PlanetDesigner module
-      if (window.designerWorker) {
-          window.designerWorker.onmessage = function(e) {
-              const { renderedData, width, height, senderId } = e.data;
-              if (senderId === 'designer-planet-canvas') { // Check senderId
-                  if (window.PlanetDesigner && typeof window.PlanetDesigner.handleDesignerWorkerMessage === 'function') {
-                      window.PlanetDesigner.handleDesignerWorkerMessage({ renderedData, width, height });
-                  } else {
-                      console.error("PlanetDesigner module or handleDesignerWorkerMessage not found.");
-                  }
-              }
-              // If designerWorker handles other canvases, that logic would go here.
-          };
-          window.designerWorker.onerror = function(error) {
-              console.error("Error in designerWorker:", error.message, error.filename, error.lineno);
-          };
-      }
+// In script.js
+if (window.designerWorker) {
+    window.designerWorker.onmessage = function(e) {
+        const { renderedData, width, height, senderId } = e.data;
+        console.log(`script.js: designerWorker.onmessage received - senderId: ${senderId}`); // ADD THIS LOG
+
+        if (senderId === 'designer-planet-canvas') {
+            if (window.PlanetDesigner && typeof window.PlanetDesigner.handleDesignerWorkerMessage === 'function') {
+                console.log("script.js: Forwarding message to PlanetDesigner.handleDesignerWorkerMessage"); // ADD THIS LOG
+                window.PlanetDesigner.handleDesignerWorkerMessage({ renderedData, width, height });
+            } else {
+                console.error("script.js: PlanetDesigner module or handleDesignerWorkerMessage not found in worker callback.");
+            }
+        }
+        // If designerWorker handles other senderIds, that logic would go here.
+    };
+    window.designerWorker.onerror = function(error) { // Ensure this is also present
+        console.error("Error in designerWorker (from script.js):", error.message, error.filename, error.lineno);
+    };
+} else {
+    console.error("script.js: window.designerWorker is not initialized!"); // ADD THIS LOG
+}
 
     } catch (err) {
       console.error("Failed to create Web Workers. Make sure planetRendererWorker.js exists and is accessible.", err);

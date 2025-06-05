@@ -44,6 +44,9 @@ document.addEventListener('DOMContentLoaded', () => {
     const zoomOutButton = document.getElementById('zoom-out-btn');
     const regenerateUniverseButton = document.getElementById('regenerate-universe-btn');
     const customizeGenerationButton = document.getElementById('customize-generation-btn');
+    
+    console.log("customizeGenerationButton element:", customizeGenerationButton); 
+    
     const createPlanetDesignButton = document.getElementById('create-planet-design-btn');
     const customizationModal = document.getElementById('customization-modal');
     const applyCustomizationButton = document.getElementById('apply-customization-btn');

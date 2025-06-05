@@ -206,16 +206,29 @@ body {
   border: 2px solid var(--sun-actual-border-color, #FFA500); 
 }
 
+/* --- MODIFIED/NEW Planet Icon Styles --- */
 .planet-icon {
-  position: absolute;
-  border-radius: 50%;
+  position: absolute; /* For animation positioning */
+  border-radius: 50%; /* Makes the clickable div area round */
   z-index: 4;
-  cursor: default;
-  transform-origin: center center;
+  transform-origin: center center; /* For CSS axial rotation */
+  
+  /* REMOVE any direct background styling from .planet-icon itself if present */
+  /* e.g., background: some-color; */
+  /* box-shadow: 0 0 3px rgba(150, 150, 200, 0.2); /* Optional subtle shadow */
+  /* The above box-shadow is now applied in JS, so it can be dynamic or removed from here */
 }
-
 .planet-icon.clickable-when-paused {
   cursor: pointer;
+}
+
+/* Style for the canvas INSIDE the planet icon div */
+.planet-icon canvas {
+  display: block; /* Important to remove extra space if canvas is inline-block */
+  width: 100%;    /* Make the canvas fill its parent .planet-icon div */
+  height: 100%;
+  border-radius: 50%; /* Visually make the canvas output round */
+  object-fit: cover; /* Usually not needed if aspect ratio is 1:1, but good practice */
 }
 
 .sun-animated {

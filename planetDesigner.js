@@ -52,20 +52,20 @@ window.PlanetDesigner = (() => {
 
 
   // --- UI AND BASIS MANAGEMENT ---
-  function _populateDesignerInputsFromBasis() {
-    if (!designerWaterColorInput || !designerLandColorInput || !designerMinHeightMinInput) {
-        console.warn("PlanetDesigner: Cannot populate inputs, DOM elements not ready.");
-        return;
-    }
-    designerWaterColorInput.value = currentDesignerBasis.waterColor;
-    designerLandColorInput.value = currentDesignerBasis.landColor;
-    designerMinHeightMinInput.value = currentDesignerBasis.minTerrainHeightRange 0 .toFixed(1);
-    designerMinHeightMaxInput.value = currentDesignerBasis.minTerrainHeightRange 1 .toFixed(1);
-    designerMaxHeightMinInput.value = currentDesignerBasis.maxTerrainHeightRange 0 .toFixed(1);
-    designerMaxHeightMaxInput.value = currentDesignerBasis.maxTerrainHeightRange 1 .toFixed(1);
-    designerOceanHeightMinInput.value = currentDesignerBasis.oceanHeightRange 0 .toFixed(1);
-    designerOceanHeightMaxInput.value = currentDesignerBasis.oceanHeightRange.toFixed(1);
+ function _populateDesignerInputsFromBasis() {
+  if (!designerWaterColorInput || !designerLandColorInput || !designerMinHeightMinInput) {
+    console.warn("PlanetDesigner: Cannot populate inputs, DOM elements not ready.");
+    return;
   }
+  designerWaterColorInput.value = currentDesignerBasis.waterColor;
+  designerLandColorInput.value = currentDesignerBasis.landColor;
+  designerMinHeightMinInput.value = currentDesignerBasis.minTerrainHeightRange[0].toFixed(1); // Corrected
+  designerMinHeightMaxInput.value = currentDesignerBasis.minTerrainHeightRange[1].toFixed(1); // Corrected
+  designerMaxHeightMinInput.value = currentDesignerBasis.maxTerrainHeightRange[0].toFixed(1); // Corrected
+  designerMaxHeightMaxInput.value = currentDesignerBasis.maxTerrainHeightRange[1].toFixed(1); // Corrected
+  designerOceanHeightMinInput.value = currentDesignerBasis.oceanHeightRange[0].toFixed(1); // Corrected
+  designerOceanHeightMaxInput.value = currentDesignerBasis.oceanHeightRange[1].toFixed(1); // Corrected
+ }
 
   function _updateBasisAndRefreshDesignerPreview() {
     if (!designerWaterColorInput) { // Check if DOM elements are ready

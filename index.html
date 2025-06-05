@@ -22,7 +22,7 @@
             </div>
             <div id="galaxy-viewport">
                 <div id="galaxy-zoom-content">
-                    <canvas id="solar-system-lines-canvas"></canvas>
+                  <canvas id="solar-system-lines-canvas"></canvas>
                 </div>
             </div>
             <button class="back-button" id="back-to-main">&larr; Universe</button>
@@ -74,7 +74,7 @@
                     <div class="saved-designs-list">
                         <h4>Saved Designs:</h4>
                         <ul id="saved-designs-ul">
-                            <!-- List items will be populated by JS -->
+                          <!-- List items will be populated by JS -->
                         </ul>
                     </div>
                 </div> <!-- END OF designer-controls -->
@@ -139,6 +139,22 @@
             <p><strong>Size:</strong> <span id="planet-visual-size">N/A</span> px</p>
             <canvas id="planet-visual-canvas" width="600" height="600"></canvas>
         </div>
- </div>
+    </div>
+<script type="module" src="js/central.js"></script></body>
+</html>
+Updated js/central.js (Example):
 
-<script type="module" src="js/central.js"></script></body> </html>
+// js/central.js
+// Import other modules as needed
+import { initializeAndDrawUniverse } from './universe.js'; //Example file
+import { attachEventListeners } from './event_listeners.js'; //Example file.  It is important to rename file naming!
+
+document.addEventListener('DOMContentLoaded', () => {
+    console.log('Central script loaded.');
+
+    //Initialization functions- replace what you need, as necessary.
+    initializeAndDrawUniverse();
+    attachEventListeners();
+
+    // Here is where you could run all other central application Logic
+});

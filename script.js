@@ -53,32 +53,46 @@ document.addEventListener('DOMContentLoaded', () => {
     // --- FUNCTION DEFINITIONS ---
 
     window.generatePlanetInstanceFromBasis = function (basis, isForDesignerPreview = false) {
-        const getValueFromRange = (range, defaultValue, defaultSpread = 1.0) => {
-            if (Array.isArray(range) && range.length === 2 && typeof range[0] === 'number' && typeof range[1] === 'number') {
-                const min = Math.min(range[0], range[1]);
-                const max = Math.max(range[0], range[1]);
-                if (min === max) return min;
-                return min + Math.random() * (max - min);
-            }
-            if (typeof range === 'number') return range; 
-            const base = typeof defaultValue === 'number' ? defaultValue : 0;
-            const spread = typeof defaultSpread === 'number' ? defaultSpread : 1.0;
-            if (isNaN(base) || isNaN(spread)) {
-                console.warn("Invalid default/spread in getValueFromRange, returning 0", { range, defaultValue, defaultSpread });
-                return 0;
-            }
-            return base + (Math.random() - 0.5) * spread * 2; 
-        };
+    const getValueFromRange = (range, defaultValue, defaultSpread = 1.0) => {
+      if (Array.isArray(range) && range.length === 2 && typeof range[0] === 'number' && typeof range[1] === 'number') {
+        const min = Math.min(range[0], range[1]);
+        const max = Math.max(range[0], range[1]);
+        if (min === max) return min;
+        return min + Math.random() * (max - min);
+      }
+      if (typeof range === 'number') return range; 
+      const base = typeof defaultValue === 'number' ? defaultValue : 0;
+      const spread = typeof defaultSpread === 'number' ? defaultSpread : 1.0;
+      if (isNaN(base) || isNaN(spread)) {
+        console.warn("Invalid default/spread in getValueFromRange, returning 0", { range, defaultValue, defaultSpread });
+        return 0;
+      }
+      return base + (Math.random() - 0.5) * spread * 2; 
+    };
 
-        return {
-            waterColor: basis.waterColor || '#0000FF',
-            landColor: basis.landColor || '#008000',
-            continentSeed: isForDesignerPreview ? (basis.continentSeed !== undefined ? basis.continentSeed : Math.random()) : Math.random(),
-            minTerrainHeight: getValueFromRange(basis.minTerrainHeightRange, window.DEFAULT_MIN_TERRAIN_HEIGHT, 1.0),
-            maxTerrainHeight: getValueFromRange(basis.maxTerrainHeightRange, window.DEFAULT_MAX_TERRAIN_HEIGHT, 2.0),
-            oceanHeightLevel: getValueFromRange(basis.oceanHeightRange, window.DEFAULT_OCEAN_HEIGHT_LEVEL, 1.0)
-        };
+    let seedToUse;
+    if (isForDesignerPreview) {
+        // For designer preview, use the basis's seed if present (e.g., when loading a design or an explicit seed is set by user).
+        // Otherwise, generate a new random one (e.g., for initial 'randomize' or if basis has no seed yet).
+        seedToUse = (basis.continentSeed !== undefined ? basis.continentSeed : Math.random());
+    } else {
+        // For actual planet instances (e.g., in solar system view, or when opening in visual panel from solar system).
+        // If the basis object itself has a continentSeed (meaning it's likely a full design object like those in customPlanetDesigns),
+        // then use that seed.This ensures that if a planet is "stamped" from a saved design, it uses that design's specific seed.
+        // If the basis is a more abstract template that doesn't specify a seed (e.g. a default procedural template), then generate a random one.
+        seedToUse = (basis.continentSeed !== undefined ? basis.continentSeed : Math.random());
     }
+
+    return {
+      waterColor: basis.waterColor || '#0000FF', // Default blue if not specified in basis
+      landColor: basis.landColor || '#008000',   // Default green if not specified in basis
+      continentSeed: seedToUse,
+      minTerrainHeight: getValueFromRange(basis.minTerrainHeightRange, window.DEFAULT_MIN_TERRAIN_HEIGHT, 1.0),
+      maxTerrainHeight: getValueFromRange(basis.maxTerrainHeightRange, window.DEFAULT_MAX_TERRAIN_HEIGHT, 2.0),
+      oceanHeightLevel: getValueFromRange(basis.oceanHeightRange, window.DEFAULT_OCEAN_HEIGHT_LEVEL, 1.0),
+      sourceDesignId: basis.designId || null // Pass through the ID of the design this instance is based on, if available
+    };
+  }
 
     // --- STATE VARIABLES ---
     let linesCtx;

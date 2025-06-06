@@ -1,7 +1,17 @@
-// script.js
+// public/js/script.js
+// Core Style Imports
+import '../styles.css';
 
-// Import animation functions from animationController.js
-import { startSolarSystemAnimation, stopSolarSystemAnimation, isSolarSystemAnimationRunning } from './animationController.js';
+// Import Modules (ES Module Syntax)
+import { startSolarSystemAnimation, stopSolarSystemAnimation } from './animationController.js';
+import * as PlanetDesigner from './planetDesigner.js';
+import * as PlanetVisualPanelManager from './planetVisualPanelManager.js';
+
+// Function to Attach Modules to Window (Needed for Legacy Reasons?)
+function initializeModules() {
+  window.PlanetDesigner = PlanetDesigner.PlanetDesigner;
+  window.PlanetVisualPanelManager = PlanetVisualPanelManager.PlanetVisualPanelManager;
+}
 
 document.addEventListener('DOMContentLoaded', () => {
   // Define constants FIRST, so functions defined below can access them

@@ -547,12 +547,8 @@ document.addEventListener('DOMContentLoaded', () => {
     if (zoomControlsElement) {
       zoomControlsElement.classList.toggle('visible', screenToShow === galaxyDetailScreen || screenToShow === solarSystemScreen);
     }
-
-    // Check for customizationModal state (assuming customizationModal is a valid DOM element)
-    // const customizationModal = document.getElementById('customization-modal'); // Example, if it exists
-    // const isCustomizationModalVisible = customizationModal && customizationModal.classList.contains('visible');
-    // For now, we assume no explicit customization modal shown this way, so this check is simplified.
-    const isOnOverlayScreen = screenToShow === planetDesignerScreen; // || isCustomizationModalVisible;
+    
+    const isOnOverlayScreen = screenToShow === planetDesignerScreen; 
                                                                  
     // Toggle visibility of general control buttons based on current screen
     if (regenerateUniverseButton) regenerateUniverseButton.style.display = isOnOverlayScreen ? 'none' : 'block';
@@ -563,7 +559,6 @@ document.addEventListener('DOMContentLoaded', () => {
         if (window.PlanetVisualPanelManager && typeof window.PlanetVisualPanelManager.hide === 'function') {
             window.PlanetVisualPanelManager.hide();
         }
-        // currentPlanetDisplayedInPanel = null; // This state is managed by PlanetVisualPanelManager
     }
   }
   window.mainScreen = mainScreen; // Expose for PlanetDesigner cancel button (already done)

@@ -1,0 +1,7 @@
+# General
+node_modules/
+dist/
+.parcel-cache/
+
+# System files
+.DS_Store

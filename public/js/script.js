@@ -1578,8 +1578,9 @@ document.addEventListener('DOMContentLoaded', () => {
     panningState.isActive = true;
     panningState.startX = event.clientX;
     panningState.startY = event.clientY;
-    panningState.initialPanX = dataObjectWithPanProperties.currentPanX || dataObjectWithPanProperties.zoomLevel /* typo, should be currentPanX/Y */;
-    panningState.initialPanY = dataObjectWithPanProperties.currentPanY || 0; // Corrected typo, default to 0
+    // In startPan() in script.js
+    panningState.initialPanX = dataObjectWithPanProperties.currentPanX || 0;
+    panningState.initialPanY = dataObjectWithPanProperties.currentPanY || 0;
     // Ensure correct keys are used:
     const panXKey = viewportElement === galaxyViewport ? 'currentPanX' : 'currentPanX'; // Same for solarSystemView
     const panYKey = viewportElement === galaxyViewport ? 'currentPanY' : 'currentPanY';

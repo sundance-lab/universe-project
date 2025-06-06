@@ -137,7 +137,7 @@ window.PlanetDesigner = (() => {
 
   // --- SAVED DESIGNS MANAGEMENT ---
   function _saveCustomPlanetDesign() {
-    const designName = prompt("Enter a name for this planet design:", "My Custom Planet"); // [2, 3, 4, 5, 6]
+      const designName = prompt("Enter a name for this planet design:", "My Custom Planet");
     if (designName === null || designName.trim() === "") { // User cancelled or entered nothing
         return;
     }
@@ -240,58 +240,101 @@ window.PlanetDesigner = (() => {
     }
   }
 
-  // --- RENDERING AND PLANET INTERACTION ---
-  function _resizeDesignerCanvasToDisplaySize() {
-    if (!designerPlanetCanvas) {
-      console.warn("PlanetDesigner: _resizeDesignerCanvasToDisplaySize - canvas not found.");
-      return;
-    }
-    const displayWidth = designerPlanetCanvas.offsetWidth;
-    const displayHeight = designerPlanetCanvas.offsetHeight;
-    if (displayWidth && displayHeight) {
-      if (designerPlanetCanvas.width !== displayWidth || designerPlanetCanvas.height !== displayHeight) {
-        designerPlanetCanvas.width = displayWidth;
-        designerPlanetCanvas.height = displayHeight;
-        console.log(`PlanetDesigner: Canvas resized to ${designerPlanetCanvas.width}x${designerPlanetCanvas.height}`);
-      }
-    } else {
-      // If canvas is not yet in layout / display:none, offsetWidth/Height might be 0.
-      // Retry on next frame, hoping CSS has kicked in.
-      requestAnimationFrame(_resizeDesignerCanvasToDisplaySize);
-    }
+// planetDesigner.js
+// ... (other code before this section) ...
+
+ function _resizeDesignerCanvasToDisplaySize() {
+  if (!designerPlanetCanvas) {
+   console.warn("PlanetDesigner: _resizeDesignerCanvasToDisplaySize - canvas not found.");
+   return false; // Indicate failure or inability to resize
+  }
+  const displayWidth = designerPlanetCanvas.offsetWidth;
+  const displayHeight = designerPlanetCanvas.offsetHeight;
+
+  if (displayWidth && displayHeight) {
+   if (designerPlanetCanvas.width !== displayWidth || designerPlanetCanvas.height !== displayHeight) {
+    designerPlanetCanvas.width = displayWidth;
+    designerPlanetCanvas.height = displayHeight;
+    console.log(`PlanetDesigner: Canvas resized to ${designerPlanetCanvas.width}x${designerPlanetCanvas.height}`);
+   }
+   return true; // Indicate success or that dimensions are currently valid
+  } else {
+   // Canvas has no dimensions currently. The caller (render function) will decide to retry.
+   // console.warn("PlanetDesigner: _resizeDesignerCanvasToDisplaySize - Canvas has 0 dimensions currently.");
+   return false; // Indicate dimensions are not ready
+  }
+ }
+
+ function _renderDesignerPlanetInternal() {
+  if (isRenderingDesignerPlanet) {
+    // console.log("PlanetDesigner: _renderDesignerPlanetInternal - Already rendering.");
+    return;
+  }
+  if (!window.designerWorker) {
+    console.warn("PlanetDesigner: _renderDesignerPlanetInternal - window.designerWorker not available.");
+    return;
+  }
+  if (!currentDesignerPlanetInstance) {
+    console.warn("PlanetDesigner: _renderDesignerPlanetInternal - currentDesignerPlanetInstance is null.");
+    return;
+  }
+  if (!designerPlanetCanvas) {
+    console.warn("PlanetDesigner: _renderDesignerPlanetInternal - designerPlanetCanvas is null.");
+    return;
   }
 
-  function _renderDesignerPlanetInternal() {
-    if (isRenderingDesignerPlanet || !window.designerWorker || !currentDesignerPlanetInstance || !designerPlanetCanvas) {
-      // ... (logging as before) ...
-      return;
-    }
-    if (designerPlanetCanvas.width === 0 || designerPlanetCanvas.height === 0) {
-      // ... (handling for 0-dim canvas as before) ...
-      requestAnimationFrame(() => {
-        _resizeDesignerCanvasToDisplaySize();
-        if (designerPlanetCanvas.width > 0 && designerPlanetCanvas.height > 0) {
-          _renderDesignerPlanetInternal();
-        }
-      });
-      return;
-    }
-    isRenderingDesignerPlanet = true;
-    window.renderPlanetVisual(currentDesignerPlanetInstance, designerPlanetRotationQuat, designerPlanetCanvas);
+  // Attempt to resize and check dimensions. _resizeDesignerCanvasToDisplaySize will
+  // update canvas.width/height if necessary and possible.
+  const canvasHasValidDimensions = _resizeDesignerCanvasToDisplaySize();
+
+  if (!canvasHasValidDimensions) { // This implies designerPlanetCanvas.width or height might still be 0
+    console.warn("PlanetDesigner: Canvas has 0 dimensions or resize failed. Retrying _renderDesignerPlanetInternal on next frame.");
+    requestAnimationFrame(() => {
+      // On the next frame, _renderDesignerPlanetInternal will be called again,
+      // which will re-attempt _resizeDesignerCanvasToDisplaySize.
+      _renderDesignerPlanetInternal();
+    });
+    return;
   }
 
-  function _generateAndRenderDesignerPreviewInstance(resetRotation = false) {
-    if (typeof window.generatePlanetInstanceFromBasis !== 'function') {
-        console.error("PlanetDesigner: window.generatePlanetInstanceFromBasis is not defined!");
-        return;
-    }
-    currentDesignerPlanetInstance = window.generatePlanetInstanceFromBasis(currentDesignerBasis, true); // true for designer preview (uses currentDesignerBasis.continentSeed)
-    if (resetRotation && typeof window.quat_identity === 'function') {
-        designerPlanetRotationQuat = window.quat_identity();
-    }
-    _resizeDesignerCanvasToDisplaySize(); 
-    _renderDesignerPlanetInternal();
+  // If we reach here, canvas dimensions should be valid (>0)
+  isRenderingDesignerPlanet = true;
+  // console.log("PlanetDesigner: Calling window.renderPlanetVisual for designer canvas.");
+  window.renderPlanetVisual(currentDesignerPlanetInstance, designerPlanetRotationQuat, designerPlanetCanvas);
+  // isRenderingDesignerPlanet will be set to false in handleDesignerWorkerMessage
+ }
+
+ function _generateAndRenderDesignerPreviewInstance(resetRotation = false) {
+  if (typeof window.generatePlanetInstanceFromBasis !== 'function') {
+    console.error("PlanetDesigner: window.generatePlanetInstanceFromBasis is not defined!");
+    return;
   }
+  currentDesignerPlanetInstance = window.generatePlanetInstanceFromBasis(currentDesignerBasis, true); // true for designer preview (uses currentDesignerBasis.continentSeed)
+  if (resetRotation && typeof window.quat_identity === 'function') {
+    designerPlanetRotationQuat = window.quat_identity();
+  }
+  // _resizeDesignerCanvasToDisplaySize(); // REMOVED - _renderDesignerPlanetInternal handles it
+  _renderDesignerPlanetInternal();
+ }
+
+// ... (code for activate function - its call to _resizeDesignerCanvasToDisplaySize is fine as an initial attempt) ...
+/*
+  activate: () => {
+   console.log("PlanetDesigner.activate called.");
+   if (!designerPlanetCanvas) designerPlanetCanvas = document.getElementById('designer-planet-canvas');
+
+   _populateDesignerInputsFromBasis();
+   _populateSavedDesignsList();
+   _resizeDesignerCanvasToDisplaySize(); // This call is fine, attempts an immediate resize.
+                                         // If it fails (e.g. panel not visible yet),
+                                         // _renderDesignerPlanetInternal will handle the retry.
+   requestAnimationFrame(() => { 
+    console.log("PlanetDesigner: rAF in activate firing for initial render.");
+    _generateAndRenderDesignerPreviewInstance(true); 
+   });
+  },
+*/
+// ... (rest of the planetDesigner.js code) ...
 
   // --- MOUSE EVENT HANDLERS for planet rotation ---
   function _onDesignerCanvasMouseDown(e) {

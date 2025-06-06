@@ -1,8 +1,13 @@
-// animationController.js
+// public/js/animationController.js
+// Make sure that this function actually exists, or there will be errors saying that it's not defined
+function isSolarSystemAnimationRunning() {
+  return animationFrameId !== null;
+}
+window.isSolarSystemAnimationRunning = isSolarSystemAnimationRunning;
 
 let animationFrameId = null;
 let lastAnimationTime = null;
-let cachedSolarSystemScreenElement = null; // Cache the element
+let cachedSolarSystemScreenElement = null;
 
 // Helper to get the cached solar system screen element
 function getSolarSystemScreenElement() {

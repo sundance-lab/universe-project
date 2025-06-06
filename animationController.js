@@ -2,78 +2,105 @@
 
 let animationFrameId = null;
 let lastAnimationTime = null;
+let cachedSolarSystemScreenElement = null; // Cache the element
+
+// Helper to get the cached solar system screen element
+function getSolarSystemScreenElement() {
+  // If the #solar-system-screen element might be removed and re-added to the DOM,
+  // this cache might become stale. Consider clearing it if the screen is definitively
+  // torn down (e.g. in stopSolarSystemAnimation or if its parent is removed).
+  // For now, we assume it's persistent or its 'active' class dictates its use.
+  if (!cachedSolarSystemScreenElement) {
+    cachedSolarSystemScreenElement = document.getElementById('solar-system-screen');
+  }
+  return cachedSolarSystemScreenElement;
+}
 
 // This function will be internal to the module (not exported directly)
 // It needs access to window.gameSessionData and the solarSystemScreen element (or its active state)
 function animateSolarSystem(now) {
-    if (!now) now = performance.now();
-    if (lastAnimationTime === null) lastAnimationTime = now;
-    const deltaTime = (now - lastAnimationTime) / 1000; // Time in seconds
-    lastAnimationTime = now;
+  // 'now' is guaranteed to be provided by requestAnimationFrame
+  if (lastAnimationTime === null) {
+    lastAnimationTime = now; // Initialize lastAnimationTime on the first valid frame
+    // Request the next frame immediately to avoid issues if first frame processing is skipped
+    animationFrameId = requestAnimationFrame(animateSolarSystem);
+    return; // Skip processing for the very first call if lastAnimationTime was just set
+  }
 
-    // Ensure gameSessionData and solarSystemScreen are accessible.
-    // For solarSystemScreen, we might need to pass its active status or the element itself.
-    // For simplicity here, we'll assume it's checked by the caller or can be accessed if needed.
-    const solarSystemScreenElement = document.getElementById('solar-system-screen'); // Assuming it's always the same ID
+  const deltaTime = (now - lastAnimationTime) / 1000; // Time in seconds
+  lastAnimationTime = now;
 
-    if (window.gameSessionData?.solarSystemView?.planets && 
-        solarSystemScreenElement && 
-        solarSystemScreenElement.classList.contains('active')) {
+  const solarSystemScreenElement = getSolarSystemScreenElement();
 
-        window.gameSessionData.solarSystemView.planets.forEach(planet => {
-            if (planet.element) { // Check if the DOM element exists
-                // Update orbital angle
-                planet.currentOrbitalAngle += planet.orbitalSpeed * 6 * deltaTime; // 6 is an arbitrary speed multiplier
+  if (window.gameSessionData?.solarSystemView?.planets &&
+    solarSystemScreenElement &&
+    solarSystemScreenElement.classList.contains('active')) {
 
-                // Update axial rotation angle
-                planet.currentAxialAngle += planet.axialSpeed * 60 * deltaTime; // 60 is an arbitrary speed multiplier
+    // Schedule the next animation frame.
+    // Placing it here ensures the loop continues even if errors occur below.
+    animationFrameId = requestAnimationFrame(animateSolarSystem);
 
-                // Calculate new position based on orbital angle and distance
-                const xOrbit = planet.distance * Math.cos(planet.currentOrbitalAngle);
-                const yOrbit = planet.distance * Math.sin(planet.currentOrbitalAngle);
+    window.gameSessionData.solarSystemView.planets.forEach(planet => {
+      if (planet.element) { // Check if the DOM element exists
+        // Update orbital angle (assuming planet.currentOrbitalAngle is initialized and in radians)
+        planet.currentOrbitalAngle += planet.orbitalSpeed * 6 * deltaTime; // 6 is an arbitrary speed multiplier
 
-                // Apply position and rotation
-                // Ensure sun is centered at 50%, 50% of the solar-system-content
-                planet.element.style.left = `calc(50% + ${xOrbit}px)`;
-                planet.element.style.top = `calc(50% + ${yOrbit}px)`;
-                planet.element.style.transform = `translate(-50%, -50%) rotate(${planet.currentAxialAngle}rad)`;
-            }
-        });
-        animationFrameId = requestAnimationFrame(animateSolarSystem);
-    } else {
-        // If screen is not active or data is missing, ensure animation stops
-        if (animationFrameId) {
-            cancelAnimationFrame(animationFrameId);
-            animationFrameId = null;
-        }
-        lastAnimationTime = null; // Reset for when it starts again
+        // Update axial rotation angle (assuming planet.currentAxialAngle is initialized and in radians)
+        planet.currentAxialAngle += planet.axialSpeed * 60 * deltaTime; // 60 is an arbitrary speed multiplier
+
+        // Calculate new position based on orbital angle and distance
+        const xOrbit = planet.distance * Math.cos(planet.currentOrbitalAngle);
+        const yOrbit = planet.distance * Math.sin(planet.currentOrbitalAngle);
+
+        // Apply position and rotation
+        planet.element.style.left = `calc(50% + ${xOrbit}px)`;
+        planet.element.style.top = `calc(50% + ${yOrbit}px)`;
+        planet.element.style.transform = `translate(-50%, -50%) rotate(${planet.currentAxialAngle}rad)`;
+      }
+    });
+  } else {
+    // If screen is not active or data is missing, ensure animation stops
+    if (animationFrameId) {
+      cancelAnimationFrame(animationFrameId);
+      animationFrameId = null;
     }
+    lastAnimationTime = null; // Reset for when it starts again
+    // If the screen element might be removed/recreated, clear the cache:
+    // cachedSolarSystemScreenElement = null;
+  }
 }
 
 export function startSolarSystemAnimation() {
-    // Check if solarSystemScreen is available and active before starting
-    const solarSystemScreenElement = document.getElementById('solar-system-screen');
-    if (!animationFrameId && solarSystemScreenElement && solarSystemScreenElement.classList.contains('active')) {
-        console.log("[AnimationController] Starting solar system animation.");
-        lastAnimationTime = null; // Reset time for a fresh start
-        animationFrameId = requestAnimationFrame(animateSolarSystem);
-    } else if (animationFrameId) {
-        console.log("[AnimationController] Animation already running or screen not active.");
-    } else {
-        console.log("[AnimationController] Solar system screen not active, not starting animation.");
-    }
+  const screenElement = getSolarSystemScreenElement(); // Use helper to get (potentially cached) element
+  
+  if (!animationFrameId && screenElement && screenElement.classList.contains('active')) {
+    console.log("[AnimationController] Starting solar system animation.");
+    lastAnimationTime = null; // Reset time for a fresh start to ensure delta is calculated correctly on first animation.
+    // Request the first frame. animateSolarSystem will handle 'now' and its own recursive calls.
+    animationFrameId = requestAnimationFrame(animateSolarSystem);
+  } else if (animationFrameId) {
+    console.log("[AnimationController] Animation is already running.");
+  } else if (!screenElement) {
+    console.log("[AnimationController] Solar system screen element not found. Cannot start animation.");
+  } else if (!screenElement.classList.contains('active')) {
+    // This case might be redundant if the animation check inside animateSolarSystem handles it,
+    // but it's good for explicit start-up logging.
+    console.log("[AnimationController] Solar system screen is not active. Not starting animation.");
+  }
 }
 
 export function stopSolarSystemAnimation() {
-    if (animationFrameId) {
-        console.log("[AnimationController] Stopping solar system animation.");
-        cancelAnimationFrame(animationFrameId);
-        animationFrameId = null;
-    }
-    lastAnimationTime = null; // Reset time
+  if (animationFrameId) {
+    console.log("[AnimationController] Stopping solar system animation.");
+    cancelAnimationFrame(animationFrameId);
+    animationFrameId = null;
+  }
+  lastAnimationTime = null; // Reset time
+   // Optionally clear the cache if the element might be removed upon stopping:
+   // cachedSolarSystemScreenElement = null;
 }
 
 // Optional: A function to check if animation is running
 export function isSolarSystemAnimationRunning() {
-    return animationFrameId !== null;
+  return animationFrameId !== null;
 }

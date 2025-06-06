@@ -42,9 +42,6 @@ document.addEventListener('DOMContentLoaded', () => {
   const zoomInButton = document.getElementById('zoom-in-btn');
   const zoomOutButton = document.getElementById('zoom-out-btn');
   const regenerateUniverseButton = document.getElementById('regenerate-universe-btn');
-  // const customizeGenerationButton = document.getElementById('customize-generation-btn'); // In HTML, but usage in JS?
-  // ^ Corrected: This IS used in setActiveScreen. Let's make sure it's fetched if available.
-  const customizeGenerationButton = document.getElementById('customize-generation-btn'); 
   
   const createPlanetDesignButton = document.getElementById('create-planet-design-btn');
   
@@ -559,7 +556,6 @@ document.addEventListener('DOMContentLoaded', () => {
                                                                  
     // Toggle visibility of general control buttons based on current screen
     if (regenerateUniverseButton) regenerateUniverseButton.style.display = isOnOverlayScreen ? 'none' : 'block';
-    if (customizeGenerationButton) customizeGenerationButton.style.display = isOnOverlayScreen ? 'none' : 'block';
     if (createPlanetDesignButton) createPlanetDesignButton.style.display = isOnOverlayScreen ? 'none' : 'block';
 
     // If navigating away from solar system screen or to an overlay, hide the Planet Visual Panel

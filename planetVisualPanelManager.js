@@ -1,6 +1,6 @@
 // planetVisualPanelManager.js
 
-const PlanetVisualPanelManager = (() => {
+window.PlanetVisualPanelManager = (() => {
   // DOM Elements - will be fetched in init
   let panelElement, headerElement, titleElement, sizeElement, canvasElement, closeButton;
 

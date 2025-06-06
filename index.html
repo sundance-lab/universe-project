@@ -1,18 +1,3 @@
-
-Thoughts
-Expand to show model's summarized thoughts
-Alright, moving on to index.html.
-
-The most straightforward error in your index.html file is an invalid comment format. HTML comments should use <!-- ... -->, but there's one instance using {/* ... */} which is typical in JSX (React) or template literals, not raw HTML.
-
-Error 1: Invalid HTML Comment
-
-File: index.html
-Line: Around the saved-designs-ul element.
-Issue: The comment {/* List items will be populated by JS */} is not a valid HTML comment.
-Fix: Change the comment to the standard HTML comment format <!-- Comment -->.
-Here's the corrected snippet from index.html:
-
 <!DOCTYPE html>
 <html lang="en">
 <head>

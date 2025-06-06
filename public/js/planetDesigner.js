@@ -1,7 +1,11 @@
-// planetDesigner.js
+// public/js/planetDesigner.js
 
+import '../styles.css';
+
+export const PlanetDesigner = (() => { // Make it immediately accessible as `PlanetDesigner`
+console.log("PlanetDesigner.js: Script loaded.");
+  
 window.PlanetDesigner = (() => {
-  console.log("PlanetDesigner.js: Script loaded.");
   // DOM Elements - will be fetched in init
   let designerPlanetCanvas, designerWaterColorInput, designerLandColorInput,
     designerMinHeightMinInput, designerMinHeightMaxInput,

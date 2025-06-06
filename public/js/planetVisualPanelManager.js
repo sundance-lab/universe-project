@@ -1,5 +1,11 @@
-// planetVisualPanelManager.js
+// public/js/planetVisualPanelManager.js
 
+import '../styles.css';
+
+export const PlanetVisualPanelManager = (() => {  // Make it immediately accessible as `PlanetVisualPanelManager`
+
+console.log("PVisualPanelManager: Script loaded."); 
+  
 window.PlanetVisualPanelManager = (() => {
   // DOM Elements - will be fetched in init
   let panelElement, headerElement, titleElement, sizeElement, canvasElement, closeButton;

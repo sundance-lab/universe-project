@@ -2,6 +2,7 @@
 
 // Import animation functions from animationController.js
 import { startSolarSystemAnimation, stopSolarSystemAnimation } from './animationController.js';
+import { startSolarSystemAnimation, stopSolarSystemAnimation, isSolarSystemAnimationRunning } from './animationController.js';
 
 document.addEventListener('DOMContentLoaded', () => {
   // Define constants FIRST, so functions defined below can access them
@@ -160,44 +161,48 @@ document.addEventListener('DOMContentLoaded', () => {
   };
 
   // --- WEB WORKER SETUP ---
-  let planetVisualWorker = null; // For the pop-up panel
-  // window.designerWorker is already declared on window by PlanetDesigner.js (IIFE pattern)
-  // Actually, script.js creates designerWorker and assigns it to window.designerWorker
-  window.designerWorker = null; // Initialize on script.js
+  
+  window.planetVisualWorker = null; // For the pop-up panel, now on window
+  window.designerWorker = null;     // For PlanetDesigner, now on window
 
   if (window.Worker) {
     try {
-      planetVisualWorker = new Worker('planetRendererWorker.js');
-      window.designerWorker = new Worker('planetRendererWorker.js'); // This is correct, both panel and designer use the same worker code
+      // Assign directly to window properties
+      window.planetVisualWorker = new Worker('planetRendererWorker.js');
+      window.designerWorker = new Worker('planetRendererWorker.js'); 
 
-      planetVisualWorker.onmessage = function (e) {
-        const { renderedData, width, height, senderId, error } = e.data; // Added senderId and error
-        // This specific onmessage handler is for results intended for the PlanetVisualPanelManager
-        if (senderId === 'planet-visual-canvas') { // Check if message is for the visual panel
+
+      // Setup for planetVisualWorker (if successfully created)
+      if (window.planetVisualWorker) {
+        console.log("script.js: planetVisualWorker created successfully."); // Confirmation log
+        window.planetVisualWorker.onmessage = function (e) {
+          const { renderedData, width, height, senderId, error } = e.data;
+          if (senderId === 'planet-visual-canvas') { 
             if (window.PlanetVisualPanelManager && typeof window.PlanetVisualPanelManager.handleWorkerMessage === 'function') {
-                window.PlanetVisualPanelManager.handleWorkerMessage({ renderedData, width, height, error, senderId });
+              window.PlanetVisualPanelManager.handleWorkerMessage({ renderedData, width, height, error, senderId });
             } else {
-                console.error("script.js: PlanetVisualPanelManager or its handler not found for planetVisualWorker message.");
+              console.error("script.js: PlanetVisualPanelManager or its handler not found for planetVisualWorker message.");
             }
-        } else {
-            // This else block might not be necessary if planetVisualWorker is exclusively for PlanetVisualPanelManager
-            // console.warn(`script.js: planetVisualWorker received message with unhandled senderId: $`);
-        }
-      };
-      planetVisualWorker.onerror = function (error) {
-        console.error("Error in planetVisualWorker (from script.js):", error.message, error.filename, error.lineno);
-        // Optionally, notify PlanetVisualPanelManager about a generic worker error
-        if (window.PlanetVisualPanelManager && typeof window.PlanetVisualPanelManager.handleWorkerMessage === 'function') {
+          }
+        };
+        window.planetVisualWorker.onerror = function (error) {
+          console.error("Error in planetVisualWorker (from script.js):", error.message, error.filename, error.lineno);
+          if (window.PlanetVisualPanelManager && typeof window.PlanetVisualPanelManager.handleWorkerMessage === 'function') {
             window.PlanetVisualPanelManager.handleWorkerMessage({ error: "Worker Error: " + error.message, senderId: 'planet-visual-canvas' });
-        }
-      };
+          }
+        };
+      } else {
+        console.error("script.js: Failed to create window.planetVisualWorker.");
+      }
 
+      // Setup for designerWorker (if successfully created)
       if (window.designerWorker) {
+        console.log("script.js: designerWorker created successfully."); // Confirmation log
         window.designerWorker.onmessage = function (e) {
-          const { renderedData, width, height, senderId, error } = e.data; // Added error
+          const { renderedData, width, height, senderId, error } = e.data;
           if (senderId === 'designer-planet-canvas') {
             if (window.PlanetDesigner && typeof window.PlanetDesigner.handleDesignerWorkerMessage === 'function') {
-              window.PlanetDesigner.handleDesignerWorkerMessage({ renderedData, width, height, error, senderId }); // Pass senderId too
+              window.PlanetDesigner.handleDesignerWorkerMessage({ renderedData, width, height, error, senderId });
             } else {
               console.error("script.js: PlanetDesigner module or handleDesignerWorkerMessage not found in designerWorker callback.");
             }
@@ -205,18 +210,18 @@ document.addEventListener('DOMContentLoaded', () => {
         };
         window.designerWorker.onerror = function (error) {
           console.error("Error in designerWorker (from script.js):", error.message, error.filename, error.lineno);
-           if (window.PlanetDesigner && typeof window.PlanetDesigner.handleDesignerWorkerMessage === 'function') {
-              window.PlanetDesigner.handleDesignerWorkerMessage({ error: "Worker Error: " + error.message, senderId: 'designer-planet-canvas' });
-            }
+          if (window.PlanetDesigner && typeof window.PlanetDesigner.handleDesignerWorkerMessage === 'function') {
+            window.PlanetDesigner.handleDesignerWorkerMessage({ error: "Worker Error: " + error.message, senderId: 'designer-planet-canvas' });
+          }
         };
       } else {
-        // This case should not be hit if the try block for new Worker succeeded.
-        console.error("script.js: window.designerWorker is unexpectedly null after instantiation attempt!");
+        console.error("script.js: Failed to create window.designerWorker.");
       }
 
     } catch (err) {
       console.error("Failed to create Web Workers. Make sure planetRendererWorker.js exists and is accessible.", err);
-      planetVisualWorker = null;
+      // Ensure they are null on window if creation fails
+      window.planetVisualWorker = null;
       window.designerWorker = null; 
     }
   } else {
@@ -225,40 +230,30 @@ document.addEventListener('DOMContentLoaded', () => {
 
   // Generic renderPlanetVisual - This is the function called by PlanetDesigner and PlanetVisualPanelManager
   window.renderPlanetVisual = function (planetData, rotationQuaternion, targetCanvas) {
-    // Determine which worker to use based on the target canvas
-    const workerToUse = (targetCanvas && targetCanvas.id === 'designer-planet-canvas') ? window.designerWorker : planetVisualWorker;
+    // FIX For Issue 3: Ensure workerToUse references the window properties
+    const workerToUse = (targetCanvas && targetCanvas.id === 'designer-planet-canvas') 
+                        ? window.designerWorker 
+                        : window.planetVisualWorker;
     
-    // State flag to prevent multiple simultaneous renders *to the same worker instance* if that's desired.
-    // However, PlanetDesigner and PlanetVisualPanelManager have their own 'isRendering' flags.
-    // This function is a dispatcher, so it might not need its own render flag if callers manage theirs.
-    // For now, let's assume callers (PlanetDesigner/Manager) manage their own 'isRendering' state.
-
     if (!planetData || !targetCanvas || !workerToUse) {
       console.warn("renderPlanetVisual: Missing planetData, targetCanvas, or appropriate worker.", 
                    { planetDataExists: !!planetData, targetCanvasId: targetCanvas?.id, workerExists: !!workerToUse });
-      // If a caller was expecting this to set its 'isRendering' flag to false, this early return might leave it true.
-      // Caller should handle this.
       return;
     }
 
     if (targetCanvas.width === 0 || targetCanvas.height === 0) {
       console.warn(`renderPlanetVisual: Target canvas ${targetCanvas.id} has zero dimensions. Aborting worker call. Caller should retry.`);
-      // Caller (PlanetDesigner or PlanetVisualPanelManager) is responsible for retrying.
       return;
     }
 
-    // Prepare a clean copy of essential planet data for the worker
-    const pD = { ...planetData }; // Shallow copy
-    // Ensure essential rendering properties exist with defaults
+    const pD = { ...planetData }; 
     if (!pD.continentSeed && pD.continentSeed !== 0) pD.continentSeed = Math.random();
-    if (!pD.waterColor) pD.waterColor = '#000080'; // Default from PlanetDesigner
-    if (!pD.landColor) pD.landColor = '#006400';  // Default from PlanetDesigner
-    // These defaults ensure the worker has what it needs if basis is incomplete
+    if (!pD.waterColor) pD.waterColor = '#000080';
+    if (!pD.landColor) pD.landColor = '#006400';  
     pD.minTerrainHeight = pD.minTerrainHeight ?? window.DEFAULT_MIN_TERRAIN_HEIGHT;
     pD.maxTerrainHeight = pD.maxTerrainHeight ?? window.DEFAULT_MAX_TERRAIN_HEIGHT;
     pD.oceanHeightLevel = pD.oceanHeightLevel ?? window.DEFAULT_OCEAN_HEIGHT_LEVEL;
 
-    // Data actually sent to worker should only contain rendering-relevant fields
     const dataToSendToWorker = {
       waterColor: pD.waterColor, 
       landColor: pD.landColor, 
@@ -266,25 +261,23 @@ document.addEventListener('DOMContentLoaded', () => {
       minTerrainHeight: pD.minTerrainHeight, 
       maxTerrainHeight: pD.maxTerrainHeight, 
       oceanHeightLevel: pD.oceanHeightLevel,
-      // Any other properties the worker 'renderPlanet' command explicitly uses from planetData
     };
     
-    const canvasId = targetCanvas.id; // Crucial for routing the response
+    const canvasId = targetCanvas.id; 
 
-    console.log(`renderPlanetVisual: Posting to worker for canvasId: ${canvasId}`); // Debug log
+    // console.log(`renderPlanetVisual: Posting to worker for canvasId: ${canvasId}`); // Kept for debugging
     workerToUse.postMessage({
       cmd: 'renderPlanet', 
       planetData: dataToSendToWorker, 
       rotationQuaternion,
       canvasWidth: targetCanvas.width, 
       canvasHeight: targetCanvas.height, 
-      senderId: canvasId, // Send the ID of the target canvas
+      senderId: canvasId, 
       planetRadiusOverride: (canvasId === 'designer-planet-canvas') 
                             ? Math.min(targetCanvas.width, targetCanvas.height) / 2 * 0.9 
-                            : undefined // No override for the visual panel, let worker use its default
+                            : undefined 
     });
   }
-
 
   function switchToPlanetDesignerScreen() {
     setActiveScreen(planetDesignerScreen); // Ensure this is the correct screen element
@@ -1685,6 +1678,14 @@ document.addEventListener('DOMContentLoaded', () => {
     initializeGame(true); // Pass true to indicate a forced regeneration (skips loading saved game state)
   }
 
+
+  
+  
+  
+  
+  
+  
+  
   // --- EVENT LISTENERS ---
   if (regenerateUniverseButton) regenerateUniverseButton.addEventListener('click', () => regenerateCurrentUniverseState(true)); // Pass true to force confirm dialog
   if (createPlanetDesignButton) createPlanetDesignButton.addEventListener('click', switchToPlanetDesignerScreen);
@@ -1751,181 +1752,117 @@ document.addEventListener('DOMContentLoaded', () => {
     console.log("Game initialization complete.");
   }
 
-  // --- WINDOW RESIZE HANDLING ---
+  // --- EVENT LISTENERS ---
+  // (Make sure the resize listener uses the debouncing fix here)
+  let resizeTimeout;
   window.addEventListener('resize', () => {
-    console.log("Window resize detected.");
-    // The original resize logic re-initialized almost everything from scratch.
-    // This can be disruptive if, e.g., the user is deep in a solar system.
-    // A less disruptive approach might be to:
-    // 1. Recalculate universe diameter based on new screen size.
-    // 2. Re-scale existing galaxy positions proportionally if the universe circle changes size.
-    // 3. Re-render the current view, adjusting viewport sizes and re-clamping pan/zoom.
+    // console.log("Window resize detected. Debouncing regeneration..."); // Less verbose
+    clearTimeout(resizeTimeout);
+    resizeTimeout = setTimeout(() => {
+      console.log("Debounced resize event: Processing resize.");
+      
+      const activeScreenElement = document.querySelector('.screen.active');
+      const currentScreenIdBeforeResize = activeScreenElement ? activeScreenElement.id : null;
+      const activeGalaxyIdBeforeResize = window.gameSessionData.activeGalaxyId;
+      const activeSolarSystemIdBeforeResize = window.gameSessionData.activeSolarSystemId;
+      
+      const existingCustomPlanetDesigns = [...(window.gameSessionData.customPlanetDesigns || [])];
 
-    // For simplicity and to match original intent of full regeneration on resize:
-    // Let's keep the full regeneration but ensure custom designs are preserved.
-    
-    const activeScreenElement = document.querySelector('.screen.active');
-    const currentScreenIdBeforeResize = activeScreenElement ? activeScreenElement.id : null;
-    const activeGalaxyIdBeforeResize = window.gameSessionData.activeGalaxyId;
-    const activeSolarSystemIdBeforeResize = window.gameSessionData.activeSolarSystemId;
-    
-    // Preserve custom planet designs
-    const existingCustomPlanetDesigns = [...(window.gameSessionData.customPlanetDesigns || [])];
+      window.gameSessionData.universe = { diameter: null };
+      window.gameSessionData.galaxies = [];
+      window.gameSessionData.activeGalaxyId = null;
+      window.gameSessionData.activeSolarSystemId = null;
+      window.gameSessionData.solarSystemView = { zoomLevel: 1.0, currentPanX: 0, currentPanY: 0, planets: [], systemId: null };
+      window.gameSessionData.isInitialized = false;
+      window.gameSessionData.panning = { isActive: false, startX: 0, startY: 0, initialPanX: 0, initialPanY: 0, targetElement: null, viewportElement: null, dataObject: null };
+      window.gameSessionData.customPlanetDesigns = existingCustomPlanetDesigns; 
 
-    console.log("Regenerating universe due to resize...");
-    // Reset core game data structures in memory
-    window.gameSessionData.universe = { diameter: null };
-    window.gameSessionData.galaxies = [];
-    window.gameSessionData.activeGalaxyId = null;
-    window.gameSessionData.activeSolarSystemId = null;
-    window.gameSessionData.solarSystemView = { zoomLevel: 1.0, currentPanX: 0, currentPanY: 0, planets: [], systemId: null };
-    window.gameSessionData.isInitialized = false;
-    window.gameSessionData.panning = { isActive: false, startX: 0, startY: 0, initialPanX: 0, initialPanY: 0, targetElement: null, viewportElement: null, dataObject: null };
-    window.gameSessionData.customPlanetDesigns = existingCustomPlanetDesigns; // Restore
+      if (universeCircle) universeCircle.innerHTML = '';
+      if (galaxyZoomContent) { 
+        const linesCanvas = galaxyZoomContent.querySelector('#solar-system-lines-canvas');
+        galaxyZoomContent.innerHTML = ''; 
+        if (linesCanvas) galaxyZoomContent.appendChild(linesCanvas);
+      }
+      if (solarSystemContent) solarSystemContent.innerHTML = '';
+      if (orbitCtx && solarSystemOrbitCanvasEl) {
+        orbitCtx.clearRect(0, 0, solarSystemOrbitCanvasEl.width, solarSystemOrbitCanvasEl.height);
+      }
+      
+      stopSolarSystemAnimation();
+      initializeGame(true); 
 
-    // Clear UI
-    if (universeCircle) universeCircle.innerHTML = '';
-    if (galaxyZoomContent) { 
-      const linesCanvas = galaxyZoomContent.querySelector('#solar-system-lines-canvas');
-      galaxyZoomContent.innerHTML = ''; 
-      if (linesCanvas) galaxyZoomContent.appendChild(linesCanvas);
-    }
-    if (solarSystemContent) solarSystemContent.innerHTML = '';
-    if (orbitCtx && solarSystemOrbitCanvasEl) {
-      orbitCtx.clearRect(0, 0, solarSystemOrbitCanvasEl.width, solarSystemOrbitCanvasEl.height);
-    }
-    
-    stopSolarSystemAnimation();
-    initializeGame(true); // True for forced regeneration, will keep designs from above
-
-    // Attempt to restore view (best effort, IDs might not match if numGalaxies changes etc.)
-    console.log("Resize: Attempting to restore view to:", currentScreenIdBeforeResize);
-    try {
-      if (currentScreenIdBeforeResize === 'planet-designer-screen' && window.PlanetDesigner) {
-        switchToPlanetDesignerScreen();
-      } else if (currentScreenIdBeforeResize === 'galaxy-detail-screen' && activeGalaxyIdBeforeResize) {
-        const galaxyExists = window.gameSessionData.galaxies.find(g => g.id === activeGalaxyIdBeforeResize);
-        if (galaxyExists) switchToGalaxyDetailView(activeGalaxyIdBeforeResize);
-        else switchToMainView();
-      } else if (currentScreenIdBeforeResize === 'solar-system-screen' && activeSolarSystemIdBeforeResize) {
-        const galaxyIdMatch = activeSolarSystemIdBeforeResize.match(/^(galaxy-\d+)-ss-\d+$/);
-        const parentGalaxyId = galaxyIdMatch ? galaxyIdMatch[1] : null;
-        const parentGalaxyExists = parentGalaxyId ? window.gameSessionData.galaxies.find(g => g.id === parentGalaxyId) : null;
-        if (parentGalaxyExists && parentGalaxyExists.solarSystems.find(s => s.id === activeSolarSystemIdBeforeResize)) {
-          switchToSolarSystemView(activeSolarSystemIdBeforeResize);
-        } else {
-          switchToMainView(); // Parent galaxy or SS might not exist with same ID after regen
-        }
-      } else {
-        // Default to main screen if previous screen cannot be restored
-        if (mainScreen && !mainScreen.classList.contains('active')) { // Check if not already set by some other flow
+      console.log("Resize: Attempting to restore view to:", currentScreenIdBeforeResize);
+      try {
+        if (currentScreenIdBeforeResize === 'planet-designer-screen' && window.PlanetDesigner) {
+          switchToPlanetDesignerScreen();
+        } else if (currentScreenIdBeforeResize === 'galaxy-detail-screen' && activeGalaxyIdBeforeResize) {
+          const galaxyExists = window.gameSessionData.galaxies.find(g => g.id === activeGalaxyIdBeforeResize);
+          if (galaxyExists) switchToGalaxyDetailView(activeGalaxyIdBeforeResize);
+          else switchToMainView();
+        } else if (currentScreenIdBeforeResize === 'solar-system-screen' && activeSolarSystemIdBeforeResize) {
+          const galaxyIdMatch = activeSolarSystemIdBeforeResize.match(/^(galaxy-\d+)-ss-\d+$/);
+          const parentGalaxyId = galaxyIdMatch ? galaxyIdMatch[1] : null;
+          const parentGalaxyExists = parentGalaxyId ? window.gameSessionData.galaxies.find(g => g.id === parentGalaxyId) : null;
+          if (parentGalaxyExists && parentGalaxyExists.solarSystems.find(s => s.id === activeSolarSystemIdBeforeResize)) {
+            switchToSolarSystemView(activeSolarSystemIdBeforeResize);
+          } else {
             switchToMainView();
-        } else if (!mainScreen.classList.contains('active')) { // Fallback if mainScreen element itself is an issue
-             setActiveScreen(document.getElementById('main-screen'));
-             renderMainScreen();
-        }
-      }
-    } catch (viewRestoreError) {
-        console.error("Error restoring view after resize:", viewRestoreError);
-        switchToMainView(); // Safe fallback
-    }
-
-
-    // If Planet Visual Panel was visible, try to re-render it
-    // (currentPlanetDisplayedInPanel is now internal to manager)
-    if (window.PlanetVisualPanelManager && window.PlanetVisualPanelManager.isVisible()) {
-        const currentPanelPlanetData = window.PlanetVisualPanelManager.getCurrentPlanetData();
-        if (currentPanelPlanetData) {
-            console.log("Resize: Re-rendering visible planet visual panel.");
-            // The panel manager's rerenderIfNeeded or a direct _render call might be better suited if its canvas also needs resize.
-            // window.PlanetVisualPanelManager.show(currentPanelPlanetData); // This would reset rotation
-            window.PlanetVisualPanelManager.rerenderIfNeeded(); // This also handles canvas resize
-        }
-    }
-    console.log("Window resize processing finished.");
-  });
-
-  // --- OTHER EVENT LISTENERS (Navigation, Zoom) ---
-  if (backToMainButton) backToMainButton.addEventListener('click', switchToMainView);
-  if (backToGalaxyButton) {
-    backToGalaxyButton.addEventListener('click', () => {
-      if (window.gameSessionData.activeSolarSystemId) {
-        // Determine parent galaxy of current solar system
-        const galaxyIdMatch = window.gameSessionData.activeSolarSystemId.match(/^(galaxy-\d+)-ss-\d+$/);
-        const parentGalaxyId = galaxyIdMatch ? galaxyIdMatch[1] : null;
-        if (parentGalaxyId) {
-          switchToGalaxyDetailView(parentGalaxyId);
+          }
         } else {
-          console.warn("Could not determine parent galaxy from activeSolarSystemId. Defaulting to main view.");
-          switchToMainView(); // Fallback if parent galaxy ID can't be parsed
+          if (mainScreen && !mainScreen.classList.contains('active')) { 
+              switchToMainView();
+          } else if (!mainScreen || !mainScreen.classList.contains('active')) { 
+               const mainScreenEl = document.getElementById('main-screen');
+               if(mainScreenEl) setActiveScreen(mainScreenEl); // Fallback directly
+               renderMainScreen(); // Ensure it renders
+          }
         }
-      } else if (window.gameSessionData.activeGalaxyId) {
-        // This case should ideally not happen if backToGalaxyButton is only on solar system screen
-        // But as a fallback, go to current active galaxy if any (e.g. if button was on galaxy screen itself)
-        switchToGalaxyDetailView(window.gameSessionData.activeGalaxyId);
-      } else {
-        switchToMainView(); // Ultimate fallback
+      } catch (viewRestoreError) {
+          console.error("Error restoring view after resize:", viewRestoreError);
+          switchToMainView(); 
       }
-    });
-  }
 
-  if (zoomInButton) zoomInButton.addEventListener('click', (e) => handleZoom('in', e));
-  if (zoomOutButton) zoomOutButton.addEventListener('click', (e) => handleZoom('out', e));
-  
-  // Wheel zoom listeners
-  if (galaxyDetailScreen) { // Attach to screen, not viewport, to catch events even if mouse is not over viewport center
-    galaxyDetailScreen.addEventListener('wheel', (e) => { 
-      if (galaxyDetailScreen.classList.contains('active')) { 
-        e.preventDefault(); // Prevent page scroll
-        handleZoom(e.deltaY < 0 ? 'in' : 'out', e); 
-      } 
-    }, { passive: false }); // passive: false because we call preventDefault
-  }
-  if (solarSystemScreen) {
-    solarSystemScreen.addEventListener('wheel', (e) => { 
-      if (solarSystemScreen.classList.contains('active')) { 
-        e.preventDefault(); // Prevent page scroll
-        handleZoom(e.deltaY < 0 ? 'in' : 'out', e); 
-      } 
-    }, { passive: false }); // passive: false because we call preventDefault
-  }
-  
-  // Consolidated Pan Start Listeners (mousedown on the view background)
-  if (galaxyViewport) { // Panning starts on the viewport itself for galaxy view
-    galaxyViewport.addEventListener('mousedown', (e) => { 
-      if (galaxyDetailScreen.classList.contains('active')) { 
-        const gal = window.gameSessionData.galaxies.find(g => g.id === window.gameSessionData.activeGalaxyId);
-        if(gal) startPan(e, galaxyViewport, galaxyZoomContent, gal); 
+      if (window.PlanetVisualPanelManager && window.PlanetVisualPanelManager.isVisible()) {
+          const currentPanelPlanetData = window.PlanetVisualPanelManager.getCurrentPlanetData();
+          if (currentPanelPlanetData) {
+              // console.log("Resize: Re-rendering visible planet visual panel.");
+              window.PlanetVisualPanelManager.rerenderIfNeeded(); 
+          }
       }
-    });
-  }
-  if (solarSystemScreen) { // Panning starts on the whole screen for solar system view
-    solarSystemScreen.addEventListener('mousedown', (e) => { 
-      if (solarSystemScreen.classList.contains('active')) { 
-        startPan(e, solarSystemScreen, solarSystemContent, window.gameSessionData.solarSystemView); 
-      } 
-    });
-  }
+      console.log("Debounced resize processing finished.");
+    }, 500); 
+  });
+  // ... (rest of your event listeners: regenerate, create design, back buttons, zoom, pan, etc.)
+
+  // ... (MOUSEMOVE and MOUSEUP LISTENERS for PANNING - these are fine) ...
+  window.addEventListener('mousemove', (e) => {
+    panMouseMove(e);
+  });
+  window.addEventListener('mouseup', () => {
+    panMouseUp();
+  });
 
   // --- INITIALIZE MODULES and GAME ---
   console.log("script.js: DOMContentLoaded. Initializing auxiliary modules.");
-  if (typeof quat_identity !== 'function') { // Check if mathUtils.js loaded (it defines global functions)
+  if (typeof quat_identity !== 'function') { 
     console.error("Math utilities (quat_identity) not found. Ensure mathUtils.js is loaded before script.js.");
-    // Potentially halt further initialization or show an error to the user.
   }
 
   if (window.PlanetDesigner && typeof window.PlanetDesigner.init === 'function') {
     window.PlanetDesigner.init();
     console.log("script.js: PlanetDesigner.init() called.");
   } else {
-    console.error("script.js: PlanetDesigner module not found or init function is missing.");
+    console.error("script.js: PlanetDesigner module or init function is missing.");
   }
 
   if (window.PlanetVisualPanelManager && typeof window.PlanetVisualPanelManager.init === 'function') {
     window.PlanetVisualPanelManager.init();
-    console.log("script.js: PlanetVisualPanelManager.init() called.");
+    // The console log "PVisualPanelManager: Init completed and listeners attached." 
+    // will come from WITHIN PlanetVisualPanelManager.init() itself.
+    // So this log might be slightly redundant or appear out of order but is harmless.
+    console.log("script.js: PlanetVisualPanelManager.init() called (or attempted).");
   } else {
-    console.error("script.js: PlanetVisualPanelManager module not found or its init function is missing.");
+    console.error("script.js: PlanetVisualPanelManager module or its init function is missing.");
   }
   
   initializeGame(); // Start the game logic

@@ -357,21 +357,11 @@ body {
 }
 #regenerate-universe-btn:hover { background-color: #e74c3c; }
 
-/* This ID is in HTML but not styled here, perhaps it's handled by JS or was removed? */
-/* #customize-generation-btn */
-#customize-generation-btn { /* Added styling based on pattern */
- top: 66px; left: 15px; z-index: 301;
- background-color: #2980b9; border: 1.1px solid #2471a3;
-}
-#customize-generation-btn:hover { background-color: #3498db; }
-
-
 #create-planet-design-btn {
  top: 117px; left: 15px; z-index: 301;
  background-color: #2b7a9f; border: 1.1px solid #226688;
 }
 #create-planet-design-btn:hover { background-color: #348bb9; }
-
 
 .modal-overlay { /* For customization modal (not in HTML but JS refers to a modal) */
  position: fixed;

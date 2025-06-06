@@ -1,7 +1,6 @@
 // script.js
 
 // Import animation functions from animationController.js
-import { startSolarSystemAnimation, stopSolarSystemAnimation } from './animationController.js';
 import { startSolarSystemAnimation, stopSolarSystemAnimation, isSolarSystemAnimationRunning } from './animationController.js';
 
 document.addEventListener('DOMContentLoaded', () => {

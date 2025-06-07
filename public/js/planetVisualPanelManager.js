@@ -4,7 +4,7 @@ import * as THREE from 'three';
 import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls.js';
 
 // --- Shader Definitions ---
-// GLSL utility for a pseudo-random number from a vec2
+// (Using the GLSL code you provided in the prompt)
 const glslRandom2to1 = `
   float random(vec2 st) {
     return fract(sin(dot(st.xy, vec2(12.9898,78.233))) * 43758.5453123);
@@ -17,24 +17,30 @@ const glslSimpleValueNoise3D = `
   float valueNoise(vec3 p, float seed) {
     vec3 i = floor(p + seed * 0.123); 
     vec3 f = fract(p + seed * 0.123); 
-    f = f * f * (3.0 - 2.0 * f);
+    f = f * f * (3.0 - 2.0 * f); // Smoothstep interpolation
 
-    float bottomLeftFront = random(i.xy + i.z * 0.37); 
-    float bottomRightFront= random(i.xy + vec2(1.0, 0.0) + i.z * 0.37);
-    float topLeftFront  = random(i.xy + vec2(0.0, 1.0) + i.z * 0.37);
-    float topRightFront = random(i.xy + vec2(1.0, 1.0) + i.z * 0.37);
-    float bottomLeftBack = random(i.xy + (i.z + 1.0) * 0.37);
-    float topRightBack  = random(i.xy + vec2(1.0, 1.0) + (i.z + 1.0) * 0.37);
-    float bottomRightBack= random(i.xy + vec2(1.0, 0.0) + (i.z + 1.0) * 0.37);
-    float topLeftBack   = random(i.xy + vec2(0.0, 1.0) + (i.z + 1.0) * 0.37);
+    // Get random values for the 8 corners of the cube
+    float c000 = random(i.xy + i.z * 0.37);       // Bottom-left-front
+    float c100 = random(i.xy + vec2(1.0, 0.0) + i.z * 0.37); // Bottom-right-front
+    float c010 = random(i.xy + vec2(0.0, 1.0) + i.z * 0.37); // Top-left-front
+    float c110 = random(i.xy + vec2(1.0, 1.0) + i.z * 0.37); // Top-right-front
+    float c001 = random(i.xy + (i.z + 1.0) * 0.37);      // Bottom-left-back
+    float c101 = random(i.xy + vec2(1.0, 0.0) + (i.z + 1.0) * 0.37); // Bottom-right-back
+    float c011 = random(i.xy + vec2(0.0, 1.0) + (i.z + 1.0) * 0.37); // Top-left-back
+    float c111 = random(i.xy + vec2(1.0, 1.0) + (i.z + 1.0) * 0.37); // Top-right-back
 
-    float bottomInterX1 = mix(bottomLeftFront, bottomRightFront, f.x);
-    float topInterX1  = mix(topLeftFront,  topRightFront,  f.x);
-    float bottomInterX2 = mix(bottomLeftBack,  bottomRightBack,  f.x);
-    float topInterX2  = mix(topLeftBack,   topRightBack,   f.x);
-    float interY1 = mix(bottomInterX1, topInterX1, f.y);
-    float interY2 = mix(bottomInterX2, topInterX2, f.y);
-    return mix(interY1, interY2, f.z); 
+    // Interpolate along x
+    float u00 = mix(c000, c100, f.x);
+    float u01 = mix(c001, c101, f.x);
+    float u10 = mix(c010, c110, f.x);
+    float u11 = mix(c011, c111, f.x);
+
+    // Interpolate along y
+    float v0 = mix(u00, u10, f.y);
+    float v1 = mix(u01, u11, f.y);
+
+    // Interpolate along z
+    return mix(v0, v1, f.z); 
   }
 `;
 
@@ -48,53 +54,56 @@ const glslLayeredNoise = `
     float maxValue = 0.0; 
 
     for (int i = 0; i < octaves; i++) {
-      total += valueNoise(p * frequency + seed * float(i) * 1.7, seed * 12.345 * float(i+1)) * amplitude;
+      total += valueNoise(p * frequency + seed * float(i) * 1.712, seed * 12.345 * float(i+1) * 0.931) * amplitude; // Varied seed inputs slightly
       maxValue += amplitude;
       amplitude *= persistence;
       frequency *= lacunarity;
     }
-    if (maxValue == 0.0) return 0.0;
-    return total / maxValue; 
+    if (maxValue == 0.0) return 0.0; // Avoid division by zero
+    return total / maxValue; // Normalize to roughly -1 to 1 or 0 to 1 depending on valueNoise range
   }
 `;
 
 const planetVertexShader = `
   uniform float uTime;
-  uniform float uMinTerrainHeight;  // Unused if vElevation directly drives displacement logic
-  uniform float uMaxTerrainHeight;  // Unused if vElevation directly drives displacement logic
-  uniform float uContinentSeed;
-  uniform float uSphereRadius;      // We'll use this.
-  uniform float uDisplacementAmount; // NEW: Controls overall bumpiness (0 for smooth, >0 for bumps)
+  // uMinTerrainHeight & uMaxTerrainHeight are not directly used in shader for displacement
+  // but are used in JS to calculate uDisplacementAmount and uOceanHeightLevel
+  uniform float uContinentSeed;   
+  uniform float uSphereRadius;     
+  uniform float uDisplacementAmount; // This controls the max world-space displacement
 
-  varying vec3 vNormal;
-  varying float vElevation;       // Pass normalized elevation (0 to 1)
-  varying vec3 vWorldPosition;
-  varying vec3 vComputedNormal;    // For lighting
+  varying vec3 vNormal;           // Original geometric normal
+  varying float vElevation;       // Normalized elevation (0 to 1) passed to fragment
+  varying vec3 vWorldPosition;   
+  // varying vec3 vComputedNormal; // We'll use the original vNormal for lighting for now
 
-  ${glslLayeredNoise} // Make sure this and its dependencies are defined above
+  ${glslLayeredNoise} 
 
   void main() {
-    vComputedNormal = normalize(normalMatrix * normal); // Use original normal for lighting a smooth sphere
-
-    vec3 basePosition = position; // This is already normalized if sphere radius is 1, or scaled to radius
+    vec3 basePosition = position; // This is the original vertex position on the unit sphere (if radius=1) or scaled sphere
     
-    // Calculate noise (expected range from layeredNoise: approx -1 to 1, but let's ensure 0-1 for vElevation)
-    vec3 noiseInputPosition = basePosition * 2.5 + (uContinentSeed * 10.0); // Keep your input variation
+    // Input for noise function - can be varied
+    // Multiplying by uSphereRadius normalizes if basePosition isn't already unit length for noise
+    vec3 noiseInputPosition = (basePosition / uSphereRadius) * 2.5 + (uContinentSeed * 10.0); 
+    
+    // layeredNoise should ideally return a value between -1 and 1 or 0 and 1.
+    // Let's assume it's roughly -1 to 1 for now.
     float rawNoiseValue = layeredNoise(noiseInputPosition, uContinentSeed, 4, 0.5, 2.0); 
 
-    // CRITICAL: Ensure vElevation is reliably in 0.0 to 1.0 range for fragment shader
-    vElevation = (rawNoiseValue + 1.0) * 0.5; // Assuming rawNoiseValue is roughly -1 to 1
+    // Normalize rawNoiseValue to a 0.0 - 1.0 range for vElevation
+    vElevation = (rawNoiseValue + 1.0) * 0.5; 
     vElevation = clamp(vElevation, 0.0, 1.0);
 
-    // Displacement: vElevation (0-1) * uDisplacementAmount (max visual bump relative to radius)
-    // uDisplacementAmount effectively replaces uDisplacementScale and directly controls the "bump height"
+    // Calculate displacement:
+    // vElevation (0-1) scales the uDisplacementAmount.
+    // If uDisplacementAmount is 0, planet is smooth.
+    // If rawNoiseValue gives negative values, this will only create bumps outwards.
+    // To have dips and bumps, use: float displacement = rawNoiseValue * uDisplacementAmount; (and adjust vElevation normalization)
     float displacement = vElevation * uDisplacementAmount; 
-    // If you want valleys as well as mountains from rawNoiseValue (-1 to 1):
-    // float displacement = rawNoiseValue * uDisplacementAmount; // This can make it dip inwards
 
     vec3 displacedPosition = basePosition + normal * displacement;
     
-    vNormal = normal; // Pass the original geometric normal
+    vNormal = normal; // Pass the original geometric normal for lighting a generally smooth sphere
     vWorldPosition = (modelMatrix * vec4(displacedPosition, 1.0)).xyz;
     gl_Position = projectionMatrix * modelViewMatrix * vec4(displacedPosition, 1.0);
   }
@@ -103,64 +112,79 @@ const planetVertexShader = `
 const planetFragmentShader = `
   uniform vec3 uLandColor;
   uniform vec3 uWaterColor;
-  uniform float uOceanHeightLevel; // Normalized (0-1) from JS
+  uniform float uOceanHeightLevel; // Expected to be normalized (0-1) from JS
 
-  varying vec3 vNormal;          // Original sphere normal
-  varying float vElevation;       // Normalized elevation (0 to 1)
+  varying vec3 vNormal;          // Original sphere normal, interpolated
+  varying float vElevation;       // Normalized elevation (0 to 1) from vertex shader
   varying vec3 vWorldPosition;   
-  // varying vec3 vComputedNormal; // We'll use vNormal for simpler lighting on a "smoother" base unless advanced normal recalculation is done
+  // varying vec3 vComputedNormal; // Not using explicitly computed normal here for simplicity
 
-  // Simplified lighting
-  vec3 calculateLighting(vec3 surfaceColor, vec3 normalToUse) {
+  // Simple Blinn-Phong-like lighting
+  vec3 calculateLighting(vec3 surfaceColor, vec3 normalVec, vec3 viewDir) {
     vec3 lightColor = vec3(1.0, 1.0, 0.95); 
-    float ambientStrength = 0.35; // Slightly more ambient
-    float diffuseStrength = 0.75; // Slightly less direct diffuse
-    vec3 lightDirection = normalize(vec3(0.8, 0.6, 0.5)); // A common directional light
+    float ambientStrength = 0.25; // Reduced ambient
+    float diffuseStrength = 0.7;
+    float specularStrength = 0.3; // Added specular
+    float shininess = 16.0;       // Shininess for specular
 
+    vec3 lightDirection = normalize(vec3(0.8, 0.6, 1.0)); // Adjusted light direction for better side illumination
+
+    // Ambient
     vec3 ambient = ambientStrength * lightColor;
-    float diff = max(dot(normalize(normalToUse), lightDirection), 0.0);
+
+    // Diffuse
+    vec3 norm = normalize(normalVec);
+    float diff = max(dot(norm, lightDirection), 0.0);
     vec3 diffuse = diffuseStrength * diff * lightColor;
+
+    // Specular
+    vec3 reflectDir = reflect(-lightDirection, norm);
+    float spec = pow(max(dot(viewDir, reflectDir), 0.0), shininess);
+    vec3 specular = specularStrength * spec * lightColor;
     
-    return (ambient + diffuse) * surfaceColor;
+    return (ambient + diffuse + specular) * surfaceColor;
   }
 
   void main() {
     vec3 finalColor;
 
-    // Ensure vElevation is used consistently (should be 0-1 now)
     if (vElevation < uOceanHeightLevel) {
-      // Water: mix based on how close to the ocean surface (vElevation) vs deepest (0.0)
-      // This creates a slight gradient for water depth.
+      // Water: make it slightly transparent and add specular for water-like shine
       float depthFactor = smoothstep(0.0, uOceanHeightLevel, vElevation); 
-      finalColor = mix(uWaterColor * 0.6, uWaterColor, depthFactor); // Darker blue for deeper parts
+      finalColor = mix(uWaterColor * 0.7, uWaterColor, depthFactor); // color based on depth
+
+      // For water, specular might make it look more "wet"
+      // The lighting function will apply this.
     } else {
-      // Land: mix based on elevation above water
+      // Land
       float landElevationFactor = smoothstep(uOceanHeightLevel, 1.0, vElevation); 
       vec3 baseLand = uLandColor;
       
-      // Make land darker at "sea level" and lighter at high elevations
-      finalColor = mix(baseLand * 0.7, baseLand * 1.1, landElevationFactor);
+      // Color land: darker near water, lighter towards peaks
+      finalColor = mix(baseLand * 0.6, baseLand * 1.15, landElevationFactor * landElevationFactor);
 
-      // Add mountain peak highlights (snowy effect)
-      float peakFactor = smoothstep(0.85, 1.0, vElevation); // Only for top 15% of elevation
-      finalColor = mix(finalColor, vec3(0.9, 0.9, 0.95), peakFactor * 0.7); // Mix with off-white
+      // Add peak highlights
+      float peakFactor = smoothstep(0.8, 1.0, vElevation); // Start highlights a bit lower
+      finalColor = mix(finalColor, vec3(0.95, 0.95, 0.98), peakFactor * 0.75); // Brighter, slightly bluish peaks
     }
 
-    // Use the original sphere's normal for lighting to avoid faceted look from displacement
-    // until more advanced normal calculation is in place for the displaced surface.
-    gl_FragColor = vec4(calculateLighting(finalColor, normalize(vNormal)), 1.0);
+    vec3 viewDirection = normalize(cameraPosition - vWorldPosition); // Needed for specular
+    gl_FragColor = vec4(calculateLighting(finalColor, vNormal, viewDirection), 1.0);
   }
 `;
+
 
 export const PlanetVisualPanelManager = (() => {
   console.log("PVisualPanelManager: Script loaded.");
 
+  // DOM Elements
   let panelElement, headerElement, titleElement, sizeElement,
       planetPreviewCanvasElement, closeButton, enter360ViewButton,
       planet360CanvasElement;
 
+  // State
   let currentPlanetData = null;
-  let rotationQuat2D = [1, 0, 0, 0];
+  let rotationQuat2D = [1, 0, 0, 0]; // For 2D Preview
   let startDragPlanetQuat2D = [1, 0, 0, 0];
   let startDragMouse2D = { x: 0, y: 0 };
   let isDraggingPlanet2D = false;
@@ -173,31 +197,41 @@ export const PlanetVisualPanelManager = (() => {
   let threeScene, threeCamera, threeRenderer, threePlanetMesh, threeControls, threeAnimationId;
   let threeShaderMaterial;
 
-  const SPHERE_BASE_RADIUS = 0.8;
-  const TERRAIN_DISPLACEMENT_VISUAL_SCALE = 0.015;
+  const SPHERE_BASE_RADIUS = 0.8; // Keep this for the geometry
+  // This factor scales the *conceptual terrain range* to a *visual displacement amount*.
+  // e.g., if conceptual range (maxH-minH) is 10, and factor is 0.01, max bump is 0.1 world units.
+  // To make it an "actual sphere" (smooth), this factor (or the resulting uDisplacementAmount) should be 0.
+  const DISPLACEMENT_SCALING_FACTOR = 0.01; // Adjust for desired bumpiness. 0.0 = smooth.
 
   function _initThreeJSView(planet) {
     if (!planet360CanvasElement || !planet) {
-        console.error("PVisualPanelManager: Cannot init 360 view - canvas or planet data missing.");
-        return;
+      console.error("PVisualPanelManager: Cannot init 360 view - canvas or planet data missing.");
+      return;
     }
-     if (planet360CanvasElement.offsetWidth === 0 || planet360CanvasElement.offsetHeight === 0) {
-        console.warn("PVisualPanelManager: 360 canvas has zero dimensions on init. Applying current style dimensions.");
-        planet360CanvasElement.width = parseInt(window.getComputedStyle(planet360CanvasElement).width, 10) || 300;
-        planet360CanvasElement.height = parseInt(window.getComputedStyle(planet360CanvasElement).height, 10) || 300;
-        if (planet360CanvasElement.width === 0 || planet360CanvasElement.height === 0) { // Final fallback
+    // Canvas size handling
+    if (planet360CanvasElement.offsetWidth === 0 || planet360CanvasElement.offsetHeight === 0) {
+      console.warn("PVisualPanelManager: 360 canvas has zero dimensions on init. Attempting to use CSS computed size or fallback.");
+      const computedStyle = window.getComputedStyle(planet360CanvasElement);
+      planet360CanvasElement.width = parseInt(computedStyle.width, 10) || 300;
+      planet360CanvasElement.height = parseInt(computedStyle.height, 10) || 300;
+       if (planet360CanvasElement.width === 0 || planet360CanvasElement.height === 0) { // Final fallback
             planet360CanvasElement.width = 300; planet360CanvasElement.height = 300;
-        }
+            console.warn("PVisualPanelManager: Fallback to 300x300 for 360 canvas buffer.");
+       }
     }
 
     console.log("PVisualPanelManager: Initializing Three.js view for shader planet:", planet.planetName, planet);
 
     threeScene = new THREE.Scene();
-    threeScene.background = new THREE.Color(0x050510);
+    threeScene.background = new THREE.Color(0x050510); // Darker space
 
     const aspectRatio = planet360CanvasElement.offsetWidth / planet360CanvasElement.offsetHeight;
-    threeCamera = new THREE.PerspectiveCamera(65, aspectRatio, 0.1, 1000);
-    threeCamera.position.z = 1.7;
+    threeCamera = new THREE.PerspectiveCamera(60, aspectRatio, 0.1, 1000); // fov 60
+    // Position camera to view the sphere (radius 0.8) nicely
+    const fovInRadians = THREE.MathUtils.degToRad(threeCamera.fov);
+    const distance = SPHERE_BASE_RADIUS / Math.sin(fovInRadians / 2) + 0.2; // Add a bit of padding
+    threeCamera.position.z = Math.max(distance, SPHERE_BASE_RADIUS * 1.5); // Ensure not too close
+
 
     threeRenderer = new THREE.WebGLRenderer({ canvas: planet360CanvasElement, antialias: true });
     threeRenderer.setSize(planet360CanvasElement.offsetWidth, planet360CanvasElement.offsetHeight);
@@ -205,33 +239,38 @@ export const PlanetVisualPanelManager = (() => {
 
     const geometry = new THREE.SphereGeometry(SPHERE_BASE_RADIUS, 64, 48);
 
-    let normalizedOceanLevel = 0.3;
-    const pMin = planet.minTerrainHeight ?? 0.0;
-    const pMax = planet.maxTerrainHeight ?? 10.0;
-    const pOcean = planet.oceanHeightLevel ?? (pMin + (pMax - pMin) * 0.3);
+    // Calculate normalized ocean level (0-1)
+    let normalizedOceanLevel = 0.3; // Default if properties are missing
+    const pMinConceptual = planet.minTerrainHeight ?? 0.0;
+    const pMaxConceptual = planet.maxTerrainHeight ?? (pMinConceptual + 10.0); // Ensure max is >= min
+    const pOceanConceptual = planet.oceanHeightLevel ?? (pMinConceptual + (pMaxConceptual - pMinConceptual) * 0.3);
 
-    if (pMax > pMin) {
-      normalizedOceanLevel = (pOcean - pMin) / (pMax - pMin);
+    if (pMaxConceptual > pMinConceptual) {
+      normalizedOceanLevel = (pOceanConceptual - pMinConceptual) / (pMaxConceptual - pMinConceptual);
     }
-    normalizedOceanLevel = Math.max(0.0, Math.min(1.0, normalizedOceanLevel));
-    const effectiveDisplacementScale = (pMax - pMin) * TERRAIN_DISPLACEMENT_VISUAL_SCALE; // Scale based on actual range
+    normalizedOceanLevel = Math.max(0.0, Math.min(1.0, normalizedOceanLevel)); // Clamp to 0-1
+
+    // Calculate uDisplacementAmount for the shader
+    // This is the maximum amplitude of displacement in world units.
+    const conceptualTerrainRange = Math.max(0, pMaxConceptual - pMinConceptual); // Ensure non-negative range
+    const displacementAmount = conceptualTerrainRange * DISPLACEMENT_SCALING_FACTOR;
+    // If you want a perfectly smooth sphere option, you could have a setting for DISPLACEMENT_SCALING_FACTOR = 0
 
     const uniforms = {
       uLandColor: { value: new THREE.Color(planet.landColor || '#006400') },
       uWaterColor: { value: new THREE.Color(planet.waterColor || '#0000FF') },
       uOceanHeightLevel: { value: normalizedOceanLevel },
-      uMinTerrainHeight: { value: pMin },
-      uMaxTerrainHeight: { value: pMax },
       uContinentSeed: { value: planet.continentSeed ?? Math.random() },
       uTime: { value: 0.0 },
-      uSphereRadius: { value: SPHERE_BASE_RADIUS },
-      uDisplacementScale: { value: effectiveDisplacementScale }
+      uSphereRadius: { value: SPHERE_BASE_RADIUS }, // Pass base radius to shader
+      uDisplacementAmount: { value: displacementAmount }
     };
 
     threeShaderMaterial = new THREE.ShaderMaterial({
       uniforms: uniforms,
       vertexShader: planetVertexShader,
       fragmentShader: planetFragmentShader,
+      // flatShading: true, // Try if normals look odd with displacement, but usually false for spheres
     });
 
     threePlanetMesh = new THREE.Mesh(geometry, threeShaderMaterial);
@@ -241,8 +280,8 @@ export const PlanetVisualPanelManager = (() => {
     threeControls.enableDamping = true;
     threeControls.dampingFactor = 0.05;
     threeControls.screenSpacePanning = false;
-    threeControls.minDistance = SPHERE_BASE_RADIUS * 1.1;
-    threeControls.maxDistance = SPHERE_BASE_RADIUS * 5;
+    threeControls.minDistance = SPHERE_BASE_RADIUS * 1.05; // Min zoom
+    threeControls.maxDistance = SPHERE_BASE_RADIUS * 7;   // Max zoom
     threeControls.target.set(0, 0, 0);
 
     _animateThreeJSView();
@@ -254,20 +293,20 @@ export const PlanetVisualPanelManager = (() => {
       threeShaderMaterial.uniforms.uWaterColor.value.set(planet.waterColor || '#0000FF');
 
       let normalizedOceanLevel = 0.3;
-      const pMin = planet.minTerrainHeight ?? 0.0;
-      const pMax = planet.maxTerrainHeight ?? 10.0;
-      const pOcean = planet.oceanHeightLevel ?? (pMin + (pMax - pMin) * 0.3);
-      if (pMax > pMin) {
-        normalizedOceanLevel = (pOcean - pMin) / (pMax - pMin);
+      const pMinConceptual = planet.minTerrainHeight ?? 0.0;
+      const pMaxConceptual = planet.maxTerrainHeight ?? (pMinConceptual + 10.0);
+      const pOceanConceptual = planet.oceanHeightLevel ?? (pMinConceptual + (pMaxConceptual - pMinConceptual) * 0.3);
+      if (pMaxConceptual > pMinConceptual) {
+        normalizedOceanLevel = (pOceanConceptual - pMinConceptual) / (pMaxConceptual - pMinConceptual);
       }
       normalizedOceanLevel = Math.max(0.0, Math.min(1.0, normalizedOceanLevel));
-      const effectiveDisplacementScale = (pMax - pMin) * TERRAIN_DISPLACEMENT_VISUAL_SCALE;
 
+      const conceptualTerrainRange = Math.max(0, pMaxConceptual - pMinConceptual);
+      const displacementAmount = conceptualTerrainRange * DISPLACEMENT_SCALING_FACTOR;
+      
       threeShaderMaterial.uniforms.uOceanHeightLevel.value = normalizedOceanLevel;
-      threeShaderMaterial.uniforms.uMinTerrainHeight.value = pMin;
-      threeShaderMaterial.uniforms.uMaxTerrainHeight.value = pMax;
       threeShaderMaterial.uniforms.uContinentSeed.value = planet.continentSeed ?? Math.random();
-      threeShaderMaterial.uniforms.uDisplacementScale.value = effectiveDisplacementScale;
+      threeShaderMaterial.uniforms.uDisplacementAmount.value = displacementAmount;
 
       console.log("PVisualPanelManager: Updated Three.js planet shader uniforms for:", planet.planetName);
     }
@@ -277,7 +316,7 @@ export const PlanetVisualPanelManager = (() => {
     if (!is360ViewActive || !threeRenderer) return;
     threeAnimationId = requestAnimationFrame(_animateThreeJSView);
     if (threeShaderMaterial && threeShaderMaterial.uniforms.uTime) {
-      threeShaderMaterial.uniforms.uTime.value += 0.005;
+        threeShaderMaterial.uniforms.uTime.value += 0.005;
     }
     if(threeControls) threeControls.update();
     if(threeRenderer && threeScene && threeCamera) threeRenderer.render(threeScene, threeCamera);
@@ -286,302 +325,104 @@ export const PlanetVisualPanelManager = (() => {
   function _stopAndCleanupThreeJSView() {
     if (threeAnimationId) cancelAnimationFrame(threeAnimationId);
     threeAnimationId = null;
-    if (threeControls) threeControls.dispose();
-    threeControls = null;
+    if (threeControls) {
+        threeControls.dispose();
+        threeControls = null;
+    }
     if (threePlanetMesh) {
         if(threePlanetMesh.geometry) threePlanetMesh.geometry.dispose();
         if(threeShaderMaterial) threeShaderMaterial.dispose();
-        if(threeScene) threeScene.remove(threePlanetMesh);
+        if(threeScene) threeScene.remove(threePlanetMesh); // Check if threeScene exists
         threePlanetMesh = null;
         threeShaderMaterial = null;
     }
     if (threeScene) {
-        while(threeScene.children.length > 0){
-            const child = threeScene.children[0];
-            threeScene.remove(child);
-            // Basic cleanup for known types; more complex scenes need more careful disposal
-            if (child.isMesh && child.geometry) child.geometry.dispose();
-            if (child.isMesh && child.material) {
-                if (Array.isArray(child.material)) child.material.forEach(m => m.dispose());
-                else child.material.dispose();
-            }
+        // Remove any other dynamically added objects from the scene if necessary
+        // For simple scenes, this might be enough. For complex ones, traverse and dispose.
+        while(threeScene.children.length > 0){ 
+            const object = threeScene.children[0];
+            threeScene.remove(object);
+            // Add more specific disposal if object has geometry/material/textures
+             if (object.geometry) object.geometry.dispose();
+             if (object.material) {
+                 if (Array.isArray(object.material)) {
+                     object.material.forEach(material => material.dispose());
+                 } else {
+                     object.material.dispose();
+                 }
+             }
         }
     }
     if (threeRenderer) {
-        threeRenderer.dispose();
-        // threeRenderer.forceContextLoss(); // Can be aggressive, use if WebGL contexts stick
-        threeRenderer.domElement = null;
+        threeRenderer.dispose(); // Essential for releasing WebGL context
+        // threeRenderer.domElement = null; // The canvas is managed elsewhere
         threeRenderer = null;
     }
     threeScene = null;
     threeCamera = null;
     console.log("PVisualPanelManager: Three.js 360 view cleaned up.");
   }
-
+  
   function _renderPreview() {
+    // ... (Ensure this function correctly sizes and renders the 2D preview
+    //      to planetPreviewCanvasElement using the worker, as in your previous complete version)
     if (isRenderingPreview || !window.planetVisualWorker || !currentPlanetData || !planetPreviewCanvasElement) {
       if (currentPlanetData) needsPreviewRerender = true; return;
     }
     if (planetPreviewCanvasElement.offsetParent === null) {
       needsPreviewRerender = true; return;
     }
-    const canvas = planetPreviewCanvasElement;
+ const canvas = planetPreviewCanvasElement;
     const currentWidth = canvas.offsetWidth;
     const currentHeight = canvas.offsetHeight;
     if (canvas.width !== currentWidth || canvas.height !== currentHeight) {
-        canvas.width = currentWidth;
-        canvas.height = currentHeight;
+      canvas.width = currentWidth;
+      canvas.height = currentHeight;
     }
     if (canvas.width === 0 || canvas.height === 0) {
-        console.warn("PVisualPanelManager: Preview canvas size 0x0, skipping worker call.");
-        needsPreviewRerender = true; return;
+      console.warn("PVisualPanelManager: Preview canvas size 0x0, skipping worker call.");
+      needsPreviewRerender = true; return;
     }
     isRenderingPreview = true;
     needsPreviewRerender = false;
     window.renderPlanetVisual(currentPlanetData, rotationQuat2D, canvas, 'planet-visual-panel-preview-canvas');
   }
-  
-  function _rerenderPreviewIfNeeded() { 
+
+  function _rerenderPreviewIfNeeded() {
     if (panelElement?.classList.contains('visible') && currentPlanetData && !is360ViewActive && planetPreviewCanvasElement?.offsetParent !== null) {
       _renderPreview();
     }
   }
 
-  function _switchTo360View() {
-    if (!currentPlanetData) return;
-    is360ViewActive = true;
-    _stopAndCleanupThreeJSView(); // Clean up before switching
+function _switchTo360View() {
+  if (!currentPlanetData) return;
 
-    if (planetPreviewCanvasElement) planetPreviewCanvasElement.style.display = 'none';
-    if (planet360CanvasElement) {
-        planet360CanvasElement.style.display = 'block';
-        requestAnimationFrame(() => { // Ensure display:block is effective before sizing
-            if (planet360CanvasElement.offsetParent !== null) {
-                 const newWidth = planet360CanvasElement.offsetWidth;
-                 const newHeight = planet360CanvasElement.offsetHeight;
-                 if(planet360CanvasElement.width !== newWidth) planet360CanvasElement.width = newWidth;
-                 if(planet360CanvasElement.height !== newHeight) planet360CanvasElement.height = newHeight;
-                
-                if (newWidth > 0 && newHeight > 0) {
-                    _initThreeJSView(currentPlanetData);
-                } else {
-                     console.warn("PVisualPanelManager: 360 canvas offsetWidth/Height is 0 after display block. Three.js init might have issues.");
-                     // Attempt init with last known good size or default
-                      planet360CanvasElement.width = planet360CanvasElement.width || 300;
-                      planet360CanvasElement.height = planet360CanvasElement.height || 300;
-                     _initThreeJSView(currentPlanetData);
-                }
-            } else {
-                console.warn("PVisualPanelManager: 360 canvas not attached to DOM or visible. Three.js init deferred or potentially flawed.");
-            }
-        });
-    }
-    if (enter360ViewButton) enter360ViewButton.textContent = "Show 2D Preview";
-  }
+  is360ViewActive = true;
+  _stopAndCleanupThreeJSView(); // Clean up before switching
 
-  function _switchToPreviewView() {
-    is360ViewActive = false;
-    _stopAndCleanupThreeJSView();
-    if (planet360CanvasElement) planet360CanvasElement.style.display = 'none';
-    if (planetPreviewCanvasElement) {
-        planetPreviewCanvasElement.style.display = 'block';
-        // Ensure 2D preview is rendered correctly after being hidden
-        if (currentPlanetData) {
-             requestAnimationFrame(() => _rerenderPreviewIfNeeded());
-        }
-    }
-    if (enter360ViewButton) enter360ViewButton.textContent = "Enter 360° View";
-    console.log("PVisualPanelManager: Switched to 2D preview view.");
-  }
+  if (planetPreviewCanvasElement) planetPreviewCanvasElement.style.display = 'none';
+  if (planet360CanvasElement) {
+    planet360CanvasElement.style.display = 'block';
+    requestAnimationFrame(() => { // Ensure display:block is effective before sizing
 
-  function _onCanvasMouseDown(e) { 
-    if (e.button !== 0 || !currentPlanetData || is360ViewActive) return;
-    isDraggingPlanet2D = true;
-    startDragMouse2D.x = e.clientX;
-    startDragMouse2D.y = e.clientY;
-    startDragPlanetQuat2D = [...rotationQuat2D];
-    planetPreviewCanvasElement?.classList.add('dragging');
-    e.preventDefault();
-  }
-  function _onHeaderMouseDown(e) { 
-    if (e.button !== 0 || !panelElement) return;
-    isDraggingPanel = true;
-    headerElement?.classList.add('dragging');
-    panelElement.style.transition = 'none';
-    const rect = panelElement.getBoundingClientRect();
-    panelOffset.x = e.clientX - rect.left;
-    panelOffset.y = e.clientY - rect.top;
-    panelElement.style.transform = 'none'; // Important if panel was centered with transform
-    panelElement.style.left = `${e.clientX - panelOffset.x}px`;
-    panelElement.style.top = `${e.clientY - panelOffset.y}px`;
-    e.preventDefault();
-  }
-  function _onWindowMouseMove(e) { 
-    if (isDraggingPanel && panelElement) {
-        panelElement.style.left = `${e.clientX - panelOffset.x}px`;
-        panelElement.style.top = `${e.clientY - panelOffset.y}px`;
-    } else if (isDraggingPlanet2D && planetPreviewCanvasElement && !is360ViewActive) {
-        const rect = planetPreviewCanvasElement.getBoundingClientRect();
-        if (rect.width === 0) return;
-        const deltaX = e.clientX - startDragMouse2D.x;
-        const deltaY = e.clientY - startDragMouse2D.y;
-        const sensitivity = window.PLANET_ROTATION_SENSITIVITY || 0.75;
-        const rotX = (deltaY / rect.width) * Math.PI * sensitivity;
-        const rotY = (deltaX / rect.width) * (2 * Math.PI) * sensitivity;
-        const rotQuatX = window.quat_from_axis_angle([1, 0, 0], -rotX);
-        const rotQuatY = window.quat_from_axis_angle([0, 1, 0], rotY);
-        const incrRotQuat = window.quat_multiply(rotQuatY, rotQuatX);
-        rotationQuat2D = window.quat_normalize(window.quat_multiply(incrRotQuat, startDragPlanetQuat2D));
-        _renderPreview();
-    }
-  }
-  function _onWindowMouseUp() { 
-    if (isDraggingPanel) {
-        isDraggingPanel = false;
-        headerElement?.classList.remove('dragging');
-        panelElement?.style.removeProperty('transition');
-    }
-    if (isDraggingPlanet2D) {
-        isDraggingPlanet2D = false;
-        planetPreviewCanvasElement?.classList.remove('dragging');
-    }
-  }
-
-  function _closePanel() { 
-    if (is360ViewActive) {
-        _switchToPreviewView(); 
-    }
-    panelElement?.classList.remove('visible');
-    currentPlanetData = null;
-    isRenderingPreview = false;
-    needsPreviewRerender = false;
-  }
-
-  return {
-    init: () => {
-      panelElement = document.getElementById('planet-visual-panel');
-      headerElement = document.getElementById('planet-visual-panel-header');
-      titleElement = document.getElementById('planet-visual-title');
-      sizeElement = document.getElementById('planet-visual-size');
-      planetPreviewCanvasElement = document.getElementById('planet-visual-canvas');
-      closeButton = document.getElementById('close-planet-visual-panel');
-      planet360CanvasElement = document.getElementById('panel-planet-360-canvas');
-      enter360ViewButton = document.getElementById('enter-360-view-button');
-
-      if (!planet360CanvasElement) console.error("PVisualPanelManager: CRITICAL - 360 Canvas not found in DOM!");
-
-      if (typeof window.quat_identity === 'function') {
-        rotationQuat2D = window.quat_identity();
-      }
-
-      closeButton?.addEventListener('click', _closePanel);
-      headerElement?.addEventListener('mousedown', _onHeaderMouseDown);
-      planetPreviewCanvasElement?.addEventListener('mousedown', _onCanvasMouseDown);
-
-      enter360ViewButton?.addEventListener('click', () => {
-        if (is360ViewActive) _switchToPreviewView();
-        else _switchTo360View();
-      });
-
-      window.addEventListener('resize', () => {
-        const panelIsVisible = panelElement?.classList.contains('visible');
-        if (is360ViewActive && panelIsVisible && threeRenderer && threeCamera && planet360CanvasElement?.offsetParent !== null) {
-            const canvas = planet360CanvasElement;
-            const newWidth = canvas.offsetWidth;
-            const newHeight = canvas.offsetHeight;
-            if (newWidth > 0 && newHeight > 0) {
-                threeCamera.aspect = newWidth / newHeight;
-                threeCamera.updateProjectionMatrix();
-                threeRenderer.setSize(newWidth, newHeight);
-            }
-        } else if (!is360ViewActive && panelIsVisible && planetPreviewCanvasElement?.offsetParent !== null) {
-            _rerenderPreviewIfNeeded(); // This will internall call _renderPreview which resizes
-        }
-      });
-
-      window.addEventListener('mousemove', _onWindowMouseMove);
-      window.addEventListener('mouseup', _onWindowMouseUp);
-
-      setInterval(() => {
-        if (needsPreviewRerender && !is360ViewActive && planetPreviewCanvasElement?.offsetParent !== null && panelElement?.classList.contains('visible')) {
-            _renderPreview();
-        }
-      }, 250);
-      console.log("PVisualPanelManager: Init complete.");
-    },
-
-    show: (planetData) => {
-      if (!panelElement || !planetData) {
-        _closePanel();
-        return;
-      }
-      console.log("PVisualPanelManager: Show called for planet:", planetData.planetName || planetData.id);
-
-      const isNewPlanet = !currentPlanetData || currentPlanetData.id !== planetData.id;
-      currentPlanetData = planetData;
-      
-      panelElement.classList.add('visible'); // Make panel visible first
-
-      if (is360ViewActive) {
-        if(isNewPlanet) { // If in 360 view but showing a new planet data
-            _updateThreeJSPlanetAppearance(currentPlanetData); // Update the existing 3D view
-        } else {
-            // Same planet, 360 view already active, do nothing or minor update if needed
-        }
-      } else {
-         // Should be in preview view or just opening
-         _switchToPreviewView(); // This also handles rendering the 2D preview of currentPlanetData
-      }
-
-
-      if (titleElement) titleElement.textContent = currentPlanetData.planetName || 'Planet';
-      if (sizeElement) sizeElement.textContent = currentPlanetData.size ? `${Math.round(currentPlanetData.size)} px (diameter)` : 'N/A';
-
-      if (typeof window.quat_identity === 'function' && isNewPlanet) { // Reset 2D preview rotation only for new planet
-        rotationQuat2D = window.quat_identity();
-      }
-
-      
-      if (!panelElement.style.left || panelElement.style.left === '0px' || panelElement.style.transform === '') {
-        panelElement.style.left = '50%';
-        panelElement.style.top = '50%';
-        panelElement.style.transform = 'translate(-50%, -50%)';
-      }
-    },
-
-    hide: _closePanel,
-
-    handleWorkerMessage: ({ renderedData, width, height, error, senderId }) => {
-      if (senderId !== 'planet-visual-panel-preview-canvas') {
-        if (needsPreviewRerender && !is360ViewActive && planetPreviewCanvasElement?.offsetParent !== null ) _renderPreview();
-        return;
-      }
-      isRenderingPreview = false;
-
-      if (error) {
-        console.error("PVisualPanelManager: Worker reported an error for preview canvas:", error);
-      } else if (planetPreviewCanvasElement && panelElement?.classList.contains('visible') && currentPlanetData && !is360ViewActive) {
-        const ctx = planetPreviewCanvasElement.getContext('2d');
-        if (ctx && renderedData) {
-          try {
-            const canvas = planetPreviewCanvasElement;
-            if (canvas.width !== width || canvas.height !== height) { // Resize if worker data dimensions differ
-                canvas.width = width;
-                canvas.height = height;
-            }
-            const clampedArray = new Uint8ClampedArray(renderedData);
-            const imageDataObj = new ImageData(clampedArray, width, height);
-            ctx.clearRect(0,0,width,height); // Clear before drawing
-            ctx.putImageData(imageDataObj, 0, 0);
-          } catch (err) {
-            console.error("PVisualPanelManager: Error putting ImageData on preview canvas:", err);
+      // Ensure canvas is sized correctly for Three.js before init
+      if (planet360CanvasElement.offsetParent !== null) {
+          const newWidth = planet360CanvasElement.offsetWidth;
+          const newHeight = planet360CanvasElement.offsetHeight;
+          if (newWidth > 0 && newHeight > 0) {
+            planet360CanvasElement.width = newWidth;
+            planet360CanvasElement.height = newHeight;
+            _initThreeJSView(currentPlanetData); // Re-initialize the 3D view
+          } else {
+            console.warn("PVisualPanelManager: 360 canvas had zero dimensions after display:block. Three.js init was skipped");
+            planet360CanvasElement.width = planet360CanvasElement.width || 300;
+            planet360CanvasElement.height = planet360CanvasElement.height || 300;
+             _initThreeJSView(currentPlanetData); // Re-initialize the 3D view
           }
-        }
+      } else {
+        console.warn("PVisualPanelManager: 360 canvas not attached to DOM or visible, deferring Three.js init.");
       }
-      if (needsPreviewRerender && !is360ViewActive && planetPreviewCanvasElement?.offsetParent !== null) _renderPreview();
-    },
-    isVisible: () => panelElement?.classList.contains('visible'),
-    getCurrentPlanetData: () => currentPlanetData,
-    rerenderPreviewIfNeeded: _rerenderPreviewIfNeeded,
-  };
-})();
+    }); // End requestAnimationFrame
+  }
+  if (enter360ViewButton) enter360ViewButton.textContent = "Show 2D Preview"; // Text adjustment
+}

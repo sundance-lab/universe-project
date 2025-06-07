@@ -197,20 +197,19 @@ body {
 }
 
 .sun-icon {
-  position: absolute;
-  left: 50%;
-  top: 50%;
-  transform: translate(-50%, -50%);
-  border-radius: 50%;
-  box-sizing: border-box;
-  /* FIXED: Changed z-index from 0 to 2 to place it above the orbit canvas */
-  z-index: 2; 
-  background: radial-gradient(ellipse at center,
-    var(--sun-core-color, #FFEA00) 89%, 
-    var(--sun-mid-color, #FFD700) 95.6%, 
-    var(--sun-edge-color, #FFA500) 99% 
-  );
-  border: 2px solid var(--sun-actual-border-color, #FFA500); 
+ position: absolute;
+ left: 50%;
+ top: 50%;
+ transform: translate(-50%, -50%); /* Center the sun within #solar-system-content */
+ border-radius: 50%;
+ box-sizing: border-box; /* Good for border and padding */
+ z-index: 0; /* Base layer in solar system view, orbits and planets above */
+ background: radial-gradient(ellipse at center,
+  var(--sun-core-color, #FFEA00) 89%, 
+  var(--sun-mid-color, #FFD700) 95.6%, 
+  var(--sun-edge-color, #FFA500) 99% 
+ );
+ border: 2px solid var(--sun-actual-border-color, #FFA500); 
 }
 
 .planet-icon {
@@ -256,13 +255,12 @@ body {
 }
 
 #solar-system-orbit-canvas { /* Canvas for drawing orbits */
-  position: absolute;
-  top: 50%;
-  left: 50%;
-  transform: translate(-50%, -50%);
-  pointer-events: none;
-  /* FIXED: Changed z-index from 3 to 1 to place it behind the sun */
-  z-index: 1;
+ position: absolute;
+ top: 50%;
+ left: 50%;
+ transform: translate(-50%, -50%); /* Center it within #solar-system-content */
+ pointer-events: none; /* So it doesn't block clicks on planets/sun */
+ z-index: 3; /* Between sun (0 or 1) and planets (4) */
 }
 
 .controls-overlay {

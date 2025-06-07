@@ -273,6 +273,16 @@ body {
  pointer-events: none; /* Overlay doesn't block, children opt-in */
 }
 
+#planet-360-screen {
+    background-color: #000;
+}
+
+#planet-360-canvas {
+    width: 80vw;
+    height: 80vh;
+    background-color: #111;
+}
+
 .controls-overlay > * {
  pointer-events: all; /* Children of overlay are interactive */
 }

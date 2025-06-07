@@ -43,7 +43,6 @@ uniform float uTime;
 uniform float uContinentSeed;
 uniform float uSphereRadius;
 uniform float uDisplacementAmount;
-uniform float uContinentSharpness;
 uniform float uRiverBasin;
 
 varying vec3 vNormal;
@@ -77,13 +76,14 @@ void main() {
     vec3 p = position;
     vec3 noiseInputPosition = (p / uSphereRadius) + (uContinentSeed * 10.0);
 
-    float continentNoise = (layeredNoise(noiseInputPosition, uContinentSeed, 5, 0.5, 2.0, 1.5) + 1.0) * 0.5;
-    continentNoise = pow(continentNoise, uContinentSharpness);
+    float baseContinentNoise = (layeredNoise(noiseInputPosition, uContinentSeed, 5, 0.5, 2.0, 1.5) + 1.0) * 0.5;
     
-    // Use lower frequency for fewer, larger river systems
+    // --- THIS IS THE KEY CHANGE ---
+    // Instead of using pow() with a slider, we use a tight smoothstep to force a sharp border.
+    float continentNoise = smoothstep(0.49, 0.51, baseContinentNoise);
+
     float riverRaw = ridgedRiverNoise(noiseInputPosition * 0.2, uContinentSeed * 5.0);
     float riverBed = smoothstep(1.0 - uRiverBasin, 1.0, riverRaw);
-
     float riverMask = smoothstep(0.5, 0.52, continentNoise) * (1.0 - smoothstep(0.75, 0.8, continentNoise));
     vRiverValue = riverBed * riverMask;
 
@@ -185,15 +185,15 @@ export const PlanetDesigner = (() => {
   let designerPlanetCanvas, designerWaterColorInput, designerLandColorInput,
     designerMinHeightMinInput, designerMinHeightMaxInput, designerMaxHeightMinInput, designerMaxHeightMaxInput,
     designerOceanHeightMinInput, designerOceanHeightMaxInput, savedDesignsUl, designerRandomizeBtn,
-    designerSaveBtn, designerCancelBtn, designerContinentSharpnessInput, designerContinentSharpnessValue,
-    designerRiverBasinInput, designerRiverBasinValue, designerForestDensityInput, designerForestDensityValue;
+    designerSaveBtn, designerCancelBtn, designerRiverBasinInput, designerRiverBasinValue, 
+    designerForestDensityInput, designerForestDensityValue;
 
   const DISPLACEMENT_SCALING_FACTOR = 0.005;
   const SPHERE_BASE_RADIUS = 0.8;
 
   let currentDesignerBasis = {
     waterColor: '#1E90FF', landColor: '#556B2F', continentSeed: Math.random(),
-    continentSharpness: 1.8, riverBasin: 0.05, forestDensity: 0.5,
+    riverBasin: 0.05, forestDensity: 0.5,
     minTerrainHeightRange: [0.0, 2.0], maxTerrainHeightRange: [8.0, 12.0], oceanHeightRange: [1.0, 3.0]
   };
   
@@ -220,8 +220,8 @@ export const PlanetDesigner = (() => {
     const uniforms = {
         uLandColor: { value: new THREE.Color() }, uWaterColor: { value: new THREE.Color() },
         uOceanHeightLevel: { value: 0.5 }, uContinentSeed: { value: Math.random() },
-        uContinentSharpness: { value: 1.8 }, uRiverBasin: { value: 0.05 },
-        uForestDensity: { value: 0.5 }, uTime: { value: 0.0 }, uSphereRadius: { value: SPHERE_BASE_RADIUS },
+        uRiverBasin: { value: 0.05 }, uForestDensity: { value: 0.5 }, 
+        uTime: { value: 0.0 }, uSphereRadius: { value: SPHERE_BASE_RADIUS },
         uDisplacementAmount: { value: 0.0 }
     };
     
@@ -265,10 +265,7 @@ export const PlanetDesigner = (() => {
     if (!designerWaterColorInput) return;
     designerWaterColorInput.value = currentDesignerBasis.waterColor;
     designerLandColorInput.value = currentDesignerBasis.landColor;
-    if(designerContinentSharpnessInput) {
-        designerContinentSharpnessInput.value = currentDesignerBasis.continentSharpness;
-        designerContinentSharpnessValue.textContent = Number(currentDesignerBasis.continentSharpness).toFixed(1);
-    }
+    
     if(designerRiverBasinInput) {
         designerRiverBasinInput.value = currentDesignerBasis.riverBasin;
         designerRiverBasinValue.textContent = Number(currentDesignerBasis.riverBasin).toFixed(2);
@@ -278,7 +275,6 @@ export const PlanetDesigner = (() => {
         designerForestDensityValue.textContent = Number(currentDesignerBasis.forestDensity).toFixed(2);
     }
     
-    // Correctly get elements that are not defined globally
     const designerMinHeightMaxInput = document.getElementById('designer-min-height-max');
     const designerMaxHeightMinInput = document.getElementById('designer-max-height-min');
     const designerMaxHeightMaxInput = document.getElementById('designer-max-height-max');
@@ -297,7 +293,6 @@ export const PlanetDesigner = (() => {
     if (!designerWaterColorInput || !designerShaderMaterial) return;
     currentDesignerBasis.waterColor = designerWaterColorInput.value;
     currentDesignerBasis.landColor = designerLandColorInput.value;
-    currentDesignerBasis.continentSharpness = parseFloat(designerContinentSharpnessInput.value);
     currentDesignerBasis.riverBasin = parseFloat(designerRiverBasinInput.value);
     currentDesignerBasis.forestDensity = parseFloat(designerForestDensityInput.value);
     
@@ -315,7 +310,6 @@ export const PlanetDesigner = (() => {
     uniforms.uWaterColor.value.set(currentDesignerBasis.waterColor);
     uniforms.uLandColor.value.set(currentDesignerBasis.landColor);
     uniforms.uContinentSeed.value = currentDesignerBasis.continentSeed;
-    uniforms.uContinentSharpness.value = currentDesignerBasis.continentSharpness;
     uniforms.uRiverBasin.value = currentDesignerBasis.riverBasin;
     uniforms.uForestDensity.value = currentDesignerBasis.forestDensity;
     
@@ -334,7 +328,6 @@ export const PlanetDesigner = (() => {
     currentDesignerBasis.waterColor = _getRandomHexColor();
     currentDesignerBasis.landColor = _getRandomHexColor();
     currentDesignerBasis.continentSeed = Math.random();
-    currentDesignerBasis.continentSharpness = _getRandomFloat(1.2, 2.8);
     currentDesignerBasis.riverBasin = _getRandomFloat(0.01, 0.15, 2);
     currentDesignerBasis.forestDensity = _getRandomFloat(0.1, 0.9, 2);
     const minH1 = _getRandomFloat(0.0, 2.0), minH2 = minH1 + _getRandomFloat(0.5, 2.0);
@@ -363,7 +356,6 @@ export const PlanetDesigner = (() => {
   function _loadAndPreviewDesign(designId) {
       const designToLoad = window.gameSessionData?.customPlanetDesigns?.find(d => d.designId === designId);
       if (designToLoad) {
-          if(designToLoad.continentSharpness === undefined) designToLoad.continentSharpness = 1.8;
           if(designToLoad.riverBasin === undefined) designToLoad.riverBasin = 0.05;
           if(designToLoad.forestDensity === undefined) designToLoad.forestDensity = 0.5;
           currentDesignerBasis = { ...JSON.parse(JSON.stringify(designToLoad)) };
@@ -402,8 +394,6 @@ export const PlanetDesigner = (() => {
       designerPlanetCanvas = document.getElementById('designer-planet-canvas');
       designerWaterColorInput = document.getElementById('designer-water-color');
       designerLandColorInput = document.getElementById('designer-land-color');
-      designerContinentSharpnessInput = document.getElementById('designer-continent-sharpness');
-      designerContinentSharpnessValue = document.getElementById('designer-continent-sharpness-value');
       designerRiverBasinInput = document.getElementById('designer-river-basin');
       designerRiverBasinValue = document.getElementById('designer-river-basin-value');
       designerForestDensityInput = document.getElementById('designer-forest-density');
@@ -423,7 +413,6 @@ export const PlanetDesigner = (() => {
       inputsToWatch.forEach(input => input?.addEventListener('change', _updateBasisAndRefreshDesignerPreview));
       
       const liveSliders = [
-          { slider: designerContinentSharpnessInput, display: designerContinentSharpnessValue, precision: 1 },
           { slider: designerRiverBasinInput, display: designerRiverBasinValue, precision: 2 },
           { slider: designerForestDensityInput, display: designerForestDensityValue, precision: 2 }
       ];

@@ -3,7 +3,7 @@ import '../styles.css';
 import * as THREE from 'three';
 import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls.js';
 
-// --- (Step 1) ADD THE NEW, ADVANCED SHADERS ---
+// --- SHADER DEFINITIONS ---
 
 const glslRandom2to1 = `
 float random(vec2 st) {
@@ -43,6 +43,7 @@ uniform float uTime;
 uniform float uContinentSeed;
 uniform float uSphereRadius;
 uniform float uDisplacementAmount;
+uniform float uContinentSharpness;
 
 varying vec3 vNormal;
 varying float vElevation;
@@ -71,8 +72,15 @@ void main() {
   vec3 p = position;
   vec3 noiseInputPosition = (p / uSphereRadius) + (uContinentSeed * 10.0);
 
+  // Generate base continent noise
   float continentNoise = (layeredNoise(noiseInputPosition, uContinentSeed, 5, 0.5, 2.0, 1.5) + 1.0) * 0.5;
+
+  // Apply sharpness to define continent edges
+  continentNoise = pow(continentNoise, uContinentSharpness);
+  
+  // Generate mountain details
   float mountainNoise = (layeredNoise(noiseInputPosition, uContinentSeed * 2.0, 6, 0.45, 2.2, 8.0) + 1.0) * 0.5;
+  // Apply mountains primarily on the raised continent areas
   float continentMask = smoothstep(0.48, 0.52, continentNoise);
   float finalElevation = continentNoise + (mountainNoise * continentMask * 0.3);
 
@@ -162,62 +170,58 @@ export const PlanetDesigner = (() => {
     designerMinHeightMinInput, designerMinHeightMaxInput,
     designerMaxHeightMinInput, designerMaxHeightMaxInput,
     designerOceanHeightMinInput, designerOceanHeightMaxInput,
-    savedDesignsUl, designerRandomizeBtn, designerSaveBtn, designerCancelBtn;
+    savedDesignsUl, designerRandomizeBtn, designerSaveBtn, designerCancelBtn,
+    designerContinentSharpnessInput, designerContinentSharpnessValue;
 
-  // --- (Step 2) ADD THE DISPLACEMENT FACTOR CONSTANT ---
+  // Constants
   const DISPLACEMENT_SCALING_FACTOR = 0.005;
   const SPHERE_BASE_RADIUS = 0.8;
 
-  // State for Designer Basis
+  // State
   let currentDesignerBasis = {
     waterColor: '#1E90FF',
     landColor: '#556B2F',
     continentSeed: Math.random(),
+    continentSharpness: 1.8,
     minTerrainHeightRange: [0.0, 2.0],
     maxTerrainHeightRange: [8.0, 12.0],
     oceanHeightRange: [1.0, 3.0]
   };
-
-  // Three.js State for Designer Preview
+  
+  // Three.js State
   let designerThreeScene, designerThreeCamera, designerThreeRenderer,
     designerThreePlanetMesh, designerThreeControls, designerThreeAnimationId,
     designerShaderMaterial;
     
-  // --- (Step 3) UPDATE THE THREE.JS SETUP FUNCTION ---
   function _initDesignerThreeJSView() {
     if (!designerPlanetCanvas) return;
 
-    // Assemble shaders
     const noiseFunctions = glslSimpleValueNoise3D.replace('$', glslRandom2to1);
     const finalVertexShader = planetVertexShader.replace('$', noiseFunctions);
 
-    // Scene and Camera
     designerThreeScene = new THREE.Scene();
     designerThreeScene.background = new THREE.Color(0x1a1a2a);
     const aspectRatio = designerPlanetCanvas.offsetWidth / designerPlanetCanvas.offsetHeight;
     designerThreeCamera = new THREE.PerspectiveCamera(60, aspectRatio, 0.1, 100);
     designerThreeCamera.position.z = 1.8;
 
-    // Renderer
     designerThreeRenderer = new THREE.WebGLRenderer({ canvas: designerPlanetCanvas, antialias: true });
     designerThreeRenderer.setSize(designerPlanetCanvas.offsetWidth, designerPlanetCanvas.offsetHeight);
     designerThreeRenderer.setPixelRatio(window.devicePixelRatio);
-   
-    // Geometry with more detail
+    
     const geometry = new THREE.SphereGeometry(SPHERE_BASE_RADIUS, 128, 64);
-   
-    // Create uniforms object with ALL necessary fields
+    
     const uniforms = {
         uLandColor: { value: new THREE.Color() },
         uWaterColor: { value: new THREE.Color() },
         uOceanHeightLevel: { value: 0.5 },
         uContinentSeed: { value: Math.random() },
+        uContinentSharpness: { value: 1.8 },
         uTime: { value: 0.0 },
         uSphereRadius: { value: SPHERE_BASE_RADIUS },
         uDisplacementAmount: { value: 0.0 }
     };
 
-    // Create the new ShaderMaterial
     designerShaderMaterial = new THREE.ShaderMaterial({
       uniforms: uniforms,
       vertexShader: finalVertexShader,
@@ -227,7 +231,6 @@ export const PlanetDesigner = (() => {
     designerThreePlanetMesh = new THREE.Mesh(geometry, designerShaderMaterial);
     designerThreeScene.add(designerThreePlanetMesh);
 
-    // Controls
     designerThreeControls = new OrbitControls(designerThreeCamera, designerThreeRenderer.domElement);
     designerThreeControls.enableDamping = true;
     designerThreeControls.dampingFactor = 0.1;
@@ -251,25 +254,28 @@ export const PlanetDesigner = (() => {
 
   function _stopAndCleanupDesignerThreeJSView() {
     if (designerThreeAnimationId) cancelAnimationFrame(designerThreeAnimationId);
-    designerThreeAnimationId = null;
     if (designerThreeControls) designerThreeControls.dispose();
-    designerThreeControls = null;
     if (designerThreePlanetMesh) {
       if(designerThreePlanetMesh.geometry) designerThreePlanetMesh.geometry.dispose();
       if(designerShaderMaterial) designerShaderMaterial.dispose();
       if(designerThreeScene) designerThreeScene.remove(designerThreePlanetMesh);
     }
     if (designerThreeRenderer) designerThreeRenderer.dispose();
+    designerThreeAnimationId = null;
+    designerThreeControls = null;
     designerThreeRenderer = null;
     designerThreeScene = null;
     designerThreeCamera = null;
   }
 
   function _populateDesignerInputsFromBasis() {
-    // This function remains the same
     if (!designerWaterColorInput) return;
     designerWaterColorInput.value = currentDesignerBasis.waterColor;
     designerLandColorInput.value = currentDesignerBasis.landColor;
+    if(designerContinentSharpnessInput) {
+        designerContinentSharpnessInput.value = currentDesignerBasis.continentSharpness;
+        designerContinentSharpnessValue.textContent = Number(currentDesignerBasis.continentSharpness).toFixed(1);
+    }
     designerMinHeightMinInput.value = currentDesignerBasis.minTerrainHeightRange[0].toFixed(1);
     designerMinHeightMaxInput.value = currentDesignerBasis.minTerrainHeightRange[1].toFixed(1);
     designerMaxHeightMinInput.value = currentDesignerBasis.maxTerrainHeightRange[0].toFixed(1);
@@ -278,74 +284,61 @@ export const PlanetDesigner = (() => {
     designerOceanHeightMaxInput.value = currentDesignerBasis.oceanHeightRange[1].toFixed(1);
   }
 
-  // --- (Step 4) UPDATE THE REFRESH FUNCTION ---
   function _updateBasisAndRefreshDesignerPreview() {
     if (!designerWaterColorInput || !designerShaderMaterial) return;
 
-    // --- Read all values from inputs ---
+    // Read all values from inputs and store them in the basis object
     currentDesignerBasis.waterColor = designerWaterColorInput.value;
     currentDesignerBasis.landColor = designerLandColorInput.value;
+    currentDesignerBasis.continentSharpness = parseFloat(designerContinentSharpnessInput.value);
     
-    let minH_min = parseFloat(designerMinHeightMinInput.value) || 0.0;
-    let minH_max = parseFloat(designerMinHeightMaxInput.value) || 0.0;
-    let maxH_min = parseFloat(designerMaxHeightMinInput.value) || 0.0;
-    let maxH_max = parseFloat(designerMaxHeightMaxInput.value) || 0.0;
-    let oceanH_min = parseFloat(designerOceanHeightMinInput.value) || 0.0;
-    let oceanH_max = parseFloat(designerOceanHeightMaxInput.value) || 0.0;
+    // Use the average of the ranges for the live preview
+    const previewMinHeight = (parseFloat(designerMinHeightMinInput.value) + parseFloat(designerMinHeightMaxInput.value)) / 2;
+    const previewMaxHeight = (parseFloat(designerMaxHeightMinInput.value) + parseFloat(designerMaxHeightMaxInput.value)) / 2;
+    const previewOceanHeight = (parseFloat(designerOceanHeightMinInput.value) + parseFloat(designerOceanHeightMaxInput.value)) / 2;
 
-    // For the preview, let's use the average of the selected ranges
-    const previewMinHeight = (minH_min + minH_max) / 2;
-    const previewMaxHeight = (maxH_min + maxH_max) / 2;
-    const previewOceanHeight = (oceanH_min + oceanH_max) / 2;
-
-    // --- Calculate and update all shader uniforms ---
+    // Update all shader uniforms from the basis
     const uniforms = designerShaderMaterial.uniforms;
-    
     uniforms.uWaterColor.value.set(currentDesignerBasis.waterColor);
     uniforms.uLandColor.value.set(currentDesignerBasis.landColor);
     uniforms.uContinentSeed.value = currentDesignerBasis.continentSeed;
+    uniforms.uContinentSharpness.value = currentDesignerBasis.continentSharpness;
     
-    // Calculate normalized ocean level
     const terrainRange = Math.max(0.1, previewMaxHeight - previewMinHeight);
     let normalizedOceanLevel = (previewOceanHeight - previewMinHeight) / terrainRange;
-    normalizedOceanLevel = Math.max(0.2, Math.min(0.8, normalizedOceanLevel)); // Clamp for good visuals
+    normalizedOceanLevel = Math.max(0.2, Math.min(0.8, normalizedOceanLevel));
     uniforms.uOceanHeightLevel.value = normalizedOceanLevel;
 
-    // Calculate displacement amount
     const displacementAmount = terrainRange * DISPLACEMENT_SCALING_FACTOR;
     uniforms.uDisplacementAmount.value = displacementAmount;
   }
-
+  
   function _randomizeDesignerPlanet() {
     function _getRandomHexColor() {return'#'+(Math.random()*0xFFFFFF|0).toString(16).padStart(6,'0')}
-    function _getRandomFloat(min,max,precision=1){const factor=Math.pow(10,precision);return parseFloat((Math.random()*(max-min)+min).toFixed(precision))}
+    function _getRandomFloat(min,max,p=1){const f=Math.pow(10,p);return parseFloat((Math.random()*(max-min)+min).toFixed(p))}
     
     currentDesignerBasis.waterColor = _getRandomHexColor();
     currentDesignerBasis.landColor = _getRandomHexColor();
     currentDesignerBasis.continentSeed = Math.random();
+    currentDesignerBasis.continentSharpness = _getRandomFloat(1.2, 2.8);
     
-    // Randomize ranges
-    const minH1 = _getRandomFloat(0.0, 2.0);
-    const minH2 = minH1 + _getRandomFloat(0.5, 2.0);
+    const minH1 = _getRandomFloat(0.0, 2.0), minH2 = minH1 + _getRandomFloat(0.5, 2.0);
     currentDesignerBasis.minTerrainHeightRange = [minH1, minH2];
-
-    const maxH1 = _getRandomFloat(6.0, 10.0);
-    const maxH2 = maxH1 + _getRandomFloat(2.0, 5.0);
+    const maxH1 = _getRandomFloat(6.0, 10.0), maxH2 = maxH1 + _getRandomFloat(2.0, 5.0);
     currentDesignerBasis.maxTerrainHeightRange = [maxH1, maxH2];
-
-    const oceanH1 = _getRandomFloat(minH2, (minH2 + maxH1) / 2);
-    const oceanH2 = oceanH1 + _getRandomFloat(0.5, 2.0);
+    const oceanH1 = _getRandomFloat(minH2, (minH2 + maxH1) / 2), oceanH2 = oceanH1 + _getRandomFloat(0.5, 2.0);
     currentDesignerBasis.oceanHeightRange = [oceanH1, oceanH2];
 
     _populateDesignerInputsFromBasis();
     _updateBasisAndRefreshDesignerPreview();
   }
 
-  // --- Functions for saving, loading, deleting designs (remain unchanged) ---
   function _generateUUID() { return crypto.randomUUID ? crypto.randomUUID() : 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g,c=>{const r=Math.random()*16|0,v=c==='x'?r:(r&3|8);return v.toString(16)})}
   function _saveCustomPlanetDesign() { 
       const designName = prompt("Enter a name for this planet design:", "My Custom Planet");
       if (!designName?.trim()) return;
+      
+      // Save all properties from the basis, including the new sharpness
       const newDesign = { 
           designId: _generateUUID(), 
           designName: designName.trim(), 
@@ -360,6 +353,8 @@ export const PlanetDesigner = (() => {
   function _loadAndPreviewDesign(designId) {
       const designToLoad = window.gameSessionData?.customPlanetDesigns?.find(d => d.designId === designId);
       if (designToLoad) {
+          // Ensure sharpness has a default value if loading an old design
+          if(designToLoad.continentSharpness === undefined) designToLoad.continentSharpness = 1.8;
           currentDesignerBasis = { ...JSON.parse(JSON.stringify(designToLoad)) };
           delete currentDesignerBasis.designId;
           delete currentDesignerBasis.designName;
@@ -369,12 +364,9 @@ export const PlanetDesigner = (() => {
   }
   function _deleteCustomPlanetDesign(designId) {
       if (window.gameSessionData?.customPlanetDesigns) {
-          const initialLength = window.gameSessionData.customPlanetDesigns.length;
           window.gameSessionData.customPlanetDesigns = window.gameSessionData.customPlanetDesigns.filter(d => d.designId !== designId);
-          if (window.gameSessionData.customPlanetDesigns.length < initialLength) {
-             if (typeof window.saveGameState === 'function') window.saveGameState();
-             _populateSavedDesignsList();
-          }
+          if (typeof window.saveGameState === 'function') window.saveGameState();
+          _populateSavedDesignsList();
       }
   }
   function _populateSavedDesignsList() {
@@ -398,6 +390,8 @@ export const PlanetDesigner = (() => {
       designerPlanetCanvas = document.getElementById('designer-planet-canvas');
       designerWaterColorInput = document.getElementById('designer-water-color');
       designerLandColorInput = document.getElementById('designer-land-color');
+      designerContinentSharpnessInput = document.getElementById('designer-continent-sharpness');
+      designerContinentSharpnessValue = document.getElementById('designer-continent-sharpness-value');
       designerMinHeightMinInput = document.getElementById('designer-min-height-min');
       designerMinHeightMaxInput = document.getElementById('designer-min-height-max');
       designerMaxHeightMinInput = document.getElementById('designer-max-height-min');
@@ -417,6 +411,14 @@ export const PlanetDesigner = (() => {
         designerOceanHeightMinInput, designerOceanHeightMaxInput
       ];
       inputsToWatch.forEach(input => input?.addEventListener('change', _updateBasisAndRefreshDesignerPreview));
+      
+      // Add specific listener for the new slider
+      designerContinentSharpnessInput?.addEventListener('input', () => {
+          if(designerContinentSharpnessValue) {
+             designerContinentSharpnessValue.textContent = Number(designerContinentSharpnessInput.value).toFixed(1);
+          }
+          _updateBasisAndRefreshDesignerPreview();
+      });
 
       designerRandomizeBtn?.addEventListener('click', _randomizeDesignerPlanet);
       designerSaveBtn?.addEventListener('click', _saveCustomPlanetDesign);
@@ -439,7 +441,7 @@ export const PlanetDesigner = (() => {
           const newWidth = designerPlanetCanvas.offsetWidth;
           const newHeight = designerPlanetCanvas.offsetHeight;
           if (newWidth > 0 && newHeight > 0) {
-            designerThreeCamera.aspect = newWidth / newHeight;
+            designerThreeCamera.aspec = newWidth / newHeight;
             designerThreeCamera.updateProjectionMatrix();
             designerThreeRenderer.setSize(newWidth, newHeight);
           }
@@ -457,7 +459,7 @@ export const PlanetDesigner = (() => {
       requestAnimationFrame(() => {
         _stopAndCleanupDesignerThreeJSView();
         _initDesignerThreeJSView();
-        _updateBasisAndRefreshDesignerPreview(); // Set initial material uniforms
+        _updateBasisAndRefreshDesignerPreview();
       });
     },
   };

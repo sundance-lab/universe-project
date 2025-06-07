@@ -68,10 +68,9 @@ float layeredNoise(vec3 p, float seed, int octaves, float persistence, float lac
   return total / maxValue;
 }
 
-float warpedRiverNoise(vec3 p, float seed) {
-    vec3 warp_octave1 = vec3(valueNoise(p*2.0,seed*1.7), valueNoise(p*2.0+5.2,seed*2.1), valueNoise(p*2.0-3.1,seed*3.3)) * 2.0 - 1.0;
-    vec3 warp_octave2 = vec3(valueNoise(p*8.0+warp_octave1*0.3,seed*4.9), valueNoise(p*8.0+warp_octave1*0.3+1.2,seed*5.3), valueNoise(p*8.0+warp_octave1*0.3-4.1,seed*6.7)) * 2.0 - 1.0;
-    return layeredNoise(p + warp_octave2 * 0.1, seed, 4, 0.5, 2.0, 32.0);
+float ridgedRiverNoise(vec3 p, float seed) {
+    float n = layeredNoise(p, seed, 6, 0.5, 2.0, 1.0);
+    return pow(1.0 - abs(n), 4.0);
 }
 
 void main() {
@@ -81,8 +80,9 @@ void main() {
     float continentNoise = (layeredNoise(noiseInputPosition, uContinentSeed, 5, 0.5, 2.0, 1.5) + 1.0) * 0.5;
     continentNoise = pow(continentNoise, uContinentSharpness);
     
-    float riverRaw = warpedRiverNoise(noiseInputPosition * 0.5, uContinentSeed * 5.0);
-    float riverBed = smoothstep(0.5 - uRiverBasin, 0.5, riverRaw) * (1.0 - smoothstep(0.5, 0.5 + uRiverBasin, riverRaw));
+    float riverRaw = ridgedRiverNoise(noiseInputPosition * 0.2, uContinentSeed * 5.0);
+    float riverBed = smoothstep(1.0 - uRiverBasin, 1.0, riverRaw);
+
     float riverMask = smoothstep(0.5, 0.52, continentNoise) * (1.0 - smoothstep(0.75, 0.8, continentNoise));
     vRiverValue = riverBed * riverMask;
 
@@ -146,7 +146,6 @@ void main() {
   vec3 mountainColor = uLandColor * 1.2;
   vec3 snowColor = uLandColor * 1.5 + vec3(0.3);
 
-  
   float seaLevel = uOceanHeightLevel;
   float beachLevel = seaLevel + 0.005;
   float forestLine = beachLevel + 0.3;

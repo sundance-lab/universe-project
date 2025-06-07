@@ -44,6 +44,7 @@ uniform float uContinentSeed;
 uniform float uSphereRadius;
 uniform float uDisplacementAmount;
 uniform float uContinentSharpness;
+uniform float uRiverBasin;
 
 varying vec3 vNormal;
 varying float vElevation;
@@ -57,7 +58,6 @@ float layeredNoise(vec3 p, float seed, int octaves, float persistence, float lac
   float frequency = scale;
   float amplitude = 1.0;
   float maxValue = 0.0;
-
   for (int i = 0; i < octaves; i++) {
    total += valueNoise(p * frequency + seed * float(i) * 1.712, seed * 12.345 * float(i+1) * 0.931) * amplitude;
    maxValue += amplitude;
@@ -69,18 +69,8 @@ float layeredNoise(vec3 p, float seed, int octaves, float persistence, float lac
 }
 
 float warpedRiverNoise(vec3 p, float seed) {
-    vec3 warp_octave1 = vec3(
-        valueNoise(p * 2.0, seed * 1.7),
-        valueNoise(p * 2.0 + 5.2, seed * 2.1),
-        valueNoise(p * 2.0 - 3.1, seed * 3.3)
-    ) * 2.0 - 1.0;
-
-    vec3 warp_octave2 = vec3(
-        valueNoise(p * 8.0 + warp_octave1 * 0.3, seed * 4.9),
-        valueNoise(p * 8.0 + warp_octave1 * 0.3 + 1.2, seed * 5.3),
-        valueNoise(p * 8.0 + warp_octave1 * 0.3 - 4.1, seed * 6.7)
-    ) * 2.0 - 1.0;
-
+    vec3 warp_octave1 = vec3(valueNoise(p*2.0,seed*1.7), valueNoise(p*2.0+5.2,seed*2.1), valueNoise(p*2.0-3.1,seed*3.3)) * 2.0 - 1.0;
+    vec3 warp_octave2 = vec3(valueNoise(p*8.0+warp_octave1*0.3,seed*4.9), valueNoise(p*8.0+warp_octave1*0.3+1.2,seed*5.3), valueNoise(p*8.0+warp_octave1*0.3-4.1,seed*6.7)) * 2.0 - 1.0;
     return layeredNoise(p + warp_octave2 * 0.1, seed, 4, 0.5, 2.0, 32.0);
 }
 
@@ -92,19 +82,16 @@ void main() {
     continentNoise = pow(continentNoise, uContinentSharpness);
     
     float riverRaw = warpedRiverNoise(noiseInputPosition * 0.5, uContinentSeed * 5.0);
-    float riverBed = smoothstep(0.4, 0.5, riverRaw) * (1.0 - smoothstep(0.5, 0.6, riverRaw));
+    float riverBed = smoothstep(0.5 - uRiverBasin, 0.5, riverRaw) * (1.0 - smoothstep(0.5, 0.5 + uRiverBasin, riverRaw));
     float riverMask = smoothstep(0.5, 0.52, continentNoise) * (1.0 - smoothstep(0.75, 0.8, continentNoise));
     vRiverValue = riverBed * riverMask;
 
-    float mountainNoise = (layeredNoise(noiseInputPosition, uContinentSeed * 2.0, 6, 0.45, 2.2, 8.0) + 1.0) * 0.5;
+    float mountainNoise = (layeredNoise(noiseInputPosition, uContinentSeed*2.0, 6, 0.45, 2.2, 8.0) + 1.0) * 0.5;
     float continentMask = smoothstep(0.48, 0.52, continentNoise);
     float islandNoise = (layeredNoise(noiseInputPosition, uContinentSeed * 3.0, 7, 0.5, 2.5, 18.0) + 1.0) * 0.5;
     float oceanMask = 1.0 - continentMask;
 
-    float finalElevation = continentNoise 
-                           + (mountainNoise * continentMask * 0.3) 
-                           + (islandNoise * oceanMask * 0.1);
-    
+    float finalElevation = continentNoise + (mountainNoise * continentMask * 0.3) + (islandNoise * oceanMask * 0.1);
     finalElevation -= vRiverValue * 0.04;
 
     vElevation = clamp(finalElevation, 0.0, 1.0);
@@ -122,6 +109,7 @@ uniform vec3 uLandColor;
 uniform vec3 uWaterColor;
 uniform float uOceanHeightLevel;
 uniform float uContinentSeed;
+uniform float uForestDensity;
 
 varying vec3 vNormal;
 varying float vElevation;
@@ -179,7 +167,7 @@ void main() {
 
   if (vElevation > beachLevel && vElevation < mountainLine) {
     float forestNoise = valueNoise(vWorldPosition * 25.0, uContinentSeed * 4.0);
-    float forestMask = smoothstep(0.4, 0.6, forestNoise);
+    float forestMask = smoothstep(1.0 - uForestDensity, 1.0, forestNoise);
     finalColor = mix(finalColor, forestColor, forestMask);
   }
 
@@ -199,7 +187,7 @@ export const PlanetVisualPanelManager = (() => {
   let isDraggingPanel = false;
   let panelOffset = { x: 0, y: 0 };
   let is360ViewActive = false;
-  let threeScene, threeCamera, threeRenderer, threeLOD, threeControls, threeAnimationId, threeShaderMaterial;
+  let threeScene, threeCamera, threeRenderer, threePlanetMesh, threeControls, threeAnimationId, threeShaderMaterial;
 
   const SPHERE_BASE_RADIUS = 0.8;
   const DISPLACEMENT_SCALING_FACTOR = 0.005;
@@ -309,6 +297,8 @@ export const PlanetVisualPanelManager = (() => {
     threeRenderer.setSize(planet360CanvasElement.offsetWidth, planet360CanvasElement.offsetHeight);
     threeRenderer.setPixelRatio(window.devicePixelRatio);
 
+    const geometry = new THREE.SphereGeometry(SPHERE_BASE_RADIUS, 1024, 512);
+
     let normalizedOceanLevel = 0.5;
     const pMin = planet.minTerrainHeight ?? 0.0;
     const pMax = planet.maxTerrainHeight ?? (pMin + 10.0);
@@ -326,6 +316,8 @@ export const PlanetVisualPanelManager = (() => {
         uOceanHeightLevel: { value: normalizedOceanLevel },
         uContinentSeed: { value: planet.continentSeed ?? Math.random() },
         uContinentSharpness: { value: planet.continentSharpness ?? 1.8 },
+        uRiverBasin: { value: planet.riverBasin ?? 0.05 },
+        uForestDensity: { value: planet.forestDensity ?? 0.5 },
         uTime: { value: 0.0 },
         uSphereRadius: { value: SPHERE_BASE_RADIUS },
         uDisplacementAmount: { value: displacementAmount }
@@ -337,19 +329,8 @@ export const PlanetVisualPanelManager = (() => {
       fragmentShader: finalFragmentShader,
     });
 
-    threeLOD = new THREE.LOD();
-    const lodLevels = [
-        { distance: 4.0, segments: [128, 64] },
-        { distance: 1.5, segments: [256, 128] },
-        { distance: 0.0, segments: [1024, 512] }
-    ];
-
-    lodLevels.forEach(level => {
-        const geometry = new THREE.SphereGeometry(SPHERE_BASE_RADIUS, level.segments[0], level.segments[1]);
-        const mesh = new THREE.Mesh(geometry, threeShaderMaterial);
-        threeLOD.addLevel(mesh, level.distance);
-    });
-    threeScene.add(threeLOD);
+    threePlanetMesh = new THREE.Mesh(geometry, threeShaderMaterial);
+    threeScene.add(threePlanetMesh);
 
     threeControls = new OrbitControls(threeCamera, threeRenderer.domElement);
     threeControls.enableDamping = true;
@@ -369,7 +350,6 @@ export const PlanetVisualPanelManager = (() => {
     if (threeShaderMaterial?.uniforms.uTime) {
       threeShaderMaterial.uniforms.uTime.value += 0.005;
     }
-    if(threeLOD) threeLOD.update(threeCamera);
     if (threeControls) threeControls.update();
     if (threeRenderer && threeScene && threeCamera) threeRenderer.render(threeScene, threeCamera);
   }
@@ -378,19 +358,15 @@ export const PlanetVisualPanelManager = (() => {
     if (threeAnimationId) cancelAnimationFrame(threeAnimationId);
     if (threeControls) threeControls.dispose();
     if (threeShaderMaterial) threeShaderMaterial.dispose();
-    if (threeLOD) {
-        threeLOD.traverse((object) => {
-            if (object.isMesh) {
-                if (object.geometry) object.geometry.dispose();
-            }
-        });
-        if(threeScene) threeScene.remove(threeLOD);
+    if (threePlanetMesh) {
+        if(threePlanetMesh.geometry) threePlanetMesh.geometry.dispose();
+        if(threeScene) threeScene.remove(threePlanetMesh);
     }
     if (threeRenderer) threeRenderer.dispose();
     threeAnimationId = null;
     threeControls = null;
     threeShaderMaterial = null;
-    threeLOD = null;
+    threePlanetMesh = null;
     threeScene = null;
     threeCamera = null;
   }

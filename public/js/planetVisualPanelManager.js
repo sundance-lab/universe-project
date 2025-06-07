@@ -301,7 +301,7 @@ export const PlanetVisualPanelManager = (() => {
     threeRenderer.setSize(planet360CanvasElement.offsetWidth, planet360CanvasElement.offsetHeight);
     threeRenderer.setPixelRatio(window.devicePixelRatio);
 
-    const geometry = new THREE.SphereGeometry(SPHERE_BASE_RADIUS, 128, 64); // Increased segments for smoother displacement
+    const geometry = new THREE.SphereGeometry(SPHERE_BASE_RADIUS, 256, 128);
 
     // --- Calculate Shader Uniforms ---
     let normalizedOceanLevel = 0.5;

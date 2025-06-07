@@ -14,11 +14,11 @@ export const PlanetDesigner = (() => {
     const DISPLACEMENT_SCALING_FACTOR = 0.005;
     const SPHERE_BASE_RADIUS = 0.8;
 
-    let currentDesignerBasis = {
-        waterColor: '#1E90FF', landColor: '#556B2F', continentSeed: Math.random(),
-        riverBasin: 0.05, forestDensity: 0.5,
-        minTerrainHeightRange: [0.0, 2.0], maxTerrainHeightRange: [8.0, 12.0], oceanHeightRange: [1.0, 3.0]
-    };
+let currentDesignerBasis = {
+    waterColor: '#1E90FF', landColor: '#556B2F', continentSeed: Math.random(),
+    riverBasin: 0.05, forestDensity: 0.5,
+    minTerrainHeight: 0.0, maxTerrainHeight: 10.0, oceanHeightLevel: 1.0
+};
     
     let designerThreeScene, designerThreeCamera, designerThreeRenderer,
         designerThreePlanetMesh, designerThreeControls, designerThreeAnimationId, designerShaderMaterial;
@@ -110,7 +110,9 @@ function clampOceanLevel() {
             designerForestDensityValue.textContent = Number(currentDesignerBasis.forestDensity).toFixed(2);
         }
         
-        // Use cached elements
+        designerMinHeightInput.value = currentDesignerBasis.minTerrainHeight ?? 0;
+        designerMaxHeightInput.value = currentDesignerBasis.maxTerrainHeight ?? 10;
+        designerOceanHeightInput.value = currentDesignerBasis.oceanHeightLevel ?? 1;
     }
 
    function _updateBasisAndRefreshDesignerPreview() {
@@ -156,12 +158,13 @@ function clampOceanLevel() {
         currentDesignerBasis.continentSeed = Math.random();
         currentDesignerBasis.riverBasin = _getRandomFloat(0.01, 0.15, 2);
         currentDesignerBasis.forestDensity = _getRandomFloat(0.1, 0.9, 2);
-        const minH1 = _getRandomFloat(0.0, 2.0), minH2 = minH1 + _getRandomFloat(0.5, 2.0);
-        currentDesignerBasis.minTerrainHeightRange = [minH1, minH2];
-        const maxH1 = _getRandomFloat(6.0, 10.0), maxH2 = maxH1 + _getRandomFloat(2.0, 5.0);
-        currentDesignerBasis.maxTerrainHeightRange = [maxH1, maxH2];
-        const oceanH1 = _getRandomFloat(minH2, (minH2 + maxH1) / 2), oceanH2 = oceanH1 + _getRandomFloat(0.5, 2.0);
-        currentDesignerBasis.oceanHeightRange = [oceanH1, oceanH2];
+        const minH = _getRandomFloat(0.0, 4.0);
+        const maxH = _getRandomFloat(minH + 1.0, minH + 10.0);
+        const oceanH = _getRandomFloat(minH, maxH);
+        
+        currentDesignerBasis.minTerrainHeight = minH;
+        currentDesignerBasis.maxTerrainHeight = maxH;
+        currentDesignerBasis.oceanHeightLevel = oceanH;
         _populateDesignerInputsFromBasis();
         _updateBasisAndRefreshDesignerPreview();
     }

@@ -1,128 +1,149 @@
 // public/js/planetVisualPanelManager.js
 import '../styles.css';
-import * as THREE from 'three'; // Import Three.js
-import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls.js'; // Import OrbitControls
+import * as THREE from 'three';
+import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls.js';
+
+// --- Basic Shader Definitions ---
+const planetVertexShader = `
+  varying vec3 vNormal;
+  varying vec2 vUv; // If you plan to use textures later
+
+  void main() {
+    vNormal = normal;
+    vUv = uv;
+    gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0);
+  }
+`;
+
+const planetFragmentShader = `
+  uniform vec3 uDisplayColor; // The color passed from JavaScript
+  uniform float uTime; // Example for potential animation later
+  varying vec3 vNormal; // For basic lighting effect
+  varying vec2 vUv;
+
+  void main() {
+    // Simple diffuse lighting approximation
+    vec3 lightDirection = normalize(vec3(1.0, 1.0, 1.0)); // Example light direction
+    float lightIntensity = max(0.0, dot(normalize(vNormal), lightDirection)) * 0.7 + 0.3; // Ambient + Diffuse
+
+    gl_FragColor = vec4(uDisplayColor * lightIntensity, 1.0);
+  }
+`;
+
 
 export const PlanetVisualPanelManager = (() => {
   console.log("PVisualPanelManager: Script loaded.");
 
-  // DOM Elements
+  // DOM Elements (as before)
   let panelElement, headerElement, titleElement, sizeElement,
       planetPreviewCanvasElement,
       closeButton,
       enter360ViewButton,
-      planet360CanvasElement; // This is where Three.js will render
+      planet360CanvasElement;
 
-  // State
+  // State (as before, with 2D vars renamed)
   let currentPlanetData = null;
-  // For 2D Preview
-  let rotationQuat2D = [1, 0, 0, 0]; // Renamed to avoid confusion
+  let rotationQuat2D = [1, 0, 0, 0];
   let startDragPlanetQuat2D = [1, 0, 0, 0];
   let startDragMouse2D = { x: 0, y: 0 };
   let isDraggingPlanet2D = false;
-  // For Panel Dragging
   let isDraggingPanel = false;
   let panelOffset = { x: 0, y: 0 };
-  // For 2D Preview Rendering
   let isRenderingPreview = false;
   let needsPreviewRerender = false;
 
-  // For 360 View (Three.js)
   let is360ViewActive = false;
   let threeScene, threeCamera, threeRenderer, threePlanetMesh, threeControls, threeAnimationId;
+  let threeShaderMaterial; // To hold our ShaderMaterial
 
   // --- THREE.JS 360 VIEW SETUP AND RENDERING ---
   function _initThreeJSView(planet) {
     if (!planet360CanvasElement || !planet) return;
+    console.log("PVisualPanelManager: Initializing Three.js view for planet:", planet.planetName);
 
     // 1. Scene
     threeScene = new THREE.Scene();
-    threeScene.background = new THREE.Color(0x050510); // Dark space background
+    threeScene.background = new THREE.Color(0x050510);
 
     // 2. Camera
     const aspectRatio = planet360CanvasElement.offsetWidth / planet360CanvasElement.offsetHeight;
     threeCamera = new THREE.PerspectiveCamera(75, aspectRatio, 0.1, 1000);
-    threeCamera.position.z = 2; // Adjust as needed for initial zoom
+    threeCamera.position.z = 1.8; // Adjusted for potentially unit sphere
 
     // 3. Renderer
     threeRenderer = new THREE.WebGLRenderer({ canvas: planet360CanvasElement, antialias: true });
     threeRenderer.setSize(planet360CanvasElement.offsetWidth, planet360CanvasElement.offsetHeight);
     threeRenderer.setPixelRatio(window.devicePixelRatio);
 
-    // 4. Lights
-    const ambientLight = new THREE.AmbientLight(0xffffff, 0.5); // Soft white light
+    // 4. Lights (kept for the basic lighting in the simple shader)
+    const ambientLight = new THREE.AmbientLight(0xffffff, 0.3);
     threeScene.add(ambientLight);
-    const directionalLight = new THREE.DirectionalLight(0xffffff, 1);
+    const directionalLight = new THREE.DirectionalLight(0xffffff, 0.8);
     directionalLight.position.set(5, 3, 5);
     threeScene.add(directionalLight);
 
-    // 5. Planet Mesh
-    const geometry = new THREE.SphereGeometry(0.8, 64, 32); // Radius, widthSegments, heightSegments
+    // 5. Planet Geometry
+    const geometry = new THREE.SphereGeometry(0.8, 64, 32); // Radius 0.8, good detail
 
-    // Initial Material (simple, using planet's landColor)
-    // We will improve this to be more dynamic and use more planetData later
-    const material = new THREE.MeshStandardMaterial({
-        color: new THREE.Color(planet.landColor || '#006400'), // Use landColor
-        roughness: 0.8,
-        metalness: 0.1
+    // 6. Shader Material
+    const uniforms = {
+      // Use landColor from the currentPlanetData
+      uDisplayColor: { value: new THREE.Color(planet.landColor || '#006400') },
+      uTime: { value: 0.0 } // Example uniform for time-based effects later
+      // TODO: Add more uniforms for waterColor, continentSeed, terrainParams etc.
+      // uWaterColor: { value: new THREE.Color(planet.waterColor || '#0000FF') },
+      // uOceanHeight: { value: planet.oceanHeightLevel || 2.0 },
+      // uContinentSeed: { value: planet.continentSeed || Math.random() },
+      // uMinTerrainHeight: { value: planet.minTerrainHeight || 0.0 },
+      // uMaxTerrainHeight: { value: planet.maxTerrainHeight || 10.0 },
+    };
+
+    threeShaderMaterial = new THREE.ShaderMaterial({
+      uniforms: uniforms,
+      vertexShader: planetVertexShader,
+      fragmentShader: planetFragmentShader,
+      // wireframe: true, // Useful for debugging geometry
     });
-    // TODO: Create a more advanced material/shader that uses continentSeed, waterColor, terrain heights etc.
-    // For now, if you want to see water, you might layer another slightly larger sphere or use custom shaders.
-    // Example: A simple water sphere (could be more sophisticated)
-    // const waterGeometry = new THREE.SphereGeometry(0.82, 32, 32); // Slightly larger for "water"
-    // const waterMaterial = new THREE.MeshPhongMaterial({
-    //   color: new THREE.Color(planet.waterColor || '#0000FF'),
-    //   transparent: true,
-    //   opacity: 0.6,
-    //   shininess: 60
-    // });
-    // const waterMesh = new THREE.Mesh(waterGeometry, waterMaterial);
-    // threeScene.add(waterMesh);
 
-
-    threePlanetMesh = new THREE.Mesh(geometry, material);
+    threePlanetMesh = new THREE.Mesh(geometry, threeShaderMaterial);
     threeScene.add(threePlanetMesh);
 
-    // 6. Controls
+    // 7. Controls
     threeControls = new OrbitControls(threeCamera, threeRenderer.domElement);
-    threeControls.enableDamping = true; // an animation loop is required when either damping or auto-rotation are enabled
+    threeControls.enableDamping = true;
     threeControls.dampingFactor = 0.05;
     threeControls.screenSpacePanning = false;
-    threeControls.minDistance = 1.2; // Zoom in limit
-    threeControls.maxDistance = 5;   // Zoom out limit
-    threeControls.target.set(0, 0, 0); // Look at the center of the scene
+    threeControls.minDistance = 1.1;
+    threeControls.maxDistance = 5;
+    threeControls.target.set(0, 0, 0);
 
-    // Start animation loop
     _animateThreeJSView();
-    console.log("PVisualPanelManager: Three.js 360 view initialized.");
+    console.log("PVisualPanelManager: Three.js 360 view initialized with ShaderMaterial.");
   }
 
-  function _updateThreeJSPlanetMaterial(planet) {
-    if (threePlanetMesh && planet) {
-        // Update existing material properties
+  function _updateThreeJSPlanetAppearance(planet) {
+    if (threeShaderMaterial && threeShaderMaterial.uniforms.uDisplayColor && planet) {
+        threeShaderMaterial.uniforms.uDisplayColor.value.set(planet.landColor || '#006400');
+        // When you add more uniforms, update them here:
+        // threeShaderMaterial.uniforms.uWaterColor.value.set(planet.waterColor || '#0000FF');
+        // threeShaderMaterial.uniforms.uContinentSeed.value = planet.continentSeed || Math.random();
+        console.log("PVisualPanelManager: Updated Three.js planet shader uniforms for:", planet.planetName);
+    } else if (threePlanetMesh && threePlanetMesh.material.isMeshStandardMaterial && planet) { // Fallback if still using standard material
         threePlanetMesh.material.color.set(planet.landColor || '#006400');
-        // If you add uniforms for shaders, update them here:
-        // threePlanetMesh.material.uniforms.uWaterColor.value.set(planet.waterColor);
-        // threePlanetMesh.material.uniforms.uContinentSeed.value = planet.continentSeed;
-        // ... etc.
-        console.log("PVisualPanelManager: Updated Three.js planet material for:", planet.planetName);
     }
   }
 
 
   function _animateThreeJSView() {
-    if (!is360ViewActive || !threeRenderer) return; // Stop if not active
-
+    if (!is360ViewActive || !threeRenderer) return;
     threeAnimationId = requestAnimationFrame(_animateThreeJSView);
 
-    // Example: Simple auto-rotation if no user interaction
-    // if (threePlanetMesh && !threeControls.active) {
-    //   threePlanetMesh.rotation.y += 0.005;
-    // }
-    if (threeControls) threeControls.update(); // only required if controls.enableDamping or controls.autoRotate are set to true
-    if (threeRenderer && threeScene && threeCamera) {
-        threeRenderer.render(threeScene, threeCamera);
+    if (threeShaderMaterial && threeShaderMaterial.uniforms.uTime) {
+      threeShaderMaterial.uniforms.uTime.value += 0.01; // Increment time for shaders
     }
+
+    threeControls.update();
+    threeRenderer.render(threeScene, threeCamera);
   }
 
   function _stopAndCleanupThreeJSView() {
@@ -131,62 +152,74 @@ export const PlanetVisualPanelManager = (() => {
       threeAnimationId = null;
     }
     if (threeControls) {
-      threeControls.dispose(); // Important for removing event listeners
+      threeControls.dispose();
       threeControls = null;
     }
     if (threePlanetMesh) {
       if (threePlanetMesh.geometry) threePlanetMesh.geometry.dispose();
-      if (threePlanetMesh.material) {
-        if (Array.isArray(threePlanetMesh.material)) {
-            threePlanetMesh.material.forEach(m => m.dispose());
-        } else {
-            threePlanetMesh.material.dispose();
-        }
-      }
-      threeScene.remove(threePlanetMesh); // Remove from scene
+      // ShaderMaterial is disposed automatically by the renderer when it's no longer used by any mesh in the scene
+      // However, if you created textures for your shader material, you'd dispose of them here:
+      // if (threeShaderMaterial.uniforms.myTexture && threeShaderMaterial.uniforms.myTexture.value) {
+      //   threeShaderMaterial.uniforms.myTexture.value.dispose();
+      // }
+      if(threeShaderMaterial) threeShaderMaterial.dispose(); // Explicitly dispose ShaderMaterial
+
+      if (threeScene) threeScene.remove(threePlanetMesh); // Remove from scene before nullifying
       threePlanetMesh = null;
+      threeShaderMaterial = null;
     }
-    // Dispose of other scene objects if you added more (e.g., waterMesh light helpers)
+
     if (threeScene) {
-        // Dispose of other lights, etc.
-        const objectsToRemove = [];
-        threeScene.traverse(object => {
-            if (object.isLight) { // Example for lights
-                // If lights have disposable things like shadow maps, dispose them
+        // Remove lights (or any other persistent objects)
+        const toRemove = [];
+        threeScene.traverse(child => {
+            if (child.isLight) {
+                toRemove.push(child);
             }
-            if (!object.isScene) { // Don't remove the scene itself here
-                 objectsToRemove.push(object);
-            }
+            // if (child.isMesh) { // Already handling threePlanetMesh
+            //     if(child.geometry) child.geometry.dispose();
+            //     if(child.material) child.material.dispose();
+            //     toRemove.push(child);
+            // }
         });
-        objectsToRemove.forEach(object => {
-            if(object.parent) object.parent.remove(object);
-            // Also check for geometry/material disposal if these are unique objects
-        });
+        toRemove.forEach(obj => threeScene.remove(obj));
     }
 
 
     if (threeRenderer) {
-      threeRenderer.dispose(); // Releases WebGL context and resources
+      threeRenderer.dispose();
       threeRenderer = null;
     }
-    threeScene = null;
+    threeScene = null; // Nullify scene after disposing renderer and removing objects
     threeCamera = null;
 
     console.log("PVisualPanelManager: Three.js 360 view cleaned up.");
   }
 
-  // --- PREVIEW RENDERING (2D Canvas) ---
+  // --- PREVIEW RENDERING (2D Canvas) --- (as before)
   function _renderPreview() {
     if (isRenderingPreview || !window.planetVisualWorker || !currentPlanetData || !planetPreviewCanvasElement) {
       if (currentPlanetData) needsPreviewRerender = true;
       return;
     }
-    // ... (rest of _renderPreview as before, ensure it uses unique senderId for worker)
+    if (planetPreviewCanvasElement.offsetParent === null) {
+      needsPreviewRerender = true;
+      return;
+    }
+    if (planetPreviewCanvasElement.width !== planetPreviewCanvasElement.offsetWidth || planetPreviewCanvasElement.height !== planetPreviewCanvasElement.offsetHeight) {
+      planetPreviewCanvasElement.width = planetPreviewCanvasElement.offsetWidth;
+      planetPreviewCanvasElement.height = planetPreviewCanvasElement.offsetHeight;
+    }
+    if (planetPreviewCanvasElement.width === 0 || planetPreviewCanvasElement.height === 0) {
+        needsPreviewRerender = true; //Prevent worker call on 0-size canvas
+        return;
+    }
     isRenderingPreview = true;
     needsPreviewRerender = false;
     window.renderPlanetVisual(currentPlanetData, rotationQuat2D, planetPreviewCanvasElement, 'planet-visual-panel-preview-canvas');
   }
 
+  //_rerenderPreviewIfNeeded, _onCanvasMouseDown, _onHeaderMouseDown, _onWindowMouseMove, _onWindowMouseUp, _closePanel (as before)
   function _rerenderPreviewIfNeeded() {
     if (panelElement?.classList.contains('visible') && currentPlanetData && !is360ViewActive) {
       _renderPreview();
@@ -200,39 +233,54 @@ export const PlanetVisualPanelManager = (() => {
     if (planetPreviewCanvasElement) planetPreviewCanvasElement.style.display = 'none';
     if (planet360CanvasElement) {
         planet360CanvasElement.style.display = 'block';
-        // Ensure canvas is sized correctly for Three.js before init
-        // This should ideally be handled by CSS, but a JS check helps
-        planet360CanvasElement.width = planet360CanvasElement.offsetWidth;
-        planet360CanvasElement.height = planet360CanvasElement.offsetHeight;
+        // It's good practice to ensure the canvas has its display style set to 'block'
+        // *before* trying to get offsetWidth/offsetHeight for Three.js initialization.
+        // And ensure parent is visible.
+        if(planet360CanvasElement.offsetParent !== null){
+            planet360CanvasElement.width = planet360CanvasElement.offsetWidth;
+            planet360CanvasElement.height = planet360CanvasElement.offsetHeight;
+        } else {
+            // If canvas is not in DOM/visible, Three.js might init with 0x0 or default.
+            // This scenario should be handled (e.g. by CSS ensuring visibility, or deferring init)
+            console.warn("PVisualPanelManager: 360 canvas not fully visible during switch, may affect Three.js size.");
+        }
     }
     if (enter360ViewButton) enter360ViewButton.textContent = "Show 2D Preview";
 
-    _stopAndCleanupThreeJSView(); // Clean up any previous instance first
+    _stopAndCleanupThreeJSView();
     _initThreeJSView(currentPlanetData);
   }
 
   function _switchToPreviewView() {
     is360ViewActive = false;
-    _stopAndCleanupThreeJSView(); // Stop and clean up Three.js view
+    _stopAndCleanupThreeJSView();
     if (planet360CanvasElement) planet360CanvasElement.style.display = 'none';
     if (planetPreviewCanvasElement) planetPreviewCanvasElement.style.display = 'block';
     if (enter360ViewButton) enter360ViewButton.textContent = "Enter 360° View";
-     // Make sure the preview is sized and rendered
+
     if (planetPreviewCanvasElement && currentPlanetData) {
-        requestAnimationFrame(() => { // Defer to ensure DOM is updated
-            if (planetPreviewCanvasElement.offsetParent !== null) { // Check if visible
-                 planetPreviewCanvasElement.width = planetPreviewCanvasElement.offsetWidth;
-                 planetPreviewCanvasElement.height = planetPreviewCanvasElement.offsetHeight;
-                 _renderPreview(); // Re-render the preview
+        requestAnimationFrame(() => {
+            if (planetPreviewCanvasElement.offsetParent !== null) {
+                 // Ensure preview canvas is also correctly sized
+                 if (planetPreviewCanvasElement.width !== planetPreviewCanvasElement.offsetWidth || planetPreviewCanvasElement.height !== planetPreviewCanvasElement.offsetHeight) {
+                    planetPreviewCanvasElement.width = planetPreviewCanvasElement.offsetWidth;
+                    planetPreviewCanvasElement.height = planetPreviewCanvasElement.offsetHeight;
+                 }
+                 if(planetPreviewCanvasElement.width > 0 && planetPreviewCanvasElement.height > 0){
+                    _renderPreview();
+                 } else {
+                    needsPreviewRerender = true;
+                 }
             } else {
-                needsPreviewRerender = true; // Flag for later render
+                needsPreviewRerender = true;
             }
         });
     }
     console.log("PVisualPanelManager: Switched to 2D preview view.");
   }
 
-  // --- MOUSE EVENT HANDLERS (for 2D preview canvas dragging) ---
+
+  // --- MOUSE EVENT HANDLERS ---
   function _onCanvasMouseDown(e) {
     if (e.button !== 0 || !currentPlanetData || is360ViewActive) return; // Only for 2D preview drag
     isDraggingPlanet2D = true;
@@ -244,7 +292,6 @@ export const PlanetVisualPanelManager = (() => {
   }
 
   function _onHeaderMouseDown(e) {
-    // ... (as before)
     if (e.button !== 0 || !panelElement) return;
     isDraggingPanel = true;
     headerElement?.classList.add('dragging');
@@ -252,7 +299,7 @@ export const PlanetVisualPanelManager = (() => {
     const rect = panelElement.getBoundingClientRect();
     panelOffset.x = e.clientX - rect.left;
     panelOffset.y = e.clientY - rect.top;
-    panelElement.style.transform = 'none'; // Clear transform if set by centering
+    panelElement.style.transform = 'none';
     panelElement.style.left = `${e.clientX - panelOffset.x}px`;
     panelElement.style.top = `${e.clientY - panelOffset.y}px`;
     e.preventDefault();
@@ -293,15 +340,14 @@ export const PlanetVisualPanelManager = (() => {
   }
 
   function _closePanel() {
-    _switchToPreviewView(); // Reset to 2D preview view
-    // _stopAndCleanupThreeJSView(); // Already called by _switchToPreviewView
+    _switchToPreviewView();
     panelElement?.classList.remove('visible');
     currentPlanetData = null;
     isRenderingPreview = false;
     needsPreviewRerender = false;
   }
 
-  // PUBLIC API
+  // PUBLIC API (as before)
   return {
     init: () => {
       console.log("PlanetVisualPanelManager: Init called.");
@@ -330,35 +376,46 @@ export const PlanetVisualPanelManager = (() => {
         }
       });
 
-      // Add resize listener for Three.js camera and renderer if panel is visible and in 360 mode
       window.addEventListener('resize', () => {
           if (is360ViewActive && panelElement?.classList.contains('visible') && threeRenderer && threeCamera && planet360CanvasElement) {
               const canvas = planet360CanvasElement;
-              canvas.style.width = '100%'; // Let CSS handle responsive width set in styles.css
-              canvas.style.height = 'auto'; // Let CSS handle responsive height (aspect-ratio)
-
-              // Update canvas actual buffer size
+              // Let CSS drive responsive dimensions based on aspect-ratio
+              // Re-calculate actual pixel dimensions
               const newWidth = canvas.offsetWidth;
               const newHeight = canvas.offsetHeight;
 
-              threeCamera.aspect = newWidth / newHeight;
-              threeCamera.updateProjectionMatrix();
-              threeRenderer.setSize(newWidth, newHeight);
+              if (newWidth > 0 && newHeight > 0) {
+                threeCamera.aspect = newWidth / newHeight;
+                threeCamera.updateProjectionMatrix();
+                threeRenderer.setSize(newWidth, newHeight);
+              }
+          } else if (!is360ViewActive && panelElement?.classList.contains('visible') && planetPreviewCanvasElement && planetPreviewCanvasElement.offsetParent !== null) {
+              // Optionally, resize and rerender 2D preview canvas on window resize
+              planetPreviewCanvasElement.width = planetPreviewCanvasElement.offsetWidth;
+              planetPreviewCanvasElement.height = planetPreviewCanvasElement.offsetHeight;
+              if(planetPreviewCanvasElement.width > 0 && planetPreviewCanvasElement.height > 0) {
+                 _renderPreview();
+              } else {
+                 needsPreviewRerender = true;
+              }
           }
       });
-
 
       window.addEventListener('mousemove', _onWindowMouseMove);
       window.addEventListener('mouseup', _onWindowMouseUp);
 
       setInterval(() => {
-        if (needsPreviewRerender && !is360ViewActive) _renderPreview();
+        if (needsPreviewRerender && !is360ViewActive && planetPreviewCanvasElement && planetPreviewCanvasElement.offsetParent !== null) {
+            if(planetPreviewCanvasElement.width > 0 && planetPreviewCanvasElement.height > 0) {
+                 _renderPreview();
+            }
+        }
       }, 250);
     },
 
     show: (planetData) => {
       if (!panelElement || !planetData) {
-        _closePanel(); // Call closePanel to ensure proper cleanup if called with invalid data
+        _closePanel();
         return;
       }
 
@@ -370,26 +427,30 @@ export const PlanetVisualPanelManager = (() => {
       if (sizeElement) sizeElement.textContent = planetData.size ? `${Math.round(planetData.size)} px (diameter)` : 'N/A';
 
       if (typeof window.quat_identity === 'function') {
-        rotationQuat2D = window.quat_identity(); // Reset rotation for 2D preview
+        rotationQuat2D = window.quat_identity();
       }
 
       panelElement.classList.add('visible');
 
-      // Center the panel if it's the first time or if its position was reset
-      if (!panelElement.style.left || panelElement.style.left === '0px') { // more robust check
+      if (!panelElement.style.left || panelElement.style.left === '0px') {
         panelElement.style.left = '50%';
         panelElement.style.top = '50%';
         panelElement.style.transform = 'translate(-50%, -50%)';
       }
       
-      // Initial render of preview. Defer sizing to ensure offsetWidth/Height are available
       requestAnimationFrame(() => {
           if (planetPreviewCanvasElement && planetPreviewCanvasElement.offsetParent !== null && !is360ViewActive) {
-               planetPreviewCanvasElement.width = planetPreviewCanvasElement.offsetWidth;
-               planetPreviewCanvasElement.height = planetPreviewCanvasElement.offsetHeight;
-               _renderPreview();
+               const currentWidth = planetPreviewCanvasElement.offsetWidth;
+               const currentHeight = planetPreviewCanvasElement.offsetHeight;
+               if(planetPreviewCanvasElement.width !== currentWidth) planetPreviewCanvasElement.width = currentWidth;
+               if(planetPreviewCanvasElement.height !== currentHeight) planetPreviewCanvasElement.height = currentHeight;
+               if(currentWidth > 0 && currentHeight > 0){
+                   _renderPreview();
+               } else {
+                  needsPreviewRerender = true;
+               }
           } else if (!is360ViewActive) {
-              needsPreviewRerender = true; // Flag if not yet visible
+              needsPreviewRerender = true;
           }
       });
     },
@@ -420,7 +481,7 @@ export const PlanetVisualPanelManager = (() => {
           }
         }
       }
-      if (needsPreviewRerender && !is360ViewActive) _renderPreview();
+      if (needsPreviewRerender && !is360ViewActive && planetPreviewCanvasElement.offsetParent !== null) _renderPreview();
     },
     isVisible: () => panelElement?.classList.contains('visible'),
     getCurrentPlanetData: () => currentPlanetData,

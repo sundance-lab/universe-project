@@ -1,16 +1,8 @@
-// public/js/script.js
-// Core Style Imports
-import '../styles.css';
-
-// Import Modules (ES Module Syntax)
+// These imports are now correct because all files are in the same directory.
 import { startSolarSystemAnimation, stopSolarSystemAnimation, isSolarSystemAnimationRunning } from './animationController.js';
 import * as PlanetDesigner from './planetDesigner.js';
 import * as PlanetVisualPanelManager from './planetVisualPanelManager.js';
 
-// Function to Attach Modules to Window (Needed for Legacy Reasons?)
-// Note: This is an unusual pattern. A more modern approach would be to refactor
-// dependencies to use imports directly instead of attaching to `window`.
-// However, the current logic is functional, so it is left as-is.
 function initializeModules() {
  window.PlanetDesigner = PlanetDesigner.PlanetDesigner;
  window.PlanetVisualPanelManager = PlanetVisualPanelManager.PlanetVisualPanelManager;
@@ -149,8 +141,8 @@ document.addEventListener('DOMContentLoaded', () => {
 
  if (window.Worker) {
   try {
-   window.planetVisualWorker = new Worker('js/planetRendererWorker.js');
-   window.designerWorker = new Worker('js/planetRendererWorker.js'); 
+window.planetVisualWorker = new Worker('./planetRendererWorker.js');
+window.designerWorker = new Worker('./planetRendererWorker.js');
 
    // Setup for planetVisualWorker
    if (window.planetVisualWorker) {

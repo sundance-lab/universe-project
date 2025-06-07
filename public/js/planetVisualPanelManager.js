@@ -4,33 +4,58 @@ import * as THREE from 'three';
 import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls.js';
 
 // --- Shader Definitions ---
-const glslRandom2to1 = `...`; // This code remains the same from your file
-const glslSimpleValueNoise3D = `...`; // This code remains the same from your file
 
-// MODIFIED: The layeredNoise function is slightly different in the new shaders.
-// We will define the full, new shaders below.
+const glslRandom2to1 = `
+float random(vec2 st) {
+  return fract(sin(dot(st.xy, vec2(12.9898,78.233))) * 43758.5453123);
+}
+`;
 
-// --- 1. NEW, ADVANCED SHADERS ---
+const glslSimpleValueNoise3D = `
+$
+
+float valueNoise(vec3 p, float seed) {
+  vec3 i = floor(p + seed * 0.123);
+  vec3 f = fract(p + seed * 0.123);
+  f = f * f * (3.0 - 2.0 * f);
+
+  float c000 = random(i.xy + i.z * 0.37);
+  float c100 = random(i.xy + vec2(1.0, 0.0) + i.z * 0.37);
+  float c010 = random(i.xy + vec2(0.0, 1.0) + i.z * 0.37);
+  float c110 = random(i.xy + vec2(1.0, 1.0) + i.z * 0.37);
+  float c001 = random(i.xy + (i.z + 1.0) * 0.37);
+  float c101 = random(i.xy + vec2(1.0, 0.0) + (i.z + 1.0) * 0.37);
+  float c011 = random(i.xy + vec2(0.0, 1.0) + (i.z + 1.0) * 0.37);
+  float c111 = random(i.xy + vec2(1.0, 1.0) + (i.z + 1.0) * 0.37);
+
+  float u00 = mix(c000, c100, f.x);
+  float u01 = mix(c001, c101, f.x);
+  float u10 = mix(c010, c110, f.x);
+  float u11 = mix(c011, c111, f.x);
+  float v0 = mix(u00, u10, f.y);
+  float v1 = mix(u01, u11, f.y);
+  return mix(v0, v1, f.z);
+}
+`;
 
 const planetVertexShader = `
 uniform float uTime;
-uniform float uContinentSeed;  
-uniform float uSphereRadius;   
+uniform float uContinentSeed;
+uniform float uSphereRadius;
 uniform float uDisplacementAmount;
 
 varying vec3 vNormal;
 varying float vElevation;
-varying vec3 vWorldPosition;  
+varying vec3 vWorldPosition;
 
-// Your existing noise functions will be injected here by JS
+// Noise functions will be injected here
 $
 
-// We use the same noise function but apply it at different scales
 float layeredNoise(vec3 p, float seed, int octaves, float persistence, float lacunarity, float scale) {
   float total = 0.0;
   float frequency = scale;
   float amplitude = 1.0;
-  float maxValue = 0.0; 
+  float maxValue = 0.0;
 
   for (int i = 0; i < octaves; i++) {
    total += valueNoise(p * frequency + seed * float(i) * 1.712, seed * 12.345 * float(i+1) * 0.931) * amplitude;
@@ -45,23 +70,16 @@ float layeredNoise(vec3 p, float seed, int octaves, float persistence, float lac
 void main() {
   vec3 p = position;
   vec3 noiseInputPosition = (p / uSphereRadius) + (uContinentSeed * 10.0);
-  
-  // --- Create more realistic terrain ---
-  // 1. Generate large, smooth continents with low-frequency noise
+
   float continentNoise = (layeredNoise(noiseInputPosition, uContinentSeed, 5, 0.5, 2.0, 1.5) + 1.0) * 0.5;
-
-  // 2. Generate rougher, high-frequency noise for mountains
   float mountainNoise = (layeredNoise(noiseInputPosition, uContinentSeed * 2.0, 6, 0.45, 2.2, 8.0) + 1.0) * 0.5;
-
-  // 3. Combine them: Apply mountains only where continent noise is high, creating mountain ranges on land.
   float continentMask = smoothstep(0.48, 0.52, continentNoise);
   float finalElevation = continentNoise + (mountainNoise * continentMask * 0.3);
 
-  // 4. Final normalization and displacement
   vElevation = clamp(finalElevation, 0.0, 1.0);
-  float displacement = vElevation * uDisplacementAmount; 
+  float displacement = vElevation * uDisplacementAmount;
   vec3 displacedPosition = p + normal * displacement;
-  
+
   vNormal = normal;
   vWorldPosition = (modelMatrix * vec4(displacedPosition, 1.0)).xyz;
   gl_Position = projectionMatrix * modelViewMatrix * vec4(displacedPosition, 1.0);
@@ -71,22 +89,20 @@ void main() {
 const planetFragmentShader = `
 uniform vec3 uLandColor;
 uniform vec3 uWaterColor;
-uniform float uOceanHeightLevel; // This is now the "sea level" or shallow water line
+uniform float uOceanHeightLevel;
 
 varying vec3 vNormal;
 varying float vElevation;
-varying vec3 vWorldPosition;  
+varying vec3 vWorldPosition;
 
-// Your existing lighting function
 vec3 calculateLighting(vec3 surfaceColor, vec3 normalVec, vec3 viewDir) {
-  vec3 lightColor = vec3(1.0, 1.0, 0.95); 
+  vec3 lightColor = vec3(1.0, 1.0, 0.95);
   float ambientStrength = 0.25;
   float diffuseStrength = 0.7;
   float specularStrength = 0.3;
   float shininess = 16.0;
 
   vec3 lightDirection = normalize(vec3(0.8, 0.6, 1.0));
-
   vec3 ambient = ambientStrength * lightColor;
   vec3 norm = normalize(normalVec);
   float diff = max(dot(norm, lightDirection), 0.0);
@@ -94,21 +110,18 @@ vec3 calculateLighting(vec3 surfaceColor, vec3 normalVec, vec3 viewDir) {
   vec3 reflectDir = reflect(-lightDirection, norm);
   float spec = pow(max(dot(viewDir, reflectDir), 0.0), shininess);
   vec3 specular = specularStrength * spec * lightColor;
-  
   return (ambient + diffuse + specular) * surfaceColor;
 }
 
 void main() {
   vec3 finalColor;
 
-  // --- Define elevation levels for our biome color ramp ---
   float seaLevel = uOceanHeightLevel;
   float deepWater = seaLevel * 0.6;
   float beachLevel = seaLevel + 0.03;
   float mountainLevel = seaLevel + 0.35;
   float snowLevel = seaLevel + 0.55;
 
-  // --- Define colors for our biomes ---
   vec3 deepWaterColor = uWaterColor * 0.5;
   vec3 shallowWaterColor = uWaterColor;
   vec3 beachColor = vec3(0.86, 0.78, 0.59);
@@ -116,7 +129,6 @@ void main() {
   vec3 mountainColor = uLandColor * 0.7 + vec3(0.4);
   vec3 snowColor = vec3(0.95, 0.95, 1.0);
 
-  // --- Create the color ramp by mixing colors based on elevation ---
   if (vElevation < deepWater) {
       finalColor = deepWaterColor;
   } else if (vElevation < seaLevel) {
@@ -141,6 +153,7 @@ void main() {
 }
 `;
 
+
 export const PlanetVisualPanelManager = (() => {
   console.log("PVisualPanelManager: Script loaded.");
 
@@ -158,9 +171,6 @@ export const PlanetVisualPanelManager = (() => {
   let threeShaderMaterial;
 
   const SPHERE_BASE_RADIUS = 0.8;
-  
-  // --- 2. MAKE PLANETS MORE SPHERICAL ---
-  // Reduced this from 0.01 to make the terrain displacement less extreme.
   const DISPLACEMENT_SCALING_FACTOR = 0.005;
 
   // --- Panel Dragging Logic (Header Only) ---
@@ -274,11 +284,9 @@ export const PlanetVisualPanelManager = (() => {
       return;
     }
 
-    // --- Assemble the shader string ---
-    const finalSimpleValueNoise = glslSimpleValueNoise3D.replace('$', glslRandom2to1);
-    const finalLayeredNoise = planetVertexShader.includes("layeredNoise") ? "" : `...`; // Placeholder if needed, but the new vertex shader has it built-in.
-    // The new vertex shader has the noise function inside it, so we only need to inject the base random function.
-    const finalVertexShader = planetVertexShader.replace('$', glslSimpleValueNoise3D.replace('$', glslRandom2to1));
+    // --- Correctly and clearly assemble the shader strings ---
+    const noiseFunctions = glslSimpleValueNoise3D.replace('$', glslRandom2to1);
+    const finalVertexShader = planetVertexShader.replace('$', noiseFunctions);
 
     threeScene = new THREE.Scene();
     threeScene.background = new THREE.Color(0x050510);
@@ -293,12 +301,9 @@ export const PlanetVisualPanelManager = (() => {
     threeRenderer.setSize(planet360CanvasElement.offsetWidth, planet360CanvasElement.offsetHeight);
     threeRenderer.setPixelRatio(window.devicePixelRatio);
 
-    const geometry = new THREE.SphereGeometry(SPHERE_BASE_RADIUS, 64, 48);
+    const geometry = new THREE.SphereGeometry(SPHERE_BASE_RADIUS, 128, 64); // Increased segments for smoother displacement
 
     // --- Calculate Shader Uniforms ---
-    // The `uOceanHeightLevel` uniform is now used as the "sea level" in the fragment shader.
-    // We adjust it based on the planet's data so it corresponds to a value between 0.0 and 1.0.
-    // Let's target a default normalized sea level of ~0.5 for good visual range.
     let normalizedOceanLevel = 0.5;
     const pMin = planet.minTerrainHeight ?? 0.0;
     const pMax = planet.maxTerrainHeight ?? (pMin + 10.0);
@@ -306,14 +311,14 @@ export const PlanetVisualPanelManager = (() => {
     if (pMax > pMin) {
       normalizedOceanLevel = (pOcean - pMin) / (pMax - pMin);
     }
-    normalizedOceanLevel = Math.max(0.2, Math.min(0.8, normalizedOceanLevel)); // Clamp to a reasonable range
+    normalizedOceanLevel = Math.max(0.2, Math.min(0.8, normalizedOceanLevel));
     
     const conceptualRange = Math.max(0, pMax - pMin);
     const displacementAmount = conceptualRange * DISPLACEMENT_SCALING_FACTOR;
 
     const uniforms = {
-      uLandColor: { value: new THREE.Color(planet.landColor || '#556B2F') }, // Dark Olive Green
-      uWaterColor: { value: new THREE.Color(planet.waterColor || '#1E90FF') }, // Dodger Blue
+      uLandColor: { value: new THREE.Color(planet.landColor || '#556B2F') },
+      uWaterColor: { value: new THREE.Color(planet.waterColor || '#1E90FF') },
       uOceanHeightLevel: { value: normalizedOceanLevel },
       uContinentSeed: { value: planet.continentSeed ?? Math.random() },
       uTime: { value: 0.0 },
@@ -352,11 +357,12 @@ export const PlanetVisualPanelManager = (() => {
   }
 
   function _stopAndCleanupThreeJSView() {
-    // This function remains the same
     if (threeAnimationId) cancelAnimationFrame(threeAnimationId);
     threeAnimationId = null;
-    if (threeControls) threeControls.dispose();
-    threeControls = null;
+    if (threeControls) {
+      threeControls.dispose();
+      threeControls = null;
+    }
     if (threePlanetMesh) {
       if (threePlanetMesh.geometry) threePlanetMesh.geometry.dispose();
       if (threeShaderMaterial) threeShaderMaterial.dispose();
@@ -378,7 +384,6 @@ export const PlanetVisualPanelManager = (() => {
   }
    
   function _closePanel() {
-    // This function remains the same
     if (panelElement) panelElement.classList.remove('visible');
     is360ViewActive = false;
     _stopAndCleanupThreeJSView();

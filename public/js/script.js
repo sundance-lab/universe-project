@@ -184,6 +184,19 @@ function waitForNonZeroWidth(el, maxRetries = 10) {
         }
     }
 
+async function preGenerateAllGalaxyContents() {
+    window.gameSessionData.isForceRegenerating = true;
+    console.log("Pre-generating all galaxy contents...");
+    for (const g of window.gameSessionData.galaxies) {
+        if (!g.layoutGenerated || g.solarSystems.length === 0) {
+            generateSolarSystemsForGalaxy(g.id);
+        }
+    }
+    window.gameSessionData.isForceRegenerating = false;
+    console.log("Pre-generation complete.");
+    window.saveGameState();
+}
+    
     function loadGameState() {
         try {
             const savedStateString = localStorage.getItem('galaxyGameSaveData');

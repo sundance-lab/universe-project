@@ -116,6 +116,27 @@ document.addEventListener('DOMContentLoaded', () => {
         connectionLine: 'rgba(128, 128, 255, 0.4)',
     };
 
+    /**
+ * Waits until an element has a non-zero width or until a timeout is reached.
+ * @param {HTMLElement} el - The element to check.
+ * @param {number} maxRetries - How many frames to check before giving up.
+ * @returns {Promise<boolean>} Resolves true if width became non-zero, else false.
+ */
+function waitForNonZeroWidth(el, maxRetries = 10) {
+    return new Promise(resolve => {
+        function check(retriesLeft) {
+            if (el && el.offsetWidth > 0) {
+                resolve(true);
+            } else if (retriesLeft > 0) {
+                requestAnimationFrame(() => check(retriesLeft - 1));
+            } else {
+                resolve(false);
+            }
+        }
+        check(maxRetries);
+    });
+}
+
     window.gameSessionData = {
         universe: { diameter: null },
         galaxies: [],
@@ -507,18 +528,32 @@ document.addEventListener('DOMContentLoaded', () => {
         if (!window.gameSessionData.isForceRegenerating) window.saveGameState();
     }
 
-    async function preGenerateAllGalaxyContents() {
-        window.gameSessionData.isForceRegenerating = true;
-        console.log("Pre-generating all galaxy contents...");
-        for (const g of window.gameSessionData.galaxies) {
-            if (!g.layoutGenerated || g.solarSystems.length === 0) {
-                generateSolarSystemsForGalaxy(g.id);
-            }
-        }
-        window.gameSessionData.isForceRegenerating = false;
-        console.log("Pre-generation complete.");
-        window.saveGameState();
+async function switchToGalaxyDetailView(galaxyId) {
+    const galaxy = window.gameSessionData.galaxies.find(g => g.id === galaxyId);
+    if (!galaxy) {
+        console.warn(`switchToGalaxyDetailView: Galaxy ${galaxyId} not found. Switching to main view.`);
+        return switchToMainView();
     }
+
+    // [ ... keep your existing setup code ... ]
+    setActiveScreen(galaxyDetailScreen);
+
+    // Wait for the viewport to have a non-zero width before generating layout
+    await waitForNonZeroWidth(galaxyViewport, 15); // ~15 frames max
+
+    if (!galaxy.layoutGenerated) {
+        if (galaxyViewport && galaxyViewport.offsetWidth > 0) {
+            generateSolarSystemsForGalaxy(galaxyId);
+            renderGalaxyDetailScreen(false);
+        } else {
+            console.warn("Galaxy viewport did not get a valid size after retries. Skipping generation.");
+            galaxy.layoutGenerated = true;
+            renderGalaxyDetailScreen(false);
+        }
+    } else {
+        renderGalaxyDetailScreen(false);
+    }
+}
 
 
     // --- RENDERING FUNCTIONS ---

@@ -1352,15 +1352,59 @@ if (galaxyViewport) galaxyViewport.addEventListener('mousedown', e => {
     }
 });
 
-if (solarSystemScreen) {
-  solarSystemScreen.addEventListener('mousedown', e => {
-    startPan(e, solarSystemScreen, solarSystemContent, window.gameSessionData.solarSystemView);
-  });
-}
+  // Pan listener for Solar System Screen
+  if (solarSystemScreen) {
+    console.log("SCRIPT: Attaching mousedown listener to solarSystemScreen"); // DEBUG
+    solarSystemScreen.addEventListener('mousedown', e => {
+      console.log("SCRIPT: Mousedown on solarSystemScreen FIRED. Target:", e.target.id || e.target.className, "activeSolarSystemId:", window.gameSessionData.activeSolarSystemId, "solarSystemView.systemId:", window.gameSessionData.solarSystemView?.systemId); // DEBUG
+      // Check conditions specific to solar system view before initiating pan
+      if (window.gameSessionData.solarSystemView &&
+          window.gameSessionData.solarSystemView.systemId && // Ensure systemId is set
+          window.gameSessionData.solarSystemView.systemId === window.gameSessionData.activeSolarSystemId) {
+        console.log("SCRIPT: Conditions met for solar system pan. Calling startPan."); // DEBUG
+        startPan(e, solarSystemScreen, solarSystemContent, window.gameSessionData.solarSystemView);
+      } else {
+        console.warn("SCRIPT: Pan on solarSystemScreen aborted - solarSystemView conditions not met. ActiveSystemID:", window.gameSessionData.activeSolarSystemId, "ViewSystemID:", window.gameSessionData.solarSystemView?.systemId); // DEBUG
+      }
+    });
+  } else {
+    console.error("SCRIPT: solarSystemScreen is null. Cannot attach mousedown listener for solar system pan.");
+  }
 
-document.addEventListener('mousemove', panMouseMove);
-document.addEventListener('mouseup', panMouseUp);
+  // Wheel zoom listeners (SHOULD BE GROUPED TOGETHER AND INSIDE DOMContentLoaded)
+  const zoomableScreens = [galaxyDetailScreen, solarSystemScreen];
+  zoomableScreens.forEach(screen => {
+    if (screen) {
+      console.log(`SCRIPT: Attaching wheel listener to ${screen.id}`);
+      screen.addEventListener('wheel', e => {
+        console.log(`SCRIPT: Wheel event on ${screen.id}. Target:`, e.target.id || e.target.className); // DEBUG
+        e.preventDefault(); // Essential to prevent page scroll
+        handleZoom(e.deltaY < 0 ? 'in' : 'out', e); // Pass original event 'e' to handleZoom
+      }, { passive: false }); // passive: false is needed for preventDefault to work
+    } else {
+      // Debug which screen variable might be null
+      if (screen === galaxyDetailScreen) console.error("SCRIPT: wheel listener - galaxyDetailScreen is null.");
+      if (screen === solarSystemScreen) console.error("SCRIPT: wheel listener - solarSystemScreen is null.");
+    }
   });
+  
+  // Global mouse move and up listeners for panning - ATTACH TO WINDOW
+  console.log("SCRIPT: Attaching global mousemove and mouseup listeners to window."); // DEBUG
+  window.addEventListener('mousemove', panMouseMove);
+  window.addEventListener('mouseup', panMouseUp);
+  
+  // Resize listener
+  let resizeTimeout;
+  window.addEventListener('resize', () => {
+    clearTimeout(resizeTimeout);
+    resizeTimeout = setTimeout(() => {
+      console.log("Debounced resize event: Re-initializing universe.");
+      regenerateCurrentUniverseState(false); 
+    }, 500);  
+  });
+
+  // NOTE: The final closing }); for DOMContentLoaded comes much later,
+  // after initializeGame(); and module inits. This snippet does NOT include that final closing.
 
 if (galaxyViewport) {
   galaxyViewport.addEventListener('wheel', e => {

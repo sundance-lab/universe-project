@@ -44,6 +44,7 @@ uniform float uContinentSeed;
 uniform float uSphereRadius;
 uniform float uDisplacementAmount;
 uniform float uContinentSharpness;
+uniform float uRiverBasin;
 
 varying vec3 vNormal;
 varying float vElevation;
@@ -57,7 +58,6 @@ float layeredNoise(vec3 p, float seed, int octaves, float persistence, float lac
   float frequency = scale;
   float amplitude = 1.0;
   float maxValue = 0.0;
-
   for (int i = 0; i < octaves; i++) {
    total += valueNoise(p * frequency + seed * float(i) * 1.712, seed * 12.345 * float(i+1) * 0.931) * amplitude;
    maxValue += amplitude;
@@ -69,18 +69,8 @@ float layeredNoise(vec3 p, float seed, int octaves, float persistence, float lac
 }
 
 float warpedRiverNoise(vec3 p, float seed) {
-    vec3 warp_octave1 = vec3(
-        valueNoise(p * 2.0, seed * 1.7),
-        valueNoise(p * 2.0 + 5.2, seed * 2.1),
-        valueNoise(p * 2.0 - 3.1, seed * 3.3)
-    ) * 2.0 - 1.0;
-
-    vec3 warp_octave2 = vec3(
-        valueNoise(p * 8.0 + warp_octave1 * 0.3, seed * 4.9),
-        valueNoise(p * 8.0 + warp_octave1 * 0.3 + 1.2, seed * 5.3),
-        valueNoise(p * 8.0 + warp_octave1 * 0.3 - 4.1, seed * 6.7)
-    ) * 2.0 - 1.0;
-
+    vec3 warp_octave1 = vec3(valueNoise(p*2.0,seed*1.7), valueNoise(p*2.0+5.2,seed*2.1), valueNoise(p*2.0-3.1,seed*3.3)) * 2.0 - 1.0;
+    vec3 warp_octave2 = vec3(valueNoise(p*8.0+warp_octave1*0.3,seed*4.9), valueNoise(p*8.0+warp_octave1*0.3+1.2,seed*5.3), valueNoise(p*8.0+warp_octave1*0.3-4.1,seed*6.7)) * 2.0 - 1.0;
     return layeredNoise(p + warp_octave2 * 0.1, seed, 4, 0.5, 2.0, 32.0);
 }
 
@@ -92,19 +82,16 @@ void main() {
     continentNoise = pow(continentNoise, uContinentSharpness);
     
     float riverRaw = warpedRiverNoise(noiseInputPosition * 0.5, uContinentSeed * 5.0);
-    float riverBed = smoothstep(0.4, 0.5, riverRaw) * (1.0 - smoothstep(0.5, 0.6, riverRaw));
+    float riverBed = smoothstep(0.5 - uRiverBasin, 0.5, riverRaw) * (1.0 - smoothstep(0.5, 0.5 + uRiverBasin, riverRaw));
     float riverMask = smoothstep(0.5, 0.52, continentNoise) * (1.0 - smoothstep(0.75, 0.8, continentNoise));
     vRiverValue = riverBed * riverMask;
 
-    float mountainNoise = (layeredNoise(noiseInputPosition, uContinentSeed * 2.0, 6, 0.45, 2.2, 8.0) + 1.0) * 0.5;
+    float mountainNoise = (layeredNoise(noiseInputPosition, uContinentSeed*2.0, 6, 0.45, 2.2, 8.0) + 1.0) * 0.5;
     float continentMask = smoothstep(0.48, 0.52, continentNoise);
     float islandNoise = (layeredNoise(noiseInputPosition, uContinentSeed * 3.0, 7, 0.5, 2.5, 18.0) + 1.0) * 0.5;
     float oceanMask = 1.0 - continentMask;
 
-    float finalElevation = continentNoise 
-                           + (mountainNoise * continentMask * 0.3) 
-                           + (islandNoise * oceanMask * 0.1);
-    
+    float finalElevation = continentNoise + (mountainNoise * continentMask * 0.3) + (islandNoise * oceanMask * 0.1);
     finalElevation -= vRiverValue * 0.04;
 
     vElevation = clamp(finalElevation, 0.0, 1.0);
@@ -122,6 +109,7 @@ uniform vec3 uLandColor;
 uniform vec3 uWaterColor;
 uniform float uOceanHeightLevel;
 uniform float uContinentSeed;
+uniform float uForestDensity;
 
 varying vec3 vNormal;
 varying float vElevation;
@@ -179,7 +167,7 @@ void main() {
 
   if (vElevation > beachLevel && vElevation < mountainLine) {
     float forestNoise = valueNoise(vWorldPosition * 25.0, uContinentSeed * 4.0);
-    float forestMask = smoothstep(0.4, 0.6, forestNoise);
+    float forestMask = smoothstep(1.0 - uForestDensity, 1.0, forestNoise);
     finalColor = mix(finalColor, forestColor, forestMask);
   }
 
@@ -195,77 +183,53 @@ void main() {
 
 export const PlanetDesigner = (() => {
   let designerPlanetCanvas, designerWaterColorInput, designerLandColorInput,
-    designerMinHeightMinInput, designerMinHeightMaxInput,
-    designerMaxHeightMinInput, designerMaxHeightMaxInput,
-    designerOceanHeightMinInput, designerOceanHeightMaxInput,
-    savedDesignsUl, designerRandomizeBtn, designerSaveBtn, designerCancelBtn,
-    designerContinentSharpnessInput, designerContinentSharpnessValue;
+    designerMinHeightMinInput, designerMinHeightMaxInput, designerMaxHeightMinInput, designerMaxHeightMaxInput,
+    designerOceanHeightMinInput, designerOceanHeightMaxInput, savedDesignsUl, designerRandomizeBtn,
+    designerSaveBtn, designerCancelBtn, designerContinentSharpnessInput, designerContinentSharpnessValue,
+    designerRiverBasinInput, designerRiverBasinValue, designerForestDensityInput, designerForestDensityValue;
 
   const DISPLACEMENT_SCALING_FACTOR = 0.005;
   const SPHERE_BASE_RADIUS = 0.8;
 
   let currentDesignerBasis = {
-    waterColor: '#1E90FF',
-    landColor: '#556B2F',
-    continentSeed: Math.random(),
-    continentSharpness: 1.8,
-    minTerrainHeightRange: [0.0, 2.0],
-    maxTerrainHeightRange: [8.0, 12.0],
-    oceanHeightRange: [1.0, 3.0]
+    waterColor: '#1E90FF', landColor: '#556B2F', continentSeed: Math.random(),
+    continentSharpness: 1.8, riverBasin: 0.05, forestDensity: 0.5,
+    minTerrainHeightRange: [0.0, 2.0], maxTerrainHeightRange: [8.0, 12.0], oceanHeightRange: [1.0, 3.0]
   };
   
   let designerThreeScene, designerThreeCamera, designerThreeRenderer,
-    designerThreeLOD, designerThreeControls, designerThreeAnimationId,
-    designerShaderMaterial;
+    designerThreePlanetMesh, designerThreeControls, designerThreeAnimationId, designerShaderMaterial;
     
   function _initDesignerThreeJSView() {
     if (!designerPlanetCanvas) return;
-
     const noiseFunctions = glslSimpleValueNoise3D.replace('$', glslRandom2to1);
     const finalVertexShader = planetVertexShader.replace('$', noiseFunctions);
     const finalFragmentShader = planetFragmentShader.replace('$', noiseFunctions);
 
     designerThreeScene = new THREE.Scene();
     designerThreeScene.background = new THREE.Color(0x1a1a2a);
-    
-    const aspectRatio = designerPlanetCanvas.offsetWidth / designerPlanetCanvas.offsetHeight;
-    designerThreeCamera = new THREE.PerspectiveCamera(60, aspectRatio, 0.001, 100);
+    designerThreeCamera = new THREE.PerspectiveCamera(60, designerPlanetCanvas.offsetWidth / designerPlanetCanvas.offsetHeight, 0.001, 100);
     designerThreeCamera.position.z = 2.5;
 
     designerThreeRenderer = new THREE.WebGLRenderer({ canvas: designerPlanetCanvas, antialias: true });
     designerThreeRenderer.setSize(designerPlanetCanvas.offsetWidth, designerPlanetCanvas.offsetHeight);
     designerThreeRenderer.setPixelRatio(window.devicePixelRatio);
     
+    // Use single high-detail mesh for fluid zooming
+    const geometry = new THREE.SphereGeometry(SPHERE_BASE_RADIUS, 1024, 512);
+
     const uniforms = {
-        uLandColor: { value: new THREE.Color() },
-        uWaterColor: { value: new THREE.Color() },
-        uOceanHeightLevel: { value: 0.5 },
-        uContinentSeed: { value: Math.random() },
-        uContinentSharpness: { value: 1.8 },
-        uTime: { value: 0.0 },
-        uSphereRadius: { value: SPHERE_BASE_RADIUS },
+        uLandColor: { value: new THREE.Color() }, uWaterColor: { value: new THREE.Color() },
+        uOceanHeightLevel: { value: 0.5 }, uContinentSeed: { value: Math.random() },
+        uContinentSharpness: { value: 1.8 }, uRiverBasin: { value: 0.05 },
+        uForestDensity: { value: 0.5 }, uTime: { value: 0.0 }, uSphereRadius: { value: SPHERE_BASE_RADIUS },
         uDisplacementAmount: { value: 0.0 }
     };
     
-    designerShaderMaterial = new THREE.ShaderMaterial({
-      uniforms: uniforms,
-      vertexShader: finalVertexShader,
-      fragmentShader: finalFragmentShader,
-    });
-    
-    designerThreeLOD = new THREE.LOD();
-    const lodLevels = [
-        { distance: 3.0, segments: [128, 64] },
-        { distance: 1.5, segments: [256, 128] },
-        { distance: 0.0, segments: [1024, 512] }
-    ];
+    designerShaderMaterial = new THREE.ShaderMaterial({ uniforms, vertexShader: finalVertexShader, fragmentShader: finalFragmentShader });
 
-    lodLevels.forEach(level => {
-        const geometry = new THREE.SphereGeometry(SPHERE_BASE_RADIUS, level.segments[0], level.segments[1]);
-        const mesh = new THREE.Mesh(geometry, designerShaderMaterial);
-        designerThreeLOD.addLevel(mesh, level.distance);
-    });
-    designerThreeScene.add(designerThreeLOD);
+    designerThreePlanetMesh = new THREE.Mesh(geometry, designerShaderMaterial);
+    designerThreeScene.add(designerThreePlanetMesh);
 
     designerThreeControls = new OrbitControls(designerThreeCamera, designerThreeRenderer.domElement);
     designerThreeControls.enableDamping = true;
@@ -280,36 +244,22 @@ export const PlanetDesigner = (() => {
   function _animateDesignerThreeJSView() {
     if (!designerThreeRenderer) return;
     designerThreeAnimationId = requestAnimationFrame(_animateDesignerThreeJSView);
-    if (designerShaderMaterial?.uniforms.uTime) {
-      designerShaderMaterial.uniforms.uTime.value += 0.015;
-    }
-    if (designerThreeLOD) designerThreeLOD.update(designerThreeCamera);
+    if (designerShaderMaterial?.uniforms.uTime) designerShaderMaterial.uniforms.uTime.value += 0.015;
     if (designerThreeControls) designerThreeControls.update();
-    if (designerThreeScene && designerThreeCamera) {
-      designerThreeRenderer.render(designerThreeScene, designerThreeCamera);
-    }
+    if (designerThreeScene && designerThreeCamera) designerThreeRenderer.render(designerThreeScene, designerThreeCamera);
   }
 
   function _stopAndCleanupDesignerThreeJSView() {
     if (designerThreeAnimationId) cancelAnimationFrame(designerThreeAnimationId);
     if (designerThreeControls) designerThreeControls.dispose();
     if (designerShaderMaterial) designerShaderMaterial.dispose();
-    if (designerThreeLOD) {
-        designerThreeLOD.traverse(function(object) {
-            if (object.isMesh && object.geometry) {
-                object.geometry.dispose();
-            }
-        });
-        if(designerThreeScene) designerThreeScene.remove(designerThreeLOD);
+    if (designerThreePlanetMesh) {
+      if(designerThreePlanetMesh.geometry) designerThreePlanetMesh.geometry.dispose();
+      if(designerThreeScene) designerThreeScene.remove(designerThreePlanetMesh);
     }
     if (designerThreeRenderer) designerThreeRenderer.dispose();
-    designerThreeAnimationId = null;
-    designerThreeControls = null;
-    designerShaderMaterial = null;
-    designerThreeLOD = null;
-    designerThreeRenderer = null;
-    designerThreeScene = null;
-    designerThreeCamera = null;
+    designerThreeAnimationId = null; designerThreeControls = null; designerShaderMaterial = null;
+    designerThreePlanetMesh = null; designerThreeRenderer = null; designerThreeScene = null; designerThreeCamera = null;
   }
 
   function _populateDesignerInputsFromBasis() {
@@ -319,6 +269,14 @@ export const PlanetDesigner = (() => {
     if(designerContinentSharpnessInput) {
         designerContinentSharpnessInput.value = currentDesignerBasis.continentSharpness;
         designerContinentSharpnessValue.textContent = Number(currentDesignerBasis.continentSharpness).toFixed(1);
+    }
+    if(designerRiverBasinInput) {
+        designerRiverBasinInput.value = currentDesignerBasis.riverBasin;
+        designerRiverBasinValue.textContent = Number(currentDesignerBasis.riverBasin).toFixed(2);
+    }
+    if(designerForestDensityInput) {
+        designerForestDensityInput.value = currentDesignerBasis.forestDensity;
+        designerForestDensityValue.textContent = Number(currentDesignerBasis.forestDensity).toFixed(2);
     }
     designerMinHeightMinInput.value = currentDesignerBasis.minTerrainHeightRange[0].toFixed(1);
     designerMinHeightMaxInput.value = currentDesignerBasis.minTerrainHeightRange[1].toFixed(1);
@@ -334,6 +292,8 @@ export const PlanetDesigner = (() => {
     currentDesignerBasis.waterColor = designerWaterColorInput.value;
     currentDesignerBasis.landColor = designerLandColorInput.value;
     currentDesignerBasis.continentSharpness = parseFloat(designerContinentSharpnessInput.value);
+    currentDesignerBasis.riverBasin = parseFloat(designerRiverBasinInput.value);
+    currentDesignerBasis.forestDensity = parseFloat(designerForestDensityInput.value);
     
     const previewMinHeight = (parseFloat(designerMinHeightMinInput.value) + parseFloat(designerMinHeightMaxInput.value)) / 2;
     const previewMaxHeight = (parseFloat(designerMaxHeightMinInput.value) + parseFloat(designerMaxHeightMaxInput.value)) / 2;
@@ -344,6 +304,8 @@ export const PlanetDesigner = (() => {
     uniforms.uLandColor.value.set(currentDesignerBasis.landColor);
     uniforms.uContinentSeed.value = currentDesignerBasis.continentSeed;
     uniforms.uContinentSharpness.value = currentDesignerBasis.continentSharpness;
+    uniforms.uRiverBasin.value = currentDesignerBasis.riverBasin;
+    uniforms.uForestDensity.value = currentDesignerBasis.forestDensity;
     
     const terrainRange = Math.max(0.1, previewMaxHeight - previewMinHeight);
     let normalizedOceanLevel = (previewOceanHeight - previewMinHeight) / terrainRange;
@@ -362,6 +324,8 @@ export const PlanetDesigner = (() => {
     currentDesignerBasis.landColor = _getRandomHexColor();
     currentDesignerBasis.continentSeed = Math.random();
     currentDesignerBasis.continentSharpness = _getRandomFloat(1.2, 2.8);
+    currentDesignerBasis.riverBasin = _getRandomFloat(0.01, 0.15, 2);
+    currentDesignerBasis.forestDensity = _getRandomFloat(0.1, 0.9, 2);
     
     const minH1 = _getRandomFloat(0.0, 2.0), minH2 = minH1 + _getRandomFloat(0.5, 2.0);
     currentDesignerBasis.minTerrainHeightRange = [minH1, minH2];
@@ -375,25 +339,24 @@ export const PlanetDesigner = (() => {
   }
 
   function _generateUUID() { return crypto.randomUUID ? crypto.randomUUID() : 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g,c=>{const r=Math.random()*16|0,v=c==='x'?r:(r&3|8);return v.toString(16)})}
+  
   function _saveCustomPlanetDesign() { 
       const designName = prompt("Enter a name for this planet design:", "My Custom Planet");
       if (!designName?.trim()) return;
-      
-      const newDesign = { 
-          designId: _generateUUID(), 
-          designName: designName.trim(), 
-          ...JSON.parse(JSON.stringify(currentDesignerBasis)) 
-      };
+      const newDesign = { designId: _generateUUID(), designName: designName.trim(), ...JSON.parse(JSON.stringify(currentDesignerBasis)) };
       if (window.gameSessionData?.customPlanetDesigns) {
          window.gameSessionData.customPlanetDesigns.push(newDesign);
          if (typeof window.saveGameState === 'function') window.saveGameState();
          _populateSavedDesignsList();
       }
   }
+  
   function _loadAndPreviewDesign(designId) {
       const designToLoad = window.gameSessionData?.customPlanetDesigns?.find(d => d.designId === designId);
       if (designToLoad) {
           if(designToLoad.continentSharpness === undefined) designToLoad.continentSharpness = 1.8;
+          if(designToLoad.riverBasin === undefined) designToLoad.riverBasin = 0.05;
+          if(designToLoad.forestDensity === undefined) designToLoad.forestDensity = 0.5;
           currentDesignerBasis = { ...JSON.parse(JSON.stringify(designToLoad)) };
           delete currentDesignerBasis.designId;
           delete currentDesignerBasis.designName;
@@ -401,6 +364,7 @@ export const PlanetDesigner = (() => {
           _updateBasisAndRefreshDesignerPreview();
       }
   }
+  
   function _deleteCustomPlanetDesign(designId) {
       if (window.gameSessionData?.customPlanetDesigns) {
           window.gameSessionData.customPlanetDesigns = window.gameSessionData.customPlanetDesigns.filter(d => d.designId !== designId);
@@ -408,6 +372,7 @@ export const PlanetDesigner = (() => {
           _populateSavedDesignsList();
       }
   }
+  
   function _populateSavedDesignsList() {
       if (!savedDesignsUl) return;
       savedDesignsUl.innerHTML = '';
@@ -430,6 +395,10 @@ export const PlanetDesigner = (() => {
       designerLandColorInput = document.getElementById('designer-land-color');
       designerContinentSharpnessInput = document.getElementById('designer-continent-sharpness');
       designerContinentSharpnessValue = document.getElementById('designer-continent-sharpness-value');
+      designerRiverBasinInput = document.getElementById('designer-river-basin');
+      designerRiverBasinValue = document.getElementById('designer-river-basin-value');
+      designerForestDensityInput = document.getElementById('designer-forest-density');
+      designerForestDensityValue = document.getElementById('designer-forest-density-value');
       designerMinHeightMinInput = document.getElementById('designer-min-height-min');
       designerMinHeightMaxInput = document.getElementById('designer-min-height-max');
       designerMaxHeightMinInput = document.getElementById('designer-max-height-min');
@@ -449,13 +418,18 @@ export const PlanetDesigner = (() => {
       ];
       inputsToWatch.forEach(input => input?.addEventListener('change', _updateBasisAndRefreshDesignerPreview));
       
-      designerContinentSharpnessInput?.addEventListener('input', () => {
-          if(designerContinentSharpnessValue) {
-             designerContinentSharpnessValue.textContent = Number(designerContinentSharpnessInput.value).toFixed(1);
-          }
-          _updateBasisAndRefreshDesignerPreview();
+      const liveSliders = [
+          { slider: designerContinentSharpnessInput, display: designerContinentSharpnessValue, precision: 1 },
+          { slider: designerRiverBasinInput, display: designerRiverBasinValue, precision: 2 },
+          { slider: designerForestDensityInput, display: designerForestDensityValue, precision: 2 }
+      ];
+      liveSliders.forEach(({slider, display, precision}) => {
+          slider?.addEventListener('input', () => {
+              if(display) display.textContent = Number(slider.value).toFixed(precision);
+              _updateBasisAndRefreshDesignerPreview();
+          });
       });
-
+      
       designerRandomizeBtn?.addEventListener('click', _randomizeDesignerPlanet);
       designerSaveBtn?.addEventListener('click', _saveCustomPlanetDesign);
       designerCancelBtn?.addEventListener('click', () => {

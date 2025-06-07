@@ -1001,142 +1001,160 @@ try {
   }
 
   window.gameSessionData.solarSystemView = { zoomLevel: 0.5, currentPanX: 0, currentPanY: 0, systemId: solarSystemId, planets: [] };
-  if (solarSystemContent) solarSystemContent.innerHTML = '';
+  if (sfunction switchToSolarSystemView(solarSystemId) {
+    window.gameSessionData.activeSolarSystemId = solarSystemId;
+    const activeGalaxy = window.gameSessionData.galaxies.find(g => solarSystemId.startsWith(g.id));
+    const solarSystemObject = activeGalaxy?.solarSystems.find(s => s.id === solarSystemId);
 
-  let currentSunSize = SUN_ICON_SIZE * (solarSystemObject.sunSizeFactor || 1);
-  currentSunSize = Math.max(currentSunSize, 15);
-
-  const sunElement = document.createElement('div');
-  sunElement.className = 'sun-icon sun-animated';
-  // FIXED: Corrected template literals
-  sunElement.style.width = `${currentSunSize}px`;
-  sunElement.style.height = `${currentSunSize}px`;
-  if (solarSystemContent) solarSystemContent.appendChild(sunElement);
-
-  if (solarSystemOrbitCanvasEl?.parentNode) solarSystemOrbitCanvasEl.remove();
-  solarSystemOrbitCanvasEl = document.createElement('canvas');
-  solarSystemOrbitCanvasEl.id = 'solar-system-orbit-canvas';
-  solarSystemOrbitCanvasEl.width = ORBIT_CANVAS_SIZE;
-  solarSystemOrbitCanvasEl.height = ORBIT_CANVAS_SIZE;
-  if (solarSystemContent) solarSystemContent.appendChild(solarSystemOrbitCanvasEl);
-  orbitCtx = solarSystemOrbitCanvasEl.getContext('2d');
-  if (!orbitCtx) console.error("Failed to get 2D context for orbit canvas");
-
-  let usedOrbitalDistances = [];
-  const numPlanetsToGenerate = Math.floor(Math.random() * (currentMaxPlanets - currentMinPlanets + 1)) + currentMinPlanets;
-
-  for (let i = 0; i < numPlanetsToGenerate; i++) {
-   const planetSize = MIN_PLANET_SIZE + Math.random() * (MAX_PLANET_SIZE - MIN_PLANET_SIZE);
-   let planetDistance;
-   let placementAttempts = 0;
-   
-   do {
-    planetDistance = MIN_PLANET_DISTANCE + Math.random() * (MAX_PLANET_DISTANCE - MIN_PLANET_DISTANCE);
-    if (!usedOrbitalDistances.some(used => Math.abs(planetDistance - used.distance) < (MIN_ORBITAL_SEPARATION + used.size / 2 + planetSize / 2))) {
-        break;
-     }
-    placementAttempts++;
-   } while (placementAttempts < 200);
-
-   if (placementAttempts >= 200) {
-    console.warn(`Could not place planet ${i + 1} due to orbital separation constraints.`);
-    continue;
-   }
-   usedOrbitalDistances.push({ distance: planetDistance, size: planetSize });
-
-   const basisToUse = window.gameSessionData.customPlanetDesigns?.length
-    ? window.gameSessionData.customPlanetDesigns[Math.floor(Math.random() * window.gameSessionData.customPlanetDesigns.length)]
-    : { waterColor: '#0077BE', landColor: '#3A5F0B', minTerrainHeightRange: [0.0, 1.0], maxTerrainHeightRange: [5.0, 8.0], oceanHeightRange: [1.0, 3.0], continentSeed: Math.random() };
-    
-   const planetInstanceAppearance = window.generatePlanetInstanceFromBasis(basisToUse, false);
-
-   const newPlanet = {
-      // FIXED: Corrected template literal
-    id: `${solarSystemId}-planet-${i + 1}`,
-    planetName: `Planet ${i + 1}`,
-    size: planetSize,
-    distance: planetDistance,
-    currentOrbitalAngle: Math.random() * 2 * Math.PI,
-    orbitalSpeed: MIN_ROTATION_SPEED_RAD_PER_PERLIN_UNIT + Math.random() * (MAX_ROTATION_SPEED_RAD_PER_PERLIN_UNIT - MIN_ROTATION_SPEED_RAD_PER_PERLIN_UNIT),
-    currentAxialAngle: Math.random() * 2 * Math.PI,
-    axialSpeed: window.DEFAULT_PLANET_AXIAL_SPEED,
-    element: null,
-    type: 'terrestrial',
-    ...planetInstanceAppearance,
-    sourceDesignId: basisToUse.designId || null
-   };
-   window.gameSessionData.solarSystemView.planets.push(newPlanet);
-
-   const planetElement = document.createElement('div');
-   planetElement.classList.add('planet-icon', 'clickable-when-paused');
-   planetElement.addEventListener('click', (e) => {
-     e.stopPropagation();
-     window.PlanetVisualPanelManager?.show(newPlanet);
-   });
-    
-    // FIXED: Corrected template literals
-   planetElement.style.width = `${newPlanet.size}px`;
-   planetElement.style.height = `${newPlanet.size}px`;
-    
-   const randPos1 = 15 + Math.random() * 70;
-   const randSize1 = 20 + Math.random() * 60;
-   let backgroundStyle;
-   if (Math.random() < 0.6) {
-     const randPos2 = 15 + Math.random() * 70;
-     const randSize2 = 20 + Math.random() * 50;
-     const slightlyDarkerLand = adjustColor(newPlanet.landColor, -30);
-      // FIXED: Corrected template literals for multi-splotch background
-     backgroundStyle = `radial-gradient(circle at ${randPos1}% ${randPos1}%, ${newPlanet.landColor} ${randSize1}%, transparent ${randSize1 + 20}%), radial-gradient(circle at ${randPos2}% ${randPos2}%, ${slightlyDarkerLand} ${randSize2}%, transparent ${randSize2 + 15}%), ${newPlanet.waterColor}`;
-   } else {
-      // FIXED: Corrected template literals for single-splotch background
-      backgroundStyle = `radial-gradient(circle at ${randPos1}% ${randPos1}%, ${newPlanet.landColor} ${randSize1}%, transparent ${randSize1 + 20}%), ${newPlanet.waterColor}`;
+    if (!solarSystemObject) {
+        console.error(`switchToSolarSystemView: Solar System object ${solarSystemId} not found in game data.`);
+        return switchToMainView();
     }
-   planetElement.style.background = backgroundStyle;
-    // FIXED: Corrected template literal
-   planetElement.style.boxShadow = `0 0 ${newPlanet.size / 3}px rgba(200,200,255,0.2)`;
 
-   if (solarSystemContent) solarSystemContent.appendChild(planetElement);
-   newPlanet.element = planetElement;
-  }
+    window.gameSessionData.solarSystemView = { zoomLevel: 0.5, currentPanX: 0, currentPanY: 0, systemId: solarSystemId, planets: [] };
+    if (solarSystemContent) solarSystemContent.innerHTML = '';
 
-  if (window.planetVisualWorker && window.gameSessionData.solarSystemView.planets.length > 0) {
-   window.gameSessionData.solarSystemView.planets.forEach(planetToPreload => {
-    const { element, ...planetRenderData } = planetToPreload;
-    window.planetVisualWorker.postMessage({
-      cmd: 'preloadPlanet', 
-      planetData: planetRenderData,
-      rotationQuaternion: [1,0,0,0], 
-      canvasWidth: 50,
-      canvasHeight: 50,
-      senderId: `preload-${planetToPreload.id}`
+    // --- Calculate Sun's actual size for this system ---
+    let currentSunSize = SUN_ICON_SIZE * (solarSystemObject.sunSizeFactor || 1);
+    currentSunSize = Math.max(currentSunSize, 15);
+
+    const sunElement = document.createElement('div');
+    sunElement.className = 'sun-icon sun-animated';
+    sunElement.style.width = `${currentSunSize}px`;
+    sunElement.style.height = `${currentSunSize}px`;
+    if (solarSystemContent) solarSystemContent.appendChild(sunElement);
+
+    if (solarSystemOrbitCanvasEl?.parentNode) solarSystemOrbitCanvasEl.remove();
+    solarSystemOrbitCanvasEl = document.createElement('canvas');
+    solarSystemOrbitCanvasEl.id = 'solar-system-orbit-canvas';
+    solarSystemOrbitCanvasEl.width = ORBIT_CANVAS_SIZE;
+    solarSystemOrbitCanvasEl.height = ORBIT_CANVAS_SIZE;
+    if (solarSystemContent) solarSystemContent.appendChild(solarSystemOrbitCanvasEl);
+    orbitCtx = solarSystemOrbitCanvasEl.getContext('2d');
+    if (!orbitCtx) console.error("Failed to get 2D context for orbit canvas");
+
+    // --- Generate Planets ---
+    
+    // FIXED: Calculate a dynamic minimum distance based on the ACTUAL sun size for this system.
+    const sunRadius = currentSunSize / 2;
+    // The closest a planet's orbit can be is the sun's radius plus a buffer.
+    const localMinPlanetDistance = sunRadius + MAX_PLANET_SIZE + MIN_ORBITAL_SEPARATION;
+
+
+    let usedOrbitalDistances = [];
+    const numPlanetsToGenerate = Math.floor(Math.random() * (currentMaxPlanets - currentMinPlanets + 1)) + currentMinPlanets;
+
+    // Edge case: If the sun is so large that the minimum distance is greater than the max, don't try to place planets.
+    if (localMinPlanetDistance >= MAX_PLANET_DISTANCE) {
+        console.warn(`Cannot generate planets for system ${solarSystemId}: Sun is too large for the configured orbital space.`);
+    } else {
+        for (let i = 0; i < numPlanetsToGenerate; i++) {
+            const planetSize = MIN_PLANET_SIZE + Math.random() * (MAX_PLANET_SIZE - MIN_PLANET_SIZE);
+            let planetDistance;
+            let placementAttempts = 0;
+            
+            do {
+                // FIXED: Use the new 'localMinPlanetDistance' instead of the global 'MIN_PLANET_DISTANCE'.
+                planetDistance = localMinPlanetDistance + Math.random() * (MAX_PLANET_DISTANCE - localMinPlanetDistance);
+            
+                // Check for collisions with other orbits
+                if (!usedOrbitalDistances.some(used => Math.abs(planetDistance - used.distance) < (MIN_ORBITAL_SEPARATION + used.size / 2 + planetSize / 2))) {
+                    break; // Found a valid spot
+                }
+                placementAttempts++;
+            } while (placementAttempts < 200);
+
+            if (placementAttempts >= 200) {
+                console.warn(`Could not place planet ${i + 1} due to orbital separation constraints.`);
+                continue; // Skip this planet
+            }
+            usedOrbitalDistances.push({ distance: planetDistance, size: planetSize });
+
+            const basisToUse = window.gameSessionData.customPlanetDesigns?.length
+                ? window.gameSessionData.customPlanetDesigns[Math.floor(Math.random() * window.gameSessionData.customPlanetDesigns.length)]
+                : { waterColor: '#0077BE', landColor: '#3A5F0B', minTerrainHeightRange: [0.0, 1.0], maxTerrainHeightRange: [5.0, 8.0], oceanHeightRange: [1.0, 3.0], continentSeed: Math.random() };
+                
+            const planetInstanceAppearance = window.generatePlanetInstanceFromBasis(basisToUse, false);
+
+            const newPlanet = {
+                id: `${solarSystemId}-planet-${i + 1}`,
+                planetName: `Planet ${i + 1}`,
+                size: planetSize,
+                distance: planetDistance,
+                currentOrbitalAngle: Math.random() * 2 * Math.PI,
+                orbitalSpeed: MIN_ROTATION_SPEED_RAD_PER_PERLIN_UNIT + Math.random() * (MAX_ROTATION_SPEED_RAD_PER_PERLIN_UNIT - MIN_ROTATION_SPEED_RAD_PER_PERLIN_UNIT),
+                currentAxialAngle: Math.random() * 2 * Math.PI,
+                axialSpeed: window.DEFAULT_PLANET_AXIAL_SPEED,
+                element: null,
+                type: 'terrestrial',
+                ...planetInstanceAppearance,
+                sourceDesignId: basisToUse.designId || null
+            };
+            window.gameSessionData.solarSystemView.planets.push(newPlanet);
+
+            const planetElement = document.createElement('div');
+            planetElement.classList.add('planet-icon', 'clickable-when-paused');
+            planetElement.addEventListener('click', (e) => {
+                e.stopPropagation();
+                window.PlanetVisualPanelManager?.show(newPlanet);
+            });
+            
+            planetElement.style.width = `${newPlanet.size}px`;
+            planetElement.style.height = `${newPlanet.size}px`;
+            
+            const randPos1 = 15 + Math.random() * 70;
+            const randSize1 = 20 + Math.random() * 60;
+            let backgroundStyle;
+            if (Math.random() < 0.6) {
+                const randPos2 = 15 + Math.random() * 70;
+                const randSize2 = 20 + Math.random() * 50;
+                const slightlyDarkerLand = adjustColor(newPlanet.landColor, -30);
+                backgroundStyle = `radial-gradient(circle at ${randPos1}% ${randPos1}%, ${newPlanet.landColor} ${randSize1}%, transparent ${randSize1 + 20}%), radial-gradient(circle at ${randPos2}% ${randPos2}%, ${slightlyDarkerLand} ${randSize2}%, transparent ${randSize2 + 15}%), ${newPlanet.waterColor}`;
+            } else {
+                backgroundStyle = `radial-gradient(circle at ${randPos1}% ${randPos1}%, ${newPlanet.landColor} ${randSize1}%, transparent ${randSize1 + 20}%), ${newPlanet.waterColor}`;
+            }
+            planetElement.style.background = backgroundStyle;
+            planetElement.style.boxShadow = `0 0 ${newPlanet.size / 3}px rgba(200,200,255,0.2)`;
+
+            if (solarSystemContent) solarSystemContent.appendChild(planetElement);
+            newPlanet.element = planetElement;
+        } // End of for loop
+    } // End of else block for edge case
+
+    if (window.planetVisualWorker && window.gameSessionData.solarSystemView.planets.length > 0) {
+        window.gameSessionData.solarSystemView.planets.forEach(planetToPreload => {
+            const { element, ...planetRenderData } = planetToPreload;
+            window.planetVisualWorker.postMessage({
+                cmd: 'preloadPlanet',
+                planetData: planetRenderData,
+                rotationQuaternion: [1,0,0,0],
+                canvasWidth: 50,
+                canvasHeight: 50,
+                senderId: `preload-${planetToPreload.id}`
+            });
+        });
+    }
+    
+    const systemNumDisplay = solarSystemId.split('-').pop();
+    if (solarSystemTitleText) {
+        solarSystemTitleText.textContent = solarSystemObject?.customName || `System ${systemNumDisplay}`;
+    }
+    if (solarSystemTitleInput) solarSystemTitleInput.style.display = 'none';
+
+    setActiveScreen(solarSystemScreen);
+    makeTitleEditable(solarSystemTitleText, solarSystemTitleInput, (newName) => {
+        if (solarSystemObject) {
+            solarSystemObject.customName = newName || null;
+            window.saveGameState();
+            renderGalaxyDetailScreen();
+            return solarSystemObject.customName || `System ${systemNumDisplay}`;
+        }
+        return `System ${systemNumDisplay}`;
     });
-   });
-  }
-   
-  const systemNumDisplay = solarSystemId.split('-').pop();
-  if (solarSystemTitleText) {
-    // FIXED: Corrected template literal
-    solarSystemTitleText.textContent = solarSystemObject?.customName || `System ${systemNumDisplay}`;
-  }
-  if (solarSystemTitleInput) solarSystemTitleInput.style.display = 'none';
-
-  setActiveScreen(solarSystemScreen);
-  makeTitleEditable(solarSystemTitleText, solarSystemTitleInput, (newName) => { 
-   if (solarSystemObject) { 
-    solarSystemObject.customName = newName || null; 
-    window.saveGameState(); 
-    renderGalaxyDetailScreen();
-      // FIXED: Corrected template literal
-    return solarSystemObject.customName || `System ${systemNumDisplay}`; 
-   } 
-    // FIXED: Corrected template literal
-   return `System ${systemNumDisplay}`;
-  });
-   
-  renderSolarSystemScreen(false);
-  startSolarSystemAnimation();
- }
-
+    
+    renderSolarSystemScreen(false);
+    startSolarSystemAnimation();
+}
 
  // --- PANNING AND ZOOMING ---
 

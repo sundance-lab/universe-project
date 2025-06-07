@@ -1054,16 +1054,17 @@ document.addEventListener('DOMContentLoaded', () => {
         size: planetSize
       });
 
-      const basisToUse = window.gameSessionData.customPlanetDesigns?.length ?
-        window.gameSessionData.customPlanetDesigns[Math.floor(Math.random() * window.gameSessionData.customPlanetDesigns.length)] :
-        {
-          waterColor: '#0077BE',
-          landColor: '#3A5F0B',
-          minTerrainHeightRange: [0.0, 1.0],
-          maxTerrainHeightRange: [5.0, 8.0],
-          oceanHeightRange: [1.0, 3.0],
-          continentSeed: Math.random()
-        };
+    const basisToUse = window.gameSessionData.customPlanetDesigns?.length ?
+      window.gameSessionData.customPlanetDesigns[Math.floor(Math.random() * window.gameSessionData.customPlanetDesigns.length)] :
+      {
+        // Default basis if no custom designs exist
+        waterColor: '#1E90FF', // Dodger Blue
+        landColor: '#556B2F', // Dark Olive Green
+        minTerrainHeightRange: [0.0, 2.0],
+        maxTerrainHeightRange: [8.0, 12.0],
+        oceanHeightRange: [1.0, 3.0],
+        continentSeed: Math.random()
+      };
 
       const planetInstanceAppearance = window.generatePlanetInstanceFromBasis(basisToUse, false);
 

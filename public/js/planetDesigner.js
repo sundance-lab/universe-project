@@ -38,7 +38,6 @@ float valueNoise(vec3 p, float seed) {
 }
 `;
 
-// CORRECTED VERSION: This shader has all the detail logic.
 const planetVertexShader = `
 uniform float uTime;
 uniform float uContinentSeed;
@@ -50,8 +49,7 @@ varying vec3 vNormal;
 varying float vElevation;
 varying vec3 vWorldPosition;
 
-// Noise functions will be injected here
-$
+$ // Noise functions are injected here
 
 float layeredNoise(vec3 p, float seed, int octaves, float persistence, float lacunarity, float scale) {
   float total = 0.0;
@@ -165,8 +163,6 @@ void main() {
 
 
 export const PlanetDesigner = (() => {
-  console.log("PlanetDesigner.js: Script loaded.");
-
   let designerPlanetCanvas, designerWaterColorInput, designerLandColorInput,
     designerMinHeightMinInput, designerMinHeightMaxInput,
     designerMaxHeightMinInput, designerMaxHeightMaxInput,
@@ -188,7 +184,7 @@ export const PlanetDesigner = (() => {
   };
   
   let designerThreeScene, designerThreeCamera, designerThreeRenderer,
-    designerThreePlanetMesh, designerThreeControls, designerThreeAnimationId,
+    designerThreeLOD, designerThreeControls, designerThreeAnimationId,
     designerShaderMaterial;
     
   function _initDesignerThreeJSView() {
@@ -201,14 +197,12 @@ export const PlanetDesigner = (() => {
     designerThreeScene.background = new THREE.Color(0x1a1a2a);
     
     const aspectRatio = designerPlanetCanvas.offsetWidth / designerPlanetCanvas.offsetHeight;
-    designerThreeCamera = new THREE.PerspectiveCamera(60, aspectRatio, 0.1, 100);
+    designerThreeCamera = new THREE.PerspectiveCamera(60, aspectRatio, 0.001, 100);
     designerThreeCamera.position.z = 2.5;
 
     designerThreeRenderer = new THREE.WebGLRenderer({ canvas: designerPlanetCanvas, antialias: true });
     designerThreeRenderer.setSize(designerPlanetCanvas.offsetWidth, designerPlanetCanvas.offsetHeight);
     designerThreeRenderer.setPixelRatio(window.devicePixelRatio);
-    
-    const geometry = new THREE.SphereGeometry(SPHERE_BASE_RADIUS, 512, 256);
     
     const uniforms = {
         uLandColor: { value: new THREE.Color() },
@@ -220,15 +214,27 @@ export const PlanetDesigner = (() => {
         uSphereRadius: { value: SPHERE_BASE_RADIUS },
         uDisplacementAmount: { value: 0.0 }
     };
-
+    
     designerShaderMaterial = new THREE.ShaderMaterial({
       uniforms: uniforms,
       vertexShader: finalVertexShader,
       fragmentShader: planetFragmentShader,
     });
+    
+    designerThreeLOD = new THREE.LOD();
+    const lodLevels = [
+        { distance: 3.0, segments: [128, 64] },
+        { distance: 1.5, segments: [256, 128] },
+        { distance: 0.0, segments: [1024, 512] }
+    ];
 
-    designerThreePlanetMesh = new THREE.Mesh(geometry, designerShaderMaterial);
-    designerThreeScene.add(designerThreePlanetMesh);
+    lodLevels.forEach(level => {
+        const geometry = new THREE.SphereGeometry(SPHERE_BASE_RADIUS, level.segments[0], level.segments[1]);
+        const mesh = new THREE.Mesh(geometry, designerShaderMaterial);
+        designerThreeLOD.addLevel(mesh, level.distance);
+    });
+
+    designerThreeScene.add(designerThreeLOD);
 
     designerThreeControls = new OrbitControls(designerThreeCamera, designerThreeRenderer.domElement);
     designerThreeControls.enableDamping = true;
@@ -245,6 +251,7 @@ export const PlanetDesigner = (() => {
     if (designerShaderMaterial?.uniforms.uTime) {
       designerShaderMaterial.uniforms.uTime.value += 0.015;
     }
+    if (designerThreeLOD) designerThreeLOD.update(designerThreeCamera); // Update LOD
     if (designerThreeControls) designerThreeControls.update();
     if (designerThreeScene && designerThreeCamera) {
       designerThreeRenderer.render(designerThreeScene, designerThreeCamera);
@@ -254,14 +261,22 @@ export const PlanetDesigner = (() => {
   function _stopAndCleanupDesignerThreeJSView() {
     if (designerThreeAnimationId) cancelAnimationFrame(designerThreeAnimationId);
     if (designerThreeControls) designerThreeControls.dispose();
-    if (designerThreePlanetMesh) {
-      if(designerThreePlanetMesh.geometry) designerThreePlanetMesh.geometry.dispose();
-      if(designerShaderMaterial) designerShaderMaterial.dispose();
-      if(designerThreeScene) designerThreeScene.remove(designerThreePlanetMesh);
+    if (designerShaderMaterial) designerShaderMaterial.dispose();
+
+    if (designerThreeLOD) {
+        designerThreeLOD.traverse(function(object) {
+            if (object.isMesh && object.geometry) {
+                object.geometry.dispose();
+            }
+        });
+        if(designerThreeScene) designerThreeScene.remove(designerThreeLOD);
     }
+
     if (designerThreeRenderer) designerThreeRenderer.dispose();
     designerThreeAnimationId = null;
     designerThreeControls = null;
+    designerShaderMaterial = null;
+    designerThreeLOD = null;
     designerThreeRenderer = null;
     designerThreeScene = null;
     designerThreeCamera = null;

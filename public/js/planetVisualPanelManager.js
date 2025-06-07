@@ -254,6 +254,19 @@ function init() {
   }, 250);
   console.log("PVisualPanelManager: Init complete.");
 }
+
+function show(planetData) {
+  // Make the panel visible
+  if (panelElement) {
+    panelElement.classList.add('visible');
+  }
+  // Set and display planet data if passed in
+  if (planetData) {
+    currentPlanetData = planetData;
+    // Optionally update the UI with the new planet's info here
+    _rerenderPreviewIfNeeded();
+  }
+}
   
   function _initThreeJSView(planet) {
     if (!planet360CanvasElement || !planet) {

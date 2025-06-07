@@ -1,30 +1,156 @@
 // public/js/planetDesigner.js
-import '../styles.css'; // Keep for overall styling if needed
+import '../styles.css';
 import * as THREE from 'three';
 import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls.js';
 
-const planetVertexShader = `
-  varying vec3 vNormal;
-  varying vec2 vUv;
+// --- (Step 1) ADD THE NEW, ADVANCED SHADERS ---
 
-  void main() {
-    vNormal = normal;
-    vUv = uv;
-    gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0);
+const glslRandom2to1 = `
+float random(vec2 st) {
+  return fract(sin(dot(st.xy, vec2(12.9898,78.233))) * 43758.5453123);
+}
+`;
+
+const glslSimpleValueNoise3D = `
+$
+
+float valueNoise(vec3 p, float seed) {
+  vec3 i = floor(p + seed * 0.123);
+  vec3 f = fract(p + seed * 0.123);
+  f = f * f * (3.0 - 2.0 * f);
+
+  float c000 = random(i.xy + i.z * 0.37);
+  float c100 = random(i.xy + vec2(1.0, 0.0) + i.z * 0.37);
+  float c010 = random(i.xy + vec2(0.0, 1.0) + i.z * 0.37);
+  float c110 = random(i.xy + vec2(1.0, 1.0) + i.z * 0.37);
+  float c001 = random(i.xy + (i.z + 1.0) * 0.37);
+  float c101 = random(i.xy + vec2(1.0, 0.0) + (i.z + 1.0) * 0.37);
+  float c011 = random(i.xy + vec2(0.0, 1.0) + (i.z + 1.0) * 0.37);
+  float c111 = random(i.xy + vec2(1.0, 1.0) + (i.z + 1.0) * 0.37);
+
+  float u00 = mix(c000, c100, f.x);
+  float u01 = mix(c001, c101, f.x);
+  float u10 = mix(c010, c110, f.x);
+  float u11 = mix(c011, c111, f.x);
+  float v0 = mix(u00, u10, f.y);
+  float v1 = mix(u01, u11, f.y);
+  return mix(v0, v1, f.z);
+}
+`;
+
+const planetVertexShader = `
+uniform float uTime;
+uniform float uContinentSeed;
+uniform float uSphereRadius;
+uniform float uDisplacementAmount;
+
+varying vec3 vNormal;
+varying float vElevation;
+varying vec3 vWorldPosition;
+
+// Noise functions will be injected here
+$
+
+float layeredNoise(vec3 p, float seed, int octaves, float persistence, float lacunarity, float scale) {
+  float total = 0.0;
+  float frequency = scale;
+  float amplitude = 1.0;
+  float maxValue = 0.0;
+
+  for (int i = 0; i < octaves; i++) {
+   total += valueNoise(p * frequency + seed * float(i) * 1.712, seed * 12.345 * float(i+1) * 0.931) * amplitude;
+   maxValue += amplitude;
+   amplitude *= persistence;
+   frequency *= lacunarity;
   }
+  if (maxValue == 0.0) return 0.0;
+  return total / maxValue;
+}
+
+void main() {
+  vec3 p = position;
+  vec3 noiseInputPosition = (p / uSphereRadius) + (uContinentSeed * 10.0);
+
+  float continentNoise = (layeredNoise(noiseInputPosition, uContinentSeed, 5, 0.5, 2.0, 1.5) + 1.0) * 0.5;
+  float mountainNoise = (layeredNoise(noiseInputPosition, uContinentSeed * 2.0, 6, 0.45, 2.2, 8.0) + 1.0) * 0.5;
+  float continentMask = smoothstep(0.48, 0.52, continentNoise);
+  float finalElevation = continentNoise + (mountainNoise * continentMask * 0.3);
+
+  vElevation = clamp(finalElevation, 0.0, 1.0);
+  float displacement = vElevation * uDisplacementAmount;
+  vec3 displacedPosition = p + normal * displacement;
+
+  vNormal = normal;
+  vWorldPosition = (modelMatrix * vec4(displacedPosition, 1.0)).xyz;
+  gl_Position = projectionMatrix * modelViewMatrix * vec4(displacedPosition, 1.0);
+}
 `;
 
 const planetFragmentShader = `
-  uniform vec3 uDisplayColor;
-  uniform float uTime;
-  varying vec3 vNormal;
-  varying vec2 vUv;
+uniform vec3 uLandColor;
+uniform vec3 uWaterColor;
+uniform float uOceanHeightLevel;
 
-  void main() {
-    vec3 lightDirection = normalize(vec3(1.0, 1.0, 1.0));
-    float lightIntensity = max(0.0, dot(normalize(vNormal), lightDirection)) * 0.7 + 0.3;
-    gl_FragColor = vec4(uDisplayColor * lightIntensity, 1.0);
+varying vec3 vNormal;
+varying float vElevation;
+varying vec3 vWorldPosition;
+
+vec3 calculateLighting(vec3 surfaceColor, vec3 normalVec, vec3 viewDir) {
+  vec3 lightColor = vec3(1.0, 1.0, 0.95);
+  float ambientStrength = 0.25;
+  float diffuseStrength = 0.7;
+  float specularStrength = 0.3;
+  float shininess = 16.0;
+
+  vec3 lightDirection = normalize(vec3(0.8, 0.6, 1.0));
+  vec3 ambient = ambientStrength * lightColor;
+  vec3 norm = normalize(normalVec);
+  float diff = max(dot(norm, lightDirection), 0.0);
+  vec3 diffuse = diffuseStrength * diff * lightColor;
+  vec3 reflectDir = reflect(-lightDirection, norm);
+  float spec = pow(max(dot(viewDir, reflectDir), 0.0), shininess);
+  vec3 specular = specularStrength * spec * lightColor;
+  return (ambient + diffuse + specular) * surfaceColor;
+}
+
+void main() {
+  vec3 finalColor;
+
+  float seaLevel = uOceanHeightLevel;
+  float deepWater = seaLevel * 0.6;
+  float beachLevel = seaLevel + 0.03;
+  float mountainLevel = seaLevel + 0.35;
+  float snowLevel = seaLevel + 0.55;
+
+  vec3 deepWaterColor = uWaterColor * 0.5;
+  vec3 shallowWaterColor = uWaterColor;
+  vec3 beachColor = vec3(0.86, 0.78, 0.59);
+  vec3 plainsColor = uLandColor;
+  vec3 mountainColor = uLandColor * 0.7 + vec3(0.4);
+  vec3 snowColor = vec3(0.95, 0.95, 1.0);
+
+  if (vElevation < deepWater) {
+      finalColor = deepWaterColor;
+  } else if (vElevation < seaLevel) {
+      float mixFactor = smoothstep(deepWater, seaLevel, vElevation);
+      finalColor = mix(deepWaterColor, shallowWaterColor, mixFactor);
+  } else if (vElevation < beachLevel) {
+      float mixFactor = smoothstep(seaLevel, beachLevel, vElevation);
+      finalColor = mix(shallowWaterColor, beachColor, mixFactor);
+  } else if (vElevation < mountainLevel) {
+      float mixFactor = smoothstep(beachLevel, mountainLevel, vElevation);
+      finalColor = mix(beachColor, plainsColor, mixFactor);
+  } else if (vElevation < snowLevel) {
+      float mixFactor = smoothstep(mountainLevel, snowLevel, vElevation);
+      finalColor = mix(plainsColor, mountainColor, mixFactor);
+  } else {
+      float mixFactor = smoothstep(snowLevel, snowLevel + 0.2, vElevation);
+      finalColor = mix(mountainColor, snowColor, mixFactor);
   }
+
+  vec3 viewDirection = normalize(cameraPosition - vWorldPosition);
+  gl_FragColor = vec4(calculateLighting(finalColor, vNormal, viewDirection), 1.0);
+}
 `;
 
 
@@ -33,17 +159,20 @@ export const PlanetDesigner = (() => {
 
   // DOM Elements
   let designerPlanetCanvas, designerWaterColorInput, designerLandColorInput,
-      designerMinHeightMinInput, designerMinHeightMaxInput,
-      designerMaxHeightMinInput, designerMaxHeightMaxInput,
-      designerOceanHeightMinInput, designerOceanHeightMaxInput,
-      savedDesignsUl, designerRandomizeBtn, designerSaveBtn, designerCancelBtn;
-      // planetDesignerScreenElement is not directly used in rendering, remove if not needed elsewhere
+    designerMinHeightMinInput, designerMinHeightMaxInput,
+    designerMaxHeightMinInput, designerMaxHeightMaxInput,
+    designerOceanHeightMinInput, designerOceanHeightMaxInput,
+    savedDesignsUl, designerRandomizeBtn, designerSaveBtn, designerCancelBtn;
+
+  // --- (Step 2) ADD THE DISPLACEMENT FACTOR CONSTANT ---
+  const DISPLACEMENT_SCALING_FACTOR = 0.005;
+  const SPHERE_BASE_RADIUS = 0.8;
 
   // State for Designer Basis
   let currentDesignerBasis = {
-    waterColor: '#000080',
-    landColor: '#006400',
-    continentSeed: Math.random(), // Still useful for when you implement procedural shaders
+    waterColor: '#1E90FF',
+    landColor: '#556B2F',
+    continentSeed: Math.random(),
     minTerrainHeightRange: [0.0, 2.0],
     maxTerrainHeightRange: [8.0, 12.0],
     oceanHeightRange: [1.0, 3.0]
@@ -51,121 +180,94 @@ export const PlanetDesigner = (() => {
 
   // Three.js State for Designer Preview
   let designerThreeScene, designerThreeCamera, designerThreeRenderer,
-      designerThreePlanetMesh, designerThreeControls, designerThreeAnimationId,
-      designerShaderMaterial;
-
-  // --- THREE.JS SETUP FOR DESIGNER PREVIEW ---
+    designerThreePlanetMesh, designerThreeControls, designerThreeAnimationId,
+    designerShaderMaterial;
+    
+  // --- (Step 3) UPDATE THE THREE.JS SETUP FUNCTION ---
   function _initDesignerThreeJSView() {
-    if (!designerPlanetCanvas) {
-        console.error("PlanetDesigner: Designer canvas not found for Three.js init.");
-        return;
-    }
-    console.log("PlanetDesigner: Initializing Three.js view.");
+    if (!designerPlanetCanvas) return;
 
-    // 1. Scene
+    // Assemble shaders
+    const noiseFunctions = glslSimpleValueNoise3D.replace('$', glslRandom2to1);
+    const finalVertexShader = planetVertexShader.replace('$', noiseFunctions);
+
+    // Scene and Camera
     designerThreeScene = new THREE.Scene();
-    designerThreeScene.background = new THREE.Color(0x1a1a2a); // Slightly different background for designer
-
-    // 2. Camera - Ensure canvas has dimensions
-    if(designerPlanetCanvas.offsetWidth === 0 || designerPlanetCanvas.offsetHeight === 0){
-        console.warn("PlanetDesigner: Designer canvas has no dimensions yet for Three.js camera. Using defaults.");
-        designerPlanetCanvas.width = designerPlanetCanvas.width || 300; // Fallback if CSS hasn't sized it
-        designerPlanetCanvas.height = designerPlanetCanvas.height || 300;
-    }
+    designerThreeScene.background = new THREE.Color(0x1a1a2a);
     const aspectRatio = designerPlanetCanvas.offsetWidth / designerPlanetCanvas.offsetHeight;
     designerThreeCamera = new THREE.PerspectiveCamera(60, aspectRatio, 0.1, 100);
-    designerThreeCamera.position.z = 1.8; // Closer for smaller designer preview
+    designerThreeCamera.position.z = 1.8;
 
-    // 3. Renderer
+    // Renderer
     designerThreeRenderer = new THREE.WebGLRenderer({ canvas: designerPlanetCanvas, antialias: true });
     designerThreeRenderer.setSize(designerPlanetCanvas.offsetWidth, designerPlanetCanvas.offsetHeight);
     designerThreeRenderer.setPixelRatio(window.devicePixelRatio);
-
-    // 4. Lights
-    const ambientLight = new THREE.AmbientLight(0xffffff, 0.4);
-    designerThreeScene.add(ambientLight);
-    const directionalLight = new THREE.DirectionalLight(0xffffff, 0.9);
-    directionalLight.position.set(2, 2, 3);
-    designerThreeScene.add(directionalLight);
-
-    // 5. Planet Geometry
-    const geometry = new THREE.SphereGeometry(0.8, 48, 24); // Slightly less segments for designer
-
-    // 6. Shader Material (initially based on currentDesignerBasis)
+   
+    // Geometry with more detail
+    const geometry = new THREE.SphereGeometry(SPHERE_BASE_RADIUS, 128, 64);
+   
+    // Create uniforms object with ALL necessary fields
     const uniforms = {
-      uDisplayColor: { value: new THREE.Color(currentDesignerBasis.landColor) },
-      uTime: { value: 0.0 },
+        uLandColor: { value: new THREE.Color() },
+        uWaterColor: { value: new THREE.Color() },
+        uOceanHeightLevel: { value: 0.5 },
+        uContinentSeed: { value: Math.random() },
+        uTime: { value: 0.0 },
+        uSphereRadius: { value: SPHERE_BASE_RADIUS },
+        uDisplacementAmount: { value: 0.0 }
     };
 
+    // Create the new ShaderMaterial
     designerShaderMaterial = new THREE.ShaderMaterial({
       uniforms: uniforms,
-      vertexShader: planetVertexShader,
+      vertexShader: finalVertexShader,
       fragmentShader: planetFragmentShader,
     });
 
     designerThreePlanetMesh = new THREE.Mesh(geometry, designerShaderMaterial);
     designerThreeScene.add(designerThreePlanetMesh);
 
-    // 7. Controls
+    // Controls
     designerThreeControls = new OrbitControls(designerThreeCamera, designerThreeRenderer.domElement);
     designerThreeControls.enableDamping = true;
     designerThreeControls.dampingFactor = 0.1;
-    designerThreeControls.screenSpacePanning = false;
     designerThreeControls.minDistance = 1;
     designerThreeControls.maxDistance = 4;
-    designerThreeControls.target.set(0,0,0);
-    designerThreeControls.enableZoom = true; // Allow zoom in designer
 
     _animateDesignerThreeJSView();
   }
 
   function _animateDesignerThreeJSView() {
-    if (!designerThreeRenderer) return; // Stop if not initialized / cleaned up
+    if (!designerThreeRenderer) return;
     designerThreeAnimationId = requestAnimationFrame(_animateDesignerThreeJSView);
-
-    if (designerShaderMaterial && designerShaderMaterial.uniforms.uTime) {
-      designerShaderMaterial.uniforms.uTime.value += 0.015; // Slightly faster for preview
+    if (designerShaderMaterial?.uniforms.uTime) {
+      designerShaderMaterial.uniforms.uTime.value += 0.015;
     }
-    if(designerThreeControls) designerThreeControls.update();
-    if(designerThreeScene && designerThreeCamera) {
-        designerThreeRenderer.render(designerThreeScene, designerThreeCamera);
+    if (designerThreeControls) designerThreeControls.update();
+    if (designerThreeScene && designerThreeCamera) {
+      designerThreeRenderer.render(designerThreeScene, designerThreeCamera);
     }
   }
 
   function _stopAndCleanupDesignerThreeJSView() {
-    if (designerThreeAnimationId) {
-      cancelAnimationFrame(designerThreeAnimationId);
-      designerThreeAnimationId = null;
-    }
-    if (designerThreeControls) {
-      designerThreeControls.dispose();
-      designerThreeControls = null;
-    }
+    if (designerThreeAnimationId) cancelAnimationFrame(designerThreeAnimationId);
+    designerThreeAnimationId = null;
+    if (designerThreeControls) designerThreeControls.dispose();
+    designerThreeControls = null;
     if (designerThreePlanetMesh) {
       if(designerThreePlanetMesh.geometry) designerThreePlanetMesh.geometry.dispose();
       if(designerShaderMaterial) designerShaderMaterial.dispose();
       if(designerThreeScene) designerThreeScene.remove(designerThreePlanetMesh);
-      designerThreePlanetMesh = null;
-      designerShaderMaterial = null;
     }
-     if (designerThreeScene) {
-        const toRemove = [];
-        designerThreeScene.traverse(child => {
-            if (child.isLight) toRemove.push(child);
-        });
-        toRemove.forEach(obj => designerThreeScene.remove(obj));
-    }
-    if (designerThreeRenderer) {
-      designerThreeRenderer.dispose();
-      designerThreeRenderer = null;
-    }
+    if (designerThreeRenderer) designerThreeRenderer.dispose();
+    designerThreeRenderer = null;
     designerThreeScene = null;
     designerThreeCamera = null;
   }
 
-  // --- UI AND BASIS MANAGEMENT ---
   function _populateDesignerInputsFromBasis() {
-    if (!designerWaterColorInput) return; // Check if DOM elements are ready
+    // This function remains the same
+    if (!designerWaterColorInput) return;
     designerWaterColorInput.value = currentDesignerBasis.waterColor;
     designerLandColorInput.value = currentDesignerBasis.landColor;
     designerMinHeightMinInput.value = currentDesignerBasis.minTerrainHeightRange[0].toFixed(1);
@@ -176,12 +278,14 @@ export const PlanetDesigner = (() => {
     designerOceanHeightMaxInput.value = currentDesignerBasis.oceanHeightRange[1].toFixed(1);
   }
 
+  // --- (Step 4) UPDATE THE REFRESH FUNCTION ---
   function _updateBasisAndRefreshDesignerPreview() {
-    if (!designerWaterColorInput) return; // Ensure elements are queried
+    if (!designerWaterColorInput || !designerShaderMaterial) return;
 
+    // --- Read all values from inputs ---
     currentDesignerBasis.waterColor = designerWaterColorInput.value;
     currentDesignerBasis.landColor = designerLandColorInput.value;
-    // ... (parse float values for height ranges as before) ...
+    
     let minH_min = parseFloat(designerMinHeightMinInput.value) || 0.0;
     let minH_max = parseFloat(designerMinHeightMaxInput.value) || 0.0;
     let maxH_min = parseFloat(designerMaxHeightMinInput.value) || 0.0;
@@ -189,87 +293,108 @@ export const PlanetDesigner = (() => {
     let oceanH_min = parseFloat(designerOceanHeightMinInput.value) || 0.0;
     let oceanH_max = parseFloat(designerOceanHeightMaxInput.value) || 0.0;
 
-    if (minH_min > minH_max) [minH_min, minH_max] = [minH_max, minH_min];
-    if (maxH_min > maxH_max) [maxH_min, maxH_max] = [maxH_max, maxH_min];
-    if (oceanH_min > oceanH_max) [oceanH_min, oceanH_max] = [oceanH_max, oceanH_min];
+    // For the preview, let's use the average of the selected ranges
+    const previewMinHeight = (minH_min + minH_max) / 2;
+    const previewMaxHeight = (maxH_min + maxH_max) / 2;
+    const previewOceanHeight = (oceanH_min + oceanH_max) / 2;
 
-    currentDesignerBasis.minTerrainHeightRange = [minH_min, minH_max];
-    currentDesignerBasis.maxTerrainHeightRange = [maxH_min, maxH_max];
-    currentDesignerBasis.oceanHeightRange = [oceanH_min, oceanH_max];
-    currentDesignerBasis.continentSeed = parseFloat(document.getElementById('designer-continent-seed')?.value || Math.random()); // Example if you add a seed input
+    // --- Calculate and update all shader uniforms ---
+    const uniforms = designerShaderMaterial.uniforms;
+    
+    uniforms.uWaterColor.value.set(currentDesignerBasis.waterColor);
+    uniforms.uLandColor.value.set(currentDesignerBasis.landColor);
+    uniforms.uContinentSeed.value = currentDesignerBasis.continentSeed;
+    
+    // Calculate normalized ocean level
+    const terrainRange = Math.max(0.1, previewMaxHeight - previewMinHeight);
+    let normalizedOceanLevel = (previewOceanHeight - previewMinHeight) / terrainRange;
+    normalizedOceanLevel = Math.max(0.2, Math.min(0.8, normalizedOceanLevel)); // Clamp for good visuals
+    uniforms.uOceanHeightLevel.value = normalizedOceanLevel;
 
-    _populateDesignerInputsFromBasis(); // Update inputs if validation changed them
-
-    // Update Three.js material uniforms
-    if (designerShaderMaterial) {
-      designerShaderMaterial.uniforms.uDisplayColor.value.set(currentDesignerBasis.landColor);
-    }
+    // Calculate displacement amount
+    const displacementAmount = terrainRange * DISPLACEMENT_SCALING_FACTOR;
+    uniforms.uDisplacementAmount.value = displacementAmount;
   }
 
   function _randomizeDesignerPlanet() {
-    // ... (logic for randomizing currentDesignerBasis remains largely the same) ...
+    function _getRandomHexColor() {return'#'+(Math.random()*0xFFFFFF|0).toString(16).padStart(6,'0')}
+    function _getRandomFloat(min,max,precision=1){const factor=Math.pow(10,precision);return parseFloat((Math.random()*(max-min)+min).toFixed(precision))}
+    
     currentDesignerBasis.waterColor = _getRandomHexColor();
     currentDesignerBasis.landColor = _getRandomHexColor();
     currentDesignerBasis.continentSeed = Math.random();
-    // ... set random height ranges ...
+    
+    // Randomize ranges
+    const minH1 = _getRandomFloat(0.0, 2.0);
+    const minH2 = minH1 + _getRandomFloat(0.5, 2.0);
+    currentDesignerBasis.minTerrainHeightRange = [minH1, minH2];
+
+    const maxH1 = _getRandomFloat(6.0, 10.0);
+    const maxH2 = maxH1 + _getRandomFloat(2.0, 5.0);
+    currentDesignerBasis.maxTerrainHeightRange = [maxH1, maxH2];
+
+    const oceanH1 = _getRandomFloat(minH2, (minH2 + maxH1) / 2);
+    const oceanH2 = oceanH1 + _getRandomFloat(0.5, 2.0);
+    currentDesignerBasis.oceanHeightRange = [oceanH1, oceanH2];
 
     _populateDesignerInputsFromBasis();
-    _updateBasisAndRefreshDesignerPreview(); // This will update the Three.js material
+    _updateBasisAndRefreshDesignerPreview();
   }
 
-  
+  // --- Functions for saving, loading, deleting designs (remain unchanged) ---
   function _generateUUID() { return crypto.randomUUID ? crypto.randomUUID() : 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g,c=>{const r=Math.random()*16|0,v=c==='x'?r:(r&3|8);return v.toString(16)})}
-  function _getRandomHexColor() {return'#'+(Math.random()*0xFFFFFF|0).toString(16).padStart(6,'0')}
-  function _getRandomFloat(min,max,precision=1){const factor=Math.pow(10,precision);return parseFloat((Math.random()*(max-min)+min).toFixed(precision))}
-
   function _saveCustomPlanetDesign() { 
-    const designName = prompt("Enter a name for this planet design:", "My Custom Planet");
-    if (!designName?.trim()) return;
-    const newDesign = { designId: _generateUUID(), designName: designName.trim(), ...JSON.parse(JSON.stringify(currentDesignerBasis)) };
-    if (window.gameSessionData?.customPlanetDesigns) {
-        window.gameSessionData.customPlanetDesigns.push(newDesign);
-        if (typeof window.saveGameState === 'function') window.saveGameState();
-        _populateSavedDesignsList();
-    }
+      const designName = prompt("Enter a name for this planet design:", "My Custom Planet");
+      if (!designName?.trim()) return;
+      const newDesign = { 
+          designId: _generateUUID(), 
+          designName: designName.trim(), 
+          ...JSON.parse(JSON.stringify(currentDesignerBasis)) 
+      };
+      if (window.gameSessionData?.customPlanetDesigns) {
+         window.gameSessionData.customPlanetDesigns.push(newDesign);
+         if (typeof window.saveGameState === 'function') window.saveGameState();
+         _populateSavedDesignsList();
+      }
   }
-
   function _loadAndPreviewDesign(designId) {
-    const designToLoad = window.gameSessionData?.customPlanetDesigns?.find(d => d.designId === designId);
-    if (designToLoad) {
-        currentDesignerBasis = { ...JSON.parse(JSON.stringify(designToLoad)) };
-        delete currentDesignerBasis.designId; // Not part of the 'renderable' basis
-        delete currentDesignerBasis.designName;
-        _populateDesignerInputsFromBasis();
-        _updateBasisAndRefreshDesignerPreview(); // This will update the Three.js material
-    }
+      const designToLoad = window.gameSessionData?.customPlanetDesigns?.find(d => d.designId === designId);
+      if (designToLoad) {
+          currentDesignerBasis = { ...JSON.parse(JSON.stringify(designToLoad)) };
+          delete currentDesignerBasis.designId;
+          delete currentDesignerBasis.designName;
+          _populateDesignerInputsFromBasis();
+          _updateBasisAndRefreshDesignerPreview();
+      }
   }
-  function _deleteCustomPlanetDesign(designId) { /* ... as before ... */
-    if (window.gameSessionData?.customPlanetDesigns) {
-        const initialLength = window.gameSessionData.customPlanetDesigns.length;
-        window.gameSessionData.customPlanetDesigns = window.gameSessionData.customPlanetDesigns.filter(d => d.designId !== designId);
-        if (window.gameSessionData.customPlanetDesigns.length < initialLength) {
-            if (typeof window.saveGameState === 'function') window.saveGameState();
-            _populateSavedDesignsList();
-        }
-    }
+  function _deleteCustomPlanetDesign(designId) {
+      if (window.gameSessionData?.customPlanetDesigns) {
+          const initialLength = window.gameSessionData.customPlanetDesigns.length;
+          window.gameSessionData.customPlanetDesigns = window.gameSessionData.customPlanetDesigns.filter(d => d.designId !== designId);
+          if (window.gameSessionData.customPlanetDesigns.length < initialLength) {
+             if (typeof window.saveGameState === 'function') window.saveGameState();
+             _populateSavedDesignsList();
+          }
+      }
   }
-  function _populateSavedDesignsList() { /* ... as before ... */
-    if (!savedDesignsUl) return;
-    savedDesignsUl.innerHTML = '';
-    const designs = window.gameSessionData?.customPlanetDesigns;
-    if (designs?.length > 0) {
-        designs.forEach(design => {
+  function _populateSavedDesignsList() {
+      if (!savedDesignsUl) return;
+      savedDesignsUl.innerHTML = '';
+      const designs = window.gameSessionData?.customPlanetDesigns;
+      if (designs?.length > 0) {
+          designs.forEach(design => {
             const li = document.createElement('li');
             li.innerHTML = `<span class="design-item-name">${design.designName || 'Unnamed Design'}</span> <button class="design-item-load modal-button-apply" data-id="${design.designId}">Load</button> <button class="design-item-delete" data-id="${design.designId}" title="Delete Design">&times;</button>`;
             savedDesignsUl.appendChild(li);
-        });
-    } else {
-        savedDesignsUl.innerHTML = '<li>No saved designs yet.</li>';
-    }
+          });
+      } else {
+          savedDesignsUl.innerHTML = '<li>No saved designs yet.</li>';
+      }
   }
 
   return {
     init: () => {
+      // Get all DOM elements
       designerPlanetCanvas = document.getElementById('designer-planet-canvas');
       designerWaterColorInput = document.getElementById('designer-water-color');
       designerLandColorInput = document.getElementById('designer-land-color');
@@ -284,11 +409,7 @@ export const PlanetDesigner = (() => {
       designerSaveBtn = document.getElementById('designer-save-btn');
       designerCancelBtn = document.getElementById('designer-cancel-btn');
 
-      currentDesignerBasis.minTerrainHeightRange = [window.DEFAULT_MIN_TERRAIN_HEIGHT || 0.0, (window.DEFAULT_MIN_TERRAIN_HEIGHT || 0.0) + 2.0];
-      currentDesignerBasis.maxTerrainHeightRange = [window.DEFAULT_MAX_TERRAIN_HEIGHT || 8.0, (window.DEFAULT_MAX_TERRAIN_HEIGHT || 8.0) + 4.0];
-      currentDesignerBasis.oceanHeightRange = [window.DEFAULT_OCEAN_HEIGHT_LEVEL || 1.0, (window.DEFAULT_OCEAN_HEIGHT_LEVEL || 1.0) + 2.0];
-
-      // Event Listeners for UI controls
+      // Setup event listeners
       const inputsToWatch = [
         designerWaterColorInput, designerLandColorInput,
         designerMinHeightMinInput, designerMinHeightMaxInput,
@@ -300,59 +421,43 @@ export const PlanetDesigner = (() => {
       designerRandomizeBtn?.addEventListener('click', _randomizeDesignerPlanet);
       designerSaveBtn?.addEventListener('click', _saveCustomPlanetDesign);
       designerCancelBtn?.addEventListener('click', () => {
-        _stopAndCleanupDesignerThreeJSView(); // Stop Three.js when leaving
+        _stopAndCleanupDesignerThreeJSView();
         if (window.switchToMainView) window.switchToMainView();
       });
 
       savedDesignsUl?.addEventListener('click', (e) => {
-        const target = e.target;
-        const id = target.dataset.id;
+        const id = e.target.dataset.id;
         if (!id) return;
-        if (target.classList.contains('design-item-load')) {
-          _loadAndPreviewDesign(id);
-        } else if (target.classList.contains('design-item-delete')) {
-          if (confirm("Are you sure you want to delete this planet design?")) {
-            _deleteCustomPlanetDesign(id);
+        if (e.target.classList.contains('design-item-load')) _loadAndPreviewDesign(id);
+        else if (e.target.classList.contains('design-item-delete')) {
+          if (confirm("Are you sure you want to delete this planet design?")) _deleteCustomPlanetDesign(id);
+        }
+      });
+      
+      window.addEventListener('resize', () => {
+        if (designerThreeRenderer && document.getElementById('planet-designer-screen')?.classList.contains('active')) {
+          const newWidth = designerPlanetCanvas.offsetWidth;
+          const newHeight = designerPlanetCanvas.offsetHeight;
+          if (newWidth > 0 && newHeight > 0) {
+            designerThreeCamera.aspect = newWidth / newHeight;
+            designerThreeCamera.updateProjectionMatrix();
+            designerThreeRenderer.setSize(newWidth, newHeight);
           }
         }
       });
-
-      // Three.js Resize handler specifically for designer canvas
-      window.addEventListener('resize', () => {
-        if (designerThreeRenderer && designerThreeCamera && designerPlanetCanvas && 
-            document.getElementById('planet-designer-screen')?.classList.contains('active')) { // Check if designer screen is active
-
-            // Ensure canvas CSS is making it responsive before getting offsetWidth/Height
-            designerPlanetCanvas.style.width = '100%'; // Assuming CSS in .designer-preview centers it
-            designerPlanetCanvas.style.height = '100%';// This might be overridden by aspect-ratio in CSS
-
-            const newWidth = designerPlanetCanvas.offsetWidth;
-            const newHeight = designerPlanetCanvas.offsetHeight;
-
-            if (newWidth > 0 && newHeight > 0) {
-                designerThreeCamera.aspect = newWidth / newHeight;
-                designerThreeCamera.updateProjectionMatrix();
-                designerThreeRenderer.setSize(newWidth, newHeight);
-            }
-        }
-      });
-
     },
 
     activate: () => {
       console.log("PlanetDesigner.activate called.");
       if (!designerPlanetCanvas) designerPlanetCanvas = document.getElementById('designer-planet-canvas');
-       _populateDesignerInputsFromBasis();
+      
+      _populateDesignerInputsFromBasis();
       _populateSavedDesignsList();
 
-      // Ensure canvas has dimensions from CSS before initializing Three.js
       requestAnimationFrame(() => {
-        if(designerPlanetCanvas.offsetWidth === 0 || designerPlanetCanvas.offsetHeight === 0) {
-            console.warn("PlanetDesigner: Canvas had 0 dimensions on activate. Re-checking.");
-        }
-        _stopAndCleanupDesignerThreeJSView(); // Cleanup previous if any
+        _stopAndCleanupDesignerThreeJSView();
         _initDesignerThreeJSView();
-        _updateBasisAndRefreshDesignerPreview(); // Ensure material is set from current basis
+        _updateBasisAndRefreshDesignerPreview(); // Set initial material uniforms
       });
     },
   };

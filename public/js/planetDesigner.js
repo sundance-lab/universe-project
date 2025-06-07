@@ -171,7 +171,9 @@ void main() {
     finalColor = mix(finalColor, forestColor, forestMask);
   }
 
-  if (vRiverValue > 0.1) {
+  // --- THE ONLY CHANGE IS HERE ---
+  // This condition now ensures rivers are only colored if they are on land.
+  if (vRiverValue > 0.1 && vElevation > seaLevel) {
       finalColor = mix(finalColor, shallowWaterColor * 0.8, vRiverValue);
   }
 
@@ -215,7 +217,6 @@ export const PlanetDesigner = (() => {
     designerThreeRenderer.setSize(designerPlanetCanvas.offsetWidth, designerPlanetCanvas.offsetHeight);
     designerThreeRenderer.setPixelRatio(window.devicePixelRatio);
     
-    // Use single high-detail mesh for fluid zooming
     const geometry = new THREE.SphereGeometry(SPHERE_BASE_RADIUS, 1024, 512);
 
     const uniforms = {
@@ -288,17 +289,14 @@ export const PlanetDesigner = (() => {
 
   function _updateBasisAndRefreshDesignerPreview() {
     if (!designerWaterColorInput || !designerShaderMaterial) return;
-
     currentDesignerBasis.waterColor = designerWaterColorInput.value;
     currentDesignerBasis.landColor = designerLandColorInput.value;
     currentDesignerBasis.continentSharpness = parseFloat(designerContinentSharpnessInput.value);
     currentDesignerBasis.riverBasin = parseFloat(designerRiverBasinInput.value);
     currentDesignerBasis.forestDensity = parseFloat(designerForestDensityInput.value);
-    
     const previewMinHeight = (parseFloat(designerMinHeightMinInput.value) + parseFloat(designerMinHeightMaxInput.value)) / 2;
     const previewMaxHeight = (parseFloat(designerMaxHeightMinInput.value) + parseFloat(designerMaxHeightMaxInput.value)) / 2;
     const previewOceanHeight = (parseFloat(designerOceanHeightMinInput.value) + parseFloat(designerOceanHeightMaxInput.value)) / 2;
-
     const uniforms = designerShaderMaterial.uniforms;
     uniforms.uWaterColor.value.set(currentDesignerBasis.waterColor);
     uniforms.uLandColor.value.set(currentDesignerBasis.landColor);
@@ -306,12 +304,10 @@ export const PlanetDesigner = (() => {
     uniforms.uContinentSharpness.value = currentDesignerBasis.continentSharpness;
     uniforms.uRiverBasin.value = currentDesignerBasis.riverBasin;
     uniforms.uForestDensity.value = currentDesignerBasis.forestDensity;
-    
     const terrainRange = Math.max(0.1, previewMaxHeight - previewMinHeight);
     let normalizedOceanLevel = (previewOceanHeight - previewMinHeight) / terrainRange;
     normalizedOceanLevel = Math.max(0.2, Math.min(0.8, normalizedOceanLevel));
     uniforms.uOceanHeightLevel.value = normalizedOceanLevel;
-
     const displacementAmount = terrainRange * DISPLACEMENT_SCALING_FACTOR;
     uniforms.uDisplacementAmount.value = displacementAmount;
   }
@@ -319,21 +315,18 @@ export const PlanetDesigner = (() => {
   function _randomizeDesignerPlanet() {
     function _getRandomHexColor() {return'#'+(Math.random()*0xFFFFFF|0).toString(16).padStart(6,'0')}
     function _getRandomFloat(min,max,p=1){const f=Math.pow(10,p);return parseFloat((Math.random()*(max-min)+min).toFixed(p))}
-    
     currentDesignerBasis.waterColor = _getRandomHexColor();
     currentDesignerBasis.landColor = _getRandomHexColor();
     currentDesignerBasis.continentSeed = Math.random();
     currentDesignerBasis.continentSharpness = _getRandomFloat(1.2, 2.8);
     currentDesignerBasis.riverBasin = _getRandomFloat(0.01, 0.15, 2);
     currentDesignerBasis.forestDensity = _getRandomFloat(0.1, 0.9, 2);
-    
     const minH1 = _getRandomFloat(0.0, 2.0), minH2 = minH1 + _getRandomFloat(0.5, 2.0);
     currentDesignerBasis.minTerrainHeightRange = [minH1, minH2];
     const maxH1 = _getRandomFloat(6.0, 10.0), maxH2 = maxH1 + _getRandomFloat(2.0, 5.0);
     currentDesignerBasis.maxTerrainHeightRange = [maxH1, maxH2];
     const oceanH1 = _getRandomFloat(minH2, (minH2 + maxH1) / 2), oceanH2 = oceanH1 + _getRandomFloat(0.5, 2.0);
     currentDesignerBasis.oceanHeightRange = [oceanH1, oceanH2];
-
     _populateDesignerInputsFromBasis();
     _updateBasisAndRefreshDesignerPreview();
   }
@@ -462,10 +455,8 @@ export const PlanetDesigner = (() => {
     activate: () => {
       console.log("PlanetDesigner.activate called.");
       if (!designerPlanetCanvas) designerPlanetCanvas = document.getElementById('designer-planet-canvas');
-      
       _populateDesignerInputsFromBasis();
       _populateSavedDesignsList();
-
       requestAnimationFrame(() => {
         _stopAndCleanupDesignerThreeJSView();
         _initDesignerThreeJSView();

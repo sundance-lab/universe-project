@@ -6,10 +6,10 @@ import * as SHADERS from './shaders.js';
 
 export const PlanetDesigner = (() => {
     // --- CACHED DOM ELEMENTS ---
-    let designerPlanetCanvas, designerWaterColorInput, designerLandColorInput, designerMinHeightInput, designerMaxHeightInput, designerOceanHeightInput,
+    let savedDesignsUl, designerPlanetCanvas, designerWaterColorInput, designerLandColorInput, designerMinHeightInput, designerMaxHeightInput, designerOceanHeightInput,
         designerSaveBtn, designerCancelBtn, designerRiverBasinInput, designerRiverBasinValue,
         designerForestDensityInput, designerForestDensityValue;
-
+    
     // --- THREE.JS & STATE VARIABLES ---
     const DISPLACEMENT_SCALING_FACTOR = 0.005;
     const SPHERE_BASE_RADIUS = 0.8;
@@ -234,7 +234,6 @@ function clampOceanLevel() {
             designerMinHeightInput = document.getElementById('designer-min-height');
             designerMaxHeightInput = document.getElementById('designer-max-height');
             designerOceanHeightInput = document.getElementById('designer-ocean-height');
-
             savedDesignsUl = document.getElementById('saved-designs-ul');
             designerRandomizeBtn = document.getElementById('designer-randomize-btn');
             designerSaveBtn = document.getElementById('designer-save-btn');

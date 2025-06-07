@@ -51,10 +51,9 @@ document.addEventListener('DOMContentLoaded', () => {
   // --- FUNCTION DEFINITIONS ---
 
 window.generatePlanetInstanceFromBasis = function (basis, isForDesignerPreview = false) {
-  // Chance to use a custom template (30% chance if custom designs exist)
+  // Always use a custom template if available and not in preview mode
   if (!isForDesignerPreview && 
-      window.gameSessionData?.customPlanetDesigns?.length > 0 && 
-      Math.random() < 0.3) {
+      window.gameSessionData?.customPlanetDesigns?.length > 0) {
     
     // Randomly select a custom design
     const randomDesign = window.gameSessionData.customPlanetDesigns[
@@ -64,7 +63,7 @@ window.generatePlanetInstanceFromBasis = function (basis, isForDesignerPreview =
     return {
       waterColor: randomDesign.waterColor,
       landColor: randomDesign.landColor,
-      continentSeed: Math.random(), // Always generate new continent seed
+      continentSeed: Math.random(), // New continent seed for variety
       minTerrainHeight: randomDesign.minTerrainHeight,
       maxTerrainHeight: randomDesign.maxTerrainHeight,
       oceanHeightLevel: randomDesign.oceanHeightLevel,
@@ -72,6 +71,24 @@ window.generatePlanetInstanceFromBasis = function (basis, isForDesignerPreview =
       forestDensity: randomDesign.forestDensity
     };
   }
+
+  // Default generation only if no custom designs exist or if in preview mode
+  return {
+    waterColor: basis.waterColor || '#0000FF',
+    landColor: basis.landColor || '#008000',
+    continentSeed: isForDesignerPreview
+      ? (basis.continentSeed !== undefined ? basis.continentSeed : Math.random())
+      : Math.random(),
+    minTerrainHeight: (typeof basis.minTerrainHeight === 'number')
+      ? basis.minTerrainHeight : window.DEFAULT_MIN_TERRAIN_HEIGHT,
+    maxTerrainHeight: (typeof basis.maxTerrainHeight === 'number')
+      ? basis.maxTerrainHeight : window.DEFAULT_MAX_TERRAIN_HEIGHT,
+    oceanHeightLevel: (typeof basis.oceanHeightLevel === 'number')
+      ? basis.oceanHeightLevel : window.DEFAULT_OCEAN_HEIGHT_LEVEL,
+    riverBasin: basis.riverBasin || 0.05,
+    forestDensity: basis.forestDensity || 0.5
+  };
+}
 
   // Default generation if no custom design is used
   return {

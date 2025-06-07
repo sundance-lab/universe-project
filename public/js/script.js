@@ -140,9 +140,10 @@ document.addEventListener('DOMContentLoaded', () => {
  window.designerWorker = null;
 
  if (window.Worker) {
-  try {
-window.planetVisualWorker = new Worker('./planetRendererWorker.js');
-window.designerWorker = new Worker('./planetRendererWorker.js');
+try {
+   // Assign directly to window properties
+   window.planetVisualWorker = new Worker(new URL('./planetRendererWorker.js', import.meta.url));
+   window.designerWorker = new Worker(new URL('./planetRendererWorker.js', import.meta.url));
 
    // Setup for planetVisualWorker
    if (window.planetVisualWorker) {

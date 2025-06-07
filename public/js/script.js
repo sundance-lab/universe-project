@@ -27,7 +27,7 @@ document.addEventListener('DOMContentLoaded', () => {
     const DEFAULT_MAX_PLANET_DISTANCE_MULTIPLIER = 1.0;
     const DEFAULT_MIN_PLANETS_PER_SYSTEM = 0;
     const DEFAULT_MAX_PLANETS_PER_SYSTEM = 3;
-    const DEFAULT_SHOW_PLANET_ORBITS = true; // Changed to true for easier debugging
+    const DEFAULT_SHOW_PLANET_ORBITS = true;
     window.DEFAULT_PLANET_AXIAL_SPEED = 0.01;
     const BASE_MAX_PLANET_DISTANCE_FACTOR = 25;
     window.PLANET_ROTATION_SENSITIVITY = 0.75;
@@ -210,7 +210,7 @@ document.addEventListener('DOMContentLoaded', () => {
             }
         }
     }
-
+    
     function generateSolarSystemsForGalaxy(galaxyId) {
         const galaxy = window.gameSessionData.galaxies.find(g => g.id === galaxyId);
         if (!galaxy) return;
@@ -333,14 +333,15 @@ document.addEventListener('DOMContentLoaded', () => {
     function setActiveScreen(screenToShow) {
         [mainScreen, galaxyDetailScreen, solarSystemScreen, planetDesignerScreen].forEach(s => s.classList.remove('active'));
         if (screenToShow) screenToShow.classList.add('active');
-        zoomControlsElement.style.display = (screenToShow === galaxyDetailScreen || screenToShow === solarSystemScreen) ? 'flex' : 'none';
+        if(zoomControlsElement) zoomControlsElement.style.display = (screenToShow === galaxyDetailScreen || screenToShow === solarSystemScreen) ? 'flex' : 'none';
         
         const isOnOverlayScreen = screenToShow === planetDesignerScreen;
         if(regenerateUniverseButton) regenerateUniverseButton.style.display = isOnOverlayScreen ? 'none' : 'block';
         if(createPlanetDesignButton) createPlanetDesignButton.style.display = isOnOverlayScreen ? 'none' : 'block';
     }
 
-    functionswitchToMainView() {
+    // FIXED: The typo is here. Missing space.
+    function switchToMainView() {
         window.gameSessionData.activeGalaxyId = null;
         window.gameSessionData.activeSolarSystemId = null;
         stopSolarSystemAnimation();

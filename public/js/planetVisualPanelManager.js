@@ -508,25 +508,28 @@ function _switchTo360View() {
   if (enter360ViewButton) enter360ViewButton.textContent = "Show 3D View";
 }
 
-  function handleWorkerMessage(event) {
-  if (!event || typeof event !== 'object' || !('data' in event)) {
-    console.warn("handleWorkerMessage: bad event", event);
-    return;
-  }
-  const { data } = event;
+function handleWorkerMessage(event) {
+  // Accept both event.data and direct event payloads
+  let data = event && typeof event === 'object' && 'data' in event ? event.data : event;
   if (!data || typeof data !== 'object') {
-    console.warn("handleWorkerMessage: event.data missing or not object", event);
+    console.warn("handleWorkerMessage: bad event", event);
     return;
   }
   if (!planetPreviewCanvasElement) return;
 
-  if (data.type === 'planetVisualRender' && data.canvasId === 'planet-visual-panel-preview-canvas') {
+  // Try both new and legacy keys
+  const type = data.type || data.eventType;
+  const canvasId = data.canvasId || data.senderId;
+
+  if (type === 'planetVisualRender' && canvasId === 'planet-visual-panel-preview-canvas') {
     const ctx = planetPreviewCanvasElement.getContext('2d');
     if (ctx && data.imageBitmap) {
       ctx.clearRect(0, 0, planetPreviewCanvasElement.width, planetPreviewCanvasElement.height);
       ctx.drawImage(data.imageBitmap, 0, 0);
       isRenderingPreview = false;
     }
+    // You might need to handle a case where you get raw pixel data (ArrayBuffer) instead of an ImageBitmap.
+    // Add compatibility code here if needed, e.g. use createImageBitmap or ImageData.
   }
 }
   

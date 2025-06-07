@@ -24,6 +24,11 @@ document.addEventListener('DOMContentLoaded', () => {
  const DEFAULT_SHOW_PLANET_ORBITS = false;
  window.DEFAULT_PLANET_AXIAL_SPEED = 0.01;
 
+ const planet360Screen = document.getElementById('planet-360-screen');
+ const planet360Canvas = document.getElementById('planet-360-canvas');
+ const backToSolarSystemButton = document.getElementById('back-to-solar-system');
+ let currentPlanet = null;
+ 
  const BASE_MAX_PLANET_DISTANCE_FACTOR = 25;
  window.PLANET_ROTATION_SENSITIVITY = 0.75;
 
@@ -1460,6 +1465,79 @@ newPlanet.element = planetElement;
  } else {
   console.error("PlanetVisualPanelManager module or its init function is missing.");
  }
-  
+
+window.switchToPlanet360View = function(planet) {
+    currentPlanet = planet;
+    setActiveScreen(planet360Screen);
+    renderPlanet360View(planet);
+};
+
+
+// New function to render the 360 planet view
+function renderPlanet360View(planet) {
+  if (!planet || !planet360Canvas) return;
+
+  const canvas = planet360Canvas;
+  const ctx = canvas.getContext('2d');
+
+  // Set canvas dimensions (adjust as needed)
+  canvas.width = 800;  // Example width
+  canvas.height = 600; // Example height
+
+  // Clear the canvas
+  ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+  // Function to create the planet details
+  function drawPlanet(rotationAngle) {
+      // Clear for the new frame
+      ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+      const planetRadius = Math.min(canvas.width, canvas.height) / 3;
+      const centerX = canvas.width / 2;
+      const centerY = canvas.height / 2;
+
+      // Draw a sphere (simple circle example)
+    ctx.beginPath();
+    ctx.arc(centerX, centerY, planetRadius, 0, 2 * Math.PI);
+    ctx.fillStyle = planet.waterColor;  // Start with water color
+      ctx.fill();
+    ctx.closePath();
+  // Save the current state of the context
+    ctx.save();
+
+  // Translate to the center of the canvas
+    ctx.translate(centerX, centerY);
+
+  // Rotate the canvas
+    ctx.rotate(rotationAngle);
+
+  // Translate back
+      ctx.translate(-centerX, -centerY);
+      // Draw a "continent" (simple rectangle)
+    ctx.fillStyle = planet.landColor;
+    ctx.fillRect(centerX - planetRadius/2, centerY - planetRadius/4, planetRadius, planetRadius/2);
+
+  // Restore the context
+    ctx.restore();
+  }
+  let rotationAngle = 0;
+
+  function animate() {
+    drawPlanet(rotationAngle);
+          rotationAngle += 0.01;
+
+          requestAnimationFrame(animate);
+      }
+
+    animate();   // Initiate the animation loop
+};
+// Event listener for the back button
+if(backToSolarSystemButton){
+    backToSolarSystemButton.addEventListener('click', () => {
+        setActiveScreen(solarSystemScreen);
+        currentPlanet = null;
+    });
+}
+
  initializeGame();
 });

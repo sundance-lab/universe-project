@@ -306,7 +306,7 @@ export const PlanetVisualPanelManager = (() => {
     if (pMax > pMin) {
       normalizedOceanLevel = (pOcean - pMin) / (pMax - pMin);
     }
-    normalizedOceanLevel = Math.max(0.2, Math.min(0.8, normalizedOceanLevel));
+    normalizedOceanLevel = Math.max(0, Math.min(1, normalizedOceanLevel));
     const conceptualRange = Math.max(0, pMax - pMin);
     const displacementAmount = conceptualRange * DISPLACEMENT_SCALING_FACTOR;
 

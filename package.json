@@ -17,7 +17,7 @@
   "devDependencies": {
     "parcel": "^2.9.3"
   },
-  "dependencies": {  // <<< --- ADD THIS SECTION
-    "three": "^0.165.0"  // <<< --- ADD THIS LINE (Using a recent version)
+  "dependencies": 
+    "three": "^0.165.0" 
   }
 }

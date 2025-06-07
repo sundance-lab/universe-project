@@ -508,10 +508,18 @@ function _switchTo360View() {
   if (enter360ViewButton) enter360ViewButton.textContent = "Show 3D View";
 }
 
-function handleWorkerMessage(event) {
-  // Example: updating the preview canvas with data from a worker
-  if (!planetPreviewCanvasElement) return;
+  function handleWorkerMessage(event) {
+  if (!event || typeof event !== 'object' || !('data' in event)) {
+    console.warn("handleWorkerMessage: bad event", event);
+    return;
+  }
   const { data } = event;
+  if (!data || typeof data !== 'object') {
+    console.warn("handleWorkerMessage: event.data missing or not object", event);
+    return;
+  }
+  if (!planetPreviewCanvasElement) return;
+
   if (data.type === 'planetVisualRender' && data.canvasId === 'planet-visual-panel-preview-canvas') {
     const ctx = planetPreviewCanvasElement.getContext('2d');
     if (ctx && data.imageBitmap) {

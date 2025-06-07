@@ -51,6 +51,29 @@ document.addEventListener('DOMContentLoaded', () => {
   // --- FUNCTION DEFINITIONS ---
 
 window.generatePlanetInstanceFromBasis = function (basis, isForDesignerPreview = false) {
+  // Chance to use a custom template (30% chance if custom designs exist)
+  if (!isForDesignerPreview && 
+      window.gameSessionData?.customPlanetDesigns?.length > 0 && 
+      Math.random() < 0.3) {
+    
+    // Randomly select a custom design
+    const randomDesign = window.gameSessionData.customPlanetDesigns[
+      Math.floor(Math.random() * window.gameSessionData.customPlanetDesigns.length)
+    ];
+    
+    return {
+      waterColor: randomDesign.waterColor,
+      landColor: randomDesign.landColor,
+      continentSeed: Math.random(), // Always generate new continent seed
+      minTerrainHeight: randomDesign.minTerrainHeight,
+      maxTerrainHeight: randomDesign.maxTerrainHeight,
+      oceanHeightLevel: randomDesign.oceanHeightLevel,
+      riverBasin: randomDesign.riverBasin,
+      forestDensity: randomDesign.forestDensity
+    };
+  }
+
+  // Default generation if no custom design is used
   return {
     waterColor: basis.waterColor || '#0000FF',
     landColor: basis.landColor || '#008000',
@@ -63,6 +86,8 @@ window.generatePlanetInstanceFromBasis = function (basis, isForDesignerPreview =
       ? basis.maxTerrainHeight : window.DEFAULT_MAX_TERRAIN_HEIGHT,
     oceanHeightLevel: (typeof basis.oceanHeightLevel === 'number')
       ? basis.oceanHeightLevel : window.DEFAULT_OCEAN_HEIGHT_LEVEL,
+    riverBasin: basis.riverBasin || 0.05,
+    forestDensity: basis.forestDensity || 0.5
   };
 }
 

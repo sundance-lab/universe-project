@@ -203,7 +203,7 @@ export const PlanetDesigner = (() => {
     designerThreeScene.background = new THREE.Color(0x1a1a2a);
     const aspectRatio = designerPlanetCanvas.offsetWidth / designerPlanetCanvas.offsetHeight;
     designerThreeCamera = new THREE.PerspectiveCamera(60, aspectRatio, 0.1, 100);
-    designerThreeCamera.position.z = 1.25;
+    designerThreeCamera.position.z = 2.5;
 
     designerThreeRenderer = new THREE.WebGLRenderer({ canvas: designerPlanetCanvas, antialias: true });
     designerThreeRenderer.setSize(designerPlanetCanvas.offsetWidth, designerPlanetCanvas.offsetHeight);

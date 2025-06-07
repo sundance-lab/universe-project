@@ -822,31 +822,6 @@ document.addEventListener('DOMContentLoaded', () => {
   }
  }
 
- function drawAllOrbits() {
-  if (!orbitCtx || !solarSystemOrbitCanvasEl || !window.gameSessionData.solarSystemView.planets) return;
-  
-  orbitCtx.clearRect(0, 0, solarSystemOrbitCanvasEl.width, solarSystemOrbitCanvasEl.height);
-  if (!currentShowPlanetOrbits) {
-   if (solarSystemOrbitCanvasEl) solarSystemOrbitCanvasEl.style.display = 'none';
-   return;
-  } else {
-   if (solarSystemOrbitCanvasEl) solarSystemOrbitCanvasEl.style.display = 'block';
-  }
-
-  const centerX = solarSystemOrbitCanvasEl.width / 2;
-  const centerY = solarSystemOrbitCanvasEl.height / 2;
-
-  window.gameSessionData.solarSystemView.planets.forEach(planetData => {
-   orbitCtx.beginPath();
-   orbitCtx.arc(centerX, centerY, planetData.distance, 0, 2 * Math.PI);
-   orbitCtx.strokeStyle = 'rgba(255,255,255,0.2)';
-   orbitCtx.lineWidth = 1;
-   orbitCtx.setLineDash([5, 5]);
-   orbitCtx.stroke();
-  });
-  orbitCtx.setLineDash([]);
- }
-
  function renderSolarSystemScreen(isInteractivePanOrZoom = false) {
   if (!solarSystemContent || !solarSystemScreen || !window.gameSessionData.activeSolarSystemId) return;
 
@@ -871,11 +846,6 @@ document.addEventListener('DOMContentLoaded', () => {
    const systemNumDisplay = solarSystemData.systemId?.split('-').pop() || 'N/A';
     // FIXED: Corrected template literal
    solarSystemTitleText.textContent = solarSystemObject?.customName || `System ${systemNumDisplay}`; 
-  }
-   
-  const solarSystemScreenIsActive = solarSystemScreen.classList.contains('active');
-  if ((!isInteractivePanOrZoom && solarSystemScreenIsActive) || (solarSystemScreenIsActive && !isSolarSystemAnimationRunning())) {
-    drawAllOrbits();
   }
  }
 
@@ -1241,7 +1211,6 @@ document.addEventListener('DOMContentLoaded', () => {
   target[zoomKey] = newZoom;
 
   clampFn(target, viewElement.offsetWidth, viewElement.offsetHeight);
-  if (target === window.gameSessionData.solarSystemView && currentShowPlanetOrbits) drawAllOrbits();
   renderFn(true);
  }
 

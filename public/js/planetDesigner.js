@@ -290,16 +290,26 @@ export const PlanetDesigner = (() => {
     designerOceanHeightMaxInput.value = currentDesignerBasis.oceanHeightRange[1].toFixed(1);
   }
 
-  function _updateBasisAndRefreshDesignerPreview() {
+function _updateBasisAndRefreshDesignerPreview() {
     if (!designerWaterColorInput || !designerShaderMaterial) return;
+
     currentDesignerBasis.waterColor = designerWaterColorInput.value;
     currentDesignerBasis.landColor = designerLandColorInput.value;
     currentDesignerBasis.continentSharpness = parseFloat(designerContinentSharpnessInput.value);
     currentDesignerBasis.riverBasin = parseFloat(designerRiverBasinInput.value);
     currentDesignerBasis.forestDensity = parseFloat(designerForestDensityInput.value);
-    const previewMinHeight = (parseFloat(document.getElementById('designer-min-height-min').value) + parseFloat(document.getElementById('designer-min-height-max').value)) / 2;
-    const previewMaxHeight = (parseFloat(document.getElementById('designer-max-height-min').value) + parseFloat(document.getElementById('designer-max-height-max').value)) / 2;
-    const previewOceanHeight = (parseFloat(document.getElementById('designer-ocean-height-min').value) + parseFloat(document.getElementById('designer-ocean-height-max').value)) / 2;
+
+    // Use the declared variables instead of searching the DOM again
+    const designerMinHeightMaxInput = document.getElementById('designer-min-height-max');
+    const designerMaxHeightMinInput = document.getElementById('designer-max-height-min');
+    const designerMaxHeightMaxInput = document.getElementById('designer-max-height-max');
+    const designerOceanHeightMinInput = document.getElementById('designer-ocean-height-min');
+    const designerOceanHeightMaxInput = document.getElementById('designer-ocean-height-max');
+    
+    const previewMinHeight = (parseFloat(designerMinHeightMinInput.value) + parseFloat(designerMinHeightMaxInput.value)) / 2;
+    const previewMaxHeight = (parseFloat(designerMaxHeightMinInput.value) + parseFloat(designerMaxHeightMaxInput.value)) / 2;
+    const previewOceanHeight = (parseFloat(designerOceanHeightMinInput.value) + parseFloat(designerOceanHeightMaxInput.value)) / 2;
+
     const uniforms = designerShaderMaterial.uniforms;
     uniforms.uWaterColor.value.set(currentDesignerBasis.waterColor);
     uniforms.uLandColor.value.set(currentDesignerBasis.landColor);
@@ -307,13 +317,15 @@ export const PlanetDesigner = (() => {
     uniforms.uContinentSharpness.value = currentDesignerBasis.continentSharpness;
     uniforms.uRiverBasin.value = currentDesignerBasis.riverBasin;
     uniforms.uForestDensity.value = currentDesignerBasis.forestDensity;
+    
     const terrainRange = Math.max(0.1, previewMaxHeight - previewMinHeight);
     let normalizedOceanLevel = (previewOceanHeight - previewMinHeight) / terrainRange;
     normalizedOceanLevel = Math.max(0.2, Math.min(0.8, normalizedOceanLevel));
     uniforms.uOceanHeightLevel.value = normalizedOceanLevel;
+
     const displacementAmount = terrainRange * DISPLACEMENT_SCALING_FACTOR;
     uniforms.uDisplacementAmount.value = displacementAmount;
-  }
+}
   
   function _randomizeDesignerPlanet() {
     function _getRandomHexColor() {return'#'+(Math.random()*0xFFFFFF|0).toString(16).padStart(6,'0')}

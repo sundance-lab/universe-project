@@ -74,7 +74,7 @@ document.addEventListener('DOMContentLoaded', () => {
     // --- STATE VARIABLES ---
     let linesCtx, solarSystemOrbitCanvasEl, orbitCtx;
     let currentNumGalaxies, currentMinSSCount, currentMaxSSCount, currentMaxPlanetDistanceMultiplier, currentMinPlanets, currentMaxPlanets, currentShowPlanetOrbits;
-    let MAX_PLANET_DISTANCE, ORBIT_CANVAS_SIZE, SOLAR_SYSTEM_EXPLORABLE_RADIUS;
+    let MIN_PLANET_DISTANCE, MAX_PLANET_DISTANCE, ORBIT_CANVAS_SIZE, SOLAR_SYSTEM_EXPLORABLE_RADIUS;
 
     window.gameSessionData = {
         universe: { diameter: null },
@@ -103,7 +103,7 @@ document.addEventListener('DOMContentLoaded', () => {
     // --- GLOBAL HELPER FUNCTIONS ---
     window.generatePlanetInstanceFromBasis = function (basis = {}, isForDesignerPreview = false) {
         const getValueFromRange = (range, defaultValue, defaultSpread = 1.0) => {
-            if (Array.isArray(range) && range.length === 2) {
+            if (Array.isArray(range) && range.length === 2 && typeof range[0] === 'number' && typeof range[1] === 'number') {
                 const min = Math.min(range[0], range[1]);
                 const max = Math.max(range[0], range[1]);
                 return min + Math.random() * (max - min);
@@ -134,8 +134,37 @@ document.addEventListener('DOMContentLoaded', () => {
     };
 
     // --- DATA HANDLING & PERSISTENCE ---
-    function saveGameState() { /* ... full functionality can be added ... */ }
-    function loadGameState() { /* ... full functionality can be added ... */ return false; }
+    function saveGameState() {
+        try {
+            const stateToSave = {
+                universeDiameter: window.gameSessionData.universe.diameter,
+                galaxies: window.gameSessionData.galaxies,
+                customPlanetDesigns: window.gameSessionData.customPlanetDesigns
+            };
+            localStorage.setItem('galaxyGameSaveData', JSON.stringify(stateToSave));
+        } catch (e) {
+            console.error("Error saving game state:", e);
+        }
+    }
+
+    function loadGameState() {
+        try {
+            const savedStateString = localStorage.getItem('galaxyGameSaveData');
+            if (savedStateString) {
+                const loadedState = JSON.parse(savedStateString);
+                if (loadedState && typeof loadedState.universeDiameter === 'number' && Array.isArray(loadedState.galaxies)) {
+                    window.gameSessionData.universe.diameter = loadedState.universeDiameter;
+                    window.gameSessionData.galaxies = loadedState.galaxies;
+                    window.gameSessionData.customPlanetDesigns = loadedState.customPlanetDesigns || [];
+                    return true;
+                }
+            }
+        } catch (error) {
+            console.error("Error loading game state:", error);
+            localStorage.removeItem('galaxyGameSaveData');
+        }
+        return false;
+    }
 
     function resetToDefaultCustomization() {
         currentNumGalaxies = DEFAULT_NUM_GALAXIES;
@@ -148,11 +177,28 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     function loadCustomizationSettings() {
-        resetToDefaultCustomization();
+        const settingsString = localStorage.getItem('galaxyCustomizationSettings');
+        if (settingsString) {
+            try {
+                const s = JSON.parse(settingsString);
+                currentNumGalaxies = s.numGalaxies || DEFAULT_NUM_GALAXIES;
+                currentMinSSCount = s.minSS || DEFAULT_MIN_SS_COUNT_CONST;
+                currentMaxSSCount = s.maxSS || DEFAULT_MAX_SS_COUNT_CONST;
+                currentMaxPlanetDistanceMultiplier = s.spread ?? DEFAULT_MAX_PLANET_DISTANCE_MULTIPLIER;
+                currentMinPlanets = s.minPlanets ?? DEFAULT_MIN_PLANETS_PER_SYSTEM;
+                currentMaxPlanets = s.maxPlanets ?? DEFAULT_MAX_PLANETS_PER_SYSTEM;
+                currentShowPlanetOrbits = s.showOrbits ?? DEFAULT_SHOW_PLANET_ORBITS;
+            } catch {
+                resetToDefaultCustomization();
+            }
+        } else {
+            resetToDefaultCustomization();
+        }
         updateDerivedConstants();
     }
-
+    
     function updateDerivedConstants() {
+        MIN_PLANET_DISTANCE = SUN_ICON_SIZE * 3.0 * Math.min(1.0, (currentMaxPlanetDistanceMultiplier > 0.5 ? currentMaxPlanetDistanceMultiplier * 0.8 : 0.5));
         MAX_PLANET_DISTANCE = (SUN_ICON_SIZE * BASE_MAX_PLANET_DISTANCE_FACTOR) * currentMaxPlanetDistanceMultiplier;
         ORBIT_CANVAS_SIZE = MAX_PLANET_DISTANCE * 2.2;
         SOLAR_SYSTEM_EXPLORABLE_RADIUS = MAX_PLANET_DISTANCE * 1.2;
@@ -339,7 +385,7 @@ document.addEventListener('DOMContentLoaded', () => {
         if(regenerateUniverseButton) regenerateUniverseButton.style.display = isOnOverlayScreen ? 'none' : 'block';
         if(createPlanetDesignButton) createPlanetDesignButton.style.display = isOnOverlayScreen ? 'none' : 'block';
     }
-
+    
     // FIXED: The typo is here. Missing space.
     function switchToMainView() {
         window.gameSessionData.activeGalaxyId = null;
@@ -365,7 +411,7 @@ document.addEventListener('DOMContentLoaded', () => {
         renderGalaxyDetailScreen(false);
     }
 
-    function switchToSolarSystemView(solarSystemId) {
+    functionswitchToSolarSystemView(solarSystemId) {
         const activeGalaxy = window.gameSessionData.galaxies.find(g => solarSystemId.startsWith(g.id));
         const solarSystemObject = activeGalaxy?.solarSystems.find(s => s.id === solarSystemId);
 

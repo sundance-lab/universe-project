@@ -47,6 +47,7 @@ uniform float uRiverBasin;
 
 varying vec3 vNormal;
 varying float vElevation;
+varying float vContinentMask;
 varying vec3 vWorldPosition;
 varying float vRiverValue;
 
@@ -76,26 +77,25 @@ void main() {
     vec3 p = position;
     vec3 noiseInputPosition = (p / uSphereRadius) + (uContinentSeed * 10.0);
 
-    float baseContinentNoise = (layeredNoise(noiseInputPosition, uContinentSeed, 5, 0.5, 2.0, 1.5) + 1.0) * 0.5;
-    
-    // --- THIS IS THE KEY CHANGE ---
-    // Instead of using pow() with a slider, we use a tight smoothstep to force a sharp border.
-    float continentNoise = smoothstep(0.49, 0.51, baseContinentNoise);
+    float smoothContinentShape = (layeredNoise(noiseInputPosition, uContinentSeed, 5, 0.5, 2.0, 1.5) + 1.0) * 0.5;
+    vContinentMask = smoothstep(0.49, 0.51, smoothContinentShape);
 
     float riverRaw = ridgedRiverNoise(noiseInputPosition * 0.2, uContinentSeed * 5.0);
     float riverBed = smoothstep(1.0 - uRiverBasin, 1.0, riverRaw);
-    float riverMask = smoothstep(0.5, 0.52, continentNoise) * (1.0 - smoothstep(0.75, 0.8, continentNoise));
+    float riverMask = smoothstep(0.48, 0.52, vContinentMask) * (1.0 - smoothstep(0.75, 0.8, vContinentMask));
     vRiverValue = riverBed * riverMask;
 
     float mountainNoise = (layeredNoise(noiseInputPosition, uContinentSeed*2.0, 6, 0.45, 2.2, 8.0) + 1.0) * 0.5;
-    float continentMask = smoothstep(0.48, 0.52, continentNoise);
     float islandNoise = (layeredNoise(noiseInputPosition, uContinentSeed * 3.0, 7, 0.5, 2.5, 18.0) + 1.0) * 0.5;
-    float oceanMask = 1.0 - continentMask;
+    float oceanMask = 1.0 - vContinentMask;
 
-    float finalElevation = continentNoise + (mountainNoise * continentMask * 0.3) + (islandNoise * oceanMask * 0.1);
+    float finalElevation = smoothContinentShape 
+                           + (mountainNoise * vContinentMask * 0.3) 
+                           + (islandNoise * oceanMask * 0.1);
     finalElevation -= vRiverValue * 0.04;
-
+    
     vElevation = clamp(finalElevation, 0.0, 1.0);
+    
     float displacement = vElevation * uDisplacementAmount;
     vec3 displacedPosition = p + normal * displacement;
 
@@ -265,7 +265,7 @@ export const PlanetDesigner = (() => {
     if (!designerWaterColorInput) return;
     designerWaterColorInput.value = currentDesignerBasis.waterColor;
     designerLandColorInput.value = currentDesignerBasis.landColor;
-    
+
     if(designerRiverBasinInput) {
         designerRiverBasinInput.value = currentDesignerBasis.riverBasin;
         designerRiverBasinValue.textContent = Number(currentDesignerBasis.riverBasin).toFixed(2);

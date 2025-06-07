@@ -157,6 +157,12 @@ export const PlanetVisualPanelManager = (() => {
 
         console.log("PVisualPanelManager: Initializing Three.js view for:", planet.planetName);
 
+        // --- Step 1: Correctly assemble the shader strings ---
+        const finalSimpleValueNoise = glslSimpleValueNoise3D.replace('$', glslRandom2to1);
+        const finalLayeredNoise = glslLayeredNoise.replace('$', finalSimpleValueNoise);
+        const finalVertexShader = planetVertexShader.replace('$', finalLayeredNoise);
+
+        // --- Step 2: Continue with the rest of the function as before ---
         threeScene = new THREE.Scene();
         threeScene.background = new THREE.Color(0x050510);
 
@@ -166,7 +172,7 @@ export const PlanetVisualPanelManager = (() => {
         const distance = SPHERE_BASE_RADIUS / Math.sin(fovInRadians / 2) + 0.2;
         threeCamera.position.z = Math.max(distance, SPHERE_BASE_RADIUS * 1.5);
 
-        threeRenderer = new THREE.WebGLRenderer({ canvas: planet360CanvasElement, antialias: true, alpha: true });
+        threeRenderer = new THREE.WebGLRenderer({ canvas: planet360CanvasElement, antialias: true });
         threeRenderer.setSize(planet360CanvasElement.offsetWidth, planet360CanvasElement.offsetHeight);
         threeRenderer.setPixelRatio(window.devicePixelRatio);
 
@@ -194,9 +200,10 @@ export const PlanetVisualPanelManager = (() => {
             uDisplacementAmount: { value: displacementAmount }
         };
 
+        // --- Step 3: Use the correctly assembled shader string ---
         threeShaderMaterial = new THREE.ShaderMaterial({
             uniforms: uniforms,
-            vertexShader: planetVertexShader.replace(/\$/g, glslLayeredNoise.replace(/\$/g, glslSimpleValueNoise3D.replace(/\$/g, glslRandom2to1))),
+            vertexShader: finalVertexShader, // Use the final, correct shader string
             fragmentShader: planetFragmentShader,
         });
 

@@ -426,3 +426,14 @@ function _switchTo360View() {
   }
   if (enter360ViewButton) enter360ViewButton.textContent = "Show 2D Preview"; // Text adjustment
 }
+    // Add this at the end of your module, before closing the IIFE
+  return {
+    init,
+    show,
+    hide: _closePanel,
+    handleWorkerMessage,
+    isVisible: () => panelElement?.classList.contains('visible'),
+    getCurrentPlanetData: () => currentPlanetData,
+    rerenderPreviewIfNeeded: _rerenderPreviewIfNeeded,
+  };
+})();

@@ -1249,6 +1249,10 @@ document.addEventListener('DOMContentLoaded', () => {
 
  function startPan(event, viewportElement, contentElementToTransform, dataObjectWithPanProperties) {
   if (event.button !== 0 || event.target.closest('button, .solar-system-icon, .planet-icon')) return;
+     if (event.button !== 0 || event.target.closest('button, .solar-system-icon, .planet-icon')) {
+    console.log("SCRIPT: startPan returned early. Clicked on:", event.target); // DEBUG
+    return;
+  }
 
   const p = window.gameSessionData.panning;
   p.isActive = true;

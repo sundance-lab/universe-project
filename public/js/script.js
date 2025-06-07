@@ -90,24 +90,6 @@ window.generatePlanetInstanceFromBasis = function (basis, isForDesignerPreview =
   };
 }
 
-  // Default generation if no custom design is used
-  return {
-    waterColor: basis.waterColor || '#0000FF',
-    landColor: basis.landColor || '#008000',
-    continentSeed: isForDesignerPreview
-      ? (basis.continentSeed !== undefined ? basis.continentSeed : Math.random())
-      : Math.random(),
-    minTerrainHeight: (typeof basis.minTerrainHeight === 'number')
-      ? basis.minTerrainHeight : window.DEFAULT_MIN_TERRAIN_HEIGHT,
-    maxTerrainHeight: (typeof basis.maxTerrainHeight === 'number')
-      ? basis.maxTerrainHeight : window.DEFAULT_MAX_TERRAIN_HEIGHT,
-    oceanHeightLevel: (typeof basis.oceanHeightLevel === 'number')
-      ? basis.oceanHeightLevel : window.DEFAULT_OCEAN_HEIGHT_LEVEL,
-    riverBasin: basis.riverBasin || 0.05,
-    forestDensity: basis.forestDensity || 0.5
-  };
-}
-
   // --- STATE VARIABLES ---
   let linesCtx;
   let currentNumGalaxies = DEFAULT_NUM_GALAXIES;

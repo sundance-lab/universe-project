@@ -325,6 +325,20 @@ export const PlanetVisualPanelManager = (() => {
   // remains unchanged unless you decide to unify more.
 
   // PUBLIC API
+
+function _closePanel() {
+  if (panelElement) {
+    panelElement.classList.remove('visible');
+  }
+  if (is360ViewActive) {
+    _stopAndCleanupThreeJSView();
+    is360ViewActive = false;
+    if (planetPreviewCanvasElement) planetPreviewCanvasElement.style.display = 'block';
+    if (planet360CanvasElement) planet360CanvasElement.style.display = 'none';
+    if (enter360ViewButton) enter360ViewButton.textContent = "Show 3D View";
+  }
+}
+  
   return {
     init: () => {
       console.log("PlanetVisualPanelManager: Init called.");

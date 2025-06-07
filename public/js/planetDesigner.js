@@ -6,9 +6,7 @@ import * as SHADERS from './shaders.js';
 
 export const PlanetDesigner = (() => {
     // --- CACHED DOM ELEMENTS ---
-    let designerPlanetCanvas, designerWaterColorInput, designerLandColorInput,
-        designerMinHeightMinInput, designerMinHeightMaxInput, designerMaxHeightMinInput, designerMaxHeightMaxInput,
-        designerOceanHeightMinInput, designerOceanHeightMaxInput, savedDesignsUl, designerRandomizeBtn,
+    let designerPlanetCanvas, designerWaterColorInput, designerLandColorInput, designerMinHeightInput, designerMaxHeightInput, designerOceanHeightInput,
         designerSaveBtn, designerCancelBtn, designerRiverBasinInput, designerRiverBasinValue,
         designerForestDensityInput, designerForestDensityValue;
 
@@ -24,7 +22,17 @@ export const PlanetDesigner = (() => {
     
     let designerThreeScene, designerThreeCamera, designerThreeRenderer,
         designerThreePlanetMesh, designerThreeControls, designerThreeAnimationId, designerShaderMaterial;
-        
+
+function clampOceanLevel() {
+    let minH = parseFloat(designerMinHeightInput.value);
+    let maxH = parseFloat(designerMaxHeightInput.value);
+    let oceanH = parseFloat(designerOceanHeightInput.value);
+
+    // Clamp ocean within min and max
+    if (oceanH < minH) designerOceanHeightInput.value = minH;
+    if (oceanH > maxH) designerOceanHeightInput.value = maxH;
+}
+    
     function _initDesignerThreeJSView() {
         if (!designerPlanetCanvas) return;
         
@@ -217,12 +225,10 @@ export const PlanetDesigner = (() => {
             designerRiverBasinValue = document.getElementById('designer-river-basin-value');
             designerForestDensityInput = document.getElementById('designer-forest-density');
             designerForestDensityValue = document.getElementById('designer-forest-density-value');
-            designerMinHeightMinInput = document.getElementById('designer-min-height-min');
-            designerMinHeightMaxInput = document.getElementById('designer-min-height-max');
-            designerMaxHeightMinInput = document.getElementById('designer-max-height-min');
-            designerMaxHeightMaxInput = document.getElementById('designer-max-height-max');
-            designerOceanHeightMinInput = document.getElementById('designer-ocean-height-min');
-            designerOceanHeightMaxInput = document.getElementById('designer-ocean-height-max');
+            designerMinHeightInput = document.getElementById('designer-min-height');
+            designerMaxHeightInput = document.getElementById('designer-max-height');
+            designerOceanHeightInput = document.getElementById('designer-ocean-height');
+
             savedDesignsUl = document.getElementById('saved-designs-ul');
             designerRandomizeBtn = document.getElementById('designer-randomize-btn');
             designerSaveBtn = document.getElementById('designer-save-btn');
@@ -285,6 +291,13 @@ export const PlanetDesigner = (() => {
                 _stopAndCleanupDesignerThreeJSView();
                 _initDesignerThreeJSView();
                 _updateBasisAndRefreshDesignerPreview();
+
+                [designerMinHeightInput, designerMaxHeightInput, designerOceanHeightInput].forEach(input =>
+    input?.addEventListener('input', () => {
+        clampOceanLevel();
+        _updateBasisAndRefreshDesignerPreview();
+    })
+);
             });
         },
     };

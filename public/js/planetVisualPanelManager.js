@@ -3,7 +3,7 @@ import '../styles.css';
 import * as THREE from 'three';
 import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls.js';
 
-// --- Shader Definitions ---
+// --- SHADER DEFINITIONS ---
 
 const glslRandom2to1 = `
 float random(vec2 st) {
@@ -49,8 +49,7 @@ varying vec3 vNormal;
 varying float vElevation;
 varying vec3 vWorldPosition;
 
-// Noise functions will be injected here
-$
+$ // Noise functions are injected here
 
 float layeredNoise(vec3 p, float seed, int octaves, float persistence, float lacunarity, float scale) {
   float total = 0.0;
@@ -73,9 +72,17 @@ void main() {
   vec3 noiseInputPosition = (p / uSphereRadius) + (uContinentSeed * 10.0);
 
   float continentNoise = (layeredNoise(noiseInputPosition, uContinentSeed, 5, 0.5, 2.0, 1.5) + 1.0) * 0.5;
+  continentNoise = pow(continentNoise, uContinentSharpness);
+  
   float mountainNoise = (layeredNoise(noiseInputPosition, uContinentSeed * 2.0, 6, 0.45, 2.2, 8.0) + 1.0) * 0.5;
   float continentMask = smoothstep(0.48, 0.52, continentNoise);
-  float finalElevation = continentNoise + (mountainNoise * continentMask * 0.3);
+
+  float islandNoise = (layeredNoise(noiseInputPosition, uContinentSeed * 3.0, 7, 0.5, 2.5, 18.0) + 1.0) * 0.5;
+  float oceanMask = 1.0 - continentMask;
+
+  float finalElevation = continentNoise 
+                       + (mountainNoise * continentMask * 0.3) 
+                       + (islandNoise * oceanMask * 0.1);
 
   vElevation = clamp(finalElevation, 0.0, 1.0);
   float displacement = vElevation * uDisplacementAmount;
@@ -156,34 +163,22 @@ void main() {
 
 
 export const PlanetVisualPanelManager = (() => {
-  console.log("PVisualPanelManager: Script loaded.");
-
-  // DOM Elements
-  let panelElement, headerElement, titleElement, sizeElement,
-    closeButton, planet360CanvasElement;
-
-  // State
+  let panelElement, headerElement, titleElement, sizeElement, closeButton, planet360CanvasElement;
   let currentPlanetData = null;
   let isDraggingPanel = false;
   let panelOffset = { x: 0, y: 0 };
-
   let is360ViewActive = false;
-  let threeScene, threeCamera, threeRenderer, threePlanetMesh, threeControls, threeAnimationId;
-  let threeShaderMaterial;
+  let threeScene, threeCamera, threeRenderer, threeLOD, threeControls, threeAnimationId, threeShaderMaterial;
 
   const SPHERE_BASE_RADIUS = 0.8;
   const DISPLACEMENT_SCALING_FACTOR = 0.005;
 
-  // --- Panel Dragging Logic (Header Only) ---
   function _onHeaderMouseDown(e) {
     if (e.target.closest('button')) return;
     isDraggingPanel = true;
     panelElement.classList.add('dragging');
     const panelRect = panelElement.getBoundingClientRect();
-    panelOffset = {
-      x: e.clientX - panelRect.left,
-      y: e.clientY - panelRect.top,
-    };
+    panelOffset = { x: e.clientX - panelRect.left, y: e.clientY - panelRect.top };
     e.preventDefault();
   }
 
@@ -194,7 +189,7 @@ export const PlanetVisualPanelManager = (() => {
     panelElement.style.left = `${newX}px`;
     panelElement.style.top = `${newY}px`;
     if (panelElement.style.transform !== 'none') {
-       panelElement.style.transform = 'none';
+      panelElement.style.transform = 'none';
     }
   }
 
@@ -204,8 +199,7 @@ export const PlanetVisualPanelManager = (() => {
       panelElement.classList.remove('dragging');
     }
   }
-   
-  // --- Core Module Functions ---
+
   function init() {
     panelElement = document.getElementById('planet-visual-panel');
     headerElement = document.getElementById('planet-visual-panel-header');
@@ -234,7 +228,7 @@ export const PlanetVisualPanelManager = (() => {
         }
       }
     });
-     
+
     console.log("PVisualPanelManager: Init complete.");
   }
 
@@ -252,7 +246,7 @@ export const PlanetVisualPanelManager = (() => {
       _switchTo360View();
     }
   }
-   
+
   function _switchTo360View() {
     if (!currentPlanetData) return;
     is360ViewActive = true;
@@ -260,7 +254,6 @@ export const PlanetVisualPanelManager = (() => {
 
     if (planet360CanvasElement) {
       planet360CanvasElement.style.display = 'block';
-       
       requestAnimationFrame(() => {
         if (planet360CanvasElement.offsetParent !== null) {
           const newWidth = planet360CanvasElement.offsetWidth;
@@ -269,11 +262,6 @@ export const PlanetVisualPanelManager = (() => {
             planet360CanvasElement.width = newWidth;
             planet360CanvasElement.height = newHeight;
             _initThreeJSView(currentPlanetData);
-          } else {
-            console.warn("PVisualPanelManager: 360 canvas had zero dimensions. Using fallback.");
-            planet360CanvasElement.width = 300;
-            planet360CanvasElement.height = 300;
-            _initThreeJSView(currentPlanetData);
           }
         }
       });
@@ -281,10 +269,6 @@ export const PlanetVisualPanelManager = (() => {
   }
 
   function _initThreeJSView(planet) {
-    if (!planet360CanvasElement || !planet) {
-      return;
-    }
-
     const noiseFunctions = glslSimpleValueNoise3D.replace('$', glslRandom2to1);
     const finalVertexShader = planetVertexShader.replace('$', noiseFunctions);
 
@@ -292,17 +276,13 @@ export const PlanetVisualPanelManager = (() => {
     threeScene.background = new THREE.Color(0x050510);
 
     const aspectRatio = planet360CanvasElement.offsetWidth / planet360CanvasElement.offsetHeight;
-    threeCamera = new THREE.PerspectiveCamera(60, aspectRatio, 0.1, 1000);
+    threeCamera = new THREE.PerspectiveCamera(60, aspectRatio, 0.001, 1000);
     threeCamera.position.z = 2.5;
 
     threeRenderer = new THREE.WebGLRenderer({ canvas: planet360CanvasElement, antialias: true });
     threeRenderer.setSize(planet360CanvasElement.offsetWidth, planet360CanvasElement.offsetHeight);
     threeRenderer.setPixelRatio(window.devicePixelRatio);
 
-    // CORRECTED: High-detail geometry
-    const geometry = new THREE.SphereGeometry(SPHERE_BASE_RADIUS, 512, 256);
-
-    // This section is correct.
     let normalizedOceanLevel = 0.5;
     const pMin = planet.minTerrainHeight ?? 0.0;
     const pMax = planet.maxTerrainHeight ?? (pMin + 10.0);
@@ -315,74 +295,82 @@ export const PlanetVisualPanelManager = (() => {
     const displacementAmount = conceptualRange * DISPLACEMENT_SCALING_FACTOR;
 
     const uniforms = {
-      uLandColor: { value: new THREE.Color(planet.landColor || '#556B2F') },
-      uWaterColor: { value: new THREE.Color(planet.waterColor || '#1E90FF') },
-      uOceanHeightLevel: { value: normalizedOceanLevel },
-      uContinentSeed: { value: planet.continentSeed ?? Math.random() },
-      uContinentSharpness: { value: planet.continentSharpness ?? 1.8 },
-      uTime: { value: 0.0 },
-      uSphereRadius: { value: SPHERE_BASE_RADIUS },
-      uDisplacementAmount: { value: displacementAmount }
+        uLandColor: { value: new THREE.Color(planet.landColor || '#556B2F') },
+        uWaterColor: { value: new THREE.Color(planet.waterColor || '#1E90FF') },
+        uOceanHeightLevel: { value: normalizedOceanLevel },
+        uContinentSeed: { value: planet.continentSeed ?? Math.random() },
+        uContinentSharpness: { value: planet.continentSharpness ?? 1.8 },
+        uTime: { value: 0.0 },
+        uSphereRadius: { value: SPHERE_BASE_RADIUS },
+        uDisplacementAmount: { value: displacementAmount }
     };
-
+    
     threeShaderMaterial = new THREE.ShaderMaterial({
       uniforms: uniforms,
       vertexShader: finalVertexShader,
       fragmentShader: planetFragmentShader,
     });
 
-    threePlanetMesh = new THREE.Mesh(geometry, threeShaderMaterial);
-    threeScene.add(threePlanetMesh);
+    threeLOD = new THREE.LOD();
+    const lodLevels = [
+        { distance: 4.0, segments: [128, 64] },
+        { distance: 1.5, segments: [256, 128] },
+        { distance: 0.0, segments: [1024, 512] }
+    ];
+
+    lodLevels.forEach(level => {
+        const geometry = new THREE.SphereGeometry(SPHERE_BASE_RADIUS, level.segments[0], level.segments[1]);
+        const mesh = new THREE.Mesh(geometry, threeShaderMaterial);
+        threeLOD.addLevel(mesh, level.distance);
+    });
+
+    threeScene.add(threeLOD);
 
     threeControls = new OrbitControls(threeCamera, threeRenderer.domElement);
     threeControls.enableDamping = true;
     threeControls.dampingFactor = 0.05;
     threeControls.screenSpacePanning = false;
-    
-    threeControls.minDistance = 0.9; 
+    threeControls.minDistance = 0.9;
     threeControls.maxDistance = SPHERE_BASE_RADIUS * 7;
     threeControls.target.set(0, 0, 0);
 
     _animateThreeJSView();
   }
-  
+
   function _animateThreeJSView() {
     if (!is360ViewActive || !threeRenderer) return;
     threeAnimationId = requestAnimationFrame(_animateThreeJSView);
     if (threeShaderMaterial?.uniforms.uTime) {
       threeShaderMaterial.uniforms.uTime.value += 0.005;
     }
+    if(threeLOD) threeLOD.update(threeCamera); // Important: Update LOD
     if (threeControls) threeControls.update();
     if (threeRenderer && threeScene && threeCamera) threeRenderer.render(threeScene, threeCamera);
   }
 
   function _stopAndCleanupThreeJSView() {
     if (threeAnimationId) cancelAnimationFrame(threeAnimationId);
+    if (threeControls) threeControls.dispose();
+    if (threeShaderMaterial) threeShaderMaterial.dispose();
+    
+    if (threeLOD) {
+        threeLOD.traverse(function(object) {
+            if (object.isMesh) {
+                if (object.geometry) object.geometry.dispose();
+            }
+        });
+        if(threeScene) threeScene.remove(threeLOD);
+    }
+
+    if (threeRenderer) threeRenderer.dispose();
     threeAnimationId = null;
-    if (threeControls) {
-      threeControls.dispose();
-      threeControls = null;
-    }
-    if (threePlanetMesh) {
-      if (threePlanetMesh.geometry) threePlanetMesh.geometry.dispose();
-      if (threeShaderMaterial) threeShaderMaterial.dispose();
-      if (threeScene) threeScene.remove(threePlanetMesh);
-      threePlanetMesh = null;
-      threeShaderMaterial = null;
-    }
-    if (threeScene) {
-      while(threeScene.children.length > 0){ 
-        threeScene.remove(threeScene.children[0]);
-      }
-    }
-    if (threeRenderer) {
-      threeRenderer.dispose();
-      threeRenderer = null;
-    }
+    threeControls = null;
+    threeShaderMaterial = null;
+    threeLOD = null;
     threeScene = null;
     threeCamera = null;
   }
-   
+
   function _closePanel() {
     if (panelElement) panelElement.classList.remove('visible');
     is360ViewActive = false;
@@ -390,7 +378,6 @@ export const PlanetVisualPanelManager = (() => {
     if (planet360CanvasElement) planet360CanvasElement.style.display = 'none';
   }
 
-  // --- Public API ---
   return {
     init,
     show,

@@ -231,10 +231,12 @@ body {
 }
 
 .sun-animated {
+  animation: sunPulse 3.5s infinite ease-in-out;
   box-shadow:
-    0 0 35px 10px #FFD700,
-    0 0 70px 20px rgba(255, 165, 0, 0.4);
-  /* Remove or make the inset glow less gray */
+    0 0 15px 3px var(--sun-glow-color1, #FFFAA0),
+    0 0 35px 10px var(--sun-glow-color2, #FFD700),
+    0 0 70px 20px var(--sun-glow-color3, rgba(255, 165, 0, 0.4));
+    /* Removed: inset 0 0 15px 4px var(--sun-inset-glow, rgba(255, 255, 230, 0.35)); */
 }
 
 @keyframes sunPulse {

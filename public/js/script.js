@@ -50,33 +50,21 @@ document.addEventListener('DOMContentLoaded', () => {
 
   // --- FUNCTION DEFINITIONS ---
 
-  window.generatePlanetInstanceFromBasis = function (basis, isForDesignerPreview = false) {
-    const getValueFromRange = (range, defaultValue, defaultSpread = 1.0) => {
-      if (Array.isArray(range) && range.length === 2 && typeof range[0] === 'number' && typeof range[1] === 'number') {
-        const min = Math.min(range[0], range[1]);
-        const max = Math.max(range[0], range[1]);
-        if (min === max) return min;
-        return min + Math.random() * (max - min);
-      }
-      if (typeof range === 'number') return range;
-      const base = typeof defaultValue === 'number' ? defaultValue : 0;
-      const spread = typeof defaultSpread === 'number' ? defaultSpread : 1.0;
-      if (isNaN(base) || isNaN(spread)) {
-        console.warn("Invalid default/spread in getValueFromRange, returning 0", { range, defaultValue, defaultSpread });
-        return 0;
-      }
-      return base + (Math.random() - 0.5) * spread * 2;
-    };
-
-    return {
-      waterColor: basis.waterColor || '#0000FF',
-      landColor: basis.landColor || '#008000',
-      continentSeed: isForDesignerPreview ? (basis.continentSeed !== undefined ? basis.continentSeed : Math.random()) : Math.random(),
-      minTerrainHeight: getValueFromRange(basis.minTerrainHeightRange, window.DEFAULT_MIN_TERRAIN_HEIGHT, 1.0),
-      maxTerrainHeight: getValueFromRange(basis.maxTerrainHeightRange, window.DEFAULT_MAX_TERRAIN_HEIGHT, 2.0),
-      oceanHeightLevel: getValueFromRange(basis.oceanHeightRange, window.DEFAULT_OCEAN_HEIGHT_LEVEL, 1.0)
-    };
-  }
+window.generatePlanetInstanceFromBasis = function (basis, isForDesignerPreview = false) {
+  return {
+    waterColor: basis.waterColor || '#0000FF',
+    landColor: basis.landColor || '#008000',
+    continentSeed: isForDesignerPreview
+      ? (basis.continentSeed !== undefined ? basis.continentSeed : Math.random())
+      : Math.random(),
+    minTerrainHeight: (typeof basis.minTerrainHeight === 'number')
+      ? basis.minTerrainHeight : window.DEFAULT_MIN_TERRAIN_HEIGHT,
+    maxTerrainHeight: (typeof basis.maxTerrainHeight === 'number')
+      ? basis.maxTerrainHeight : window.DEFAULT_MAX_TERRAIN_HEIGHT,
+    oceanHeightLevel: (typeof basis.oceanHeightLevel === 'number')
+      ? basis.oceanHeightLevel : window.DEFAULT_OCEAN_HEIGHT_LEVEL,
+  };
+}
 
   // --- STATE VARIABLES ---
   let linesCtx;
@@ -284,27 +272,29 @@ document.addEventListener('DOMContentLoaded', () => {
       gal.layoutGenerated = gal.layoutGenerated || false;
      });
 
-     window.gameSessionData.customPlanetDesigns = (loadedState.customPlanetDesigns || []).map(design => {
-      const migratedDesign = { ...design };
-      if (migratedDesign.continentSeed === undefined) migratedDesign.continentSeed = Math.random();
-      
-      const ensureRange = (currentVal, oldProp, defaultBase, defaultSpread) => {
-       if (Array.isArray(currentVal) && currentVal.length === 2 && typeof currentVal[0] === 'number' && typeof currentVal[1] === 'number') {
-        return [...currentVal];
-       }
-       const base = typeof oldProp === 'number' ? oldProp : (typeof defaultBase === 'number' ? defaultBase : 0);
-       return [base, base + (typeof defaultSpread === 'number' ? defaultSpread : 1.0)];
-      };
+window.gameSessionData.customPlanetDesigns = (loadedState.customPlanetDesigns || []).map(design => {
+  const migratedDesign = { ...design };
+  if (migratedDesign.continentSeed === undefined) migratedDesign.continentSeed = Math.random();
 
-      migratedDesign.minTerrainHeightRange = ensureRange(migratedDesign.minTerrainHeightRange, migratedDesign.minTerrainHeight, window.DEFAULT_MIN_TERRAIN_HEIGHT, 1.0);
-      migratedDesign.maxTerrainHeightRange = ensureRange(migratedDesign.maxTerrainHeightRange, migratedDesign.maxTerrainHeight, window.DEFAULT_MAX_TERRAIN_HEIGHT, 2.0);
-      migratedDesign.oceanHeightRange = ensureRange(migratedDesign.oceanHeightRange, migratedDesign.oceanHeightLevel, window.DEFAULT_OCEAN_HEIGHT_LEVEL, 1.0);
+  // Prefer flat values, fallback to legacy range
+  if (typeof migratedDesign.minTerrainHeight !== 'number' && Array.isArray(migratedDesign.minTerrainHeightRange)) {
+    migratedDesign.minTerrainHeight = migratedDesign.minTerrainHeightRange[0];
+  }
+  if (typeof migratedDesign.maxTerrainHeight !== 'number' && Array.isArray(migratedDesign.maxTerrainHeightRange)) {
+    migratedDesign.maxTerrainHeight = migratedDesign.maxTerrainHeightRange[1];
+  }
+  if (typeof migratedDesign.oceanHeightLevel !== 'number' && Array.isArray(migratedDesign.oceanHeightRange)) {
+    // Use a value between the min and max as a guess, or just use min
+    migratedDesign.oceanHeightLevel = migratedDesign.oceanHeightRange[0];
+  }
+
+  // Remove old range fields
+  delete migratedDesign.minTerrainHeightRange;
+  delete migratedDesign.maxTerrainHeightRange;
+  delete migratedDesign.oceanHeightRange;
+  return migratedDesign;
+});
       
-      delete migratedDesign.minTerrainHeight; 
-      delete migratedDesign.maxTerrainHeight; 
-      delete migratedDesign.oceanHeightLevel;
-      return migratedDesign;
-     });
      console.log("Game state loaded successfully.");
      return true;
     }
@@ -1010,15 +1000,14 @@ document.addEventListener('DOMContentLoaded', () => {
 
     const basisToUse = window.gameSessionData.customPlanetDesigns?.length ?
       window.gameSessionData.customPlanetDesigns[Math.floor(Math.random() * window.gameSessionData.customPlanetDesigns.length)] :
-      {
-        // Default basis if no custom designs exist
-        waterColor: '#1E90FF', // Dodger Blue
-        landColor: '#556B2F', // Dark Olive Green
-        minTerrainHeightRange: [0.0, 2.0],
-        maxTerrainHeightRange: [8.0, 12.0],
-        oceanHeightRange: [1.0, 3.0],
-        continentSeed: Math.random()
-      };
+    {
+      waterColor: '#1E90FF',
+      landColor: '#556B2F',
+      minTerrainHeight: window.DEFAULT_MIN_TERRAIN_HEIGHT,
+      maxTerrainHeight: window.DEFAULT_MAX_TERRAIN_HEIGHT,
+      oceanHeightLevel: window.DEFAULT_OCEAN_HEIGHT_LEVEL,
+      continentSeed: Math.random()
+    }  
 
       const planetInstanceAppearance = window.generatePlanetInstanceFromBasis(basisToUse, false);
 

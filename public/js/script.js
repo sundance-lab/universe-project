@@ -147,12 +147,7 @@ document.addEventListener('DOMContentLoaded', () => {
         console.log("script.js: planetVisualWorker created successfully.");
         window.planetVisualWorker.onmessage = function (e) {
           const { renderedData, width, height, senderId, error } = e.data;
-          // Now PlanetVisualPanelManager handles its own messages.
-          // This worker might still be used for other things, or this whole block could be refined
-          // if only the panel manager uses this specific worker instance.
-          if (window.PlanetVisualPanelManager?.handleWorkerMessage && senderId === 'planet-visual-panel-preview-canvas') {
-            window.PlanetVisualPanelManager.handleWorkerMessage({ renderedData, width, height, error, senderId });
-          }
+          
         };
         window.planetVisualWorker.onerror = function (error) {
           console.error("Error in planetVisualWorker:", error.message);

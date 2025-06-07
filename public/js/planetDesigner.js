@@ -234,8 +234,7 @@ export const PlanetDesigner = (() => {
                 designerMaxHeightMinInput, designerMaxHeightMaxInput,
                 designerOceanHeightMinInput, designerOceanHeightMaxInput,
             ];
-            input?.addEventListener('input', _updateBasisAndRefreshDesignerPreview);
-            
+            inputsToWatch.forEach(input => input?.addEventListener('input', _updateBasisAndRefreshDesignerPreview));            
             const liveSliders = [
                 { slider: designerRiverBasinInput, display: designerRiverBasinValue, precision: 2 },
                 { slider: designerForestDensityInput, display: designerForestDensityValue, precision: 2 }

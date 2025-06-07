@@ -139,24 +139,24 @@ vec3 calculateLighting(vec3 surfaceColor, vec3 normalVec, vec3 viewDir) {
 void main() {
   vec3 finalColor;
 
-  vec3 deepWaterColor = uWaterColor * 0.5;
-  vec3 shallowWaterColor = uWaterColor;
-  vec3 beachColor = vec3(0.86, 0.78, 0.59);
+  vec3 waterColor = uWaterColor;
+  vec3 beachColor = uLandColor * 0.9;
   vec3 plainsColor = uLandColor;
   vec3 forestColor = uLandColor * 0.65;
-  vec3 mountainColor = uLandColor * 0.7 + vec3(0.4);
-  vec3 snowColor = vec3(0.95, 0.95, 1.0);
+  vec3 mountainColor = uLandColor * 1.2;
+  vec3 snowColor = uLandColor * 1.5 + vec3(0.3);
 
+  
   float seaLevel = uOceanHeightLevel;
-  float beachLevel = seaLevel + 0.02;
-  float forestLine = seaLevel + 0.35;
+  float beachLevel = seaLevel + 0.005;
+  float forestLine = beachLevel + 0.3;
   float mountainLine = seaLevel + 0.45;
   float snowLine = seaLevel + 0.60;
 
   if (vElevation < seaLevel) {
-      finalColor = mix(deepWaterColor, shallowWaterColor, smoothstep(seaLevel - 0.2, seaLevel, vElevation));
+      finalColor = waterColor;
   } else if (vElevation < beachLevel) {
-      finalColor = mix(shallowWaterColor, beachColor, smoothstep(seaLevel, beachLevel, vElevation));
+      finalColor = mix(waterColor, beachColor, smoothstep(seaLevel, beachLevel, vElevation));
   } else if (vElevation < forestLine) {
       finalColor = mix(beachColor, plainsColor, smoothstep(beachLevel, forestLine, vElevation));
   } else if (vElevation < mountainLine) {
@@ -171,8 +171,8 @@ void main() {
     finalColor = mix(finalColor, forestColor, forestMask);
   }
 
-  if (vRiverValue > 0.1) {
-      finalColor = mix(finalColor, shallowWaterColor * 0.8, vRiverValue);
+  if (vRiverValue > 0.1 && vElevation > seaLevel) {
+      finalColor = mix(finalColor, waterColor * 0.9, vRiverValue);
   }
 
   vec3 viewDirection = normalize(cameraPosition - vWorldPosition);

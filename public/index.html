@@ -104,17 +104,27 @@
         <button id="create-planet-design-btn" class="control-button">Create Planet Designs</button>
     </div>
 
-    <div id="planet-visual-panel" class="planet-visual-panel">
-        <div class="panel-header" id="planet-visual-panel-header">
-            <span id="planet-visual-title">Planet</span>
-            <button class="close-button" id="close-planet-visual-panel">&times;</button>
-        </div>
-        <div class="panel-body">
-            <p><strong>Size:</strong> <span id="planet-visual-size">N/A</span> px</p>
-            <canvas id="planet-visual-canvas" width="600" height="600"></canvas>
+<div id="planet-visual-panel" class="planet-visual-panel">
+    <div class="panel-header" id="planet-visual-panel-header">
+        <span id="planet-visual-title">Planet</span>
+        <button class="close-button" id="close-planet-visual-panel">×</button>
+    </div>
+    <div class="panel-body">
+        <p><strong>Size:</strong> <span id="planet-visual-size">N/A</span></p>
+
+        <!-- Existing Preview Canvas -->
+        <canvas id="planet-visual-canvas" width="300" height="300"></canvas>
+
+        <!-- New Canvas for 360 Degree View - Initially hidden -->
+        <canvas id="panel-planet-360-canvas" width="300" height="300" style="display: none;"></canvas>
+
+        <!-- Button to toggle between views -->
+        <div class="panel-actions" style="text-align: center; margin-top: 10px;">
+            <button id="enter-360-view-button" class="modal-button-apply">Enter 360° View</button>
         </div>
     </div>
-
+</div>
+  
 <script src="js/mathUtils.js"></script>
 <script type="module" src="js/script.js"></script>
 </body>

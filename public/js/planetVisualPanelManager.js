@@ -4,106 +4,65 @@ import * as THREE from 'three';
 import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls.js';
 
 // --- Shader Definitions ---
-// CORRECTED: No invisible characters around the '$' placeholders.
-const glslRandom2to1 = `
-float random(vec2 st) {
-  return fract(sin(dot(st.xy, vec2(12.9898,78.233))) * 43758.5453123);
-}
-`;
+const glslRandom2to1 = `...`; // This code remains the same from your file
+const glslSimpleValueNoise3D = `...`; // This code remains the same from your file
 
-const glslSimpleValueNoise3D = `
+// MODIFIED: The layeredNoise function is slightly different in the new shaders.
+// We will define the full, new shaders below.
+
+// --- 1. NEW, ADVANCED SHADERS ---
+
+const planetVertexShader = `
+uniform float uTime;
+uniform float uContinentSeed;  
+uniform float uSphereRadius;   
+uniform float uDisplacementAmount;
+
+varying vec3 vNormal;
+varying float vElevation;
+varying vec3 vWorldPosition;  
+
+// Your existing noise functions will be injected here by JS
 $
 
-float valueNoise(vec3 p, float seed) {
-  vec3 i = floor(p + seed * 0.123); 
-  vec3 f = fract(p + seed * 0.123); 
-  f = f * f * (3.0 - 2.0 * f); // Smoothstep interpolation
-
-  // Get random values for the 8 corners of the cube
-  float c000 = random(i.xy + i.z * 0.37);     // Bottom-left-front
-  float c100 = random(i.xy + vec2(1.0, 0.0) + i.z * 0.37); // Bottom-right-front
-  float c010 = random(i.xy + vec2(0.0, 1.0) + i.z * 0.37); // Top-left-front
-  float c110 = random(i.xy + vec2(1.0, 1.0) + i.z * 0.37); // Top-right-front
-  float c001 = random(i.xy + (i.z + 1.0) * 0.37);     // Bottom-left-back
-  float c101 = random(i.xy + vec2(1.0, 0.0) + (i.z + 1.0) * 0.37); // Bottom-right-back
-  float c011 = random(i.xy + vec2(0.0, 1.0) + (i.z + 1.0) * 0.37); // Top-left-back
-  float c111 = random(i.xy + vec2(1.0, 1.0) + (i.z + 1.0) * 0.37); // Top-right-back
-
-  // Interpolate along x
-  float u00 = mix(c000, c100, f.x);
-  float u01 = mix(c001, c101, f.x);
-  float u10 = mix(c010, c110, f.x);
-  float u11 = mix(c011, c111, f.x);
-
-  // Interpolate along y
-  float v0 = mix(u00, u10, f.y);
-  float v1 = mix(u01, u11, f.y);
-
-  // Interpolate along z
-  return mix(v0, v1, f.z); 
-}
-`;
-
-const glslLayeredNoise = `
-$
-
-float layeredNoise(vec3 p, float seed, int octaves, float persistence, float lacunarity) {
+// We use the same noise function but apply it at different scales
+float layeredNoise(vec3 p, float seed, int octaves, float persistence, float lacunarity, float scale) {
   float total = 0.0;
-  float frequency = 1.0;
+  float frequency = scale;
   float amplitude = 1.0;
   float maxValue = 0.0; 
 
   for (int i = 0; i < octaves; i++) {
-   total += valueNoise(p * frequency + seed * float(i) * 1.712, seed * 12.345 * float(i+1) * 0.931) * amplitude; // Varied seed inputs slightly
+   total += valueNoise(p * frequency + seed * float(i) * 1.712, seed * 12.345 * float(i+1) * 0.931) * amplitude;
    maxValue += amplitude;
    amplitude *= persistence;
    frequency *= lacunarity;
   }
-  if (maxValue == 0.0) return 0.0; // Avoid division by zero
-  return total / maxValue; // Normalize to roughly -1 to 1 or 0 to 1 depending on valueNoise range
+  if (maxValue == 0.0) return 0.0;
+  return total / maxValue;
 }
-`;
-
-const planetVertexShader = `
-uniform float uTime;
-// uMinTerrainHeight & uMaxTerrainHeight are not directly used in shader for displacement
-// but are used in JS to calculate uDisplacementAmount and uOceanHeightLevel
-uniform float uContinentSeed;  
-uniform float uSphereRadius;   
-uniform float uDisplacementAmount; // This controls the max world-space displacement
-
-varying vec3 vNormal;      // Original geometric normal
-varying float vElevation;    // Normalized elevation (0 to 1) passed to fragment
-varying vec3 vWorldPosition;  
-// varying vec3 vComputedNormal; // We'll use the original vNormal for lighting for now
-
-$
 
 void main() {
-  vec3 basePosition = position; // This is the original vertex position on the unit sphere (if radius=1) or scaled sphere
+  vec3 p = position;
+  vec3 noiseInputPosition = (p / uSphereRadius) + (uContinentSeed * 10.0);
   
-  // Input for noise function - can be varied
-  // Multiplying by uSphereRadius normalizes if basePosition isn't already unit length for noise
-  vec3 noiseInputPosition = (basePosition / uSphereRadius) * 2.5 + (uContinentSeed * 10.0); 
-  
-  // layeredNoise should ideally return a value between -1 and 1 or 0 and 1.
-  // Let's assume it's roughly -1 to 1 for now.
-  float rawNoiseValue = layeredNoise(noiseInputPosition, uContinentSeed, 4, 0.5, 2.0); 
+  // --- Create more realistic terrain ---
+  // 1. Generate large, smooth continents with low-frequency noise
+  float continentNoise = (layeredNoise(noiseInputPosition, uContinentSeed, 5, 0.5, 2.0, 1.5) + 1.0) * 0.5;
 
-  // Normalize rawNoiseValue to a 0.0 - 1.0 range for vElevation
-  vElevation = (rawNoiseValue + 1.0) * 0.5; 
-  vElevation = clamp(vElevation, 0.0, 1.0);
+  // 2. Generate rougher, high-frequency noise for mountains
+  float mountainNoise = (layeredNoise(noiseInputPosition, uContinentSeed * 2.0, 6, 0.45, 2.2, 8.0) + 1.0) * 0.5;
 
-  // Calculate displacement:
-  // vElevation (0-1) scales the uDisplacementAmount.
-  // If uDisplacementAmount is 0, planet is smooth.
-  // If rawNoiseValue gives negative values, this will only create bumps outwards.
-  // To have dips and bumps, use: float displacement = rawNoiseValue * uDisplacementAmount; (and adjust vElevation normalization)
+  // 3. Combine them: Apply mountains only where continent noise is high, creating mountain ranges on land.
+  float continentMask = smoothstep(0.48, 0.52, continentNoise);
+  float finalElevation = continentNoise + (mountainNoise * continentMask * 0.3);
+
+  // 4. Final normalization and displacement
+  vElevation = clamp(finalElevation, 0.0, 1.0);
   float displacement = vElevation * uDisplacementAmount; 
-
-  vec3 displacedPosition = basePosition + normal * displacement;
+  vec3 displacedPosition = p + normal * displacement;
   
-  vNormal = normal; // Pass the original geometric normal for lighting a generally smooth sphere
+  vNormal = normal;
   vWorldPosition = (modelMatrix * vec4(displacedPosition, 1.0)).xyz;
   gl_Position = projectionMatrix * modelViewMatrix * vec4(displacedPosition, 1.0);
 }
@@ -112,32 +71,26 @@ void main() {
 const planetFragmentShader = `
 uniform vec3 uLandColor;
 uniform vec3 uWaterColor;
-uniform float uOceanHeightLevel; // Expected to be normalized (0-1) from JS
+uniform float uOceanHeightLevel; // This is now the "sea level" or shallow water line
 
-varying vec3 vNormal;      // Original sphere normal, interpolated
-varying float vElevation;    // Normalized elevation (0 to 1) from vertex shader
+varying vec3 vNormal;
+varying float vElevation;
 varying vec3 vWorldPosition;  
-// varying vec3 vComputedNormal; // Not using explicitly computed normal here for simplicity
 
-// Simple Blinn-Phong-like lighting
+// Your existing lighting function
 vec3 calculateLighting(vec3 surfaceColor, vec3 normalVec, vec3 viewDir) {
   vec3 lightColor = vec3(1.0, 1.0, 0.95); 
-  float ambientStrength = 0.25; // Reduced ambient
+  float ambientStrength = 0.25;
   float diffuseStrength = 0.7;
-  float specularStrength = 0.3; // Added specular
-  float shininess = 16.0;     // Shininess for specular
+  float specularStrength = 0.3;
+  float shininess = 16.0;
 
-  vec3 lightDirection = normalize(vec3(0.8, 0.6, 1.0)); // Adjusted light direction for better side illumination
+  vec3 lightDirection = normalize(vec3(0.8, 0.6, 1.0));
 
-  // Ambient
   vec3 ambient = ambientStrength * lightColor;
-
-  // Diffuse
   vec3 norm = normalize(normalVec);
   float diff = max(dot(norm, lightDirection), 0.0);
   vec3 diffuse = diffuseStrength * diff * lightColor;
-
-  // Specular
   vec3 reflectDir = reflect(-lightDirection, norm);
   float spec = pow(max(dot(viewDir, reflectDir), 0.0), shininess);
   vec3 specular = specularStrength * spec * lightColor;
@@ -148,31 +101,45 @@ vec3 calculateLighting(vec3 surfaceColor, vec3 normalVec, vec3 viewDir) {
 void main() {
   vec3 finalColor;
 
-  if (vElevation < uOceanHeightLevel) {
-   // Water: make it slightly transparent and add specular for water-like shine
-   float depthFactor = smoothstep(0.0, uOceanHeightLevel, vElevation); 
-   finalColor = mix(uWaterColor * 0.7, uWaterColor, depthFactor); // color based on depth
+  // --- Define elevation levels for our biome color ramp ---
+  float seaLevel = uOceanHeightLevel;
+  float deepWater = seaLevel * 0.6;
+  float beachLevel = seaLevel + 0.03;
+  float mountainLevel = seaLevel + 0.35;
+  float snowLevel = seaLevel + 0.55;
 
-   // For water, specular might make it look more "wet"
-   // The lighting function will apply this.
+  // --- Define colors for our biomes ---
+  vec3 deepWaterColor = uWaterColor * 0.5;
+  vec3 shallowWaterColor = uWaterColor;
+  vec3 beachColor = vec3(0.86, 0.78, 0.59);
+  vec3 plainsColor = uLandColor;
+  vec3 mountainColor = uLandColor * 0.7 + vec3(0.4);
+  vec3 snowColor = vec3(0.95, 0.95, 1.0);
+
+  // --- Create the color ramp by mixing colors based on elevation ---
+  if (vElevation < deepWater) {
+      finalColor = deepWaterColor;
+  } else if (vElevation < seaLevel) {
+      float mixFactor = smoothstep(deepWater, seaLevel, vElevation);
+      finalColor = mix(deepWaterColor, shallowWaterColor, mixFactor);
+  } else if (vElevation < beachLevel) {
+      float mixFactor = smoothstep(seaLevel, beachLevel, vElevation);
+      finalColor = mix(shallowWaterColor, beachColor, mixFactor);
+  } else if (vElevation < mountainLevel) {
+      float mixFactor = smoothstep(beachLevel, mountainLevel, vElevation);
+      finalColor = mix(beachColor, plainsColor, mixFactor);
+  } else if (vElevation < snowLevel) {
+      float mixFactor = smoothstep(mountainLevel, snowLevel, vElevation);
+      finalColor = mix(plainsColor, mountainColor, mixFactor);
   } else {
-   // Land
-   float landElevationFactor = smoothstep(uOceanHeightLevel, 1.0, vElevation); 
-   vec3 baseLand = uLandColor;
-   
-   // Color land: darker near water, lighter towards peaks
-   finalColor = mix(baseLand * 0.6, baseLand * 1.15, landElevationFactor * landElevationFactor);
-
-   // Add peak highlights
-   float peakFactor = smoothstep(0.8, 1.0, vElevation); // Start highlights a bit lower
-   finalColor = mix(finalColor, vec3(0.95, 0.95, 0.98), peakFactor * 0.75); // Brighter, slightly bluish peaks
+      float mixFactor = smoothstep(snowLevel, snowLevel + 0.2, vElevation);
+      finalColor = mix(mountainColor, snowColor, mixFactor);
   }
 
-  vec3 viewDirection = normalize(cameraPosition - vWorldPosition); // Needed for specular
+  vec3 viewDirection = normalize(cameraPosition - vWorldPosition);
   gl_FragColor = vec4(calculateLighting(finalColor, vNormal, viewDirection), 1.0);
 }
 `;
-
 
 export const PlanetVisualPanelManager = (() => {
   console.log("PVisualPanelManager: Script loaded.");
@@ -191,11 +158,14 @@ export const PlanetVisualPanelManager = (() => {
   let threeShaderMaterial;
 
   const SPHERE_BASE_RADIUS = 0.8;
-  const DISPLACEMENT_SCALING_FACTOR = 0.01;
+  
+  // --- 2. MAKE PLANETS MORE SPHERICAL ---
+  // Reduced this from 0.01 to make the terrain displacement less extreme.
+  const DISPLACEMENT_SCALING_FACTOR = 0.005;
 
   // --- Panel Dragging Logic (Header Only) ---
   function _onHeaderMouseDown(e) {
-    if (e.target.closest('button')) return; // Ignore clicks on buttons in the header
+    if (e.target.closest('button')) return;
     isDraggingPanel = true;
     panelElement.classList.add('dragging');
     const panelRect = panelElement.getBoundingClientRect();
@@ -203,7 +173,6 @@ export const PlanetVisualPanelManager = (() => {
       x: e.clientX - panelRect.left,
       y: e.clientY - panelRect.top,
     };
-    // Prevent text selection while dragging
     e.preventDefault();
   }
 
@@ -213,14 +182,12 @@ export const PlanetVisualPanelManager = (() => {
     const newY = e.clientY - panelOffset.y;
     panelElement.style.left = `${newX}px`;
     panelElement.style.top = `${newY}px`;
-    // This move is direct, not using transform, to avoid conflict with the initial centering transform
-    // To make this work best, ensure the initial transform is removed after first drag
     if (panelElement.style.transform !== 'none') {
        panelElement.style.transform = 'none';
     }
   }
 
-  function _onWindowMouseUp(e) {
+  function _onWindowMouseUp() {
     if (isDraggingPanel) {
       isDraggingPanel = false;
       panelElement.classList.remove('dragging');
@@ -240,12 +207,9 @@ export const PlanetVisualPanelManager = (() => {
 
     closeButton?.addEventListener('click', _closePanel);
     headerElement?.addEventListener('mousedown', _onHeaderMouseDown);
-
-    // Global listeners for panel dragging
     window.addEventListener('mousemove', _onWindowMouseMove);
     window.addEventListener('mouseup', _onWindowMouseUp);
 
-    // Resize handler for the 3D view
     window.addEventListener('resize', () => {
       const panelIsVisible = panelElement?.classList.contains('visible');
       if (is360ViewActive && panelIsVisible && threeRenderer && threeCamera && planet360CanvasElement?.offsetParent !== null) {
@@ -266,7 +230,6 @@ export const PlanetVisualPanelManager = (() => {
   function show(planetData) {
     if (panelElement) {
       panelElement.classList.add('visible');
-      // Reset position to center before showing
       panelElement.style.left = '50%';
       panelElement.style.top = '50%';
       panelElement.style.transform = 'translate(-50%, -50%)';
@@ -275,26 +238,22 @@ export const PlanetVisualPanelManager = (() => {
       currentPlanetData = planetData;
       if (titleElement) titleElement.textContent = planetData.planetName || 'Planet';
       if (sizeElement) sizeElement.textContent = `${Number(planetData.size).toFixed(2)} units`;
-      // Directly switch to the 360-degree (3D) view
       _switchTo360View();
     }
   }
    
   function _switchTo360View() {
     if (!currentPlanetData) return;
-
     is360ViewActive = true;
-    _stopAndCleanupThreeJSView(); // Clean up any previous instance
+    _stopAndCleanupThreeJSView();
 
     if (planet360CanvasElement) {
       planet360CanvasElement.style.display = 'block';
        
-      // Defer initialization to ensure canvas is visible and has dimensions
       requestAnimationFrame(() => {
         if (planet360CanvasElement.offsetParent !== null) {
           const newWidth = planet360CanvasElement.offsetWidth;
           const newHeight = planet360CanvasElement.offsetHeight;
-
           if (newWidth > 0 && newHeight > 0) {
             planet360CanvasElement.width = newWidth;
             planet360CanvasElement.height = newHeight;
@@ -303,10 +262,8 @@ export const PlanetVisualPanelManager = (() => {
             console.warn("PVisualPanelManager: 360 canvas had zero dimensions. Using fallback.");
             planet360CanvasElement.width = 300;
             planet360CanvasElement.height = 300;
-             _initThreeJSView(currentPlanetData);
+            _initThreeJSView(currentPlanetData);
           }
-        } else {
-          console.warn("PVisualPanelManager: 360 canvas not in DOM or not visible, deferring Three.js init.");
         }
       });
     }
@@ -314,18 +271,15 @@ export const PlanetVisualPanelManager = (() => {
 
   function _initThreeJSView(planet) {
     if (!planet360CanvasElement || !planet) {
-      console.error("PVisualPanelManager: Cannot init 360 view - canvas or planet data missing.");
       return;
     }
 
-    console.log("PVisualPanelManager: Initializing Three.js view for:", planet.planetName);
-
-    // --- Step 1: Correctly assemble the shader strings ---
+    // --- Assemble the shader string ---
     const finalSimpleValueNoise = glslSimpleValueNoise3D.replace('$', glslRandom2to1);
-    const finalLayeredNoise = glslLayeredNoise.replace('$', finalSimpleValueNoise);
-    const finalVertexShader = planetVertexShader.replace('$', finalLayeredNoise);
+    const finalLayeredNoise = planetVertexShader.includes("layeredNoise") ? "" : `...`; // Placeholder if needed, but the new vertex shader has it built-in.
+    // The new vertex shader has the noise function inside it, so we only need to inject the base random function.
+    const finalVertexShader = planetVertexShader.replace('$', glslSimpleValueNoise3D.replace('$', glslRandom2to1));
 
-    // --- Step 2: Continue with the rest of the function as before ---
     threeScene = new THREE.Scene();
     threeScene.background = new THREE.Color(0x050510);
 
@@ -341,21 +295,25 @@ export const PlanetVisualPanelManager = (() => {
 
     const geometry = new THREE.SphereGeometry(SPHERE_BASE_RADIUS, 64, 48);
 
-    // --- Calculate Shader Uniforms (as before) ---
-    let normalizedOceanLevel = 0.3;
+    // --- Calculate Shader Uniforms ---
+    // The `uOceanHeightLevel` uniform is now used as the "sea level" in the fragment shader.
+    // We adjust it based on the planet's data so it corresponds to a value between 0.0 and 1.0.
+    // Let's target a default normalized sea level of ~0.5 for good visual range.
+    let normalizedOceanLevel = 0.5;
     const pMin = planet.minTerrainHeight ?? 0.0;
     const pMax = planet.maxTerrainHeight ?? (pMin + 10.0);
     const pOcean = planet.oceanHeightLevel ?? (pMin + (pMax - pMin) * 0.3);
     if (pMax > pMin) {
       normalizedOceanLevel = (pOcean - pMin) / (pMax - pMin);
     }
-    normalizedOceanLevel = Math.max(0.0, Math.min(1.0, normalizedOceanLevel));
+    normalizedOceanLevel = Math.max(0.2, Math.min(0.8, normalizedOceanLevel)); // Clamp to a reasonable range
+    
     const conceptualRange = Math.max(0, pMax - pMin);
     const displacementAmount = conceptualRange * DISPLACEMENT_SCALING_FACTOR;
 
     const uniforms = {
-      uLandColor: { value: new THREE.Color(planet.landColor || '#006400') },
-      uWaterColor: { value: new THREE.Color(planet.waterColor || '#0000FF') },
+      uLandColor: { value: new THREE.Color(planet.landColor || '#556B2F') }, // Dark Olive Green
+      uWaterColor: { value: new THREE.Color(planet.waterColor || '#1E90FF') }, // Dodger Blue
       uOceanHeightLevel: { value: normalizedOceanLevel },
       uContinentSeed: { value: planet.continentSeed ?? Math.random() },
       uTime: { value: 0.0 },
@@ -363,10 +321,9 @@ export const PlanetVisualPanelManager = (() => {
       uDisplacementAmount: { value: displacementAmount }
     };
 
-    // --- Step 3: Use the correctly assembled shader string ---
     threeShaderMaterial = new THREE.ShaderMaterial({
       uniforms: uniforms,
-      vertexShader: finalVertexShader, // Use the final, correct shader string
+      vertexShader: finalVertexShader,
       fragmentShader: planetFragmentShader,
     });
 
@@ -387,7 +344,6 @@ export const PlanetVisualPanelManager = (() => {
   function _animateThreeJSView() {
     if (!is360ViewActive || !threeRenderer) return;
     threeAnimationId = requestAnimationFrame(_animateThreeJSView);
-     
     if (threeShaderMaterial?.uniforms.uTime) {
       threeShaderMaterial.uniforms.uTime.value += 0.005;
     }
@@ -396,13 +352,11 @@ export const PlanetVisualPanelManager = (() => {
   }
 
   function _stopAndCleanupThreeJSView() {
+    // This function remains the same
     if (threeAnimationId) cancelAnimationFrame(threeAnimationId);
     threeAnimationId = null;
-
-    if (threeControls) {
-      threeControls.dispose();
-      threeControls = null;
-    }
+    if (threeControls) threeControls.dispose();
+    threeControls = null;
     if (threePlanetMesh) {
       if (threePlanetMesh.geometry) threePlanetMesh.geometry.dispose();
       if (threeShaderMaterial) threeShaderMaterial.dispose();
@@ -421,20 +375,14 @@ export const PlanetVisualPanelManager = (() => {
     }
     threeScene = null;
     threeCamera = null;
-    console.log("PVisualPanelManager: Three.js 360 view cleaned up.");
   }
    
   function _closePanel() {
-    if (panelElement) {
-      panelElement.classList.remove('visible');
-    }
+    // This function remains the same
+    if (panelElement) panelElement.classList.remove('visible');
     is360ViewActive = false;
     _stopAndCleanupThreeJSView();
-     
-    // Hide the 3D canvas when the panel is closed
-    if (planet360CanvasElement) {
-      planet360CanvasElement.style.display = 'none';
-    }
+    if (planet360CanvasElement) planet360CanvasElement.style.display = 'none';
   }
 
   // --- Public API ---

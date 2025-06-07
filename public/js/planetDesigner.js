@@ -38,6 +38,7 @@ float valueNoise(vec3 p, float seed) {
 }
 `;
 
+// CORRECTED VERSION: This shader has all the detail logic.
 const planetVertexShader = `
 uniform float uTime;
 uniform float uContinentSeed;
@@ -77,9 +78,8 @@ void main() {
   
   float mountainNoise = (layeredNoise(noiseInputPosition, uContinentSeed * 2.0, 6, 0.45, 2.2, 8.0) + 1.0) * 0.5;
   float continentMask = smoothstep(0.48, 0.52, continentNoise);
-
+  
   float islandNoise = (layeredNoise(noiseInputPosition, uContinentSeed * 3.0, 7, 0.5, 2.5, 18.0) + 1.0) * 0.5;
-  // Create a mask to place islands only in the ocean
   float oceanMask = 1.0 - continentMask;
 
   float finalElevation = continentNoise 
@@ -167,7 +167,6 @@ void main() {
 export const PlanetDesigner = (() => {
   console.log("PlanetDesigner.js: Script loaded.");
 
-  // DOM Elements
   let designerPlanetCanvas, designerWaterColorInput, designerLandColorInput,
     designerMinHeightMinInput, designerMinHeightMaxInput,
     designerMaxHeightMinInput, designerMaxHeightMaxInput,
@@ -175,11 +174,9 @@ export const PlanetDesigner = (() => {
     savedDesignsUl, designerRandomizeBtn, designerSaveBtn, designerCancelBtn,
     designerContinentSharpnessInput, designerContinentSharpnessValue;
 
-  // Constants
   const DISPLACEMENT_SCALING_FACTOR = 0.005;
   const SPHERE_BASE_RADIUS = 0.8;
 
-  // State
   let currentDesignerBasis = {
     waterColor: '#1E90FF',
     landColor: '#556B2F',
@@ -190,31 +187,30 @@ export const PlanetDesigner = (() => {
     oceanHeightRange: [1.0, 3.0]
   };
   
-  // Three.js State
   let designerThreeScene, designerThreeCamera, designerThreeRenderer,
     designerThreePlanetMesh, designerThreeControls, designerThreeAnimationId,
     designerShaderMaterial;
     
-    function _initDesignerThreeJSView() {
-        if (!designerPlanetCanvas) return;
+  function _initDesignerThreeJSView() {
+    if (!designerPlanetCanvas) return;
 
-        const noiseFunctions = glslSimpleValueNoise3D.replace('$', glslRandom2to1);
-        const finalVertexShader = planetVertexShader.replace('$', noiseFunctions);
+    const noiseFunctions = glslSimpleValueNoise3D.replace('$', glslRandom2to1);
+    const finalVertexShader = planetVertexShader.replace('$', noiseFunctions);
 
-        designerThreeScene = new THREE.Scene();
-        designerThreeScene.background = new THREE.Color(0x1a1a2a);
-        
-        const aspectRatio = designerPlanetCanvas.offsetWidth / designerPlanetCanvas.offsetHeight;
-        designerThreeCamera = new THREE.PerspectiveCamera(60, aspectRatio, 0.1, 100);
-        designerThreeCamera.position.z = 2.5; // Starts zoomed out
-
-        designerThreeRenderer = new THREE.WebGLRenderer({ canvas: designerPlanetCanvas, antialias: true });
-        designerThreeRenderer.setSize(designerPlanetCanvas.offsetWidth, designerPlanetCanvas.offsetHeight);
-        designerThreeRenderer.setPixelRatio(window.devicePixelRatio);
+    designerThreeScene = new THREE.Scene();
+    designerThreeScene.background = new THREE.Color(0x1a1a2a);
     
-        const geometry = new THREE.SphereGeometry(SPHERE_BASE_RADIUS, 512, 256);
+    const aspectRatio = designerPlanetCanvas.offsetWidth / designerPlanetCanvas.offsetHeight;
+    designerThreeCamera = new THREE.PerspectiveCamera(60, aspectRatio, 0.1, 100);
+    designerThreeCamera.position.z = 2.5;
+
+    designerThreeRenderer = new THREE.WebGLRenderer({ canvas: designerPlanetCanvas, antialias: true });
+    designerThreeRenderer.setSize(designerPlanetCanvas.offsetWidth, designerPlanetCanvas.offsetHeight);
+    designerThreeRenderer.setPixelRatio(window.devicePixelRatio);
     
-        const uniforms = {
+    const geometry = new THREE.SphereGeometry(SPHERE_BASE_RADIUS, 512, 256);
+    
+    const uniforms = {
         uLandColor: { value: new THREE.Color() },
         uWaterColor: { value: new THREE.Color() },
         uOceanHeightLevel: { value: 0.5 },
@@ -225,25 +221,24 @@ export const PlanetDesigner = (() => {
         uDisplacementAmount: { value: 0.0 }
     };
 
-        designerShaderMaterial = new THREE.ShaderMaterial({
-            uniforms: uniforms,
-            vertexShader: finalVertexShader,
-            fragmentShader: planetFragmentShader,
-        });
+    designerShaderMaterial = new THREE.ShaderMaterial({
+      uniforms: uniforms,
+      vertexShader: finalVertexShader,
+      fragmentShader: planetFragmentShader,
+    });
 
-        designerThreePlanetMesh = new THREE.Mesh(geometry, designerShaderMaterial);
-        designerThreeScene.add(designerThreePlanetMesh);
+    designerThreePlanetMesh = new THREE.Mesh(geometry, designerShaderMaterial);
+    designerThreeScene.add(designerThreePlanetMesh);
 
-        designerThreeControls = new OrbitControls(designerThreeCamera, designerThreeRenderer.domElement);
-        designerThreeControls.enableDamping = true;
-        designerThreeControls.dampingFactor = 0.1;
+    designerThreeControls = new OrbitControls(designerThreeCamera, designerThreeRenderer.domElement);
+    designerThreeControls.enableDamping = true;
+    designerThreeControls.dampingFactor = 0.1;
+    designerThreeControls.minDistance = 0.9;
+    designerThreeControls.maxDistance = 4;
 
-        designerThreeControls.minDistance = 0.9;
-        
-        designerThreeControls.maxDistance = 4;
+    _animateDesignerThreeJSView();
+  }
 
-        _animateDesignerThreeJSView();
-    }
   function _animateDesignerThreeJSView() {
     if (!designerThreeRenderer) return;
     designerThreeAnimationId = requestAnimationFrame(_animateDesignerThreeJSView);
@@ -291,17 +286,14 @@ export const PlanetDesigner = (() => {
   function _updateBasisAndRefreshDesignerPreview() {
     if (!designerWaterColorInput || !designerShaderMaterial) return;
 
-    // Read all values from inputs and store them in the basis object
     currentDesignerBasis.waterColor = designerWaterColorInput.value;
     currentDesignerBasis.landColor = designerLandColorInput.value;
     currentDesignerBasis.continentSharpness = parseFloat(designerContinentSharpnessInput.value);
     
-    // Use the average of the ranges for the live preview
     const previewMinHeight = (parseFloat(designerMinHeightMinInput.value) + parseFloat(designerMinHeightMaxInput.value)) / 2;
     const previewMaxHeight = (parseFloat(designerMaxHeightMinInput.value) + parseFloat(designerMaxHeightMaxInput.value)) / 2;
     const previewOceanHeight = (parseFloat(designerOceanHeightMinInput.value) + parseFloat(designerOceanHeightMaxInput.value)) / 2;
 
-    // Update all shader uniforms from the basis
     const uniforms = designerShaderMaterial.uniforms;
     uniforms.uWaterColor.value.set(currentDesignerBasis.waterColor);
     uniforms.uLandColor.value.set(currentDesignerBasis.landColor);
@@ -342,7 +334,6 @@ export const PlanetDesigner = (() => {
       const designName = prompt("Enter a name for this planet design:", "My Custom Planet");
       if (!designName?.trim()) return;
       
-      // Save all properties from the basis, including the new sharpness
       const newDesign = { 
           designId: _generateUUID(), 
           designName: designName.trim(), 
@@ -357,7 +348,6 @@ export const PlanetDesigner = (() => {
   function _loadAndPreviewDesign(designId) {
       const designToLoad = window.gameSessionData?.customPlanetDesigns?.find(d => d.designId === designId);
       if (designToLoad) {
-          // Ensure sharpness has a default value if loading an old design
           if(designToLoad.continentSharpness === undefined) designToLoad.continentSharpness = 1.8;
           currentDesignerBasis = { ...JSON.parse(JSON.stringify(designToLoad)) };
           delete currentDesignerBasis.designId;
@@ -390,7 +380,6 @@ export const PlanetDesigner = (() => {
 
   return {
     init: () => {
-      // Get all DOM elements
       designerPlanetCanvas = document.getElementById('designer-planet-canvas');
       designerWaterColorInput = document.getElementById('designer-water-color');
       designerLandColorInput = document.getElementById('designer-land-color');
@@ -407,7 +396,6 @@ export const PlanetDesigner = (() => {
       designerSaveBtn = document.getElementById('designer-save-btn');
       designerCancelBtn = document.getElementById('designer-cancel-btn');
 
-      // Setup event listeners
       const inputsToWatch = [
         designerWaterColorInput, designerLandColorInput,
         designerMinHeightMinInput, designerMinHeightMaxInput,
@@ -416,7 +404,6 @@ export const PlanetDesigner = (() => {
       ];
       inputsToWatch.forEach(input => input?.addEventListener('change', _updateBasisAndRefreshDesignerPreview));
       
-      // Add specific listener for the new slider
       designerContinentSharpnessInput?.addEventListener('input', () => {
           if(designerContinentSharpnessValue) {
              designerContinentSharpnessValue.textContent = Number(designerContinentSharpnessInput.value).toFixed(1);
@@ -445,7 +432,7 @@ export const PlanetDesigner = (() => {
           const newWidth = designerPlanetCanvas.offsetWidth;
           const newHeight = designerPlanetCanvas.offsetHeight;
           if (newWidth > 0 && newHeight > 0) {
-            designerThreeCamera.aspec = newWidth / newHeight;
+            designerThreeCamera.aspect = newWidth / newHeight;
             designerThreeCamera.updateProjectionMatrix();
             designerThreeRenderer.setSize(newWidth, newHeight);
           }

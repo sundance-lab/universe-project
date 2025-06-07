@@ -43,6 +43,7 @@ uniform float uTime;
 uniform float uContinentSeed;
 uniform float uSphereRadius;
 uniform float uDisplacementAmount;
+uniform float uContinentSharpness;
 
 varying vec3 vNormal;
 varying float vElevation;
@@ -284,7 +285,6 @@ export const PlanetVisualPanelManager = (() => {
       return;
     }
 
-    // --- Correctly and clearly assemble the shader strings ---
     const noiseFunctions = glslSimpleValueNoise3D.replace('$', glslRandom2to1);
     const finalVertexShader = planetVertexShader.replace('$', noiseFunctions);
 
@@ -299,9 +299,10 @@ export const PlanetVisualPanelManager = (() => {
     threeRenderer.setSize(planet360CanvasElement.offsetWidth, planet360CanvasElement.offsetHeight);
     threeRenderer.setPixelRatio(window.devicePixelRatio);
 
-    const geometry = new THREE.SphereGeometry(SPHERE_BASE_RADIUS, 256, 128);
+    // CORRECTED: High-detail geometry
+    const geometry = new THREE.SphereGeometry(SPHERE_BASE_RADIUS, 512, 256);
 
-    // --- Calculate Shader Uniforms ---
+    // This section is correct.
     let normalizedOceanLevel = 0.5;
     const pMin = planet.minTerrainHeight ?? 0.0;
     const pMax = planet.maxTerrainHeight ?? (pMin + 10.0);
@@ -310,7 +311,6 @@ export const PlanetVisualPanelManager = (() => {
       normalizedOceanLevel = (pOcean - pMin) / (pMax - pMin);
     }
     normalizedOceanLevel = Math.max(0.2, Math.min(0.8, normalizedOceanLevel));
-    
     const conceptualRange = Math.max(0, pMax - pMin);
     const displacementAmount = conceptualRange * DISPLACEMENT_SCALING_FACTOR;
 
@@ -319,7 +319,7 @@ export const PlanetVisualPanelManager = (() => {
       uWaterColor: { value: new THREE.Color(planet.waterColor || '#1E90FF') },
       uOceanHeightLevel: { value: normalizedOceanLevel },
       uContinentSeed: { value: planet.continentSeed ?? Math.random() },
-      uContinentSharpness: { value: planet.continentSharpness ?? 1.8 }, // ADD THIS LINE
+      uContinentSharpness: { value: planet.continentSharpness ?? 1.8 },
       uTime: { value: 0.0 },
       uSphereRadius: { value: SPHERE_BASE_RADIUS },
       uDisplacementAmount: { value: displacementAmount }
@@ -338,13 +338,14 @@ export const PlanetVisualPanelManager = (() => {
     threeControls.enableDamping = true;
     threeControls.dampingFactor = 0.05;
     threeControls.screenSpacePanning = false;
-    threeControls.minDistance = SPHERE_BASE_RADIUS * 1.05;
+    
+    threeControls.minDistance = 0.9; 
     threeControls.maxDistance = SPHERE_BASE_RADIUS * 7;
     threeControls.target.set(0, 0, 0);
 
     _animateThreeJSView();
   }
-
+  
   function _animateThreeJSView() {
     if (!is360ViewActive || !threeRenderer) return;
     threeAnimationId = requestAnimationFrame(_animateThreeJSView);

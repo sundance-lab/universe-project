@@ -72,17 +72,19 @@ void main() {
   vec3 p = position;
   vec3 noiseInputPosition = (p / uSphereRadius) + (uContinentSeed * 10.0);
 
-  // Generate base continent noise
   float continentNoise = (layeredNoise(noiseInputPosition, uContinentSeed, 5, 0.5, 2.0, 1.5) + 1.0) * 0.5;
-
-  // Apply sharpness to define continent edges
   continentNoise = pow(continentNoise, uContinentSharpness);
   
-  // Generate mountain details
   float mountainNoise = (layeredNoise(noiseInputPosition, uContinentSeed * 2.0, 6, 0.45, 2.2, 8.0) + 1.0) * 0.5;
-  // Apply mountains primarily on the raised continent areas
   float continentMask = smoothstep(0.48, 0.52, continentNoise);
-  float finalElevation = continentNoise + (mountainNoise * continentMask * 0.3);
+
+  float islandNoise = (layeredNoise(noiseInputPosition, uContinentSeed * 3.0, 7, 0.5, 2.5, 18.0) + 1.0) * 0.5;
+  // Create a mask to place islands only in the ocean
+  float oceanMask = 1.0 - continentMask;
+
+  float finalElevation = continentNoise 
+                       + (mountainNoise * continentMask * 0.3) 
+                       + (islandNoise * oceanMask * 0.1);
 
   vElevation = clamp(finalElevation, 0.0, 1.0);
   float displacement = vElevation * uDisplacementAmount;
@@ -193,25 +195,26 @@ export const PlanetDesigner = (() => {
     designerThreePlanetMesh, designerThreeControls, designerThreeAnimationId,
     designerShaderMaterial;
     
-  function _initDesignerThreeJSView() {
-    if (!designerPlanetCanvas) return;
+    function _initDesignerThreeJSView() {
+        if (!designerPlanetCanvas) return;
 
-    const noiseFunctions = glslSimpleValueNoise3D.replace('$', glslRandom2to1);
-    const finalVertexShader = planetVertexShader.replace('$', noiseFunctions);
+        const noiseFunctions = glslSimpleValueNoise3D.replace('$', glslRandom2to1);
+        const finalVertexShader = planetVertexShader.replace('$', noiseFunctions);
 
-    designerThreeScene = new THREE.Scene();
-    designerThreeScene.background = new THREE.Color(0x1a1a2a);
-    const aspectRatio = designerPlanetCanvas.offsetWidth / designerPlanetCanvas.offsetHeight;
-    designerThreeCamera = new THREE.PerspectiveCamera(60, aspectRatio, 0.1, 100);
-    designerThreeCamera.position.z = 2.5;
+        designerThreeScene = new THREE.Scene();
+        designerThreeScene.background = new THREE.Color(0x1a1a2a);
+        
+        const aspectRatio = designerPlanetCanvas.offsetWidth / designerPlanetCanvas.offsetHeight;
+        designerThreeCamera = new THREE.PerspectiveCamera(60, aspectRatio, 0.1, 100);
+        designerThreeCamera.position.z = 2.5; // Starts zoomed out
 
-    designerThreeRenderer = new THREE.WebGLRenderer({ canvas: designerPlanetCanvas, antialias: true });
-    designerThreeRenderer.setSize(designerPlanetCanvas.offsetWidth, designerPlanetCanvas.offsetHeight);
-    designerThreeRenderer.setPixelRatio(window.devicePixelRatio);
+        designerThreeRenderer = new THREE.WebGLRenderer({ canvas: designerPlanetCanvas, antialias: true });
+        designerThreeRenderer.setSize(designerPlanetCanvas.offsetWidth, designerPlanetCanvas.offsetHeight);
+        designerThreeRenderer.setPixelRatio(window.devicePixelRatio);
     
-const geometry = new THREE.SphereGeometry(SPHERE_BASE_RADIUS, 256, 128);
+        const geometry = new THREE.SphereGeometry(SPHERE_BASE_RADIUS, 512, 256);
     
-    const uniforms = {
+        const uniforms = {
         uLandColor: { value: new THREE.Color() },
         uWaterColor: { value: new THREE.Color() },
         uOceanHeightLevel: { value: 0.5 },
@@ -222,24 +225,25 @@ const geometry = new THREE.SphereGeometry(SPHERE_BASE_RADIUS, 256, 128);
         uDisplacementAmount: { value: 0.0 }
     };
 
-    designerShaderMaterial = new THREE.ShaderMaterial({
-      uniforms: uniforms,
-      vertexShader: finalVertexShader,
-      fragmentShader: planetFragmentShader,
-    });
+        designerShaderMaterial = new THREE.ShaderMaterial({
+            uniforms: uniforms,
+            vertexShader: finalVertexShader,
+            fragmentShader: planetFragmentShader,
+        });
 
-    designerThreePlanetMesh = new THREE.Mesh(geometry, designerShaderMaterial);
-    designerThreeScene.add(designerThreePlanetMesh);
+        designerThreePlanetMesh = new THREE.Mesh(geometry, designerShaderMaterial);
+        designerThreeScene.add(designerThreePlanetMesh);
 
-    designerThreeControls = new OrbitControls(designerThreeCamera, designerThreeRenderer.domElement);
-    designerThreeControls.enableDamping = true;
-    designerThreeControls.dampingFactor = 0.1;
-    designerThreeControls.minDistance = 1;
-    designerThreeControls.maxDistance = 4;
+        designerThreeControls = new OrbitControls(designerThreeCamera, designerThreeRenderer.domElement);
+        designerThreeControls.enableDamping = true;
+        designerThreeControls.dampingFactor = 0.1;
 
-    _animateDesignerThreeJSView();
-  }
+        designerThreeControls.minDistance = 0.9;
+        
+        designerThreeControls.maxDistance = 4;
 
+        _animateDesignerThreeJSView();
+    }
   function _animateDesignerThreeJSView() {
     if (!designerThreeRenderer) return;
     designerThreeAnimationId = requestAnimationFrame(_animateDesignerThreeJSView);

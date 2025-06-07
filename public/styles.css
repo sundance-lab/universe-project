@@ -257,15 +257,6 @@ body {
   }
 }
 
-#solar-system-orbit-canvas { /* Canvas for drawing orbits */
-  position: absolute;
-  top: 50%;
-  left: 50%;
-  transform: translate(-50%, -50%); /* Center it within #solar-system-content */
-  pointer-events: none; /* So it doesn't block clicks on planets/sun */
-  z-index: 3; /* Between sun (0 or 1) and planets (4) */
-}
-
 .controls-overlay {
   position: fixed; /* Stays in place regardless of page scroll (though body overflow is hidden) */
   top: 0;

@@ -60,28 +60,41 @@ const glslLayeredNoise = `
 
 const planetVertexShader = `
   uniform float uTime;
-  uniform float uMinTerrainHeight;  
-  uniform float uMaxTerrainHeight;  
-  uniform float uContinentSeed;     
-  uniform float uSphereRadius;      
-  uniform float uDisplacementScale; 
+  uniform float uMinTerrainHeight;  // Unused if vElevation directly drives displacement logic
+  uniform float uMaxTerrainHeight;  // Unused if vElevation directly drives displacement logic
+  uniform float uContinentSeed;
+  uniform float uSphereRadius;      // We'll use this.
+  uniform float uDisplacementAmount; // NEW: Controls overall bumpiness (0 for smooth, >0 for bumps)
 
   varying vec3 vNormal;
-  varying float vElevation;         
-  varying vec3 vWorldPosition;      
-  varying vec3 vComputedNormal;     
+  varying float vElevation;       // Pass normalized elevation (0 to 1)
+  varying vec3 vWorldPosition;
+  varying vec3 vComputedNormal;    // For lighting
 
-  ${glslLayeredNoise} 
+  ${glslLayeredNoise} // Make sure this and its dependencies are defined above
 
   void main() {
-    vNormal = normal; 
-    vec3 basePosition = position;
-    vec3 noiseInputPosition = basePosition * 2.5 + (uContinentSeed * 10.0); 
-    float noiseValue = layeredNoise(noiseInputPosition, uContinentSeed, 4, 0.5, 2.0); 
-    vElevation = noiseValue; 
-    float actualDisplacement = noiseValue * uDisplacementScale; 
-    vec3 displacedPosition = basePosition + normal * actualDisplacement;
-    vComputedNormal = normalize(normalMatrix * normal); 
+    vComputedNormal = normalize(normalMatrix * normal); // Use original normal for lighting a smooth sphere
+
+    vec3 basePosition = position; // This is already normalized if sphere radius is 1, or scaled to radius
+    
+    // Calculate noise (expected range from layeredNoise: approx -1 to 1, but let's ensure 0-1 for vElevation)
+    vec3 noiseInputPosition = basePosition * 2.5 + (uContinentSeed * 10.0); // Keep your input variation
+    float rawNoiseValue = layeredNoise(noiseInputPosition, uContinentSeed, 4, 0.5, 2.0); 
+
+    // CRITICAL: Ensure vElevation is reliably in 0.0 to 1.0 range for fragment shader
+    vElevation = (rawNoiseValue + 1.0) * 0.5; // Assuming rawNoiseValue is roughly -1 to 1
+    vElevation = clamp(vElevation, 0.0, 1.0);
+
+    // Displacement: vElevation (0-1) * uDisplacementAmount (max visual bump relative to radius)
+    // uDisplacementAmount effectively replaces uDisplacementScale and directly controls the "bump height"
+    float displacement = vElevation * uDisplacementAmount; 
+    // If you want valleys as well as mountains from rawNoiseValue (-1 to 1):
+    // float displacement = rawNoiseValue * uDisplacementAmount; // This can make it dip inwards
+
+    vec3 displacedPosition = basePosition + normal * displacement;
+    
+    vNormal = normal; // Pass the original geometric normal
     vWorldPosition = (modelMatrix * vec4(displacedPosition, 1.0)).xyz;
     gl_Position = projectionMatrix * modelViewMatrix * vec4(displacedPosition, 1.0);
   }
@@ -90,40 +103,54 @@ const planetVertexShader = `
 const planetFragmentShader = `
   uniform vec3 uLandColor;
   uniform vec3 uWaterColor;
-  uniform float uOceanHeightLevel; // Normalized (0-1)
+  uniform float uOceanHeightLevel; // Normalized (0-1) from JS
 
-  varying vec3 vNormal;         
-  varying float vElevation;     
-  varying vec3 vWorldPosition;  
-  varying vec3 vComputedNormal; 
+  varying vec3 vNormal;          // Original sphere normal
+  varying float vElevation;       // Normalized elevation (0 to 1)
+  varying vec3 vWorldPosition;   
+  // varying vec3 vComputedNormal; // We'll use vNormal for simpler lighting on a "smoother" base unless advanced normal recalculation is done
 
-  vec3 calculateLighting(vec3 surfaceColor, vec3 normalVec, vec3 worldPos) {
+  // Simplified lighting
+  vec3 calculateLighting(vec3 surfaceColor, vec3 normalToUse) {
     vec3 lightColor = vec3(1.0, 1.0, 0.95); 
-    float ambientStrength = 0.3;
-    float diffuseStrength = 0.8;
-    vec3 lightDirection = normalize(vec3(1.0, 0.7, 0.8)); 
+    float ambientStrength = 0.35; // Slightly more ambient
+    float diffuseStrength = 0.75; // Slightly less direct diffuse
+    vec3 lightDirection = normalize(vec3(0.8, 0.6, 0.5)); // A common directional light
+
     vec3 ambient = ambientStrength * lightColor;
-    float diff = max(dot(normalize(normalVec), lightDirection), 0.0);
+    float diff = max(dot(normalize(normalToUse), lightDirection), 0.0);
     vec3 diffuse = diffuseStrength * diff * lightColor;
+    
     return (ambient + diffuse) * surfaceColor;
   }
 
   void main() {
     vec3 finalColor;
+
+    // Ensure vElevation is used consistently (should be 0-1 now)
     if (vElevation < uOceanHeightLevel) {
+      // Water: mix based on how close to the ocean surface (vElevation) vs deepest (0.0)
+      // This creates a slight gradient for water depth.
       float depthFactor = smoothstep(0.0, uOceanHeightLevel, vElevation); 
-      finalColor = mix(uWaterColor * 0.7, uWaterColor, depthFactor); 
+      finalColor = mix(uWaterColor * 0.6, uWaterColor, depthFactor); // Darker blue for deeper parts
     } else {
+      // Land: mix based on elevation above water
       float landElevationFactor = smoothstep(uOceanHeightLevel, 1.0, vElevation); 
       vec3 baseLand = uLandColor;
-      finalColor = mix(baseLand, baseLand * 0.5, landElevationFactor * landElevationFactor); 
-      float peakFactor = smoothstep(0.85, 1.0, vElevation); 
-      finalColor = mix(finalColor, vec3(0.95, 0.95, 1.0), peakFactor * 0.8); 
+      
+      // Make land darker at "sea level" and lighter at high elevations
+      finalColor = mix(baseLand * 0.7, baseLand * 1.1, landElevationFactor);
+
+      // Add mountain peak highlights (snowy effect)
+      float peakFactor = smoothstep(0.85, 1.0, vElevation); // Only for top 15% of elevation
+      finalColor = mix(finalColor, vec3(0.9, 0.9, 0.95), peakFactor * 0.7); // Mix with off-white
     }
-    gl_FragColor = vec4(calculateLighting(finalColor, vComputedNormal, vWorldPosition), 1.0);
+
+    // Use the original sphere's normal for lighting to avoid faceted look from displacement
+    // until more advanced normal calculation is in place for the displaced surface.
+    gl_FragColor = vec4(calculateLighting(finalColor, normalize(vNormal)), 1.0);
   }
 `;
-
 
 export const PlanetVisualPanelManager = (() => {
   console.log("PVisualPanelManager: Script loaded.");

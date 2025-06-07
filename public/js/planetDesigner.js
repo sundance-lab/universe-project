@@ -249,21 +249,6 @@ function clampOceanLevel() {
                 });
             });
             
-            const inputsToWatch = [
-                designerWaterColorInput, designerLandColorInput,
-            ];
-            inputsToWatch.forEach(input => input?.addEventListener('input', _updateBasisAndRefreshDesignerPreview));            
-            const liveSliders = [
-                { slider: designerRiverBasinInput, display: designerRiverBasinValue, precision: 2 },
-                { slider: designerForestDensityInput, display: designerForestDensityValue, precision: 2 }
-            ];
-            liveSliders.forEach(({slider, display, precision}) => {
-                slider?.addEventListener('input', () => {
-                    if (display) display.textContent = Number(slider.value).toFixed(precision);
-                    _updateBasisAndRefreshDesignerPreview();
-                });
-            });
-            
             designerRandomizeBtn?.addEventListener('click', _randomizeDesignerPlanet);
             designerSaveBtn?.addEventListener('click', _saveCustomPlanetDesign);
             designerCancelBtn?.addEventListener('click', () => {
@@ -304,12 +289,6 @@ function clampOceanLevel() {
                 _initDesignerThreeJSView();
                 _updateBasisAndRefreshDesignerPreview();
 
-                [designerMinHeightInput, designerMaxHeightInput, designerOceanHeightInput].forEach(input =>
-    input?.addEventListener('input', () => {
-        clampOceanLevel();
-        _updateBasisAndRefreshDesignerPreview();
-    })
-);
             });
         },
     };

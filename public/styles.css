@@ -184,7 +184,7 @@ body {
   transform: translate(-50%, -50%); /* Center the sun within #solar-system-content */
   border-radius: 50%;
   box-sizing: border-box; /* Good for border and padding */
-  z-index: 0; /* Base layer in solar system view, orbits and planets above */
+  z-index: 4; /* Base layer in solar system view, orbits and planets above */
   background: radial-gradient(ellipse at center,
   var(--sun-core-color, #FFEA00) 89%,
   var(--sun-mid-color, #FFD700) 95.6%,

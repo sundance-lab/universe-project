@@ -48,8 +48,9 @@ uniform float uContinentSharpness;
 varying vec3 vNormal;
 varying float vElevation;
 varying vec3 vWorldPosition;
+varying float vRiverValue;
 
-$ // Noise functions are injected here
+$
 
 float layeredNoise(vec3 p, float seed, int octaves, float persistence, float lacunarity, float scale) {
   float total = 0.0;
@@ -67,30 +68,52 @@ float layeredNoise(vec3 p, float seed, int octaves, float persistence, float lac
   return total / maxValue;
 }
 
+float warpedRiverNoise(vec3 p, float seed) {
+    vec3 warp_octave1 = vec3(
+        valueNoise(p * 2.0, seed * 1.7),
+        valueNoise(p * 2.0 + 5.2, seed * 2.1),
+        valueNoise(p * 2.0 - 3.1, seed * 3.3)
+    ) * 2.0 - 1.0;
+
+    vec3 warp_octave2 = vec3(
+        valueNoise(p * 8.0 + warp_octave1 * 0.3, seed * 4.9),
+        valueNoise(p * 8.0 + warp_octave1 * 0.3 + 1.2, seed * 5.3),
+        valueNoise(p * 8.0 + warp_octave1 * 0.3 - 4.1, seed * 6.7)
+    ) * 2.0 - 1.0;
+
+    return layeredNoise(p + warp_octave2 * 0.1, seed, 4, 0.5, 2.0, 32.0);
+}
+
 void main() {
-  vec3 p = position;
-  vec3 noiseInputPosition = (p / uSphereRadius) + (uContinentSeed * 10.0);
+    vec3 p = position;
+    vec3 noiseInputPosition = (p / uSphereRadius) + (uContinentSeed * 10.0);
 
-  float continentNoise = (layeredNoise(noiseInputPosition, uContinentSeed, 5, 0.5, 2.0, 1.5) + 1.0) * 0.5;
-  continentNoise = pow(continentNoise, uContinentSharpness);
-  
-  float mountainNoise = (layeredNoise(noiseInputPosition, uContinentSeed * 2.0, 6, 0.45, 2.2, 8.0) + 1.0) * 0.5;
-  float continentMask = smoothstep(0.48, 0.52, continentNoise);
-  
-  float islandNoise = (layeredNoise(noiseInputPosition, uContinentSeed * 3.0, 7, 0.5, 2.5, 18.0) + 1.0) * 0.5;
-  float oceanMask = 1.0 - continentMask;
+    float continentNoise = (layeredNoise(noiseInputPosition, uContinentSeed, 5, 0.5, 2.0, 1.5) + 1.0) * 0.5;
+    continentNoise = pow(continentNoise, uContinentSharpness);
+    
+    float riverRaw = warpedRiverNoise(noiseInputPosition * 0.5, uContinentSeed * 5.0);
+    float riverBed = smoothstep(0.4, 0.5, riverRaw) * (1.0 - smoothstep(0.5, 0.6, riverRaw));
+    float riverMask = smoothstep(0.5, 0.52, continentNoise) * (1.0 - smoothstep(0.75, 0.8, continentNoise));
+    vRiverValue = riverBed * riverMask;
 
-  float finalElevation = continentNoise 
-                       + (mountainNoise * continentMask * 0.3) 
-                       + (islandNoise * oceanMask * 0.1);
+    float mountainNoise = (layeredNoise(noiseInputPosition, uContinentSeed * 2.0, 6, 0.45, 2.2, 8.0) + 1.0) * 0.5;
+    float continentMask = smoothstep(0.48, 0.52, continentNoise);
+    float islandNoise = (layeredNoise(noiseInputPosition, uContinentSeed * 3.0, 7, 0.5, 2.5, 18.0) + 1.0) * 0.5;
+    float oceanMask = 1.0 - continentMask;
 
-  vElevation = clamp(finalElevation, 0.0, 1.0);
-  float displacement = vElevation * uDisplacementAmount;
-  vec3 displacedPosition = p + normal * displacement;
+    float finalElevation = continentNoise 
+                           + (mountainNoise * continentMask * 0.3) 
+                           + (islandNoise * oceanMask * 0.1);
+    
+    finalElevation -= vRiverValue * 0.04;
 
-  vNormal = normal;
-  vWorldPosition = (modelMatrix * vec4(displacedPosition, 1.0)).xyz;
-  gl_Position = projectionMatrix * modelViewMatrix * vec4(displacedPosition, 1.0);
+    vElevation = clamp(finalElevation, 0.0, 1.0);
+    float displacement = vElevation * uDisplacementAmount;
+    vec3 displacedPosition = p + normal * displacement;
+
+    vNormal = normal;
+    vWorldPosition = (modelMatrix * vec4(displacedPosition, 1.0)).xyz;
+    gl_Position = projectionMatrix * modelViewMatrix * vec4(displacedPosition, 1.0);
 }
 `;
 
@@ -98,10 +121,14 @@ const planetFragmentShader = `
 uniform vec3 uLandColor;
 uniform vec3 uWaterColor;
 uniform float uOceanHeightLevel;
+uniform float uContinentSeed;
 
 varying vec3 vNormal;
 varying float vElevation;
 varying vec3 vWorldPosition;
+varying float vRiverValue;
+
+$
 
 vec3 calculateLighting(vec3 surfaceColor, vec3 normalVec, vec3 viewDir) {
   vec3 lightColor = vec3(1.0, 1.0, 0.95);
@@ -124,36 +151,40 @@ vec3 calculateLighting(vec3 surfaceColor, vec3 normalVec, vec3 viewDir) {
 void main() {
   vec3 finalColor;
 
-  float seaLevel = uOceanHeightLevel;
-  float deepWater = seaLevel * 0.6;
-  float beachLevel = seaLevel + 0.03;
-  float mountainLevel = seaLevel + 0.35;
-  float snowLevel = seaLevel + 0.55;
-
   vec3 deepWaterColor = uWaterColor * 0.5;
   vec3 shallowWaterColor = uWaterColor;
   vec3 beachColor = vec3(0.86, 0.78, 0.59);
   vec3 plainsColor = uLandColor;
+  vec3 forestColor = uLandColor * 0.65;
   vec3 mountainColor = uLandColor * 0.7 + vec3(0.4);
   vec3 snowColor = vec3(0.95, 0.95, 1.0);
 
-  if (vElevation < deepWater) {
-      finalColor = deepWaterColor;
-  } else if (vElevation < seaLevel) {
-      float mixFactor = smoothstep(deepWater, seaLevel, vElevation);
-      finalColor = mix(deepWaterColor, shallowWaterColor, mixFactor);
+  float seaLevel = uOceanHeightLevel;
+  float beachLevel = seaLevel + 0.02;
+  float forestLine = seaLevel + 0.35;
+  float mountainLine = seaLevel + 0.45;
+  float snowLine = seaLevel + 0.60;
+
+  if (vElevation < seaLevel) {
+      finalColor = mix(deepWaterColor, shallowWaterColor, smoothstep(seaLevel - 0.2, seaLevel, vElevation));
   } else if (vElevation < beachLevel) {
-      float mixFactor = smoothstep(seaLevel, beachLevel, vElevation);
-      finalColor = mix(shallowWaterColor, beachColor, mixFactor);
-  } else if (vElevation < mountainLevel) {
-      float mixFactor = smoothstep(beachLevel, mountainLevel, vElevation);
-      finalColor = mix(beachColor, plainsColor, mixFactor);
-  } else if (vElevation < snowLevel) {
-      float mixFactor = smoothstep(mountainLevel, snowLevel, vElevation);
-      finalColor = mix(plainsColor, mountainColor, mixFactor);
+      finalColor = mix(shallowWaterColor, beachColor, smoothstep(seaLevel, beachLevel, vElevation));
+  } else if (vElevation < forestLine) {
+      finalColor = mix(beachColor, plainsColor, smoothstep(beachLevel, forestLine, vElevation));
+  } else if (vElevation < mountainLine) {
+      finalColor = mix(plainsColor, mountainColor, smoothstep(forestLine, mountainLine, vElevation));
   } else {
-      float mixFactor = smoothstep(snowLevel, snowLevel + 0.2, vElevation);
-      finalColor = mix(mountainColor, snowColor, mixFactor);
+      finalColor = mix(mountainColor, snowColor, smoothstep(mountainLine, snowLine, vElevation));
+  }
+
+  if (vElevation > beachLevel && vElevation < mountainLine) {
+    float forestNoise = valueNoise(vWorldPosition * 25.0, uContinentSeed * 4.0);
+    float forestMask = smoothstep(0.4, 0.6, forestNoise);
+    finalColor = mix(finalColor, forestColor, forestMask);
+  }
+
+  if (vRiverValue > 0.1) {
+      finalColor = mix(finalColor, shallowWaterColor * 0.8, vRiverValue);
   }
 
   vec3 viewDirection = normalize(cameraPosition - vWorldPosition);
@@ -192,6 +223,7 @@ export const PlanetDesigner = (() => {
 
     const noiseFunctions = glslSimpleValueNoise3D.replace('$', glslRandom2to1);
     const finalVertexShader = planetVertexShader.replace('$', noiseFunctions);
+    const finalFragmentShader = planetFragmentShader.replace('$', noiseFunctions);
 
     designerThreeScene = new THREE.Scene();
     designerThreeScene.background = new THREE.Color(0x1a1a2a);
@@ -218,7 +250,7 @@ export const PlanetDesigner = (() => {
     designerShaderMaterial = new THREE.ShaderMaterial({
       uniforms: uniforms,
       vertexShader: finalVertexShader,
-      fragmentShader: planetFragmentShader,
+      fragmentShader: finalFragmentShader,
     });
     
     designerThreeLOD = new THREE.LOD();
@@ -233,12 +265,12 @@ export const PlanetDesigner = (() => {
         const mesh = new THREE.Mesh(geometry, designerShaderMaterial);
         designerThreeLOD.addLevel(mesh, level.distance);
     });
-
     designerThreeScene.add(designerThreeLOD);
 
     designerThreeControls = new OrbitControls(designerThreeCamera, designerThreeRenderer.domElement);
     designerThreeControls.enableDamping = true;
     designerThreeControls.dampingFactor = 0.1;
+    designerThreeControls.rotateSpeed = 0.5;
     designerThreeControls.minDistance = 0.9;
     designerThreeControls.maxDistance = 4;
 
@@ -251,7 +283,7 @@ export const PlanetDesigner = (() => {
     if (designerShaderMaterial?.uniforms.uTime) {
       designerShaderMaterial.uniforms.uTime.value += 0.015;
     }
-    if (designerThreeLOD) designerThreeLOD.update(designerThreeCamera); // Update LOD
+    if (designerThreeLOD) designerThreeLOD.update(designerThreeCamera);
     if (designerThreeControls) designerThreeControls.update();
     if (designerThreeScene && designerThreeCamera) {
       designerThreeRenderer.render(designerThreeScene, designerThreeCamera);
@@ -262,7 +294,6 @@ export const PlanetDesigner = (() => {
     if (designerThreeAnimationId) cancelAnimationFrame(designerThreeAnimationId);
     if (designerThreeControls) designerThreeControls.dispose();
     if (designerShaderMaterial) designerShaderMaterial.dispose();
-
     if (designerThreeLOD) {
         designerThreeLOD.traverse(function(object) {
             if (object.isMesh && object.geometry) {
@@ -271,7 +302,6 @@ export const PlanetDesigner = (() => {
         });
         if(designerThreeScene) designerThreeScene.remove(designerThreeLOD);
     }
-
     if (designerThreeRenderer) designerThreeRenderer.dispose();
     designerThreeAnimationId = null;
     designerThreeControls = null;

@@ -491,6 +491,32 @@ function _switchTo360View() {
   }
   if (enter360ViewButton) enter360ViewButton.textContent = "Show 2D Preview"; // Text adjustment
 }
+
+  function _closePanel() {
+  if (panelElement) {
+    panelElement.classList.remove('visible');
+  }
+  is360ViewActive = false;
+  _stopAndCleanupThreeJSView();
+  if (planetPreviewCanvasElement) planetPreviewCanvasElement.style.display = 'block';
+  if (planet360CanvasElement) planet360CanvasElement.style.display = 'none';
+  if (enter360ViewButton) enter360ViewButton.textContent = "Show 3D View";
+}
+
+function handleWorkerMessage(event) {
+  // Example: updating the preview canvas with data from a worker
+  if (!planetPreviewCanvasElement) return;
+  const { data } = event;
+  if (data.type === 'planetVisualRender' && data.canvasId === 'planet-visual-panel-preview-canvas') {
+    const ctx = planetPreviewCanvasElement.getContext('2d');
+    if (ctx && data.imageBitmap) {
+      ctx.clearRect(0, 0, planetPreviewCanvasElement.width, planetPreviewCanvasElement.height);
+      ctx.drawImage(data.imageBitmap, 0, 0);
+      isRenderingPreview = false;
+    }
+  }
+}
+  
     // Add this at the end of your module, before closing the IIFE
   return {
     init,

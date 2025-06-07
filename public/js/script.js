@@ -562,32 +562,79 @@ document.addEventListener('DOMContentLoaded', () => {
         };
     }
 
-    function switchToGalaxyDetailView(galaxyId) {
-        const galaxy = window.gameSessionData.galaxies.find(g => g.id === galaxyId);
-        if (!galaxy) {
-            console.warn(`switchToGalaxyDetailView: Galaxy ${galaxyId} not found. Switching to main view.`);
-            return switchToMainView();
-        }
+ function switchToGalaxyDetailView(galaxyId) {
+    const galaxy = window.gameSessionData.galaxies.find(g => g.id === galaxyId);
+    if (!galaxy) {
+        console.warn(`switchToGalaxyDetailView: Galaxy ${galaxyId} not found. Switching to main view.`);
+        return switchToMainView();
+    }
 
-        window.gameSessionData.activeGalaxyId = galaxyId;
-        window.gameSessionData.activeSolarSystemId = null;
-        stopSolarSystemAnimation();
-        setActiveScreen(galaxyDetailScreen);
+    window.gameSessionData.activeGalaxyId = galaxyId;
+    const galaxyNumDisplay = galaxy.id.split('-').pop();
+    if (backToGalaxyButton) {
+        backToGalaxyButton.textContent = galaxy.customName ? `← ${galaxy.customName}` : `← Galaxy ${galaxyNumDisplay}`;
+    }
+    
+    if (window.PlanetVisualPanelManager?.isVisible()) {
+        window.PlanetVisualPanelManager.hide();
+    }
+    
+    window.gameSessionData.activeSolarSystemId = null;
+    stopSolarSystemAnimation();
 
-        const galaxyNumDisplay = galaxy.id.split('-').pop();
-        if (backToGalaxyButton) {
+    galaxy.currentZoom = galaxy.currentZoom || 1.0;
+    galaxy.currentPanX = galaxy.currentPanX || 0;
+    galaxy.currentPanY = galaxy.currentPanY || 0;
+
+    if (galaxyDetailTitleText) {
+        galaxyDetailTitleText.textContent = galaxy.customName || `Galaxy ${galaxyNumDisplay}`;
+        galaxyDetailTitleText.style.display = 'inline-block';
+    }
+    if (galaxyDetailTitleInput) galaxyDetailTitleInput.style.display = 'none';
+    
+    setActiveScreen(galaxyDetailScreen);
+
+    makeTitleEditable(galaxyDetailTitleText, galaxyDetailTitleInput, (newName) => {
+        galaxy.customName = newName || null;
+        window.saveGameState();
+        renderMainScreen();
+        if (window.gameSessionData.activeSolarSystemId?.startsWith(galaxy.id) && backToGalaxyButton) {
             backToGalaxyButton.textContent = galaxy.customName ? `← ${galaxy.customName}` : `← Galaxy ${galaxyNumDisplay}`;
         }
+        return galaxy.customName || `Galaxy ${galaxyNumDisplay}`;
+    });
 
-        makeTitleEditable(galaxyDetailTitleText, galaxyDetailTitleInput, (newName) => {
-            galaxy.customName = newName || null;
-            window.saveGameState();
-            renderMainScreen();
-            return galaxy.customName || `Galaxy ${galaxyNumDisplay}`;
-        });
+    if (galaxyViewport && window.gameSessionData.universe.diameter) {
+        galaxyViewport.style.width = `${window.gameSessionData.universe.diameter}px`;
+        galaxyViewport.style.height = `${window.gameSessionData.universe.diameter}px`;
+    }
 
+    // --- RESTORED LOGIC ---
+    // This block checks if the solar systems for this galaxy have been generated.
+    // If not, it generates them before rendering. This is the part that was missing.
+    if (!galaxy.layoutGenerated) {
+        console.log(`switchToGalaxyDetailView: Galaxy ${galaxy.id} layout not generated. Generating now.`);
+        // Use a small timeout to ensure the viewport has dimensions before generation
+        setTimeout(() => {
+            function attemptGeneration(retriesLeft = 5) {
+                if (galaxyViewport?.offsetWidth > 0) {
+                    generateSolarSystemsForGalaxy(galaxyId);
+                    renderGalaxyDetailScreen(false);
+                } else if (retriesLeft > 0) {
+                    requestAnimationFrame(() => attemptGeneration(retriesLeft - 1));
+                } else {
+                    console.warn("switchToGalaxyDetailView: galaxyViewport did not get dimensions after retries.");
+                    galaxy.layoutGenerated = true; // Mark as done to prevent loops
+                    renderGalaxyDetailScreen(false);
+                }
+            }
+            attemptGeneration();
+        }, 50); // 50ms delay
+    } else {
+        // If already generated, just render it.
         renderGalaxyDetailScreen(false);
     }
+}
 
     function switchToSolarSystemView(solarSystemId) {
         window.gameSessionData.activeSolarSystemId = solarSystemId;

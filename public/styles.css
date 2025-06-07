@@ -542,16 +542,35 @@ body {
 .saved-designs-list h4 { margin-top: 0; margin-bottom: 10px; color: #bdc3c7; }
 
 #saved-designs-ul {
-  list-style: none; padding: 0; max-height: 200px; overflow-y: auto;
-  border: 1px solid #34495e; border-radius: 4px; background-color: #34495e;
+  list-style: none;
+  padding: 0;
+  max-height: 200px;
+  overflow-y: auto;
+  border: 1px solid #34495e;
+  border-radius: 4px;
+  background-color: #34495e;
+  scrollbar-width: thin;
+  scrollbar-color: #5a7d9b #34495e;
 }
 
 #saved-designs-ul li {
-  padding: 8px 10px; border-bottom: 1px solid #2c3e50;
-  display: flex; justify-content: space-between; align-items: center;
+  padding: 8px 10px;
+  border-bottom: 1px solid #2c3e50;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
 }
 #saved-designs-ul li:last-child { border-bottom: none; }
 #saved-designs-ul li:hover { background-color: #3b5062; }
+
+#saved-designs-ul::-webkit-scrollbar {
+  width: 8px;
+  background: #34495e;
+}
+#saved-designs-ul::-webkit-scrollbar-thumb {
+  background: #5a7d9b;
+  border-radius: 4px;
+}
 
 .design-item-name { flex-grow: 1; }
 .design-item-load {

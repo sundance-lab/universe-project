@@ -398,27 +398,121 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     }
 
-    function generateSolarSystemsForGalaxy(galaxyId) {
-        const galaxy = window.gameSessionData.galaxies.find(g => g.id === galaxyId);
-        if (!galaxy) {
-            console.warn(`generateSolarSystemsForGalaxy: Galaxy ${galaxyId} not found.`);
-            return;
+  function generateSolarSystemsForGalaxy(galaxyId) {
+    const galaxy = window.gameSessionData.galaxies.find(g => g.id === galaxyId);
+    if (!galaxy) {
+      console.warn(`generateSolarSystemsForGalaxy: Galaxy ${galaxyId} not found.`);
+      return;
+    }
+
+    if (galaxy.layoutGenerated && !window.gameSessionData.isForceRegenerating) {
+      return;
+    }
+
+    const galaxyContentDiameter = galaxyViewport.offsetWidth > 0 ? galaxyViewport.offsetWidth : (window.gameSessionData.universe.diameter || 500);
+    const galaxyContentRadius = galaxyContentDiameter / 2;
+
+    if (galaxyContentRadius <= 0) {
+      console.warn(`generateSolarSystemsForGalaxy: Invalid content dimensions for galaxy ${galaxy.id}. Diameter: ${galaxyContentDiameter}`);
+      galaxy.layoutGenerated = true;
+      if (!window.gameSessionData.isForceRegenerating) window.saveGameState();
+      return;
+    }
+
+    galaxy.solarSystems = [];
+    galaxy.lineConnections = [];
+    const solarSystemPlacementRects = [];
+    const numSystemsToAttempt = Math.floor(Math.random() * (currentMaxSSCount - currentMinSSCount + 1)) + currentMinSSCount;
+
+    for (let i = 0; i < numSystemsToAttempt; i++) {
+        const solarSystemId = `${galaxy.id}-ss-${i + 1}`;
+        const position = getNonOverlappingPositionInCircle(galaxyContentRadius, SOLAR_SYSTEM_BASE_ICON_SIZE, solarSystemPlacementRects);
+        if (position) {
+            const sunSizeFactor = 0.5 + Math.random() * 9.5;
+            galaxy.solarSystems.push({
+                id: solarSystemId, customName: null, x: position.x, y: position.y,
+                iconSize: SOLAR_SYSTEM_BASE_ICON_SIZE, sunSizeFactor: sunSizeFactor,
+            });
+            solarSystemPlacementRects.push({ ...position, width: SOLAR_SYSTEM_BASE_ICON_SIZE, height: SOLAR_SYSTEM_BASE_ICON_SIZE });
         }
+    }
 
-        if (galaxy.layoutGenerated && !window.gameSessionData.isForceRegenerating) {
-            return;
+    if (galaxy.solarSystems.length < 2) {
+        galaxy.layoutGenerated = true;
+        if (!window.gameSessionData.isForceRegenerating) window.saveGameState();
+        return;
+    }
+
+    // --- RESTORED LOGIC START ---
+    const systemsWithCenters = galaxy.solarSystems.map(ss => ({
+        ...ss, centerX: ss.x + ss.iconSize / 2, centerY: ss.y + ss.iconSize / 2
+    }));
+
+    const systemConnectionCounts = {};
+    const allowedMaxEuclideanDist = galaxyContentDiameter * MAX_EUCLIDEAN_CONNECTION_DISTANCE_PERCENT;
+
+    // Minimum Spanning Tree-like algorithm to ensure all systems are connected
+    let connectedSystemIds = new Set();
+    let unconnectedSystemIds = new Set(systemsWithCenters.map(s => s.id));
+
+    if (systemsWithCenters.length > 0) {
+        const firstSystem = systemsWithCenters[0];
+        connectedSystemIds.add(firstSystem.id);
+        unconnectedSystemIds.delete(firstSystem.id);
+        
+        while (unconnectedSystemIds.size > 0) {
+            let bestConnection = { fromId: null, toId: null, dist: Infinity };
+            for (const unconnectedId of unconnectedSystemIds) {
+                const currentUnconnectedSys = systemsWithCenters.find(s => s.id === unconnectedId);
+                for (const connectedId of connectedSystemIds) {
+                    const currentConnectedSys = systemsWithCenters.find(s => s.id === connectedId);
+                    const dist = getDistance(currentUnconnectedSys, currentConnectedSys);
+                    if (dist < bestConnection.dist) {
+                        bestConnection = { fromId: connectedId, toId: unconnectedId, dist };
+                    }
+                }
+            }
+            
+            if (bestConnection.toId) {
+                const { fromId, toId } = bestConnection;
+                galaxy.lineConnections.push({ fromId, toId });
+                systemConnectionCounts[fromId] = (systemConnectionCounts[fromId] || 0) + 1;
+                systemConnectionCounts[toId] = (systemConnectionCounts[toId] || 0) + 1;
+                connectedSystemIds.add(toId);
+                unconnectedSystemIds.delete(toId);
+            } else {
+                break; // Should not happen in a connected graph
+            }
         }
+    }
+    
+    // Add additional redundant connections for a more web-like look
+    systemsWithCenters.forEach(sys1 => {
+        let connectionsToAdd = getWeightedNumberOfConnections() - (systemConnectionCounts[sys1.id] || 0);
+        if (connectionsToAdd <= 0) return;
 
-        const galaxyContentDiameter = galaxyViewport.offsetWidth > 0 ? galaxyViewport.offsetWidth : (window.gameSessionData.universe.diameter || 500);
-        const galaxyContentRadius = galaxyContentDiameter / 2;
-
-        if (galaxyContentRadius <= 0) {
-            console.warn(`generateSolarSystemsForGalaxy: Invalid content dimensions for galaxy ${galaxy.id}. Diameter: ${galaxyContentDiameter}`);
-            galaxy.layoutGenerated = true;
-            if (!window.gameSessionData.isForceRegenerating) window.saveGameState();
-            return;
+        let potentialTargets = systemsWithCenters
+            .filter(sys2 => sys1.id !== sys2.id && tryAddConnection(sys1.id, sys2.id, galaxy.lineConnections, systemConnectionCounts, systemsWithCenters))
+            .map(sys2 => ({ ...sys2, dist: getDistance(sys1, sys2) }))
+            .filter(sys2 => sys2.dist < allowedMaxEuclideanDist)
+            .sort((a, b) => a.dist - b.dist)
+            .slice(0, MAX_NEIGHBOR_CANDIDATES_FOR_ADDITIONAL_CONNECTIONS);
+        
+        for (const sys2 of potentialTargets) {
+            if (connectionsToAdd <= 0) break;
+            if (tryAddConnection(sys1.id, sys2.id, galaxy.lineConnections, systemConnectionCounts, systemsWithCenters)) {
+                galaxy.lineConnections.push({ fromId: sys1.id, toId: sys2.id });
+                systemConnectionCounts[sys1.id]++;
+                systemConnectionCounts[sys2.id] = (systemConnectionCounts[sys2.id] || 0) + 1;
+                connectionsToAdd--;
+            }
         }
+    });
+    // --- RESTORED LOGIC END ---
 
+    galaxy.layoutGenerated = true;
+    if (!window.gameSessionData.isForceRegenerating) window.saveGameState();
+}
         galaxy.solarSystems = [];
         galaxy.lineConnections = [];
         const solarSystemPlacementRects = [];

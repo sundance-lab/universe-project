@@ -293,7 +293,7 @@ export const PlanetVisualPanelManager = (() => {
 
     const aspectRatio = planet360CanvasElement.offsetWidth / planet360CanvasElement.offsetHeight;
     threeCamera = new THREE.PerspectiveCamera(60, aspectRatio, 0.1, 1000);
-    threeCamera.position.z = 1.25;
+    threeCamera.position.z = 2.5;
 
     threeRenderer = new THREE.WebGLRenderer({ canvas: planet360CanvasElement, antialias: true });
     threeRenderer.setSize(planet360CanvasElement.offsetWidth, planet360CanvasElement.offsetHeight);

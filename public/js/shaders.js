@@ -89,7 +89,7 @@ void main() {
              + (mountainNoise * vContinentMask * 0.3) 
              + (islandNoise * oceanMask * 0.1);
     finalElevation -= vRiverValue * 0.04;
-    
+    finalElevation = finalElevation - 0.5; // <--- Add this line!
     vElevation = clamp(finalElevation, 0.0, 1.0);
     
     float displacement = vElevation * uDisplacementAmount;

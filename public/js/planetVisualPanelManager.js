@@ -203,6 +203,58 @@ export const PlanetVisualPanelManager = (() => {
   // To make it an "actual sphere" (smooth), this factor (or the resulting uDisplacementAmount) should be 0.
   const DISPLACEMENT_SCALING_FACTOR = 0.01; // Adjust for desired bumpiness. 0.0 = smooth.
 
+function init() {
+  panelElement = document.getElementById('planet-visual-panel');
+  headerElement = document.getElementById('planet-visual-panel-header');
+  titleElement = document.getElementById('planet-visual-title');
+  sizeElement = document.getElementById('planet-visual-size');
+  planetPreviewCanvasElement = document.getElementById('planet-visual-canvas');
+  closeButton = document.getElementById('close-planet-visual-panel');
+  planet360CanvasElement = document.getElementById('panel-planet-360-canvas');
+  enter360ViewButton = document.getElementById('enter-360-view-button');
+
+  if (!planet360CanvasElement) console.error("PVisualPanelManager: CRITICAL - 360 Canvas not found in DOM!");
+
+  if (typeof window.quat_identity === 'function') {
+    rotationQuat2D = window.quat_identity();
+  }
+
+  closeButton?.addEventListener('click', _closePanel);
+  headerElement?.addEventListener('mousedown', _onHeaderMouseDown);
+  planetPreviewCanvasElement?.addEventListener('mousedown', _onCanvasMouseDown);
+
+  enter360ViewButton?.addEventListener('click', () => {
+    if (is360ViewActive) _switchToPreviewView();
+    else _switchTo360View();
+  });
+
+  window.addEventListener('resize', () => {
+    const panelIsVisible = panelElement?.classList.contains('visible');
+    if (is360ViewActive && panelIsVisible && threeRenderer && threeCamera && planet360CanvasElement?.offsetParent !== null) {
+      const canvas = planet360CanvasElement;
+      const newWidth = canvas.offsetWidth;
+      const newHeight = canvas.offsetHeight;
+      if (newWidth > 0 && newHeight > 0) {
+        threeCamera.aspect = newWidth / newHeight;
+        threeCamera.updateProjectionMatrix();
+        threeRenderer.setSize(newWidth, newHeight);
+      }
+    } else if (!is360ViewActive && panelIsVisible && planetPreviewCanvasElement?.offsetParent !== null) {
+      _rerenderPreviewIfNeeded(); // This will internally call _renderPreview which resizes
+    }
+  });
+
+  window.addEventListener('mousemove', _onWindowMouseMove);
+  window.addEventListener('mouseup', _onWindowMouseUp);
+
+  setInterval(() => {
+    if (needsPreviewRerender && !is360ViewActive && planetPreviewCanvasElement?.offsetParent !== null && panelElement?.classList.contains('visible')) {
+      _renderPreview();
+    }
+  }, 250);
+  console.log("PVisualPanelManager: Init complete.");
+}
+  
   function _initThreeJSView(planet) {
     if (!planet360CanvasElement || !planet) {
       console.error("PVisualPanelManager: Cannot init 360 view - canvas or planet data missing.");

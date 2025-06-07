@@ -1162,30 +1162,6 @@ function switchToSolarSystemView(solarSystemId) {
   renderSolarSystemScreen(false);
   startSolarSystemAnimation();
 }
-  const systemNumDisplay = solarSystemId.split('-').pop();
-  if (solarSystemTitleText) {
-    // FIXED: Corrected template literal
-    solarSystemTitleText.textContent = solarSystemObject?.customName || `System ${systemNumDisplay}`;
-  }
-  if (solarSystemTitleInput) solarSystemTitleInput.style.display = 'none';
-
-  setActiveScreen(solarSystemScreen);
-  makeTitleEditable(solarSystemTitleText, solarSystemTitleInput, (newName) => { 
-   if (solarSystemObject) { 
-    solarSystemObject.customName = newName || null; 
-    window.saveGameState(); 
-    renderGalaxyDetailScreen();
-      // FIXED: Corrected template literal
-    return solarSystemObject.customName || `System ${systemNumDisplay}`; 
-   } 
-    // FIXED: Corrected template literal
-   return `System ${systemNumDisplay}`;
-  });
-   
-  renderSolarSystemScreen(false);
-  startSolarSystemAnimation();
- }
-
 
  // --- PANNING AND ZOOMING ---
 

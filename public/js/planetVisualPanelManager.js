@@ -43,11 +43,11 @@ uniform float uTime;
 uniform float uContinentSeed;
 uniform float uSphereRadius;
 uniform float uDisplacementAmount;
-uniform float uContinentSharpness;
 uniform float uRiverBasin;
 
 varying vec3 vNormal;
 varying float vElevation;
+varying float vContinentMask;
 varying vec3 vWorldPosition;
 varying float vRiverValue;
 
@@ -77,24 +77,25 @@ void main() {
     vec3 p = position;
     vec3 noiseInputPosition = (p / uSphereRadius) + (uContinentSeed * 10.0);
 
-    float continentNoise = (layeredNoise(noiseInputPosition, uContinentSeed, 5, 0.5, 2.0, 1.5) + 1.0) * 0.5;
-    continentNoise = pow(continentNoise, uContinentSharpness);
-    
+    float smoothContinentShape = (layeredNoise(noiseInputPosition, uContinentSeed, 5, 0.5, 2.0, 1.5) + 1.0) * 0.5;
+    vContinentMask = smoothstep(0.49, 0.51, smoothContinentShape);
+
     float riverRaw = ridgedRiverNoise(noiseInputPosition * 0.2, uContinentSeed * 5.0);
     float riverBed = smoothstep(1.0 - uRiverBasin, 1.0, riverRaw);
-
-    float riverMask = smoothstep(0.5, 0.52, continentNoise) * (1.0 - smoothstep(0.75, 0.8, continentNoise));
+    float riverMask = smoothstep(0.48, 0.52, vContinentMask) * (1.0 - smoothstep(0.75, 0.8, vContinentMask));
     vRiverValue = riverBed * riverMask;
 
     float mountainNoise = (layeredNoise(noiseInputPosition, uContinentSeed*2.0, 6, 0.45, 2.2, 8.0) + 1.0) * 0.5;
-    float continentMask = smoothstep(0.48, 0.52, continentNoise);
     float islandNoise = (layeredNoise(noiseInputPosition, uContinentSeed * 3.0, 7, 0.5, 2.5, 18.0) + 1.0) * 0.5;
-    float oceanMask = 1.0 - continentMask;
+    float oceanMask = 1.0 - vContinentMask;
 
-    float finalElevation = continentNoise + (mountainNoise * continentMask * 0.3) + (islandNoise * oceanMask * 0.1);
+    float finalElevation = smoothContinentShape 
+                           + (mountainNoise * vContinentMask * 0.3) 
+                           + (islandNoise * oceanMask * 0.1);
     finalElevation -= vRiverValue * 0.04;
-
+    
     vElevation = clamp(finalElevation, 0.0, 1.0);
+    
     float displacement = vElevation * uDisplacementAmount;
     vec3 displacedPosition = p + normal * displacement;
 
@@ -314,7 +315,6 @@ export const PlanetVisualPanelManager = (() => {
         uWaterColor: { value: new THREE.Color(planet.waterColor || '#1E90FF') },
         uOceanHeightLevel: { value: normalizedOceanLevel },
         uContinentSeed: { value: planet.continentSeed ?? Math.random() },
-        uContinentSharpness: { value: planet.continentSharpness ?? 1.8 },
         uRiverBasin: { value: planet.riverBasin ?? 0.05 },
         uForestDensity: { value: planet.forestDensity ?? 0.5 },
         uTime: { value: 0.0 },

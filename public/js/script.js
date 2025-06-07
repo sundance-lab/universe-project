@@ -196,6 +196,40 @@ async function preGenerateAllGalaxyContents() {
     console.log("Pre-generation complete.");
     window.saveGameState();
 }
+
+function clampSolarSystemPan(solarSystemView, viewportWidth, viewportHeight) {
+    // Clamp so the solar system stays in view
+    if (!solarSystemView || typeof solarSystemView.currentPanX !== "number" || typeof solarSystemView.currentPanY !== "number") return;
+    const zoom = solarSystemView.zoomLevel || 1;
+    // Use ORBIT_CANVAS_SIZE as the content size for the solar system
+    const contentSize = ORBIT_CANVAS_SIZE || 1000;
+    const maxPanX = (contentSize * zoom - viewportWidth) / 2;
+    const maxPanY = (contentSize * zoom - viewportHeight) / 2;
+    solarSystemView.currentPanX = Math.max(-maxPanX, Math.min(maxPanX, solarSystemView.currentPanX));
+    solarSystemView.currentPanY = Math.max(-maxPanY, Math.min(maxPanY, solarSystemView.currentPanY));
+}
+
+    
+function tryAddConnection(fromId, toId, lineConnections, connectionCounts, systemsWithCenters) {
+    // Check if the connection already exists (in either direction)
+    if (lineConnections.some(conn =>
+        (conn.fromId === fromId && conn.toId === toId) ||
+        (conn.fromId === toId && conn.toId === fromId)
+    )) {
+        return false;
+    }
+    // Prevent too many connections per system
+    if ((connectionCounts[fromId] || 0) >= 3 || (connectionCounts[toId] || 0) >= 3) {
+        return false;
+    }
+    // Optionally: prevent self-connection
+    if (fromId === toId) return false;
+    // Optionally: prevent connections to non-existent systems
+    if (!systemsWithCenters.some(s => s.id === fromId) || !systemsWithCenters.some(s => s.id === toId)) {
+        return false;
+    }
+    return true;
+}
     
     function loadGameState() {
         try {

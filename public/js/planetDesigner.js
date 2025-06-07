@@ -8,7 +8,7 @@ export const PlanetDesigner = (() => {
     // --- CACHED DOM ELEMENTS ---
     let savedDesignsUl, designerPlanetCanvas, designerWaterColorInput, designerLandColorInput, designerMinHeightInput, designerMaxHeightInput, designerOceanHeightInput,
         designerSaveBtn, designerCancelBtn, designerRiverBasinInput, designerRiverBasinValue,
-        designerForestDensityInput, designerForestDensityValue;
+        designerForestDensityInput, designerForestDensityValue, designerRandomizeBtn;
     
     // --- THREE.JS & STATE VARIABLES ---
     const DISPLACEMENT_SCALING_FACTOR = 0.005;

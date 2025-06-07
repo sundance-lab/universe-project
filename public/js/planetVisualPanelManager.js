@@ -321,6 +321,7 @@ export const PlanetVisualPanelManager = (() => {
       uWaterColor: { value: new THREE.Color(planet.waterColor || '#1E90FF') },
       uOceanHeightLevel: { value: normalizedOceanLevel },
       uContinentSeed: { value: planet.continentSeed ?? Math.random() },
+      uContinentSharpness: { value: planet.continentSharpness ?? 1.8 }, // ADD THIS LINE
       uTime: { value: 0.0 },
       uSphereRadius: { value: SPHERE_BASE_RADIUS },
       uDisplacementAmount: { value: displacementAmount }

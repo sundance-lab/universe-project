@@ -293,9 +293,7 @@ export const PlanetVisualPanelManager = (() => {
 
     const aspectRatio = planet360CanvasElement.offsetWidth / planet360CanvasElement.offsetHeight;
     threeCamera = new THREE.PerspectiveCamera(60, aspectRatio, 0.1, 1000);
-    const fovInRadians = THREE.MathUtils.degToRad(threeCamera.fov);
-    const distance = SPHERE_BASE_RADIUS / Math.sin(fovInRadians / 2) + 0.2;
-    threeCamera.position.z = Math.max(distance, SPHERE_BASE_RADIUS * 1.5);
+    threeCamera.position.z = 1.25;
 
     threeRenderer = new THREE.WebGLRenderer({ canvas: planet360CanvasElement, antialias: true });
     threeRenderer.setSize(planet360CanvasElement.offsetWidth, planet360CanvasElement.offsetHeight);

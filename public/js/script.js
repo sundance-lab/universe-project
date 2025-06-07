@@ -22,12 +22,6 @@ document.addEventListener('DOMContentLoaded', () => {
   const DEFAULT_SHOW_PLANET_ORBITS = false;
   window.DEFAULT_PLANET_AXIAL_SPEED = 0.01;
 
-  // REMOVED: Old 360 screen variables
-  // const planet360Screen = document.getElementById('planet-360-screen');
-  // const planet360Canvas = document.getElementById('planet-360-canvas');
-  // const backToSolarSystemButton = document.getElementById('back-to-solar-system');
-  // let currentPlanet = null; // This local reference is no longer needed globally
-
   const BASE_MAX_PLANET_DISTANCE_FACTOR = 25;
   window.PLANET_ROTATION_SENSITIVITY = 0.75;
 
@@ -1465,12 +1459,6 @@ function renderPlanet360View(planet) {
 
     animate();   // Initiate the animation loop
 };
-// Event listener for the back button
-if(backToSolarSystemButton){
-    backToSolarSystemButton.addEventListener('click', () => {
-        setActiveScreen(solarSystemScreen);
-        currentPlanet = null;
-    });
 }
 
  initializeGame();

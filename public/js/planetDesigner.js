@@ -133,8 +133,8 @@ export const PlanetDesigner = (() => {
         
         const terrainRange = Math.max(0.1, previewMaxHeight - previewMinHeight);
         let normalizedOceanLevel = (previewOceanHeight - previewMinHeight) / terrainRange;
-        normalizedOceanLevel = Math.max(0.2, Math.min(0.8, normalizedOceanLevel));
-        uniforms.uOceanHeightLevel.value = normalizedOceanLevel;
+        // Just ensure it's in [0,1]:
+        normalizedOceanLevel = Math.max(0, Math.min(1, normalizedOceanLevel));        uniforms.uOceanHeightLevel.value = normalizedOceanLevel;
 
         const displacementAmount = terrainRange * DISPLACEMENT_SCALING_FACTOR;
         uniforms.uDisplacementAmount.value = displacementAmount;

@@ -415,31 +415,11 @@ body {
   display: block; /* JS will toggle to 'none' for the hidden one */
 }
 
-#planet-visual-canvas { /* Preview canvas specific styling */
-  cursor: grab;
-}
-#planet-visual-canvas.dragging {
-  cursor: grabbing;
-}
-
 #panel-planet-360-canvas { /* 360 view canvas specific styling */
   cursor: default; /* Interaction usually via 3D library controls, not direct canvas drag */
   /* HTML sets style="display: none;" initially */
 }
 
-.panel-actions {
-  width: 100%;
-  text-align: center;
-  margin-top: 15px;
-  padding-bottom: 5px;
-}
-
-#enter-360-view-button {
-  /* Using .modal-button-apply class is good, but can add specifics */
-  padding: 8px 15px;
-  font-size: 0.9em;
-  /* Additional styles if needed */
-}
 .close-button {
   background: none; border: none; font-size: 1.5em; color: #bdc3c7;
   cursor: pointer; line-height: 1; padding: 0 5px;

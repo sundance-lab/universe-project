@@ -265,30 +265,36 @@ export const PlanetDesigner = (() => {
     designerThreePlanetMesh = null; designerThreeRenderer = null; designerThreeScene = null; designerThreeCamera = null;
   }
 
-  function _populateDesignerInputsFromBasis() {
+function _populateDesignerInputsFromBasis() {
     if (!designerWaterColorInput) return;
     designerWaterColorInput.value = currentDesignerBasis.waterColor;
     designerLandColorInput.value = currentDesignerBasis.landColor;
-    if(designerContinentSharpnessInput) {
+
+    if (designerContinentSharpnessInput) {
         designerContinentSharpnessInput.value = currentDesignerBasis.continentSharpness;
         designerContinentSharpnessValue.textContent = Number(currentDesignerBasis.continentSharpness).toFixed(1);
     }
-    if(designerRiverBasinInput) {
+    if (designerRiverBasinInput) {
         designerRiverBasinInput.value = currentDesignerBasis.riverBasin;
         designerRiverBasinValue.textContent = Number(currentDesignerBasis.riverBasin).toFixed(2);
     }
-    if(designerForestDensityInput) {
+    if (designerForestDensityInput) {
         designerForestDensityInput.value = currentDesignerBasis.forestDensity;
         designerForestDensityValue.textContent = Number(currentDesignerBasis.forestDensity).toFixed(2);
     }
+
     designerMinHeightMinInput.value = currentDesignerBasis.minTerrainHeightRange[0].toFixed(1);
     const designerMinHeightMaxInput = document.getElementById('designer-min-height-max');
     designerMinHeightMaxInput.value = currentDesignerBasis.minTerrainHeightRange[1].toFixed(1);
+    const designerMaxHeightMinInput = document.getElementById('designer-max-height-min');
     designerMaxHeightMinInput.value = currentDesignerBasis.maxTerrainHeightRange[0].toFixed(1);
+    const designerMaxHeightMaxInput = document.getElementById('designer-max-height-max');
     designerMaxHeightMaxInput.value = currentDesignerBasis.maxTerrainHeightRange[1].toFixed(1);
+    const designerOceanHeightMinInput = document.getElementById('designer-ocean-height-min');
     designerOceanHeightMinInput.value = currentDesignerBasis.oceanHeightRange[0].toFixed(1);
+    const designerOceanHeightMaxInput = document.getElementById('designer-ocean-height-max');
     designerOceanHeightMaxInput.value = currentDesignerBasis.oceanHeightRange[1].toFixed(1);
-  }
+}
 
 function _updateBasisAndRefreshDesignerPreview() {
     if (!designerWaterColorInput || !designerShaderMaterial) return;

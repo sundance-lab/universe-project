@@ -80,8 +80,6 @@ document.addEventListener('DOMContentLoaded', () => {
 
   // --- STATE VARIABLES ---
   let linesCtx;
-  let solarSystemOrbitCanvasEl;
-  let orbitCtx;
   let currentNumGalaxies = DEFAULT_NUM_GALAXIES;
   let currentMinSSCount = DEFAULT_MIN_SS_COUNT_CONST;
   let currentMaxSSCount = DEFAULT_MAX_SS_COUNT_CONST;
@@ -824,11 +822,6 @@ document.addEventListener('DOMContentLoaded', () => {
 
  function renderSolarSystemScreen(isInteractivePanOrZoom = false) {
   if (!solarSystemContent || !solarSystemScreen || !window.gameSessionData.activeSolarSystemId) return;
-
-  if (solarSystemOrbitCanvasEl && (solarSystemOrbitCanvasEl.width !== ORBIT_CANVAS_SIZE || solarSystemOrbitCanvasEl.height !== ORBIT_CANVAS_SIZE)) {
-   solarSystemOrbitCanvasEl.width = ORBIT_CANVAS_SIZE;
-   solarSystemOrbitCanvasEl.height = ORBIT_CANVAS_SIZE;
-  }
    
   const solarSystemData = window.gameSessionData.solarSystemView;
   const panX = solarSystemData.currentPanX || 0;
@@ -989,15 +982,6 @@ document.addEventListener('DOMContentLoaded', () => {
     sunElement.style.width = `${currentSunSize}px`;
     sunElement.style.height = `${currentSunSize}px`;
     if (solarSystemContent) solarSystemContent.appendChild(sunElement);
-
-    if (solarSystemOrbitCanvasEl?.parentNode) solarSystemOrbitCanvasEl.remove();
-    solarSystemOrbitCanvasEl = document.createElement('canvas');
-    solarSystemOrbitCanvasEl.id = 'solar-system-orbit-canvas';
-    solarSystemOrbitCanvasEl.width = ORBIT_CANVAS_SIZE;
-    solarSystemOrbitCanvasEl.height = ORBIT_CANVAS_SIZE;
-    if (solarSystemContent) solarSystemContent.appendChild(solarSystemOrbitCanvasEl);
-    orbitCtx = solarSystemOrbitCanvasEl.getContext('2d');
-    if (!orbitCtx) console.error("Failed to get 2D context for orbit canvas");
 
     let usedOrbitalDistances = [];
     const numPlanetsToGenerate = Math.floor(Math.random() * (currentMaxPlanets - currentMinPlanets + 1)) + currentMinPlanets;
@@ -1290,7 +1274,6 @@ document.addEventListener('DOMContentLoaded', () => {
    if (linesCanvas) galaxyZoomContent.appendChild(linesCanvas);
   }
   if (solarSystemContent) solarSystemContent.innerHTML = '';
-  if (orbitCtx) orbitCtx.clearRect(0, 0, orbitCtx.canvas.width, orbitCtx.canvas.height);
   
   stopSolarSystemAnimation();
   initializeGame(true);

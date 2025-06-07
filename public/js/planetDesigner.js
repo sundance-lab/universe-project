@@ -148,8 +148,12 @@ void main() {
   vec3 snowColor = vec3(0.95, 0.95, 1.0);
 
   float seaLevel = uOceanHeightLevel;
-  float beachLevel = seaLevel + 0.02;
-  float forestLine = seaLevel + 0.35;
+  
+  // --- THE ONLY CHANGE IS HERE ---
+  // The transition from water to beach is now much smaller (0.005 instead of 0.02), creating a sharp line.
+  float beachLevel = seaLevel + 0.005;
+
+  float forestLine = beachLevel + 0.3; // Start forests right after the beach ends
   float mountainLine = seaLevel + 0.45;
   float snowLine = seaLevel + 0.60;
 
@@ -171,8 +175,6 @@ void main() {
     finalColor = mix(finalColor, forestColor, forestMask);
   }
 
-  // --- THE ONLY CHANGE IS HERE ---
-  // This condition now ensures rivers are only colored if they are on land.
   if (vRiverValue > 0.1 && vElevation > seaLevel) {
       finalColor = mix(finalColor, shallowWaterColor * 0.8, vRiverValue);
   }
@@ -185,7 +187,7 @@ void main() {
 
 export const PlanetDesigner = (() => {
   let designerPlanetCanvas, designerWaterColorInput, designerLandColorInput,
-    designerMinHeightMinInput, designerMinHeightMaxInput, designerMaxHeightMinInput, designerMaxHeightMaxInput,
+    designerMinHeightMinInput, designerMaxHeightMinInput, designerMaxHeightMaxInput,
     designerOceanHeightMinInput, designerOceanHeightMaxInput, savedDesignsUl, designerRandomizeBtn,
     designerSaveBtn, designerCancelBtn, designerContinentSharpnessInput, designerContinentSharpnessValue,
     designerRiverBasinInput, designerRiverBasinValue, designerForestDensityInput, designerForestDensityValue;
@@ -280,6 +282,7 @@ export const PlanetDesigner = (() => {
         designerForestDensityValue.textContent = Number(currentDesignerBasis.forestDensity).toFixed(2);
     }
     designerMinHeightMinInput.value = currentDesignerBasis.minTerrainHeightRange[0].toFixed(1);
+    const designerMinHeightMaxInput = document.getElementById('designer-min-height-max');
     designerMinHeightMaxInput.value = currentDesignerBasis.minTerrainHeightRange[1].toFixed(1);
     designerMaxHeightMinInput.value = currentDesignerBasis.maxTerrainHeightRange[0].toFixed(1);
     designerMaxHeightMaxInput.value = currentDesignerBasis.maxTerrainHeightRange[1].toFixed(1);
@@ -294,9 +297,9 @@ export const PlanetDesigner = (() => {
     currentDesignerBasis.continentSharpness = parseFloat(designerContinentSharpnessInput.value);
     currentDesignerBasis.riverBasin = parseFloat(designerRiverBasinInput.value);
     currentDesignerBasis.forestDensity = parseFloat(designerForestDensityInput.value);
-    const previewMinHeight = (parseFloat(designerMinHeightMinInput.value) + parseFloat(designerMinHeightMaxInput.value)) / 2;
-    const previewMaxHeight = (parseFloat(designerMaxHeightMinInput.value) + parseFloat(designerMaxHeightMaxInput.value)) / 2;
-    const previewOceanHeight = (parseFloat(designerOceanHeightMinInput.value) + parseFloat(designerOceanHeightMaxInput.value)) / 2;
+    const previewMinHeight = (parseFloat(document.getElementById('designer-min-height-min').value) + parseFloat(document.getElementById('designer-min-height-max').value)) / 2;
+    const previewMaxHeight = (parseFloat(document.getElementById('designer-max-height-min').value) + parseFloat(document.getElementById('designer-max-height-max').value)) / 2;
+    const previewOceanHeight = (parseFloat(document.getElementById('designer-ocean-height-min').value) + parseFloat(document.getElementById('designer-ocean-height-max').value)) / 2;
     const uniforms = designerShaderMaterial.uniforms;
     uniforms.uWaterColor.value.set(currentDesignerBasis.waterColor);
     uniforms.uLandColor.value.set(currentDesignerBasis.landColor);
@@ -393,11 +396,8 @@ export const PlanetDesigner = (() => {
       designerForestDensityInput = document.getElementById('designer-forest-density');
       designerForestDensityValue = document.getElementById('designer-forest-density-value');
       designerMinHeightMinInput = document.getElementById('designer-min-height-min');
-      designerMinHeightMaxInput = document.getElementById('designer-min-height-max');
       designerMaxHeightMinInput = document.getElementById('designer-max-height-min');
-      designerMaxHeightMaxInput = document.getElementById('designer-max-height-max');
       designerOceanHeightMinInput = document.getElementById('designer-ocean-height-min');
-      designerOceanHeightMaxInput = document.getElementById('designer-ocean-height-max');
       savedDesignsUl = document.getElementById('saved-designs-ul');
       designerRandomizeBtn = document.getElementById('designer-randomize-btn');
       designerSaveBtn = document.getElementById('designer-save-btn');
@@ -405,9 +405,9 @@ export const PlanetDesigner = (() => {
 
       const inputsToWatch = [
         designerWaterColorInput, designerLandColorInput,
-        designerMinHeightMinInput, designerMinHeightMaxInput,
-        designerMaxHeightMinInput, designerMaxHeightMaxInput,
-        designerOceanHeightMinInput, designerOceanHeightMaxInput
+        document.getElementById('designer-min-height-max'),
+        document.getElementById('designer-max-height-max'),
+        document.getElementById('designer-ocean-height-max')
       ];
       inputsToWatch.forEach(input => input?.addEventListener('change', _updateBasisAndRefreshDesignerPreview));
       

@@ -236,6 +236,19 @@ function clampOceanLevel() {
             designerSaveBtn = document.getElementById('designer-save-btn');
             designerCancelBtn = document.getElementById('designer-cancel-btn');
 
+            document.querySelectorAll('.designer-control').forEach(input => {
+                input.addEventListener('input', () => {
+                    if (
+                        input === designerOceanHeightInput ||
+                        input === designerMinHeightInput ||
+                        input === designerMaxHeightInput
+                    ) {
+                        clampOceanLevel();
+                    }
+                    _updateBasisAndRefreshDesignerPreview();
+                });
+            });
+            
             const inputsToWatch = [
                 designerWaterColorInput, designerLandColorInput,
             ];

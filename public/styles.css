@@ -186,9 +186,10 @@ body {
   box-sizing: border-box;
   z-index: 4;
   background: radial-gradient(circle at center,
-    #FFEA00 70%,   /* bright yellow core */
-    #FFD700 90%,   /* golden edge */
-    #FFA500 100%   /* orange, no transparency at edge */
+    #FFEA00 0%,   /* pure yellow center */
+    #FFEA00 80%,  /* keep yellow until near edge */
+    #FFD700 90%,  /* gold at edge */
+    #FFA500 100%  /* orange at very edge */
   );
   border: 2px solid #FFA500;
 }

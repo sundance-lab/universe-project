@@ -111,12 +111,6 @@ function clampOceanLevel() {
         }
         
         // Use cached elements
-        if (designerMinHeightMinInput) designerMinHeightMinInput.value = currentDesignerBasis.minTerrainHeightRange[0].toFixed(1);
-        if (designerMinHeightMaxInput) designerMinHeightMaxInput.value = currentDesignerBasis.minTerrainHeightRange[1].toFixed(1);
-        if (designerMaxHeightMinInput) designerMaxHeightMinInput.value = currentDesignerBasis.maxTerrainHeightRange[0].toFixed(1);
-        if (designerMaxHeightMaxInput) designerMaxHeightMaxInput.value = currentDesignerBasis.maxTerrainHeightRange[1].toFixed(1);
-        if (designerOceanHeightMinInput) designerOceanHeightMinInput.value = currentDesignerBasis.oceanHeightRange[0].toFixed(1);
-        if (designerOceanHeightMaxInput) designerOceanHeightMaxInput.value = currentDesignerBasis.oceanHeightRange[1].toFixed(1);
     }
 
    function _updateBasisAndRefreshDesignerPreview() {
@@ -241,9 +235,6 @@ function clampOceanLevel() {
 
             const inputsToWatch = [
                 designerWaterColorInput, designerLandColorInput,
-                designerMinHeightMinInput, designerMinHeightMaxInput,
-                designerMaxHeightMinInput, designerMaxHeightMaxInput,
-                designerOceanHeightMinInput, designerOceanHeightMaxInput,
             ];
             inputsToWatch.forEach(input => input?.addEventListener('input', _updateBasisAndRefreshDesignerPreview));            
             const liveSliders = [

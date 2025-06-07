@@ -68,10 +68,9 @@ float layeredNoise(vec3 p, float seed, int octaves, float persistence, float lac
   return total / maxValue;
 }
 
-float warpedRiverNoise(vec3 p, float seed) {
-    vec3 warp_octave1 = vec3(valueNoise(p*2.0,seed*1.7), valueNoise(p*2.0+5.2,seed*2.1), valueNoise(p*2.0-3.1,seed*3.3)) * 2.0 - 1.0;
-    vec3 warp_octave2 = vec3(valueNoise(p*8.0+warp_octave1*0.3,seed*4.9), valueNoise(p*8.0+warp_octave1*0.3+1.2,seed*5.3), valueNoise(p*8.0+warp_octave1*0.3-4.1,seed*6.7)) * 2.0 - 1.0;
-    return layeredNoise(p + warp_octave2 * 0.1, seed, 4, 0.5, 2.0, 32.0);
+float ridgedRiverNoise(vec3 p, float seed) {
+    float n = layeredNoise(p, seed, 6, 0.5, 2.0, 1.0);
+    return pow(1.0 - abs(n), 4.0);
 }
 
 void main() {
@@ -81,8 +80,10 @@ void main() {
     float continentNoise = (layeredNoise(noiseInputPosition, uContinentSeed, 5, 0.5, 2.0, 1.5) + 1.0) * 0.5;
     continentNoise = pow(continentNoise, uContinentSharpness);
     
-    float riverRaw = warpedRiverNoise(noiseInputPosition * 0.5, uContinentSeed * 5.0);
-    float riverBed = smoothstep(0.5 - uRiverBasin, 0.5, riverRaw) * (1.0 - smoothstep(0.5, 0.5 + uRiverBasin, riverRaw));
+    // Use lower frequency for fewer, larger river systems
+    float riverRaw = ridgedRiverNoise(noiseInputPosition * 0.2, uContinentSeed * 5.0);
+    float riverBed = smoothstep(1.0 - uRiverBasin, 1.0, riverRaw);
+
     float riverMask = smoothstep(0.5, 0.52, continentNoise) * (1.0 - smoothstep(0.75, 0.8, continentNoise));
     vRiverValue = riverBed * riverMask;
 
@@ -139,28 +140,23 @@ vec3 calculateLighting(vec3 surfaceColor, vec3 normalVec, vec3 viewDir) {
 void main() {
   vec3 finalColor;
 
-  vec3 deepWaterColor = uWaterColor * 0.5;
-  vec3 shallowWaterColor = uWaterColor;
-  vec3 beachColor = vec3(0.86, 0.78, 0.59);
+  vec3 waterColor = uWaterColor;
+  vec3 beachColor = uLandColor * 0.9;
   vec3 plainsColor = uLandColor;
   vec3 forestColor = uLandColor * 0.65;
-  vec3 mountainColor = uLandColor * 0.7 + vec3(0.4);
-  vec3 snowColor = vec3(0.95, 0.95, 1.0);
+  vec3 mountainColor = uLandColor * 1.2;
+  vec3 snowColor = uLandColor * 1.5 + vec3(0.3);
 
   float seaLevel = uOceanHeightLevel;
-  
-  // --- THE ONLY CHANGE IS HERE ---
-  // The transition from water to beach is now much smaller (0.005 instead of 0.02), creating a sharp line.
   float beachLevel = seaLevel + 0.005;
-
-  float forestLine = beachLevel + 0.3; // Start forests right after the beach ends
+  float forestLine = beachLevel + 0.3;
   float mountainLine = seaLevel + 0.45;
   float snowLine = seaLevel + 0.60;
 
   if (vElevation < seaLevel) {
-      finalColor = mix(deepWaterColor, shallowWaterColor, smoothstep(seaLevel - 0.2, seaLevel, vElevation));
+      finalColor = waterColor;
   } else if (vElevation < beachLevel) {
-      finalColor = mix(shallowWaterColor, beachColor, smoothstep(seaLevel, beachLevel, vElevation));
+      finalColor = mix(waterColor, beachColor, smoothstep(seaLevel, beachLevel, vElevation));
   } else if (vElevation < forestLine) {
       finalColor = mix(beachColor, plainsColor, smoothstep(beachLevel, forestLine, vElevation));
   } else if (vElevation < mountainLine) {
@@ -176,7 +172,7 @@ void main() {
   }
 
   if (vRiverValue > 0.1 && vElevation > seaLevel) {
-      finalColor = mix(finalColor, shallowWaterColor * 0.8, vRiverValue);
+      finalColor = mix(finalColor, waterColor * 0.9, vRiverValue);
   }
 
   vec3 viewDirection = normalize(cameraPosition - vWorldPosition);
@@ -187,7 +183,7 @@ void main() {
 
 export const PlanetDesigner = (() => {
   let designerPlanetCanvas, designerWaterColorInput, designerLandColorInput,
-    designerMinHeightMinInput, designerMaxHeightMinInput, designerMaxHeightMaxInput,
+    designerMinHeightMinInput, designerMinHeightMaxInput, designerMaxHeightMinInput, designerMaxHeightMaxInput,
     designerOceanHeightMinInput, designerOceanHeightMaxInput, savedDesignsUl, designerRandomizeBtn,
     designerSaveBtn, designerCancelBtn, designerContinentSharpnessInput, designerContinentSharpnessValue,
     designerRiverBasinInput, designerRiverBasinValue, designerForestDensityInput, designerForestDensityValue;
@@ -265,7 +261,7 @@ export const PlanetDesigner = (() => {
     designerThreePlanetMesh = null; designerThreeRenderer = null; designerThreeScene = null; designerThreeCamera = null;
   }
 
-function _populateDesignerInputsFromBasis() {
+  function _populateDesignerInputsFromBasis() {
     if (!designerWaterColorInput) return;
     designerWaterColorInput.value = currentDesignerBasis.waterColor;
     designerLandColorInput.value = currentDesignerBasis.landColor;
@@ -281,24 +277,24 @@ function _populateDesignerInputsFromBasis() {
         designerForestDensityInput.value = currentDesignerBasis.forestDensity;
         designerForestDensityValue.textContent = Number(currentDesignerBasis.forestDensity).toFixed(2);
     }
-    designerMinHeightMinInput.value = currentDesignerBasis.minTerrainHeightRange[0].toFixed(1);
     
+    // Correctly get elements that are not defined globally
     const designerMinHeightMaxInput = document.getElementById('designer-min-height-max');
     const designerMaxHeightMinInput = document.getElementById('designer-max-height-min');
     const designerMaxHeightMaxInput = document.getElementById('designer-max-height-max');
     const designerOceanHeightMinInput = document.getElementById('designer-ocean-height-min');
     const designerOceanHeightMaxInput = document.getElementById('designer-ocean-height-max');
 
+    designerMinHeightMinInput.value = currentDesignerBasis.minTerrainHeightRange[0].toFixed(1);
     if(designerMinHeightMaxInput) designerMinHeightMaxInput.value = currentDesignerBasis.minTerrainHeightRange[1].toFixed(1);
     if(designerMaxHeightMinInput) designerMaxHeightMinInput.value = currentDesignerBasis.maxTerrainHeightRange[0].toFixed(1);
     if(designerMaxHeightMaxInput) designerMaxHeightMaxInput.value = currentDesignerBasis.maxTerrainHeightRange[1].toFixed(1);
     if(designerOceanHeightMinInput) designerOceanHeightMinInput.value = currentDesignerBasis.oceanHeightRange[0].toFixed(1);
     if(designerOceanHeightMaxInput) designerOceanHeightMaxInput.value = currentDesignerBasis.oceanHeightRange[1].toFixed(1);
-}
+  }
 
-function _updateBasisAndRefreshDesignerPreview() {
+  function _updateBasisAndRefreshDesignerPreview() {
     if (!designerWaterColorInput || !designerShaderMaterial) return;
-    
     currentDesignerBasis.waterColor = designerWaterColorInput.value;
     currentDesignerBasis.landColor = designerLandColorInput.value;
     currentDesignerBasis.continentSharpness = parseFloat(designerContinentSharpnessInput.value);
@@ -330,7 +326,7 @@ function _updateBasisAndRefreshDesignerPreview() {
 
     const displacementAmount = terrainRange * DISPLACEMENT_SCALING_FACTOR;
     uniforms.uDisplacementAmount.value = displacementAmount;
-}
+  }
   
   function _randomizeDesignerPlanet() {
     function _getRandomHexColor() {return'#'+(Math.random()*0xFFFFFF|0).toString(16).padStart(6,'0')}
@@ -413,8 +409,6 @@ function _updateBasisAndRefreshDesignerPreview() {
       designerForestDensityInput = document.getElementById('designer-forest-density');
       designerForestDensityValue = document.getElementById('designer-forest-density-value');
       designerMinHeightMinInput = document.getElementById('designer-min-height-min');
-      designerMaxHeightMinInput = document.getElementById('designer-max-height-min');
-      designerOceanHeightMinInput = document.getElementById('designer-ocean-height-min');
       savedDesignsUl = document.getElementById('saved-designs-ul');
       designerRandomizeBtn = document.getElementById('designer-randomize-btn');
       designerSaveBtn = document.getElementById('designer-save-btn');

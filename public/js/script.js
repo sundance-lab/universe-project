@@ -254,6 +254,49 @@ async function preGenerateAllGalaxyContents() {
         return false;
     }
 
+    function getDistance(a, b) {
+    // Assumes a and b have x and y properties
+    const dx = a.centerX - b.centerX;
+    const dy = a.centerY - b.centerY;
+    return Math.sqrt(dx * dx + dy * dy);
+}
+
+    function drawGalaxyLines(galaxy) {
+    if (!galaxy || !galaxy.lineConnections || !galaxy.solarSystems) return;
+    // Get the canvas and context
+    const canvas = document.getElementById('solar-system-lines-canvas');
+    if (!canvas) return;
+    const ctx = canvas.getContext('2d');
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+    // Draw each connection
+    galaxy.lineConnections.forEach(conn => {
+        const from = galaxy.solarSystems.find(ss => ss.id === conn.fromId);
+        const to = galaxy.solarSystems.find(ss => ss.id === conn.toId);
+        if (from && to) {
+            ctx.beginPath();
+            ctx.moveTo(from.x + from.iconSize / 2, from.y + from.iconSize / 2);
+            ctx.lineTo(to.x + to.iconSize / 2, to.y + to.iconSize / 2);
+            ctx.strokeStyle = 'rgba(128, 128, 255, 0.4)';
+            ctx.lineWidth = 2;
+            ctx.stroke();
+        }
+    });
+}
+    
+function clampGalaxyPan(galaxy, viewportWidth, viewportHeight) {
+    // Clamp the pan so the content remains at least partially in view.
+    // Assumes galaxy.currentPanX/currentPanY and currentZoom exist.
+    if (!galaxy || typeof galaxy.currentPanX !== "number" || typeof galaxy.currentPanY !== "number") return;
+    const zoom = galaxy.currentZoom || 1;
+    // Assuming universe diameter is content size:
+    const contentSize = window.gameSessionData.universe?.diameter || 1000;
+    const maxPanX = (contentSize * zoom - viewportWidth) / 2;
+    const maxPanY = (contentSize * zoom - viewportHeight) / 2;
+    galaxy.currentPanX = Math.max(-maxPanX, Math.min(maxPanX, galaxy.currentPanX));
+    galaxy.currentPanY = Math.max(-maxPanY, Math.min(maxPanY, galaxy.currentPanY));
+}
+    
     function saveCustomizationSettings() {
         const settings = {
             numGalaxies: currentNumGalaxies,

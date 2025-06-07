@@ -238,12 +238,27 @@ function clampOceanLevel() {
 
             document.querySelectorAll('.designer-control').forEach(input => {
                 input.addEventListener('input', () => {
+                    // Update color values in the basis object
+                    if (input === designerWaterColorInput) {
+                        currentDesignerBasis.waterColor = input.value;
+                    }
+                    if (input === designerLandColorInput) {
+                        currentDesignerBasis.landColor = input.value;
+                    }
+            
                     if (
                         input === designerOceanHeightInput ||
                         input === designerMinHeightInput ||
                         input === designerMaxHeightInput
                     ) {
                         clampOceanLevel();
+                    }
+                    // Live update for slider value displays
+                    if (input === designerRiverBasinInput && designerRiverBasinValue) {
+                        designerRiverBasinValue.textContent = Number(input.value).toFixed(2);
+                    }
+                    if (input === designerForestDensityInput && designerForestDensityValue) {
+                        designerForestDensityValue.textContent = Number(input.value).toFixed(2);
                     }
                     _updateBasisAndRefreshDesignerPreview();
                 });

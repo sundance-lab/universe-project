@@ -995,6 +995,8 @@ document.addEventListener('DOMContentLoaded', () => {
   }
  }
 
+
+  
   function switchToSolarSystemView(solarSystemId) {
     window.gameSessionData.activeSolarSystemId = solarSystemId;
     const activeGalaxy = window.gameSessionData.galaxies.find(g => solarSystemId.startsWith(g.id));
@@ -1350,6 +1352,30 @@ document.addEventListener('DOMContentLoaded', () => {
       }
   });
 
+if (galaxyViewport) {
+  galaxyViewport.addEventListener('wheel', e => {
+    if (e.ctrlKey || e.altKey) return; // Optional: ignore pinch-to-zoom gestures
+    e.preventDefault();
+    if (e.deltaY < 0) {
+      handleZoom('in', e);
+    } else if (e.deltaY > 0) {
+      handleZoom('out', e);
+    }
+  }, { passive: false });
+}
+
+if (solarSystemScreen) {
+  solarSystemScreen.addEventListener('wheel', e => {
+    if (e.ctrlKey || e.altKey) return;
+    e.preventDefault();
+    if (e.deltaY < 0) {
+      handleZoom('in', e);
+    } else if (e.deltaY > 0) {
+      handleZoom('out', e);
+    }
+  }, { passive: false });
+}
+  
  // --- GAME INITIALIZATION ---
  function initializeGame(isForcedRegeneration = false) {
   console.log("Initializing game...");

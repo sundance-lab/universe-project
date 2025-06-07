@@ -3,9 +3,6 @@ import '../styles.css'; // Keep for overall styling if needed
 import * as THREE from 'three';
 import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls.js';
 
-// Re-use or adapt shaders from PlanetVisualPanelManager (or define them here if they diverge)
-// For consistency, let's assume we can use the same basic ones for now.
-// In a larger setup, you might have a shared shader module.
 const planetVertexShader = `
   varying vec3 vNormal;
   varying vec2 vUv;
@@ -57,20 +54,6 @@ export const PlanetDesigner = (() => {
       designerThreePlanetMesh, designerThreeControls, designerThreeAnimationId,
       designerShaderMaterial;
 
-  // No longer needed:
-  // let currentDesignerPlanetInstance = null; // This was for the worker
-  // let isRenderingDesignerPlanet = false; // This was for 2D canvas worker pipeline
-
-  // Mouse dragging state for Three.js OrbitControls (handled by OrbitControls itself)
-  // We still need legacy mouse drag variables if OrbitControls are disabled for some reason
-  // or if we implement custom drag outside of orbit controls. For now, OrbitControls handles it.
-  // let designerPlanetRotationQuat = [1, 0, 0, 0]; // If needed without OrbitControls
-  // let startDragDesignerPlanetQuat = [1, 0, 0, 0];
-  // let designerStartDragMouseX = 0;
-  // let designerStartDragMouseY = 0;
-  // let isDraggingDesignerPlanet = false;
-
-
   // --- THREE.JS SETUP FOR DESIGNER PREVIEW ---
   function _initDesignerThreeJSView() {
     if (!designerPlanetCanvas) {
@@ -112,10 +95,6 @@ export const PlanetDesigner = (() => {
     const uniforms = {
       uDisplayColor: { value: new THREE.Color(currentDesignerBasis.landColor) },
       uTime: { value: 0.0 },
-      // TODO: Add waterColor, seed, height uniforms here
-      // uWaterColor: {value: new THREE.Color(currentDesignerBasis.waterColor)},
-      // uOceanHeight: {value: (currentDesignerBasis.oceanHeightRange[0] + currentDesignerBasis.oceanHeightRange[1]) / 2}, // Example: average
-      // uContinentSeed: {value: currentDesignerBasis.continentSeed},
     };
 
     designerShaderMaterial = new THREE.ShaderMaterial({
@@ -224,12 +203,7 @@ export const PlanetDesigner = (() => {
     // Update Three.js material uniforms
     if (designerShaderMaterial) {
       designerShaderMaterial.uniforms.uDisplayColor.value.set(currentDesignerBasis.landColor);
-      // TODO: Update other uniforms (waterColor, seed, heights) when shader supports them
-      // designerShaderMaterial.uniforms.uWaterColor.value.set(currentDesignerBasis.waterColor);
-      // designerShaderMaterial.uniforms.uContinentSeed.value = currentDesignerBasis.continentSeed;
     }
-    // No explicit call to re-render is needed with requestAnimationFrame loop if scene objects change.
-    // If OrbitControls were not used, you would call designerThreeRenderer.render(...) here.
   }
 
   function _randomizeDesignerPlanet() {
@@ -243,12 +217,12 @@ export const PlanetDesigner = (() => {
     _updateBasisAndRefreshDesignerPreview(); // This will update the Three.js material
   }
 
-  // --- SAVED DESIGNS MANAGEMENT (largely unchanged, as it deals with basis data) ---
-  function _generateUUID() { /* ... as before ... */ return crypto.randomUUID ? crypto.randomUUID() : 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g,c=>{const r=Math.random()*16|0,v=c==='x'?r:(r&3|8);return v.toString(16)})}
-  function _getRandomHexColor() { /* ... as before ... */return'#'+(Math.random()*0xFFFFFF|0).toString(16).padStart(6,'0')}
-  function _getRandomFloat(min,max,precision=1){ /* ... as before ... */const factor=Math.pow(10,precision);return parseFloat((Math.random()*(max-min)+min).toFixed(precision))}
+  
+  function _generateUUID() { return crypto.randomUUID ? crypto.randomUUID() : 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g,c=>{const r=Math.random()*16|0,v=c==='x'?r:(r&3|8);return v.toString(16)})}
+  function _getRandomHexColor() {return'#'+(Math.random()*0xFFFFFF|0).toString(16).padStart(6,'0')}
+  function _getRandomFloat(min,max,precision=1){const factor=Math.pow(10,precision);return parseFloat((Math.random()*(max-min)+min).toFixed(precision))}
 
-  function _saveCustomPlanetDesign() { /* ... as before ... */
+  function _saveCustomPlanetDesign() { 
     const designName = prompt("Enter a name for this planet design:", "My Custom Planet");
     if (!designName?.trim()) return;
     const newDesign = { designId: _generateUUID(), designName: designName.trim(), ...JSON.parse(JSON.stringify(currentDesignerBasis)) };
@@ -259,7 +233,7 @@ export const PlanetDesigner = (() => {
     }
   }
 
-  function _loadAndPreviewDesign(designId) { /* ... as before, but updates currentDesignerBasis and then calls _updateBasisAndRefreshDesignerPreview ... */
+  function _loadAndPreviewDesign(designId) {
     const designToLoad = window.gameSessionData?.customPlanetDesigns?.find(d => d.designId === designId);
     if (designToLoad) {
         currentDesignerBasis = { ...JSON.parse(JSON.stringify(designToLoad)) };
@@ -294,19 +268,6 @@ export const PlanetDesigner = (() => {
     }
   }
 
-  // --- CANVAS AND RENDERING (OBSOLETE 2D Parts) ---
-  // _resizeDesignerCanvasToDisplaySize() // OBSOLETE for Three.js (renderer.setSize handles it)
-  // _renderDesignerPlanetInternal()      // OBSOLETE (replaced by _animateDesignerThreeJSView)
-  // _generateAndRenderDesignerPreviewInstance() // OBSOLETE (logic merged into activate and UI updates)
-
-
-  // --- MOUSE EVENT HANDLERS (OBSOLETE if using OrbitControls exclusively) ---
-  // _onDesignerCanvasMouseDown(e)
-  // _onWindowMouseMove(e)
-  // _onWindowMouseUp()
-  // If you need specific click interactions on the planet *besides* orbit controls,
-  // you'll use Three.js Raycaster.
-
   return {
     init: () => {
       designerPlanetCanvas = document.getElementById('designer-planet-canvas');
@@ -322,9 +283,7 @@ export const PlanetDesigner = (() => {
       designerRandomizeBtn = document.getElementById('designer-randomize-btn');
       designerSaveBtn = document.getElementById('designer-save-btn');
       designerCancelBtn = document.getElementById('designer-cancel-btn');
-      // planetDesignerScreenElement = document.getElementById('planet-designer-screen'); // Not used directly
 
-      // Initialize defaults based on globals (could be hardcoded or from config)
       currentDesignerBasis.minTerrainHeightRange = [window.DEFAULT_MIN_TERRAIN_HEIGHT || 0.0, (window.DEFAULT_MIN_TERRAIN_HEIGHT || 0.0) + 2.0];
       currentDesignerBasis.maxTerrainHeightRange = [window.DEFAULT_MAX_TERRAIN_HEIGHT || 8.0, (window.DEFAULT_MAX_TERRAIN_HEIGHT || 8.0) + 4.0];
       currentDesignerBasis.oceanHeightRange = [window.DEFAULT_OCEAN_HEIGHT_LEVEL || 1.0, (window.DEFAULT_OCEAN_HEIGHT_LEVEL || 1.0) + 2.0];
@@ -378,11 +337,6 @@ export const PlanetDesigner = (() => {
         }
       });
 
-
-      // Old mouse listeners for 2D canvas drag are removed as OrbitControls will handle it.
-      // designerPlanetCanvas?.addEventListener('mousedown', _onDesignerCanvasMouseDown);
-      // window.addEventListener('mousemove', _onWindowMouseMove);
-      // window.addEventListener('mouseup', _onWindowMouseUp);
     },
 
     activate: () => {
@@ -394,20 +348,12 @@ export const PlanetDesigner = (() => {
       // Ensure canvas has dimensions from CSS before initializing Three.js
       requestAnimationFrame(() => {
         if(designerPlanetCanvas.offsetWidth === 0 || designerPlanetCanvas.offsetHeight === 0) {
-            // Fallback logic if CSS hasn't sized it, or style it explicitly.
-            // This might happen if the screen is 'display:none' then 'display:flex'
-            // The CSS for #designer-planet-canvas should control its size ideally.
             console.warn("PlanetDesigner: Canvas had 0 dimensions on activate. Re-checking.");
-            // Optionally force a size or wait for CSS to apply.
-            // For now, Three.js init will use canvas.width/height attributes or fallback.
         }
         _stopAndCleanupDesignerThreeJSView(); // Cleanup previous if any
         _initDesignerThreeJSView();
         _updateBasisAndRefreshDesignerPreview(); // Ensure material is set from current basis
       });
     },
-
-    // This worker message handler is now OBSOLETE for the designer
-    // handleDesignerWorkerMessage: ({ renderedData, width, height }) => { ... }
   };
 })();

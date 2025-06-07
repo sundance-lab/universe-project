@@ -203,6 +203,11 @@ export const PlanetVisualPanelManager = (() => {
   // To make it an "actual sphere" (smooth), this factor (or the resulting uDisplacementAmount) should be 0.
   const DISPLACEMENT_SCALING_FACTOR = 0.01; // Adjust for desired bumpiness. 0.0 = smooth.
 
+function _onHeaderMouseDown(e) {}
+function _onCanvasMouseDown(e) {}
+function _onWindowMouseMove(e) {}
+function _onWindowMouseUp(e) {}
+  
 function init() {
   panelElement = document.getElementById('planet-visual-panel');
   headerElement = document.getElementById('planet-visual-panel-header');

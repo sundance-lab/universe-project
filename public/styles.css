@@ -206,7 +206,7 @@ body {
 .planet-icon {
   position: absolute; /* Positioned by JS (left/top calc) */
   border-radius: 50%;
-  z-index: 4; /* Above sun and orbit lines canvas typically */
+  z-index: 3; /* Above sun and orbit lines canvas typically */
   cursor: default; /* Default cursor, unless made clickable */
   transform-origin: center center; /* For potential CSS rotations if any, though JS handles axial */
   /* JS sets background style */

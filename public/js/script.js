@@ -10,7 +10,7 @@ function initializeModules() {
 
 document.addEventListener('DOMContentLoaded', () => {
  // Define constants FIRST, so functions defined below can access them
- // These constants might be accessed by planetDesigner.js via the window object
+ // These constants might be accessed by planetDesigner.js via the window object 
  window.DEFAULT_MIN_TERRAIN_HEIGHT = 0.0;
  window.DEFAULT_MAX_TERRAIN_HEIGHT = 10.0;
  window.DEFAULT_OCEAN_HEIGHT_LEVEL = 2.0;

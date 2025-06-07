@@ -15,6 +15,6 @@
  "author": "You",
  "license": "WIP",
  "devDependencies": {
-  "parcel": "^2.9.3"
+  "parcel": "^2.9.3" 
  }
 }

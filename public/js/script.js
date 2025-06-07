@@ -1345,11 +1345,21 @@ document.addEventListener('DOMContentLoaded', () => {
   if (zoomInButton) zoomInButton.addEventListener('click', () => handleZoom('in'));
   if (zoomOutButton) zoomOutButton.addEventListener('click', () => handleZoom('out'));
 
-  if(galaxyViewport) galaxyViewport.addEventListener('mousedown', e => {
-      const galaxy = window.gameSessionData.galaxies.find(g => g.id === window.gameSessionData.activeGalaxyId);
-      if (galaxy) {
-          startPan(e, galaxyViewport, galaxyZoomContent, galaxy);
-      }
+if (galaxyViewport) galaxyViewport.addEventListener('mousedown', e => {
+    const galaxy = window.gameSessionData.galaxies.find(g => g.id === window.gameSessionData.activeGalaxyId);
+    if (galaxy) {
+        startPan(e, galaxyViewport, galaxyZoomContent, galaxy);
+    }
+});
+
+if (solarSystemScreen) {
+  solarSystemScreen.addEventListener('mousedown', e => {
+    startPan(e, solarSystemScreen, solarSystemContent, window.gameSessionData.solarSystemView);
+  });
+}
+
+document.addEventListener('mousemove', panMouseMove);
+document.addEventListener('mouseup', panMouseUp);
   });
 
 if (galaxyViewport) {

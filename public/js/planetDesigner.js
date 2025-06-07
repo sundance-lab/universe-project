@@ -119,34 +119,40 @@ function clampOceanLevel() {
         if (designerOceanHeightMaxInput) designerOceanHeightMaxInput.value = currentDesignerBasis.oceanHeightRange[1].toFixed(1);
     }
 
-    function _updateBasisAndRefreshDesignerPreview() {
-        if (!designerWaterColorInput || !designerShaderMaterial) return;
-        
-        // Update basis from cached input elements
-        currentDesignerBasis.waterColor = designerWaterColorInput.value;
-        currentDesignerBasis.landColor = designerLandColorInput.value;
-        currentDesignerBasis.riverBasin = parseFloat(designerRiverBasinInput.value);
-        currentDesignerBasis.forestDensity = parseFloat(designerForestDensityInput.value);
-        
-        const previewMinHeight = (parseFloat(designerMinHeightMinInput.value) + parseFloat(designerMinHeightMaxInput.value)) / 2;
-        const previewMaxHeight = (parseFloat(designerMaxHeightMinInput.value) + parseFloat(designerMaxHeightMaxInput.value)) / 2;
-        const previewOceanHeight = (parseFloat(designerOceanHeightMinInput.value) + parseFloat(designerOceanHeightMaxInput.value)) / 2;
+   function _updateBasisAndRefreshDesignerPreview() {
+    if (!designerWaterColorInput || !designerShaderMaterial) return;
 
-        const uniforms = designerShaderMaterial.uniforms;
-        uniforms.uWaterColor.value.set(currentDesignerBasis.waterColor);
-        uniforms.uLandColor.value.set(currentDesignerBasis.landColor);
-        uniforms.uContinentSeed.value = currentDesignerBasis.continentSeed;
-        uniforms.uRiverBasin.value = currentDesignerBasis.riverBasin;
-        uniforms.uForestDensity.value = currentDesignerBasis.forestDensity;
-        
-        const terrainRange = Math.max(0.1, previewMaxHeight - previewMinHeight);
-        let normalizedOceanLevel = (previewOceanHeight - previewMinHeight) / terrainRange;
-        // Just ensure it's in [0,1]:
-        normalizedOceanLevel = Math.max(0, Math.min(1, normalizedOceanLevel));        uniforms.uOceanHeightLevel.value = normalizedOceanLevel;
+    // Read values from inputs
+    const minHeight = parseFloat(designerMinHeightInput.value);
+    const maxHeight = parseFloat(designerMaxHeightInput.value);
+    const oceanHeight = parseFloat(designerOceanHeightInput.value);
 
-        const displacementAmount = terrainRange * DISPLACEMENT_SCALING_FACTOR;
-        uniforms.uDisplacementAmount.value = displacementAmount;
-    }
+    // Clamp oceanHeight for safety (should already be done by clampOceanLevel)
+    const clampedOceanHeight = Math.max(minHeight, Math.min(maxHeight, oceanHeight));
+    const terrainRange = Math.max(0.1, maxHeight - minHeight); // Avoid divide by zero
+
+    // Normalize for shader (0 = min, 1 = max)
+    let normalizedOceanLevel = (clampedOceanHeight - minHeight) / terrainRange;
+    normalizedOceanLevel = Math.max(0, Math.min(1, normalizedOceanLevel));
+
+    // Update your designerBasis object (for saving/loading)
+    currentDesignerBasis.minTerrainHeight = minHeight;
+    currentDesignerBasis.maxTerrainHeight = maxHeight;
+    currentDesignerBasis.oceanHeightLevel = clampedOceanHeight;
+
+    // Set shader uniforms
+    const uniforms = designerShaderMaterial.uniforms;
+    uniforms.uWaterColor.value.set(currentDesignerBasis.waterColor);
+    uniforms.uLandColor.value.set(currentDesignerBasis.landColor);
+    uniforms.uContinentSeed.value = currentDesignerBasis.continentSeed;
+    uniforms.uRiverBasin.value = currentDesignerBasis.riverBasin;
+    uniforms.uForestDensity.value = currentDesignerBasis.forestDensity;
+    uniforms.uOceanHeightLevel.value = normalizedOceanLevel;
+
+    // Set displacement scaling
+    const displacementAmount = terrainRange * DISPLACEMENT_SCALING_FACTOR;
+    uniforms.uDisplacementAmount.value = displacementAmount;
+}
     
     function _randomizeDesignerPlanet() {
         function _getRandomHexColor() { return '#' + (Math.random() * 0xFFFFFF | 0).toString(16).padStart(6, '0'); }

@@ -16,13 +16,6 @@ body {
   overflow: hidden; /* Prevents scrollbars on the body if content overflows slightly */
 }
 
-.screen-container {
-  width: 100vw;
-  height: 100vh;
-  position: relative; /* Establishes a containing block for absolute positioned .screen elements */
-  overflow: hidden;  /* Ensures screens don't cause scrollbars on screen-container */
-}
-
 .screen {
   width: 100%;
   height: 100%;
@@ -164,8 +157,26 @@ body {
   background-color: #080210; /* Slightly different dark space color */
 }
 
+#solar-system-screen {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    background: radial-gradient(circle at center, 
+        rgba(0, 0, 0, 0.95) 0%,
+        rgba(0, 0, 0, 0.98) 50%,
+        rgba(0, 0, 0, 1) 100%
+    );
+}
+
 #solar-system-screen.dragging {
   cursor: grabbing;
+}
+
+#solar-system-content {
+    flex: 1;
+    width: 100%;
+    position: relative;
+    overflow: hidden;
 }
 
 #solar-system-content {
@@ -238,9 +249,20 @@ body {
 
 #sun-container {
     width: 100%;
-    height: 100vh;
-    background: #000;
+    height: 400px; /* Fixed height instead of 100vh */
+    background: transparent; /* Changed from #000 to transparent */
+    position: relative;
     overflow: hidden;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    margin-bottom: 20px; /* Space between sun and planets */
+}
+
+#sun-container canvas {
+    width: 100%;
+    height: 100%;
+    display: block;
 }
 
 body, html {

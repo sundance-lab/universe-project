@@ -1,7 +1,6 @@
 // public/js/sunRenderer.js
 
 import * as THREE from 'three';
-// Imports for EffectComposer, RenderPass, and UnrealBloomPass have been removed.
 
 export class SunRenderer {
   constructor(container) {
@@ -16,14 +15,13 @@ export class SunRenderer {
     
     this.renderer = new THREE.WebGLRenderer({
       antialias: true,
-      alpha: true, // For a transparent background
+      alpha: true, 
       preserveDrawingBuffer: false
     });
     
     this.#setupRenderer();
     this.#createSun();
     this.#setupLighting();
-    // The call to #setupPostProcessing has been removed.
     
     window.addEventListener('resize', this.boundResize);
     
@@ -42,7 +40,6 @@ export class SunRenderer {
   }
   
   #createSun = () => {
-    // 1. Main sun disc
     const sunGeometry = new THREE.CircleGeometry(0.6, 32);
 
     const sunMaterial = new THREE.ShaderMaterial({
@@ -139,7 +136,6 @@ export class SunRenderer {
     this.sun = new THREE.Mesh(sunGeometry, sunMaterial);
     this.scene.add(this.sun);
     
-    // 2. Corona effect (modified to act as the glow)
     const coronaGeometry = new THREE.CircleGeometry(0.8, 32);
     const coronaMaterial = new THREE.ShaderMaterial({
       uniforms: {
@@ -169,7 +165,6 @@ export class SunRenderer {
     });
 
     this.corona = new THREE.Mesh(coronaGeometry, coronaMaterial);
-    // Scale the corona up to extend the glow further
     this.corona.scale.setScalar(1.25);
     this.scene.add(this.corona);
   };
@@ -179,8 +174,6 @@ export class SunRenderer {
     this.scene.add(ambientLight);
   };
   
-  // The #setupPostProcessing method has been completely removed.
-
   #setupRenderer = () => {
     const width = Math.max(1, this.container.offsetWidth);
     const height = Math.max(1, this.container.offsetHeight);
@@ -216,7 +209,6 @@ export class SunRenderer {
         this.corona.material.uniforms.time.value = time * 0.001;
       }
       
-      // Use the standard renderer, not the composer
       this.renderer.render(this.scene, this.camera);
     } catch (error) {
       console.error('Error in SunRenderer update loop:', error);
@@ -227,12 +219,10 @@ export class SunRenderer {
     const width = Math.max(1, this.container.offsetWidth);
     const height = Math.max(1, this.container.offsetHeight);
     
-    // this.camera.aspect has been removed as it's not applicable for OrthographicCamera in this setup
     this.camera.updateProjectionMatrix();
     
     this.renderer.setSize(width, height, false);
     
-    // The composer.setSize call has been removed.
   }
   
   dispose() {
@@ -260,7 +250,6 @@ export class SunRenderer {
         this.corona.geometry.dispose();
         this.corona.material.dispose();
       }
-      // The composer.dispose call has been removed.
 
       if (this.renderer) {
         this.renderer.dispose();
@@ -276,7 +265,6 @@ export class SunRenderer {
       this.boundContextRestored = null;
       this.sun = null;
       this.corona = null;
-      // this.composer has been removed from cleanup.
       this.renderer = null;
       this.scene = null;
       this.camera = null;

@@ -607,6 +607,32 @@ body, html {
     height: 35px; /* Adjust height */
 }
 
+#planet-surface-screen {
+  background-color: #334; /* A temporary sky color */
+  cursor: default;
+}
+
+#planet-surface-canvas {
+  width: 100%;
+  height: 100%;
+  display: block;
+}
+
+.surface-controls {
+  position: fixed;
+  bottom: 15px;
+  left: 15px;
+  background-color: rgba(0,0,0,0.5);
+  padding: 10px;
+  border-radius: 8px;
+  display: flex;
+  align-items: center;
+  gap: 20px;
+}
+
+.surface-controls .back-button {
+  position: static; /* Override the fixed position for this specific case */
+}
 
 .modal-content .checkbox-label { display: flex; align-items: center; margin-bottom: 15px; }
 .modal-content input[type="checkbox"] { margin-right: 10px; transform: scale(1.2); }

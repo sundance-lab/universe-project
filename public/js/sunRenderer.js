@@ -4,31 +4,14 @@ import { RenderPass } from 'three/examples/jsm/postprocessing/RenderPass.js';
 import { UnrealBloomPass } from 'three/examples/jsm/postprocessing/UnrealBloomPass.js';
 
 export class SunRenderer {
-    #setupRenderer = () => {
-        const size = this.container.offsetWidth;
-        this.renderer.setSize(size, size);
-        this.renderer.setPixelRatio(window.devicePixelRatio);
-        
-        // Set canvas style
-        this.renderer.domElement.style.position = 'absolute';
-        this.renderer.domElement.style.background = 'transparent';
-        this.renderer.domElement.style.pointerEvents = 'none';
-        
-        this.container.appendChild(this.renderer.domElement);
-        this.camera.position.z = 5;
-        this.camera.lookAt(0, 0, 0);
-    };
-
     constructor(container) {
         this.container = container;
         this.scene = new THREE.Scene();
         
-        // Make the rendering area smaller, just enough for the sun
-        const size = 45; // Slightly smaller than container size
+        const size = 45;
         container.style.width = `${size}px`;
         container.style.height = `${size}px`;
         
-        // Tighter camera bounds
         this.camera = new THREE.OrthographicCamera(
             -0.9, 0.9, 0.9, -0.9, 0.1, 1000
         );
@@ -44,8 +27,8 @@ export class SunRenderer {
         this.#createSun();
         this.#setupLighting();
         this.#setupPostProcessing();
-        this.#animate();
-
+        
+        // Remove the animate call from constructor
         window.addEventListener('resize', () => this.resize());
     }
     
@@ -219,22 +202,38 @@ export class SunRenderer {
         this.composer.addPass(bloomPass);
     };
 
-    #animate = () => {
-        requestAnimationFrame(() => this.#animate());
+#setupRenderer = () => {
+    const size = this.container.offsetWidth;
+    this.renderer.setSize(size, size);
+    this.renderer.setPixelRatio(window.devicePixelRatio);
+    
+    // Set canvas style
+    this.renderer.domElement.style.position = 'absolute';
+    this.renderer.domElement.style.background = 'transparent';
+    this.renderer.domElement.style.pointerEvents = 'none';
+    
+    this.container.appendChild(this.renderer.domElement);
+    this.camera.position.z = 5;
+    this.camera.lookAt(0, 0, 0);
+};
+    
+        // Change animate to update
+    update(time) {
+        if (!this.sun || !this.corona) return;
         
-        const time = performance.now() * 0.001;
-        
+        // Update rotations
         this.sun.rotation.z += 0.00005;
         this.corona.rotation.z -= 0.000025;
         
-        this.sun.material.uniforms.time.value = time;
+        // Update uniforms
+        this.sun.material.uniforms.time.value = time * 0.001;
         if (this.corona.material.uniforms) {
-            this.corona.material.uniforms.time.value = time;
+            this.corona.material.uniforms.time.value = time * 0.001;
         }
         
         this.renderer.clear();
         this.composer.render();
-    };
+    }
 
     resize() {
         const width = this.container.offsetWidth;

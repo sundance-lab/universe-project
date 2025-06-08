@@ -211,42 +211,6 @@ body {
   100% { opacity: 0.3; }
 }
 
-.sun-icon {
-  position: absolute;
-  left: 50%;
-  top: 50%;
-  transform: translate(-50%, -50%);
-  border-radius: 50%;
-  box-sizing: border-box;
-  z-index: 4;
-  background: radial-gradient(circle at center,
-    #FFEA00 0%,    /* bright yellow center */
-    #FFD700 85%,   /* gold */
-    #FFA500 100%   /* orange edge */
-  );
-  border: 2px solid #FFA500;
-}
-
-.sun-animated {
-  animation: sunPulse 3.5s infinite ease-in-out;
-  box-shadow:
-    0 0 30px 10px #FFEA00,   /* strong yellow glow */
-    0 0 70px 20px #FFD700,   /* strong gold glow */
-    0 0 120px 40px #FFA500;  /* strong orange glow */
-  /* No transparent or inset glows */
-}
-
-@keyframes sunPulse {
-  0%, 100% {
-    transform: translate(-50%, -50%) scale(1);
-    filter: brightness(1);
-  }
-  50% {
-    transform: translate(-50%, -50%) scale(1.03);
-    filter: brightness(0.95);
-  }
-}
-
 #sun-container {
     width: 100%;
     height: 400px; /* Fixed height instead of 100vh */

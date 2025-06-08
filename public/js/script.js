@@ -388,7 +388,7 @@ function generateStarBackgroundCanvas(containerElement) {
       brightness: 0.3 + Math.random() * 0.7,
       twinkleSpeed: 0.5 + Math.random() * 2,
       // Add parallax factor - different stars move at different speeds
-      parallaxFactor: 0.1 + Math.random() * 0.02 // Values between 0.1 and 0.5
+      parallaxFactor: 0.1 + Math.random() * 0.005 // Values between 0.1 and 0.5
     });
   }
 
@@ -440,7 +440,7 @@ function generateStarBackgroundCanvas(containerElement) {
     const deltaY = event.clientY - window.gameSessionData.panning.startY;
     
     // Update star positions
-    updateStarOffset(deltaX * 0.5, deltaY * 0.02); // Adjust multiplier for parallax intensity
+    updateStarOffset(deltaX * 0.5, deltaY * 0.005); // Adjust multiplier for parallax intensity
   };
 
   // Handle cleanup

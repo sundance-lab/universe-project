@@ -945,6 +945,10 @@ function generateStarBackgroundCanvas(containerElement) {
     window.gameSessionData.activeSolarSystemId = null;
     stopSolarSystemAnimation();
     setActiveScreen(mainScreen); // This will also hide PlanetVisualPanelManager if it's open
+    if (mainScreen) 
+     {
+    generateStarBackgroundCanvas(mainScreen); // Add this line
+     }
   }
 
  function makeTitleEditable(titleTextElement, inputElement, onSaveCallback) {
@@ -1007,6 +1011,10 @@ function generateStarBackgroundCanvas(containerElement) {
   if (galaxyDetailTitleInput) galaxyDetailTitleInput.style.display = 'none';
    
   setActiveScreen(galaxyDetailScreen);
+  if (galaxyDetailScreen) 
+    {
+    generateStarBackgroundCanvas(galaxyDetailScreen); // Add this line
+    }
   makeTitleEditable(galaxyDetailTitleText, galaxyDetailTitleInput, (newName) => { 
    galaxy.customName = newName || null; 
    window.saveGameState(); 
@@ -1187,7 +1195,11 @@ function generateStarBackgroundCanvas(containerElement) {
     if (solarSystemTitleInput) solarSystemTitleInput.style.display = 'none';
 
     setActiveScreen(solarSystemScreen);
+  if (solarSystemScreen) {
+    generateStarBackgroundCanvas(solarSystemScreen); // Add this line
+  }
 
+    
     makeTitleEditable(solarSystemTitleText, solarSystemTitleInput, (newName) => {
       if (solarSystemObject) {
         solarSystemObject.customName = newName || null;

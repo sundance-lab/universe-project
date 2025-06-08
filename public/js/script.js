@@ -1489,26 +1489,31 @@ if (galaxyViewport) galaxyViewport.addEventListener('mousedown', e => {
     }
 });
 
-  // Pan listener for Solar System Screen
-  if (solarSystemScreen) {
-    console.log("SCRIPT: Attaching mousedown listener to solarSystemScreen"); // DEBUG
-    solarSystemScreen.addEventListener('mousedown', e => {
-      console.log("SCRIPT: Mousedown on solarSystemScreen FIRED. Target:", e.target.id || e.target.className, "activeSolarSystemId:", window.gameSessionData.activeSolarSystemId, "solarSystemView.systemId:", window.gameSessionData.solarSystemView?.systemId); // DEBUG
-      // Check conditions specific to solar system view before initiating pan
-      if (window.gameSessionData.solarSystemView &&
-          window.gameSessionData.solarSystemView.systemId && // Ensure systemId is set
-          window.gameSessionData.solarSystemView.systemId === window.gameSessionData.activeSolarSystemId) {
-        console.log("SCRIPT: Conditions met for solar system pan. Calling startPan."); // DEBUG
-        startPan(e, solarSystemScreen, solarSystemContent, window.gameSessionData.solarSystemView);
-      } else {
-        console.warn("SCRIPT: Pan on solarSystemScreen aborted - solarSystemView conditions not met. ActiveSystemID:", window.gameSessionData.activeSolarSystemId, "ViewSystemID:", window.gameSessionData.solarSystemView?.systemId); // DEBUG
-      }
-    });
-  } else {
-    console.error("SCRIPT: solarSystemScreen is null. Cannot attach mousedown listener for solar system pan.");
-  }
+if (solarSystemScreen) {
+  console.log("SCRIPT: Attaching mousedown listener to solarSystemScreen");
 
-  // Wheel zoom listeners (SHOULD BE GROUPED TOGETHER AND INSIDE DOMContentLoaded)
+  solarSystemScreen.addEventListener('mousedown', e => {
+    if (e.target.closest('button, .solar-system-icon, .planet-icon')) {
+      console.log("SCRIPT: Mousedown on interactive element. Pan will not start.");
+      return; 
+    }
+
+    console.log("SCRIPT: Mousedown on solarSystemScreen FIRED. Target:", e.target.id || e.target.className);
+
+    if (window.gameSessionData.solarSystemView &&
+      window.gameSessionData.solarSystemView.systemId &&
+      window.gameSessionData.solarSystemView.systemId === window.gameSessionData.activeSolarSystemId) {
+        
+      console.log("SCRIPT: Conditions met for solar system pan. Calling startPan.");
+      startPan(e, solarSystemScreen, solarSystemContent, window.gameSessionData.solarSystemView);
+    } else {
+      console.warn("SCRIPT: Pan on solarSystemScreen aborted - view conditions not met.");
+    }
+  });
+} else {
+  console.error("SCRIPT: solarSystemScreen is null. Cannot attach mousedown listener.");
+}
+
   const zoomableScreens = [galaxyDetailScreen, solarSystemScreen];
   zoomableScreens.forEach(screen => {
     if (screen) {
@@ -1533,20 +1538,35 @@ if (galaxyViewport) galaxyViewport.addEventListener('mousedown', e => {
   // Resize listener
   let resizeTimeout;
 window.addEventListener('resize', () => {
-  clearTimeout(resizeTimeout);
-  resizeTimeout = setTimeout(() => {
-    if (window.currentSunRenderer) {
-      window.currentSunRenderer.resize();
-      // Wait for resize to complete before re-rendering
-      requestAnimationFrame(() => {
-      if (window.currentSunRenderer) {
-        window.currentSunRenderer.animate();
-      }
-      });
-    }
-    console.log("Debounced resize event: Re-initializing universe.");
-    regenerateCurrentUniverseState(false);
-  }, 500);
+    // This function will now handle resize events gracefully without a full reset.
+    // We can debounce it to avoid running complex logic on every single pixel of a resize.
+    clearTimeout(resizeTimeout);
+    resizeTimeout = setTimeout(() => {
+        console.log("Debounced resize event: Adjusting layout.");
+
+        // 1. Update the layout of the main universe circle if it's visible.
+        if (mainScreen.classList.contains('active')) {
+            generateUniverseLayout(); // This function should only recalculate and apply styles.
+            renderMainScreen(); // This re-renders the DOM elements within the new layout.
+        }
+
+        // 2. If a SunRenderer exists (i.e., we are in the solar system view), call its resize method.
+        if (window.currentSunRenderer && typeof window.currentSunRenderer.resize === 'function') {
+            window.currentSunRenderer.resize();
+        }
+        
+        // 3. We might need to adjust the pan/zoom clamping or re-render other views if necessary.
+        // For example, if the galaxy detail screen is active, we might re-clamp its pan.
+        const activeScreen = document.querySelector('.screen.active');
+        if (activeScreen === galaxyDetailScreen) {
+            const galaxy = window.gameSessionData.galaxies.find(g => g.id === window.gameSessionData.activeGalaxyId);
+            if (galaxy) {
+                clampGalaxyPan(galaxy);
+                renderGalaxyDetailScreen(true);
+            }
+        }
+        
+    }, 250); // A shorter timeout is fine for just resizing.
 });
   
  // --- GAME INITIALIZATION ---

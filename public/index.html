@@ -20,8 +20,7 @@
     <canvas id="planet-360-canvas"></canvas>
     <button class="back-button" id="back-to-solar-system">← Back to Solar System</button>
 </div>
-<div id="sun-container" style="width: 100%; height: 100vh;"></div>
-
+      
         <div id="galaxy-detail-screen" class="screen">
             <div id="galaxy-detail-title-container" class="editable-title-container">
                 <span id="galaxy-detail-title-text" class="editable-title-text">Galaxy</span>
@@ -35,14 +34,11 @@
             <button class="back-button" id="back-to-main">&larr; Universe</button>
         </div>
 
-        <div id="solar-system-screen" class="screen">
-            <div id="solar-system-title-container" class="editable-title-container">
-                <span id="solar-system-title-text" class="editable-title-text">Solar System</span>
-                <input type="text" id="solar-system-title-input" class="editable-title-input">
-            </div>
-            <div id="solar-system-content"></div>
-            <button class="back-button" id="back-to-galaxy">&larr; Galaxy</button>
-        </div>
+<div id="solar-system-screen" class="screen">
+    <div id="sun-container"></div>
+    <div id="solar-system-content"></div>
+    <button class="back-button" id="back-to-galaxy">&larr; Galaxy</button>
+</div>
 
         <div id="planet-designer-screen" class="screen">
             <div class="designer-panel">
@@ -131,12 +127,7 @@
   </div>
 </div>
 
-<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
-<!-- For post-processing effects -->
-<script src="https://cdn.jsdelivr.net/npm/three/examples/js/postprocessing/EffectComposer.js"></script>
-<script src="https://cdn.jsdelivr.net/npm/three/examples/js/postprocessing/RenderPass.js"></script>
-<script src="https://cdn.jsdelivr.net/npm/three/examples/js/postprocessing/UnrealBloomPass.js"></script>
-
+<script type="module" src="js/sunRenderer.js"></script>
 
 <script src="js/mathUtils.js"></script>
 <script type="module" src="js/script.js"></script>

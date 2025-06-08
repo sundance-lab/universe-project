@@ -155,7 +155,7 @@ export const PlanetDesigner = (() => {
   uniforms.uContinentSeed.value = continentSeed;
   uniforms.uRiverBasin.value = riverBasin;
   uniforms.uForestDensity.value = forestDensity;
-  uniforms.uOceanHeightLevel.value = Math.max(0.0, Math.min(1.0, normalizedOceanLevel));
+  uniforms.uOceanHeightLevel.value = normalizedOceanLevel - 0.5;
   const displacementAmount = terrainRange * DISPLACEMENT_SCALING_FACTOR;
   uniforms.uDisplacementAmount.value = displacementAmount;
  }

@@ -4,12 +4,12 @@ import { startSolarSystemAnimation, stopSolarSystemAnimation, isSolarSystemAnima
 import * as PlanetDesigner from './planetDesigner.js';
 import * as PlanetVisualPanelManager from './planetVisualPanelManager.js';
 import { SunRenderer } from './sunRenderer.js';
-import { PlanetSurfaceController } from './planetSurfaceController.js'; 
+import { HexPlanetViewController } from './hexPlanetViewController.js';
 
 function initializeModules() {
  window.PlanetDesigner = PlanetDesigner.PlanetDesigner;
  window.PlanetVisualPanelManager = PlanetVisualPanelManager.PlanetVisualPanelManager;
-  PlanetSurfaceController.init();
+ HexPlanetViewController.init();
 }
 
 document.addEventListener('DOMContentLoaded', () => {

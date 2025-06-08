@@ -10,13 +10,16 @@ class SunRenderer {
         this.setupLighting();
         this.setupPostProcessing();
         this.animate();
+
+        // Add resize handler
+        window.addEventListener('resize', () => this.resize());
     }
 
     setupRenderer() {
         this.renderer.setSize(this.container.offsetWidth, this.container.offsetHeight);
         this.renderer.setPixelRatio(window.devicePixelRatio);
         this.container.appendChild(this.renderer.domElement);
-        this.camera.position.z = 2;
+        this.camera.position.z = 3; // Changed from 2 for better view
     }
 
     createSun() {
@@ -25,7 +28,9 @@ class SunRenderer {
         const sunMaterial = new THREE.ShaderMaterial({
             uniforms: {
                 time: { value: 0 },
-                color: { value: new THREE.Color(0xffaa00) }
+                color: { value: new THREE.Color(0xffaa00) },
+                noiseScale: { value: 5.0 },
+                pulseSpeed: { value: 0.1 }
             },
             vertexShader: `
                 varying vec2 vUv;
@@ -40,6 +45,8 @@ class SunRenderer {
             fragmentShader: `
                 uniform float time;
                 uniform vec3 color;
+                uniform float noiseScale;
+                uniform float pulseSpeed;
                 varying vec2 vUv;
                 varying vec3 vNormal;
                 
@@ -110,12 +117,22 @@ class SunRenderer {
                 }
                 
                 void main() {
-                    float noise = snoise(vec3(vUv * 5.0, time * 0.1));
-                    vec3 finalColor = mix(color, color * 1.5, noise);
+                    // Multiple layers of noise for more detail
+                    float noise1 = snoise(vec3(vUv * noiseScale, time * 0.1));
+                    float noise2 = snoise(vec3(vUv * noiseScale * 2.0, time * 0.15));
+                    float combinedNoise = noise1 * 0.7 + noise2 * 0.3;
                     
-                    // Add rim lighting
+                    // Enhanced color variation
+                    vec3 hotSpot = vec3(1.0, 0.8, 0.3);
+                    vec3 finalColor = mix(color, hotSpot, combinedNoise);
+                    
+                    // Improved rim lighting
                     float rimLight = 1.0 - max(dot(vNormal, vec3(0.0, 0.0, 1.0)), 0.0);
-                    finalColor += vec3(1.0, 0.6, 0.3) * pow(rimLight, 2.0);
+                    finalColor += vec3(1.0, 0.6, 0.3) * pow(rimLight, 3.0);
+                    
+                    // Add subtle pulsing
+                    float pulse = sin(time * pulseSpeed) * 0.1 + 0.9;
+                    finalColor *= pulse;
                     
                     gl_FragColor = vec4(finalColor, 1.0);
                 }
@@ -127,22 +144,24 @@ class SunRenderer {
 
         // Add corona particles
         const coronaParticles = new THREE.BufferGeometry();
-        const particleCount = 1000;
+        const particleCount = 2000; // Increased from 1000
         const positions = new Float32Array(particleCount * 3);
         const colors = new Float32Array(particleCount * 3);
 
         for(let i = 0; i < particleCount; i++) {
             const theta = Math.random() * Math.PI * 2;
             const phi = Math.random() * Math.PI;
-            const r = 1 + Math.random() * 0.5;
+            const r = 1 + Math.pow(Math.random(), 2) * 0.8;
 
             positions[i * 3] = r * Math.sin(phi) * Math.cos(theta);
             positions[i * 3 + 1] = r * Math.sin(phi) * Math.sin(theta);
             positions[i * 3 + 2] = r * Math.cos(phi);
 
+            // More varied corona colors
+            const intensity = Math.random();
             colors[i * 3] = 1.0;
-            colors[i * 3 + 1] = 0.6;
-            colors[i * 3 + 2] = 0.2;
+            colors[i * 3 + 1] = 0.6 + (intensity * 0.4);
+            colors[i * 3 + 2] = 0.1 + (intensity * 0.3);
         }
 
         coronaParticles.setAttribute('position', new THREE.BufferAttribute(positions, 3));
@@ -170,9 +189,9 @@ class SunRenderer {
         const renderPass = new THREE.RenderPass(this.scene, this.camera);
         const bloomPass = new THREE.UnrealBloomPass(
             new THREE.Vector2(this.container.offsetWidth, this.container.offsetHeight),
-            1.5,  // Bloom intensity
-            0.4,  // Bloom radius
-            0.85  // Bloom threshold
+            2.0,    // Increased bloom intensity
+            0.5,    // Adjusted bloom radius
+            0.75    // Adjusted bloom threshold
         );
         
         this.composer.addPass(renderPass);
@@ -182,11 +201,28 @@ class SunRenderer {
     animate() {
         requestAnimationFrame(() => this.animate());
         
-        this.sun.rotation.y += 0.001;
-        this.corona.rotation.y += 0.0005;
+        const time = performance.now() * 0.001;
         
-        // Update shader time uniform
-        this.sun.material.uniforms.time.value += 0.01;
+        // Smoother rotation
+        this.sun.rotation.y += 0.0005;
+        this.corona.rotation.y += 0.00025;
+        
+        // Animate corona particles
+        const positions = this.corona.geometry.attributes.position.array;
+        for(let i = 0; i < positions.length; i += 3) {
+            const x = positions[i];
+            const y = positions[i + 1];
+            const z = positions[i + 2];
+            
+            // Add subtle wavering motion
+            positions[i] = x + Math.sin(time + x) * 0.001;
+            positions[i + 1] = y + Math.cos(time + y) * 0.001;
+            positions[i + 2] = z + Math.sin(time + z) * 0.001;
+        }
+        this.corona.geometry.attributes.position.needsUpdate = true;
+        
+        // Update shader time
+        this.sun.material.uniforms.time.value = time * 0.5;
         
         this.composer.render();
     }

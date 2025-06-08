@@ -217,12 +217,10 @@ body {
     top: 50%;
     transform: translate(-50%, -50%);
     pointer-events: none;
-    background: transparent;
-    overflow: visible;
 }
 
 #sun-container canvas {
-    background: transparent !important;
+    mix-blend-mode: lighten;  /* This makes black pixels transparent and lets bright pixels add to background */
 }
 
 body, html {

@@ -48,15 +48,7 @@ export class SunRenderer {
 
     window.addEventListener('resize', () => this.resize());
 }
-
-#createSun = () => {
-    // Make the sun geometry slightly smaller to fit tighter bounds
-    const sunGeometry = new THREE.CircleGeometry(0.6, 32);
-    // ... rest of sun creation ...
-
-    // Make corona slightly smaller too
-    this.corona.scale.setScalar(0.9);
-}
+    
     #createSun = () => {
         const sunGeometry = new THREE.CircleGeometry(0.7, 32);
         const sunMaterial = new THREE.ShaderMaterial({

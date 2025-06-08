@@ -142,19 +142,13 @@ void main() {
  vec3 snowColor = vec3(0.9, 0.9, 1.0);
  float landMassRange = 1.0 - uOceanHeightLevel;
 
-  // ========================= SOLUTION: RESTRUCTURED LOGIC =========================
-  // 1. Check for rivers FIRST.
-  // This ensures river pixels are always colored correctly, even if their
-  // final elevation is below sea level.
-  if (vRiverValue > 0.25) {
-    // Mix with plainsColor to prevent rivers from appearing as pure black lines if water is dark
-    finalColor = mix(plainsColor, waterColor * 0.85, vRiverValue);
+
+  // ========================= SOLUTION: CORRECTED LOGIC FLOW =========================
+  // First, check if the pixel is part of the ocean.
+  if (vElevation < uOceanHeightLevel) {
+    finalColor = waterColor; // This is ocean, no rivers here.
   }
-  // 2. If it's NOT a river, check if it's an ocean.
-  else if (vElevation < uOceanHeightLevel) {
-    finalColor = waterColor;
-  }
-  // 3. If it's not a river or an ocean, it must be land.
+  // If it's not ocean, it must be land. Now we can apply land features.
   else {
     float landRatio = max(0.0, (vElevation - uOceanHeightLevel) / landMassRange);
 
@@ -163,6 +157,7 @@ void main() {
     const float MOUNTAIN_START = 0.60;
     const float SNOW_START = 0.85;
 
+    // Determine the base land color from the biome.
     if (landRatio < BEACH_END) {
       finalColor = mix(plainsColor, beachColor, smoothstep(BEACH_END, 0.0, landRatio));
     } else if (landRatio < PLAINS_END) {
@@ -175,16 +170,20 @@ void main() {
       finalColor = mix(mountainColor, snowColor, smoothstep(SNOW_START, 1.0, landRatio));
     }
 
-    // Add forests on top of the base biome color
+    // Add forests on top of the biome color.
     if (landRatio > BEACH_END && landRatio < SNOW_START) {
       float forestNoise = valueNoise(vWorldPosition * 25.0, uContinentSeed * 4.0);
       float forestMask = smoothstep(1.0 - uForestDensity, 1.0 - uForestDensity + 0.1, forestNoise);
       finalColor = mix(finalColor, forestColor, forestMask);
     }
+
+    // FINALLY, check for and draw rivers ON TOP of the final land color.
+    if (vRiverValue > 0.2) {
+      // Mix the final land color with the river water color.
+      finalColor = mix(finalColor, waterColor * 0.9, vRiverValue);
+    }
   }
   // =================================================================================
-
-  // The old separate river coloring logic has been removed from here.
 
  vec3 viewDirection = normalize(cameraPosition - vWorldPosition);
  gl_FragColor = vec4(calculateLighting(finalColor, vNormal, viewDirection), 1.0);

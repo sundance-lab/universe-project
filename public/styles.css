@@ -186,10 +186,9 @@ body {
   box-sizing: border-box;
   z-index: 4;
   background: radial-gradient(circle at center,
-    #FFEA00 0%,   /* pure yellow center */
-    #FFEA00 80%,  /* keep yellow until near edge */
-    #FFD700 90%,  /* gold at edge */
-    #FFA500 100%  /* orange at very edge */
+    #FFEA00 0%,    /* bright yellow center */
+    #FFD700 85%,   /* gold */
+    #FFA500 100%   /* orange edge */
   );
   border: 2px solid #FFA500;
 }
@@ -201,6 +200,17 @@ body {
     0 0 70px 20px #FFD700,   /* strong gold glow */
     0 0 120px 40px #FFA500;  /* strong orange glow */
   /* No transparent or inset glows */
+}
+
+@keyframes sunPulse {
+  0%, 100% {
+    transform: translate(-50%, -50%) scale(1);
+    filter: brightness(1);
+  }
+  50% {
+    transform: translate(-50%, -50%) scale(1.03);
+    filter: brightness(0.95);
+  }
 }
 
 .planet-icon {
@@ -238,18 +248,6 @@ body {
 .planet-icon:hover .enter-planet-button {
     opacity: 1; /* Show on hover */
     bottom: -20px; /* Move slightly up on hover */
-}
-
-@keyframes sunPulse {
-  0%,
-  100% {
-  transform: translate(-50%, -50%) scale(1); /* Keep centering transform */
-  opacity: 1;
-  }
-  50% {
-  transform: translate(-50%, -50%) scale(1.03); /* Keep centering, just scale */
-  opacity: 0.95;
-  }
 }
 
 .controls-overlay {

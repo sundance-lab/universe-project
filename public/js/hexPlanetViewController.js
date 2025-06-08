@@ -72,7 +72,6 @@ export const HexPlanetViewController = (() => {
       vertexShader,
       fragmentShader,
       uniforms: {
-        // Pass all the necessary data from the planet designer to the shader
         uContinentSeed: { value: planetBasis.continentSeed },
         uSphereRadius: { value: 1.0 },
         uDisplacementAmount: { value: displacementAmount },
@@ -80,6 +79,7 @@ export const HexPlanetViewController = (() => {
         uWaterColor: { value: new THREE.Color(planetBasis.waterColor) },
         uOceanHeightLevel: { value: normalizedOceanLevel - 0.5 },
         uForestDensity: { value: planetBasis.forestDensity },
+        uRiverBasin: { value: planetBasis.riverBasin ?? 0.05 }, // Use value from basis, or a default
       }
     });
 

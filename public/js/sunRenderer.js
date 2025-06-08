@@ -23,28 +23,22 @@ export class SunRenderer {
         this.container = container;
         this.scene = new THREE.Scene();
         
-        // Set the size to match the sun's intended size
-        const size = 60; // Match your SUN_ICON_SIZE
+        const size = 60;
         container.style.width = size + 'px';
         container.style.height = size + 'px';
         
-        // Increase the camera bounds to prevent clipping
         this.camera = new THREE.OrthographicCamera(
             -1.2, 1.2, 1.2, -1.2, 0.1, 1000
         );
         
-        // Add premultipliedAlpha and change powerPreference
         this.renderer = new THREE.WebGLRenderer({ 
             antialias: true, 
             alpha: true,
-            premultipliedAlpha: false,
-            powerPreference: "high-performance",
-            preserveDrawingBuffer: false
+            preserveDrawingBuffer: true
         });
         
-        // Ensure complete transparency
-        this.renderer.setClearColor(0x000000, 0);
-        this.scene.background = null;
+        // Use pure black for the background - it will be made transparent by the blend mode
+        this.renderer.setClearColor(0x000000, 1);
         
         this.#setupRenderer();
         this.#createSun();

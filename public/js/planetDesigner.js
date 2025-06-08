@@ -41,7 +41,7 @@ export const PlanetDesigner = (() => {
   const { vertexShader, fragmentShader } = getPlanetShaders();
 
   designerThreeScene = new THREE.Scene();
-  designerThreeScene.background = new THREE.Color(0x1a1a2a);
+  designerThreeScene.background = new THREE.Color(0x0d0d0d);
   designerThreeCamera = new THREE.PerspectiveCamera(60, designerPlanetCanvas.offsetWidth / designerPlanetCanvas.offsetHeight, 0.001, 100);
   designerThreeCamera.position.z = 2.5;
 

@@ -59,14 +59,12 @@ float layeredNoise(vec3 p, float seed, int octaves, float persistence, float lac
  return total / maxValue;
 }
 
-// ========================= SOLUTION PART 1: WIDEN THE RIVER VALLEYS =========================
-// By changing the power from 4.0 to 3.0, we make the river valleys less sharp
-// and more substantial, allowing them to be detected and rendered more easily.
+
 float ridgedRiverNoise(vec3 p, float seed) {
  float n = layeredNoise(p, seed, 6, 0.5, 2.0, 1.0);
  return pow(1.0 - abs(n), 3.0); 
 }
-// ===========================================================================================
+
 
 void main() {
  vec3 p = position;
@@ -137,7 +135,6 @@ vec3 calculateLighting(vec3 surfaceColor, vec3 normalVec, vec3 viewDir) {
 void main() {
  vec3 finalColor;
 
- // Define base biome colors
  vec3 waterColor = uWaterColor;
  vec3 beachColor = uLandColor * 1.1 + vec3(0.1, 0.1, 0.0);
  vec3 plainsColor = uLandColor;
@@ -145,6 +142,7 @@ void main() {
  vec3 mountainColor = uLandColor * 0.9 + vec3(0.05);
  vec3 snowColor = vec3(0.9, 0.9, 1.0);
  float landMassRange = 1.0 - uOceanHeightLevel;
+
 
   if (vElevation < uOceanHeightLevel) {
     finalColor = waterColor;
@@ -174,22 +172,32 @@ void main() {
       finalColor = mix(finalColor, forestColor, forestMask);
     }
 
-    // ========================= SOLUTION PART 2: LOWER THE VISIBILITY THRESHOLD =========================
-    // By changing this check from > 0.2 to > 0.1, we allow more of the calculated
-    // river values to actually be drawn, making faint tributaries visible.
     if (vRiverValue > 0.1) {
       finalColor = mix(finalColor, waterColor * 0.9, vRiverValue);
     }
-    // =================================================================================================
   }
 
  vec3 viewDirection = normalize(cameraPosition - vWorldPosition);
  gl_FragColor = vec4(calculateLighting(finalColor, vNormal, viewDirection), 1.0);
 }
+`;
+
+export function getPlanetShaders() {
+ const noiseFunctions = glslRandom2to1 + glslSimpleValueNoise3D;
+
+ return {
+  vertexShader: noiseFunctions + planetVertexShaderSource,
+  fragmentShader: noiseFunctions + planetFragmentShaderSource
+ };
+}
 
 export function getPlanetSurfaceShaders() {
 
-  const surfaceVertexShader = `
+  // ========================= SOLUTION: Use concatenation instead of interpolation =========================
+  const surfaceVertexShader = 
+    glslRandom2to1 +
+    glslSimpleValueNoise3D +
+    `
     uniform float uTime;
     uniform float uDisplacementAmount;
     uniform float uContinentSeed;
@@ -197,10 +205,7 @@ export function getPlanetSurfaceShaders() {
     varying vec3 vWorldPosition;
     varying float vElevation;
 
-    // We reuse the same noise functions
-    ${glslRandom2to1}
-    ${glslSimpleValueNoise3D}
-
+    // layeredNoise function is now defined in its own scope and doesn't need to be injected
     float layeredNoise(vec3 p, float seed, int octaves, float persistence, float lacunarity, float scale) {
       float total = 0.0;
       float frequency = scale;
@@ -235,6 +240,7 @@ export function getPlanetSurfaceShaders() {
       gl_Position = projectionMatrix * modelViewMatrix * vec4(newPosition, 1.0);
     }
   `;
+  // =======================================================================================================
 
   const surfaceFragmentShader = `
     uniform vec3 uWaterColor;
@@ -280,15 +286,4 @@ export function getPlanetSurfaceShaders() {
   `;
 
   return { vertexShader: surfaceVertexShader, fragmentShader: surfaceFragmentShader };
-}
-
-`;
-
-export function getPlanetShaders() {
- const noiseFunctions = glslRandom2to1 + glslSimpleValueNoise3D;
-
- return {
-  vertexShader: noiseFunctions + planetVertexShaderSource,
-  fragmentShader: noiseFunctions + planetFragmentShaderSource
- };
 }

@@ -183,27 +183,25 @@ export class SunRenderer {
     };
     
     #setupPostProcessing = () => {
-        const width = Math.max(1, this.container.offsetWidth);
-        const height = Math.max(1, this.container.offsetHeight);
+    const width = Math.max(1, this.container.offsetWidth);
+    const height = Math.max(1, this.container.offsetHeight);
+     
+    this.composer = new EffectComposer(this.renderer);
+    this.composer.setSize(width, height);
+     
+    const renderPass = new RenderPass(this.scene, this.camera);
+        renderPass.clear = false; 
         
-        this.composer = new EffectComposer(this.renderer);
-        this.composer.setSize(width, height);
-        
-        const renderPass = new RenderPass(this.scene, this.camera);
-        renderPass.clear = true; // Let the pass handle clearing
-        renderPass.clearColor = new THREE.Color(0x000000);
-        renderPass.clearAlpha = 0;
-        
-        const bloomPass = new UnrealBloomPass(
-            new THREE.Vector2(width, height),
-            0.5, // strength
-            0.2, // radius
-            0.95 // threshold
-        );
-        
-        this.composer.addPass(renderPass);
-        this.composer.addPass(bloomPass);
-    };
+    const bloomPass = new UnrealBloomPass(
+      new THREE.Vector2(width, height),
+      0.5, // strength
+      0.2, // radius
+      0.95 // threshold
+    );
+     
+    this.composer.addPass(renderPass);
+    this.composer.addPass(bloomPass);
+  };
 
     #setupRenderer = () => {
         const width = Math.max(1, this.container.offsetWidth);
@@ -228,23 +226,25 @@ export class SunRenderer {
         this.camera.lookAt(0, 0, 0);
     };
     
-    update(time) {
-        if (!this.sun || !this.corona || !this.composer) return;
-        
-        try {
-            this.sun.rotation.z += 0.00005;
-            this.corona.rotation.z -= 0.000025;
-            
-            this.sun.material.uniforms.time.value = time * 0.001;
-            if (this.corona.material.uniforms) {
-                this.corona.material.uniforms.time.value = time * 0.001;
-            }
-            
-            this.composer.render();
-        } catch (error) {
-            console.error('Error in SunRenderer update loop:', error);
-        }
+  update(time) {
+    if (!this.sun || !this.corona || !this.composer || !this.renderer) return;
+     
+    try {
+      this.sun.rotation.z += 0.00005;
+      this.corona.rotation.z -= 0.000025;
+       
+      this.sun.material.uniforms.time.value = time * 0.001;
+      if (this.corona.material.uniforms) {
+        this.corona.material.uniforms.time.value = time * 0.001;
+      }
+       
+      this.renderer.clear();
+      this.composer.render();
+
+    } catch (error) {
+      console.error('Error in SunRenderer update loop:', error);
     }
+  }
     
     resize() {
         const width = Math.max(1, this.container.offsetWidth);

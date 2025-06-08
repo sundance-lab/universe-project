@@ -186,19 +186,6 @@ body {
   z-index: 0;
 }
 
-.star {
-  position: absolute;
-  background-color: #ffffff;
-  border-radius: 50%;
-  animation: twinkle 4s infinite alternate;
-}
-
-@keyframes twinkle {
-  0% { opacity: 0.3; }
-  50% { opacity: 1; }
-  100% { opacity: 0.3; }
-}
-
 #sun-container {
     position: absolute;
     left: 50%;

@@ -8,19 +8,16 @@ class SunRenderer {
         this.container = container;
         this.scene = new THREE.Scene();
         
-        // Switch to orthographic camera
-        const aspect = container.offsetWidth / container.offsetHeight;
-        const viewSize = 2;
+        // Set the size to match the sun's intended size
+        const size = 60; // Match your SUN_ICON_SIZE
+        container.style.width = size + 'px';
+        container.style.height = size + 'px';
+        
+        // Use square aspect ratio
         this.camera = new THREE.OrthographicCamera(
-            -viewSize * aspect / 2,
-            viewSize * aspect / 2,
-            viewSize / 2,
-            -viewSize / 2,
-            0.1,
-            1000
+            -1, 1, 1, -1, 0.1, 1000
         );
         
-        // Use alpha and preserve drawing buffer to blend with background
         this.renderer = new THREE.WebGLRenderer({ 
             antialias: true, 
             alpha: true,
@@ -38,7 +35,9 @@ class SunRenderer {
     }
 
     setupRenderer() {
-        this.renderer.setSize(this.container.offsetWidth, this.container.offsetHeight);
+        // Set renderer size to match container
+        const size = this.container.offsetWidth;
+        this.renderer.setSize(size, size);
         this.renderer.setPixelRatio(window.devicePixelRatio);
         this.container.appendChild(this.renderer.domElement);
         this.camera.position.z = 5;

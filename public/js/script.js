@@ -1056,25 +1056,40 @@ function generateStarBackgroundCanvas(containerElement) {
   }
  }
 
-
+function calculateInitialZoom(screenWidth, screenHeight) {
+  // Calculate the minimum zoom needed to fit the solar system
+  const horizontalZoom = screenWidth / (SOLAR_SYSTEM_EXPLORABLE_RADIUS * 2);
+  const verticalZoom = screenHeight / (SOLAR_SYSTEM_EXPLORABLE_RADIUS * 2);
+  
+  // Use the more restrictive dimension
+  const minRequiredZoom = Math.max(horizontalZoom, verticalZoom);
+  
+  // Add a small buffer (e.g., 20% larger than minimum)
+  return Math.max(SOLAR_SYSTEM_VIEW_MIN_ZOOM, minRequiredZoom * 1.2);
+}
   
   function switchToSolarSystemView(solarSystemId) {
     window.gameSessionData.activeSolarSystemId = solarSystemId;
     const activeGalaxy = window.gameSessionData.galaxies.find(g => solarSystemId.startsWith(g.id));
     const solarSystemObject = activeGalaxy?.solarSystems.find(s => s.id === solarSystemId);
 
+    const initialZoom = calculateInitialZoom(
+      solarSystemScreen.offsetWidth,
+      solarSystemScreen.offsetHeight
+    );
+    
     if (!solarSystemObject) {
       console.error(`switchToSolarSystemView: Solar System object ${solarSystemId} not found in game data.`);
       return switchToMainView();
     }
 
     window.gameSessionData.solarSystemView = {
-      zoomLevel: 0.5,
-      currentPanX: 0,
-      currentPanY: 0,
-      systemId: solarSystemId,
-      planets: []
-    };
+    zoomLevel: initialZoom, // Use calculated zoom instead of fixed 0.5
+    currentPanX: 0,
+    currentPanY: 0,
+    systemId: solarSystemId,
+    planets: []
+  };
 
     if (solarSystemContent) solarSystemContent.innerHTML = '';
 

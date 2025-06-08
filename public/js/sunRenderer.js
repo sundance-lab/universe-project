@@ -13,9 +13,9 @@ class SunRenderer {
         container.style.width = size + 'px';
         container.style.height = size + 'px';
         
-        // Use square aspect ratio
+        // Increase the camera bounds to prevent clipping
         this.camera = new THREE.OrthographicCamera(
-            -1, 1, 1, -1, 0.1, 1000
+            -1.2, 1.2, 1.2, -1.2, 0.1, 1000  // Changed from -1,1,1,-1 to give more space
         );
         
         this.renderer = new THREE.WebGLRenderer({ 
@@ -23,7 +23,7 @@ class SunRenderer {
             alpha: true,
             preserveDrawingBuffer: true
         });
-        this.renderer.setClearColor(0x000000, 0); // Transparent background
+        this.renderer.setClearColor(0x000000, 0);
         
         this.setupRenderer();
         this.createSun();
@@ -32,16 +32,6 @@ class SunRenderer {
         this.animate();
 
         window.addEventListener('resize', () => this.resize());
-    }
-
-    setupRenderer() {
-        // Set renderer size to match container
-        const size = this.container.offsetWidth;
-        this.renderer.setSize(size, size);
-        this.renderer.setPixelRatio(window.devicePixelRatio);
-        this.container.appendChild(this.renderer.domElement);
-        this.camera.position.z = 5;
-        this.camera.lookAt(0, 0, 0);
     }
 
     createSun() {
@@ -231,7 +221,7 @@ class SunRenderer {
         const width = this.container.offsetWidth;
         const height = this.container.offsetHeight;
         const aspect = width / height;
-        const viewSize = 2;
+        const viewSize = 2.4;  // Increased from 2 to match camera bounds
         
         this.camera.left = -viewSize * aspect / 2;
         this.camera.right = viewSize * aspect / 2;

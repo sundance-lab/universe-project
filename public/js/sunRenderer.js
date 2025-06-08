@@ -310,3 +310,4 @@ dispose() {
         this.container = null;
     }
 }
+}

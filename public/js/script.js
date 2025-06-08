@@ -51,6 +51,10 @@ document.addEventListener('DOMContentLoaded', () => {
   // --- FUNCTION DEFINITIONS ---
 
 window.generatePlanetInstanceFromBasis = function (basis, isForDesignerPreview = false) {
+  console.log("[DEBUG] Generating planet instance:");
+  console.log("[DEBUG] Available templates:", window.gameSessionData?.customPlanetDesigns?.length || 0);
+  console.log("[DEBUG] Is preview mode:", isForDesignerPreview);
+  
   // Always use a custom template if available and not in preview mode
   if (!isForDesignerPreview && 
       window.gameSessionData?.customPlanetDesigns?.length > 0) {
@@ -59,6 +63,12 @@ window.generatePlanetInstanceFromBasis = function (basis, isForDesignerPreview =
     const randomDesign = window.gameSessionData.customPlanetDesigns[
       Math.floor(Math.random() * window.gameSessionData.customPlanetDesigns.length)
     ];
+    
+    console.log("[DEBUG] Using template:", {
+      designId: randomDesign.designId,
+      waterColor: randomDesign.waterColor,
+      landColor: randomDesign.landColor
+    });
     
     return {
       waterColor: randomDesign.waterColor,
@@ -72,6 +82,9 @@ window.generatePlanetInstanceFromBasis = function (basis, isForDesignerPreview =
     };
   }
 
+  console.log("[DEBUG] Using default generation because:", 
+    isForDesignerPreview ? "is preview mode" : "no custom designs available");
+  
   // Default generation only if no custom designs exist or if in preview mode
   return {
     waterColor: basis.waterColor || '#0000FF',
@@ -297,6 +310,11 @@ window.generatePlanetInstanceFromBasis = function (basis, isForDesignerPreview =
      });
 
 window.gameSessionData.customPlanetDesigns = (loadedState.customPlanetDesigns || []).map(design => {
+  console.log("[DEBUG] Loading planet template:", {
+    designId: design.designId,
+    waterColor: design.waterColor,
+    landColor: design.landColor
+  });
   const migratedDesign = { ...design };
   if (migratedDesign.continentSeed === undefined) migratedDesign.continentSeed = Math.random();
 
@@ -318,7 +336,7 @@ window.gameSessionData.customPlanetDesigns = (loadedState.customPlanetDesigns ||
   delete migratedDesign.oceanHeightRange;
   return migratedDesign;
 });
-      
+     console.log("[DEBUG] Total templates loaded:", window.gameSessionData.customPlanetDesigns.length);  
      console.log("Game state loaded successfully.");
      return true;
     }

@@ -388,7 +388,7 @@ function generateStarBackgroundCanvas(containerElement) {
       brightness: 0.3 + Math.random() * 0.7,
       twinkleSpeed: 0.5 + Math.random() * 2,
       // Add parallax factor - different stars move at different speeds
-      parallaxFactor: 0.1 + Math.random() * 0.4 // Values between 0.1 and 0.5
+      parallaxFactor: 0.1 + Math.random() * 0.1 // Values between 0.1 and 0.5
     });
   }
 

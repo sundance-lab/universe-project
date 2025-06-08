@@ -236,6 +236,19 @@ body {
   }
 }
 
+#sun-container {
+    width: 100%;
+    height: 100vh;
+    background: #000;
+    overflow: hidden;
+}
+
+body, html {
+    margin: 0;
+    padding: 0;
+    overflow: hidden;
+}
+
 .planet-icon {
   position: absolute; /* Positioned by JS (left/top calc) */
   border-radius: 50%;

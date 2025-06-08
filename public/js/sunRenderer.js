@@ -5,12 +5,11 @@ import { UnrealBloomPass } from 'three/examples/jsm/postprocessing/UnrealBloomPa
 
 export class SunRenderer {
     constructor(container) {
+        this.boundResize = this.resize.bind(this);
         this.container = container;
         this.scene = new THREE.Scene();
         
         const size = 45;
-        container.style.width = `${size}px`;
-        container.style.height = `${size}px`;
         
         this.camera = new THREE.OrthographicCamera(
             -0.9, 0.9, 0.9, -0.9, 0.1, 1000
@@ -28,8 +27,7 @@ export class SunRenderer {
         this.#setupLighting();
         this.#setupPostProcessing();
         
-        // Remove the animate call from constructor
-        window.addEventListener('resize', () => this.resize());
+        window.addEventListener('resize', this.boundResize);
     }
     
     #createSun = () => {
@@ -184,8 +182,6 @@ export class SunRenderer {
 
     #setupPostProcessing = () => {
         this.composer = new EffectComposer(this.renderer);
-        this.composer.renderTarget1.texture.format = THREE.RGBAFormat;
-        this.composer.renderTarget2.texture.format = THREE.RGBAFormat;
         
         const renderPass = new RenderPass(this.scene, this.camera);
         renderPass.clearColor = new THREE.Color(0x000000);
@@ -231,8 +227,8 @@ export class SunRenderer {
             this.corona.material.uniforms.time.value = time * 0.001;
         }
         
-        this.renderer.clear();
         this.composer.render();
+        
     }
 
     resize() {
@@ -293,14 +289,15 @@ dispose() {
                 canvas.parentNode.removeChild(canvas);
             }
         }
-
-        // Remove event listener with bound context
-        window.removeEventListener('resize', () => this.resize());
+      if (this.boundResize) {
+        window.removeEventListener('resize', this.boundResize);
+      }
 
     } catch (error) {
         console.error('Error during SunRenderer disposal:', error);
     } finally {
         // Clear all references
+        this.boundResize = null; // Clear the reference
         this.sun = null;
         this.corona = null;
         this.composer = null;

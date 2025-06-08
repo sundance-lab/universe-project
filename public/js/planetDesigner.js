@@ -75,6 +75,13 @@ export const PlanetDesigner = (() => {
   designerThreeControls.minDistance = 0.9;
   designerThreeControls.maxDistance = 4;
 
+  designerThreeControls.minAzimuthAngle = -Infinity;
+  designerThreeControls.maxAzimuthAngle = Infinity;
+  
+  designerThreeControls.minPolarAngle = Math.PI * 0.1;
+  designerThreeControls.maxPolarAngle = Math.PI * 0.9;
+  // ===========================================================================
+  
   _animateDesignerThreeJSView();
  }
 

@@ -217,6 +217,7 @@ body {
     top: 50%;
     transform: translate(-50%, -50%);
     pointer-events: none;
+    overflow: visible;
 }
 
 #sun-container canvas {

@@ -1400,12 +1400,15 @@ function panMouseMove(event) {
 
   const deltaX = event.clientX - p.startX;
   const deltaY = event.clientY - p.startY;
+
+  const zoomKey = p.dataObject.hasOwnProperty('currentZoom') ? 'currentZoom' : 'zoomLevel';
+  const zoom = p.dataObject[zoomKey] || 1.0;
+
   const panXKey = 'currentPanX';
   const panYKey = 'currentPanY';
-  p.dataObject[panXKey] = p.initialPanX + deltaX;
-  p.dataObject[panYKey] = p.initialPanY + deltaY;
-
-  // Call the mouseMoveHandler if it exists (for star parallax)
+  p.dataObject[panXKey] = p.initialPanX + (deltaX / zoom);
+  p.dataObject[panYKey] = p.initialPanY + (deltaY / zoom);
+  
   if (p.mouseMoveHandler) {
     p.mouseMoveHandler(event);
   }

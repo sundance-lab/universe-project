@@ -349,6 +349,69 @@ window.gameSessionData.customPlanetDesigns = (loadedState.customPlanetDesigns ||
   return false;
  }
 
+function generateStarBackgroundCanvas(containerElement) {
+  // Remove any existing star background
+  const existingBackground = containerElement.querySelector('.star-background');
+  if (existingBackground) {
+    existingBackground.remove();
+  }
+
+  // Create canvas
+  const canvas = document.createElement('canvas');
+  canvas.className = 'star-background';
+  containerElement.insertBefore(canvas, containerElement.firstChild);
+
+  // Set canvas size
+  const updateCanvasSize = () => {
+    const rect = containerElement.getBoundingClientRect();
+    canvas.width = rect.width;
+    canvas.height = rect.height;
+  };
+  updateCanvasSize();
+
+  const ctx = canvas.getContext('2d');
+  const stars = [];
+
+  // Generate star data
+  const numStars = Math.floor((canvas.width * canvas.height) / 1000);
+  for (let i = 0; i < numStars; i++) {
+    stars.push({
+      x: Math.random() * canvas.width,
+      y: Math.random() * canvas.height,
+      size: 0.5 + Math.random() * 1.5,
+      brightness: 0.3 + Math.random() * 0.7,
+      twinkleSpeed: 0.5 + Math.random() * 2
+    });
+  }
+
+  // Animation function
+  let animationFrame;
+  function animate(timestamp) {
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+    
+    stars.forEach(star => {
+      const twinkle = Math.sin(timestamp * 0.001 * star.twinkleSpeed) * 0.5 + 0.5;
+      ctx.fillStyle = `rgba(255, 255, 255, ${star.brightness * twinkle})`;
+      ctx.beginPath();
+      ctx.arc(star.x, star.y, star.size, 0, Math.PI * 2);
+      ctx.fill();
+    });
+
+    animationFrame = requestAnimationFrame(animate);
+  }
+
+  // Start animation
+  animate(0);
+
+  // Handle cleanup
+  return () => {
+    if (animationFrame) {
+      cancelAnimationFrame(animationFrame);
+    }
+  };
+}
+
+  
  function saveCustomizationSettings() {
   const settings = {
    numGalaxies: currentNumGalaxies, 

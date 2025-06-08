@@ -4,12 +4,13 @@ import '../styles.css';
 import * as THREE from 'three';
 import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls.js';
 import { getPlanetShaders } from './shaders.js';
+import { PlanetSurfaceController } from './planetSurfaceController.js'; 
 
 export const PlanetDesigner = (() => {
  // --- CACHED DOM ELEMENTS ---
  let savedDesignsUl, designerPlanetCanvas, designerWaterColorInput, designerLandColorInput, designerMinHeightInput, designerMaxHeightInput, designerOceanHeightInput,
   designerSaveBtn, designerCancelBtn, designerRiverBasinInput, designerRiverBasinValue,
-  designerForestDensityInput, designerForestDensityValue, designerRandomizeBtn, boundResizeHandler;
+  designerForestDensityInput, designerForestDensityValue, designerRandomizeBtn, boundResizeHandler, designerExploreBtn;
 
  const DISPLACEMENT_SCALING_FACTOR = 0.005;
  const SPHERE_BASE_RADIUS = 0.8;
@@ -324,6 +325,7 @@ export const PlanetDesigner = (() => {
    designerOceanHeightInput = document.getElementById('designer-ocean-height');
    savedDesignsUl = document.getElementById('saved-designs-ul');
    designerRandomizeBtn = document.getElementById('designer-randomize-btn');
+   designerExploreBtn = document.getElementById('designer-explore-btn');
    designerSaveBtn = document.getElementById('designer-save-btn');
    designerCancelBtn = document.getElementById('designer-cancel-btn');
 
@@ -332,7 +334,10 @@ export const PlanetDesigner = (() => {
     input.addEventListener('input', _handleControlChange);
    });
     
-   designerRandomizeBtn?.addEventListener('click', _randomizeDesignerPlanet);
+   designerExploreBtn?.addEventListener('click', () => {
+          PlanetSurfaceController.activate(currentDesignerBasis);
+      });
+
    designerSaveBtn?.addEventListener('click', _saveCustomPlanetDesign); 
     
    designerCancelBtn?.addEventListener('click', () => {

@@ -171,16 +171,34 @@ function clampOceanLevel() {
 
     function _generateUUID() { return crypto.randomUUID ? crypto.randomUUID() : 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, c => { const r = Math.random() * 16 | 0, v = c === 'x' ? r : (r & 3 | 8); return v.toString(16); }); }
     
-    function _saveCustomPlanetDesign() { 
-        const designName = prompt("Enter a name for this planet design:", "My Custom Planet");
-        if (!designName?.trim()) return;
-        const newDesign = { designId: _generateUUID(), designName: designName.trim(), ...JSON.parse(JSON.stringify(currentDesignerBasis)) };
-        if (window.gameSessionData?.customPlanetDesigns) {
-            window.gameSessionData.customPlanetDesigns.push(newDesign);
-            if (typeof window.saveGameState === 'function') window.saveGameState();
-            _populateSavedDesignsList();
+function _saveCustomPlanetDesign() {
+    const designName = prompt("Enter a name for this planet design:", "My Custom Planet");
+    if (!designName?.trim()) return;
+    
+    console.log("[DEBUG] Saving new planet design:", designName);
+    console.log("[DEBUG] Current designs before save:", 
+        window.gameSessionData?.customPlanetDesigns?.length || 0);
+    
+    const newDesign = {
+        designId: _generateUUID(),
+        designName: designName.trim(),
+        ...JSON.parse(JSON.stringify(currentDesignerBasis))
+    };
+    
+    if (window.gameSessionData?.customPlanetDesigns) {
+        window.gameSessionData.customPlanetDesigns.push(newDesign);
+        console.log("[DEBUG] Designs after save:", 
+            window.gameSessionData.customPlanetDesigns.length);
+        console.log("[DEBUG] Design list:", 
+            window.gameSessionData.customPlanetDesigns.map(d => d.designName));
+            
+        if (typeof window.saveGameState === 'function') {
+            window.saveGameState();
+            console.log("[DEBUG] SaveGameState called");
         }
+        _populateSavedDesignsList();
     }
+}
     
     function _loadAndPreviewDesign(designId) {
         const designToLoad = window.gameSessionData?.customPlanetDesigns?.find(d => d.designId === designId);

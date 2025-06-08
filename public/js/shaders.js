@@ -73,8 +73,7 @@ void main() {
 
  float riverRaw = ridgedRiverNoise(noiseInputPosition * 0.2, uContinentSeed * 5.0);
  float riverBed = smoothstep(1.0 - uRiverBasin, 1.0, riverRaw);
- 
-  float riverMask = smoothstep(0.50, 0.55, continentShape);
+ float riverMask = smoothstep(0.50, 0.55, continentShape);
 
  vRiverValue = riverBed * riverMask;
 
@@ -83,14 +82,14 @@ void main() {
  float oceanMask = 1.0 - continentMask;
 
  float finalElevation = continentShape
-    + (mountainNoise * continentMask * 0.3)
-    + (islandNoise * oceanMask * 0.1);
+   + (mountainNoise * continentMask * 0.3)
+   + (islandNoise * oceanMask * 0.1);
 
  finalElevation -= vRiverValue * 0.08;
 
  finalElevation = finalElevation - 0.5;
 
- vElevation = finalElevation; // Pass raw elevation to fragment shader for flexible biome mapping
+ vElevation = finalElevation;
 
  float displacement = vElevation * uDisplacementAmount;
  vec3 displacedPosition = p + normal * displacement;
@@ -136,46 +135,56 @@ void main() {
 
  // Define base biome colors
  vec3 waterColor = uWaterColor;
- vec3 beachColor = uLandColor * 1.1 + vec3(0.1, 0.1, 0.0); // Slightly brighter and yellower
+ vec3 beachColor = uLandColor * 1.1 + vec3(0.1, 0.1, 0.0);
  vec3 plainsColor = uLandColor;
  vec3 forestColor = uLandColor * 0.65;
- vec3 mountainColor = uLandColor * 0.9 + vec3(0.05); // Slightly desaturated and gray
+ vec3 mountainColor = uLandColor * 0.9 + vec3(0.05);
  vec3 snowColor = vec3(0.9, 0.9, 1.0);
  float landMassRange = 1.0 - uOceanHeightLevel;
 
- if (vElevation < uOceanHeightLevel) {
-  finalColor = waterColor;
- } else {
-  float landRatio = max(0.0, (vElevation - uOceanHeightLevel) / landMassRange);
-
-  const float BEACH_END = 0.02;
-  const float PLAINS_END = 0.40;
-  const float MOUNTAIN_START = 0.60;
-  const float SNOW_START = 0.85;
-
-  if (landRatio < BEACH_END) {
-    finalColor = mix(plainsColor, beachColor, smoothstep(BEACH_END, 0.0, landRatio));
-  } else if (landRatio < PLAINS_END) {
-    finalColor = plainsColor;
-  } else if (landRatio < MOUNTAIN_START) {
-    finalColor = mix(plainsColor, mountainColor, smoothstep(PLAINS_END, MOUNTAIN_START, landRatio));
-  } else if (landRatio < SNOW_START) {
-    finalColor = mountainColor;
-  } else {
-    finalColor = mix(mountainColor, snowColor, smoothstep(SNOW_START, 1.0, landRatio));
+  // ========================= SOLUTION: RESTRUCTURED LOGIC =========================
+  // 1. Check for rivers FIRST.
+  // This ensures river pixels are always colored correctly, even if their
+  // final elevation is below sea level.
+  if (vRiverValue > 0.25) {
+    // Mix with plainsColor to prevent rivers from appearing as pure black lines if water is dark
+    finalColor = mix(plainsColor, waterColor * 0.85, vRiverValue);
   }
-
-  if (landRatio > BEACH_END && landRatio < SNOW_START) {
-    float forestNoise = valueNoise(vWorldPosition * 25.0, uContinentSeed * 4.0);
-    float forestMask = smoothstep(1.0 - uForestDensity, 1.0 - uForestDensity + 0.1, forestNoise);
-    finalColor = mix(finalColor, forestColor, forestMask);
+  // 2. If it's NOT a river, check if it's an ocean.
+  else if (vElevation < uOceanHeightLevel) {
+    finalColor = waterColor;
   }
- }
+  // 3. If it's not a river or an ocean, it must be land.
+  else {
+    float landRatio = max(0.0, (vElevation - uOceanHeightLevel) / landMassRange);
 
- // Carve rivers into the final land color
- if (vRiverValue > 0.1 && vElevation > uOceanHeightLevel) {
-   finalColor = mix(finalColor, waterColor * 0.9, vRiverValue);
- }
+    const float BEACH_END = 0.02;
+    const float PLAINS_END = 0.40;
+    const float MOUNTAIN_START = 0.60;
+    const float SNOW_START = 0.85;
+
+    if (landRatio < BEACH_END) {
+      finalColor = mix(plainsColor, beachColor, smoothstep(BEACH_END, 0.0, landRatio));
+    } else if (landRatio < PLAINS_END) {
+      finalColor = plainsColor;
+    } else if (landRatio < MOUNTAIN_START) {
+      finalColor = mix(plainsColor, mountainColor, smoothstep(PLAINS_END, MOUNTAIN_START, landRatio));
+    } else if (landRatio < SNOW_START) {
+      finalColor = mountainColor;
+    } else {
+      finalColor = mix(mountainColor, snowColor, smoothstep(SNOW_START, 1.0, landRatio));
+    }
+
+    // Add forests on top of the base biome color
+    if (landRatio > BEACH_END && landRatio < SNOW_START) {
+      float forestNoise = valueNoise(vWorldPosition * 25.0, uContinentSeed * 4.0);
+      float forestMask = smoothstep(1.0 - uForestDensity, 1.0 - uForestDensity + 0.1, forestNoise);
+      finalColor = mix(finalColor, forestColor, forestMask);
+    }
+  }
+  // =================================================================================
+
+  // The old separate river coloring logic has been removed from here.
 
  vec3 viewDirection = normalize(cameraPosition - vWorldPosition);
  gl_FragColor = vec4(calculateLighting(finalColor, vNormal, viewDirection), 1.0);

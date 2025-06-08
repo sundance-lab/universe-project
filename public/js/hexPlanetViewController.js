@@ -59,7 +59,7 @@ export const HexPlanetViewController = (() => {
     
     // --- CREATE THE HIGH-DETAIL ICOSAHEDRON GEOMETRY ---
     const { vertexShader, fragmentShader } = getHexPlanetShaders();
-    const geometry = new THREE.IcosahedronGeometry(1, 16); // A sphere with 1m radius and VERY high detail (64 subdivisions)
+    const geometry = new THREE.IcosahedronGeometry(1, 32); // A sphere with 1m radius and VERY high detail (64 subdivisions)
     addBarycentricCoordinates(geometry); // Add the special data for the hex shader
     
     const pMin = planetBasis.minTerrainHeight;

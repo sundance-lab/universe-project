@@ -1,11 +1,15 @@
+// public/js/script.js
+
 import { startSolarSystemAnimation, stopSolarSystemAnimation, isSolarSystemAnimationRunning } from './animationController.js';
 import * as PlanetDesigner from './planetDesigner.js';
 import * as PlanetVisualPanelManager from './planetVisualPanelManager.js';
 import { SunRenderer } from './sunRenderer.js';
+import { PlanetSurfaceController } from './planetSurfaceController.js'; 
 
 function initializeModules() {
-  window.PlanetDesigner = PlanetDesigner.PlanetDesigner;
-  window.PlanetVisualPanelManager = PlanetVisualPanelManager.PlanetVisualPanelManager;
+ window.PlanetDesigner = PlanetDesigner.PlanetDesigner;
+ window.PlanetVisualPanelManager = PlanetVisualPanelManager.PlanetVisualPanelManager;
+  PlanetSurfaceController.init();
 }
 
 document.addEventListener('DOMContentLoaded', () => {
@@ -28,6 +32,7 @@ document.addEventListener('DOMContentLoaded', () => {
   const mainScreen = document.getElementById('main-screen');
   const galaxyDetailScreen = document.getElementById('galaxy-detail-screen');
   const solarSystemScreen = document.getElementById('solar-system-screen');
+  const planetSurfaceScreen = document.getElementById('planet-surface-screen'); 
   const universeCircle = document.getElementById('universe-circle');
   const galaxyViewport = document.getElementById('galaxy-viewport');
   const galaxyZoomContent = document.getElementById('galaxy-zoom-content');
@@ -557,8 +562,9 @@ function generateStarBackgroundCanvas(containerElement) {
   // --- SCREEN MANAGEMENT ---
   
   window.setActiveScreen = function (screenToShow) {
-    const screens = [mainScreen, galaxyDetailScreen, solarSystemScreen, planetDesignerScreen].filter(s => s);
+    const screens = [mainScreen, galaxyDetailScreen, solarSystemScreen, planetDesignerScreen, planetSurfaceScreen].filter(s => s);
     screens.forEach(s => s.classList.remove('active', 'panning-active'));
+
 
     if (screenToShow) {
       screenToShow.classList.add('active');

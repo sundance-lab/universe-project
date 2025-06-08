@@ -9,7 +9,7 @@ function initializeModules() {
 }
 
 document.addEventListener('DOMContentLoaded', () => {
-  // Define constants FIRST, so functions defined below can access them
+
   window.DEFAULT_MIN_TERRAIN_HEIGHT = 0.0;
   window.DEFAULT_MAX_TERRAIN_HEIGHT = 10.0;
   window.DEFAULT_OCEAN_HEIGHT_LEVEL = 2.0;
@@ -25,7 +25,6 @@ document.addEventListener('DOMContentLoaded', () => {
   const BASE_MAX_PLANET_DISTANCE_FACTOR = 25;
   window.PLANET_ROTATION_SENSITIVITY = 0.75;
 
-  // Get DOM elements
   const mainScreen = document.getElementById('main-screen');
   const galaxyDetailScreen = document.getElementById('galaxy-detail-screen');
   const solarSystemScreen = document.getElementById('solar-system-screen');
@@ -85,7 +84,6 @@ window.generatePlanetInstanceFromBasis = function (basis, isForDesignerPreview =
   console.log("[DEBUG] Using default generation because:", 
     isForDesignerPreview ? "is preview mode" : "no custom designs available");
   
-  // Default generation only if no custom designs exist or if in preview mode
   return {
     waterColor: basis.waterColor || '#0000FF',
     landColor: basis.landColor || '#008000',
@@ -327,7 +325,6 @@ window.gameSessionData.customPlanetDesigns = (loadedState.customPlanetDesigns ||
   const migratedDesign = { ...design };
   if (migratedDesign.continentSeed === undefined) migratedDesign.continentSeed = Math.random();
 
-  // Prefer flat values, fallback to legacy range
   if (typeof migratedDesign.minTerrainHeight !== 'number' && Array.isArray(migratedDesign.minTerrainHeightRange)) {
     migratedDesign.minTerrainHeight = migratedDesign.minTerrainHeightRange[0];
   }
@@ -335,11 +332,9 @@ window.gameSessionData.customPlanetDesigns = (loadedState.customPlanetDesigns ||
     migratedDesign.maxTerrainHeight = migratedDesign.maxTerrainHeightRange[1];
   }
   if (typeof migratedDesign.oceanHeightLevel !== 'number' && Array.isArray(migratedDesign.oceanHeightRange)) {
-    // Use a value between the min and max as a guess, or just use min
     migratedDesign.oceanHeightLevel = migratedDesign.oceanHeightRange[0];
   }
 
-  // Remove old range fields
   delete migratedDesign.minTerrainHeightRange;
   delete migratedDesign.maxTerrainHeightRange;
   delete migratedDesign.oceanHeightRange;
@@ -378,7 +373,6 @@ function generateStarBackgroundCanvas(containerElement) {
   const ctx = canvas.getContext('2d');
   const stars = [];
 
-  // Generate stars with different parallax layers
   const numStars = Math.floor((canvas.width * canvas.height) / 1000);
   for (let i = 0; i < numStars; i++) {
     stars.push({
@@ -387,8 +381,7 @@ function generateStarBackgroundCanvas(containerElement) {
       size: 0.5 + Math.random() * 1.5,
       brightness: 0.3 + Math.random() * 0.7,
       twinkleSpeed: 0.5 + Math.random() * 2,
-      // Add parallax factor - different stars move at different speeds
-      parallaxFactor: 0.1 + Math.random() * 0.005 // Values between 0.1 and 0.5
+      parallaxFactor: 0.1 + Math.random() * 0.005 
     });
   }
 
@@ -397,12 +390,10 @@ function generateStarBackgroundCanvas(containerElement) {
   let targetOffsetX = 0;
   let targetOffsetY = 0;
 
-  // Animation function
   let animationFrame;
   function animate(timestamp) {
     ctx.clearRect(0, 0, canvas.width, canvas.height);
     
-    // Smooth interpolation of offset
     offsetX += (targetOffsetX - offsetX) * 0.005;
     offsetY += (targetOffsetY - offsetY) * 0.005;
 
@@ -422,16 +413,13 @@ function generateStarBackgroundCanvas(containerElement) {
     animationFrame = requestAnimationFrame(animate);
   }
 
-  // Start animation
   animate(0);
 
-  // Add this function to update star positions based on pan
   const updateStarOffset = (deltaX, deltaY) => {
     targetOffsetX = -deltaX;
     targetOffsetY = -deltaY;
   };
 
-  // Modify panMouseMove to include star parallax
   const originalPanMouseMove = window.gameSessionData.panning.mouseMoveHandler;
   window.gameSessionData.panning.mouseMoveHandler = (event) => {
     if (!window.gameSessionData.panning.isActive) return;
@@ -537,7 +525,6 @@ function generateStarBackgroundCanvas(containerElement) {
     return { x, y };
    }
   }
-  // FIXED: Corrected template literal syntax
   console.warn(`getNonOverlappingPositionInCircle: Could not find non-overlapping position after ${MAX_PLACEMENT_ATTEMPTS} attempts.`);
   return null;
  }
@@ -568,8 +555,8 @@ function generateStarBackgroundCanvas(containerElement) {
  }
 
   // --- SCREEN MANAGEMENT ---
+  
   window.setActiveScreen = function (screenToShow) {
-    // MODIFIED to exclude planet360Screen from the list of main screens
     const screens = [mainScreen, galaxyDetailScreen, solarSystemScreen, planetDesignerScreen].filter(s => s);
     screens.forEach(s => s.classList.remove('active', 'panning-active'));
 
@@ -1025,7 +1012,6 @@ function switchToGalaxyDetailView(galaxyId) {
   }
   const galaxy = window.gameSessionData.galaxies.find(g => g.id === galaxyId);
   if (!galaxy) {
-   // FIXED: Corrected template literal
    console.warn(`switchToGalaxyDetailView: Galaxy ${galaxyId} not found. Switching to main view.`);
    return switchToMainView();
   }
@@ -1033,7 +1019,6 @@ function switchToGalaxyDetailView(galaxyId) {
   window.gameSessionData.activeGalaxyId = galaxyId;
   const galaxyNumDisplay = galaxy.id.split('-').pop();
   if (backToGalaxyButton) {
-    // FIXED: Corrected template literals
     backToGalaxyButton.textContent = galaxy.customName ? `← ${galaxy.customName}` : `← Galaxy ${galaxyNumDisplay}`;
        if (window.PlanetVisualPanelManager?.isVisible()) {
         window.PlanetVisualPanelManager.hide();
@@ -1084,8 +1069,6 @@ function switchToGalaxyDetailView(galaxyId) {
       generateSolarSystemsForGalaxy(galaxyId);
       renderGalaxyDetailScreen(false);
      } else if (retriesLeft > 0) {
-      // FIXED: Corrected template literal
-      // console.log(`switchToGalaxyDetailView: galaxyViewport not ready, retrying. Retries left: ${retriesLeft}`);
       requestAnimationFrame(() => attemptGeneration(retriesLeft - 1));
      } else {
       console.warn("switchToGalaxyDetailView: galaxyViewport did not get dimensions.");
@@ -1101,14 +1084,11 @@ function switchToGalaxyDetailView(galaxyId) {
  }
 
 function calculateInitialZoom(screenWidth, screenHeight) {
-  // Calculate the minimum zoom needed to fit the solar system
   const horizontalZoom = screenWidth / (SOLAR_SYSTEM_EXPLORABLE_RADIUS * 2);
   const verticalZoom = screenHeight / (SOLAR_SYSTEM_EXPLORABLE_RADIUS * 2);
   
-  // Use the more restrictive dimension
   const minRequiredZoom = Math.max(horizontalZoom, verticalZoom);
   
-  // Add a small buffer (e.g., 20% larger than minimum)
   return Math.max(SOLAR_SYSTEM_VIEW_MIN_ZOOM, minRequiredZoom * 1.2);
 }
   
@@ -1138,12 +1118,10 @@ function switchToSolarSystemView(solarSystemId) {
   if (solarSystemContent) {
     solarSystemContent.innerHTML = '';
     
-    // Create sun container first
     const sunContainer = document.createElement('div');
     sunContainer.id = 'sun-container';
     solarSystemContent.appendChild(sunContainer);
 
-    // Initialize sun renderer with the system's size factor
     if (window.currentSunRenderer) {
       window.currentSunRenderer.dispose();
     }
@@ -1385,7 +1363,7 @@ function startPan(event, viewportElement, contentElementToTransform, dataObjectW
   p.isActive = true;
   p.startX = event.clientX;
   p.startY = event.clientY;
-   // FIXED: Corrected logic to prevent using `zoomLevel` as a fallback for pan coordinates.
+
   const panXKey = 'currentPanX';
   const panYKey = 'currentPanY';
   p.initialPanX = dataObjectWithPanProperties[panXKey] || 0;
@@ -1526,44 +1504,34 @@ if (solarSystemScreen) {
     if (screen) {
       console.log(`SCRIPT: Attaching wheel listener to ${screen.id}`);
       screen.addEventListener('wheel', e => {
-        console.log(`SCRIPT: Wheel event on ${screen.id}. Target:`, e.target.id || e.target.className); // DEBUG
-        e.preventDefault(); // Essential to prevent page scroll
-        handleZoom(e.deltaY < 0 ? 'in' : 'out', e); // Pass original event 'e' to handleZoom
-      }, { passive: false }); // passive: false is needed for preventDefault to work
+        e.preventDefault(); 
+        handleZoom(e.deltaY < 0 ? 'in' : 'out', e); 
+      }, { passive: false }); 
     } else {
-      // Debug which screen variable might be null
       if (screen === galaxyDetailScreen) console.error("SCRIPT: wheel listener - galaxyDetailScreen is null.");
       if (screen === solarSystemScreen) console.error("SCRIPT: wheel listener - solarSystemScreen is null.");
     }
   });
   
-  // Global mouse move and up listeners for panning - ATTACH TO WINDOW
-  console.log("SCRIPT: Attaching global mousemove and mouseup listeners to window."); // DEBUG
   window.addEventListener('mousemove', panMouseMove);
   window.addEventListener('mouseup', panMouseUp);
   
   // Resize listener
   let resizeTimeout;
 window.addEventListener('resize', () => {
-    // This function will now handle resize events gracefully without a full reset.
-    // We can debounce it to avoid running complex logic on every single pixel of a resize.
     clearTimeout(resizeTimeout);
     resizeTimeout = setTimeout(() => {
         console.log("Debounced resize event: Adjusting layout.");
 
-        // 1. Update the layout of the main universe circle if it's visible.
         if (mainScreen.classList.contains('active')) {
-            generateUniverseLayout(); // This function should only recalculate and apply styles.
-            renderMainScreen(); // This re-renders the DOM elements within the new layout.
+            generateUniverseLayout();
+            renderMainScreen();
         }
 
-        // 2. If a SunRenderer exists (i.e., we are in the solar system view), call its resize method.
         if (window.currentSunRenderer && typeof window.currentSunRenderer.resize === 'function') {
             window.currentSunRenderer.resize();
         }
         
-        // 3. We might need to adjust the pan/zoom clamping or re-render other views if necessary.
-        // For example, if the galaxy detail screen is active, we might re-clamp its pan.
         const activeScreen = document.querySelector('.screen.active');
         if (activeScreen === galaxyDetailScreen) {
             const galaxy = window.gameSessionData.galaxies.find(g => g.id === window.gameSessionData.activeGalaxyId);
@@ -1573,7 +1541,7 @@ window.addEventListener('resize', () => {
             }
         }
         
-    }, 250); // A shorter timeout is fine for just resizing.
+    }, 250); 
 });
   
  // --- GAME INITIALIZATION ---
@@ -1608,10 +1576,8 @@ window.addEventListener('resize', () => {
  }
 
  console.log("DOMContentLoaded. Initializing modules and game.");
-  // Initialize modules that attach to the window object
   initializeModules();
   
-  // Initialize self-contained modules that need access to the DOM
  if (window.PlanetDesigner?.init) {
   window.PlanetDesigner.init();
  } else {

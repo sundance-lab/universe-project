@@ -4,7 +4,7 @@ import '../styles.css';
 import * as THREE from 'three';
 import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls.js';
 import { getPlanetShaders } from './shaders.js';
-import { PlanetSurfaceController } from './planetSurfaceController.js'; 
+import { HexPlanetViewController } from './hexPlanetViewController.js';
 
 export const PlanetDesigner = (() => {
  // --- CACHED DOM ELEMENTS ---
@@ -335,7 +335,7 @@ export const PlanetDesigner = (() => {
    });
     
    designerExploreBtn?.addEventListener('click', () => {
-          PlanetSurfaceController.activate(currentDesignerBasis);
+          HexPlanetViewController.activate(currentDesignerBasis);
       });
 
    designerSaveBtn?.addEventListener('click', _saveCustomPlanetDesign); 

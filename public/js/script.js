@@ -1546,33 +1546,6 @@ window.addEventListener('resize', () => {
     regenerateCurrentUniverseState(false);
   }, 500);
 });
-
-  // NOTE: The final closing }); for DOMContentLoaded comes much later,
-  // after initializeGame(); and module inits. This snippet does NOT include that final closing.
-
-if (galaxyViewport) {
-  galaxyViewport.addEventListener('wheel', e => {
-    if (e.ctrlKey || e.altKey) return; // Optional: ignore pinch-to-zoom gestures
-    e.preventDefault();
-    if (e.deltaY < 0) {
-      handleZoom('in', e);
-    } else if (e.deltaY > 0) {
-      handleZoom('out', e);
-    }
-  }, { passive: false });
-}
-
-if (solarSystemScreen) {
-  solarSystemScreen.addEventListener('wheel', e => {
-    if (e.ctrlKey || e.altKey) return;
-    e.preventDefault();
-    if (e.deltaY < 0) {
-      handleZoom('in', e);
-    } else if (e.deltaY > 0) {
-      handleZoom('out', e);
-    }
-  }, { passive: false });
-}
   
  // --- GAME INITIALIZATION ---
  function initializeGame(isForcedRegeneration = false) {

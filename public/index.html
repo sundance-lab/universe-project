@@ -128,7 +128,15 @@
   </div>
 </div>
 
-<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/0.165.0/three.min.js"></script>
+<script type="importmap">
+    {
+        "imports": {
+            "three": "https://unpkg.com/three@0.165.0/build/three.module.js",
+            "three/addons/": "https://unpkg.com/three@0.165.0/examples/jsm/"
+        }
+    }
+</script>
+
 <script src="js/mathUtils.js"></script>
 <script type="module" src="js/sunRenderer.js"></script>
 <script type="module" src="js/script.js"></script>

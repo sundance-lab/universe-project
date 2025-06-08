@@ -78,8 +78,8 @@ export const PlanetDesigner = (() => {
   designerThreeControls.minAzimuthAngle = -Infinity;
   designerThreeControls.maxAzimuthAngle = Infinity;
   
-  designerThreeControls.minPolarAngle = Math.PI * 0.1;
-  designerThreeControls.maxPolarAngle = Math.PI * 0.9;
+  designerThreeControls.minPolarAngle = 0;
+  designerThreeControls.maxPolarAngle = Math.PI;
   // ===========================================================================
   
   _animateDesignerThreeJSView();

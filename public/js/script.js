@@ -153,8 +153,17 @@ window.generatePlanetInstanceFromBasis = function (basis, isForDesignerPreview =
       systemId: null
     },
     isInitialized: false,
-    panning: { isActive: false, startX: 0, startY: 0, initialPanX: 0, initialPanY: 0, targetElement: null, viewportElement: null, dataObject: null },
-    customPlanetDesigns: []
+  panning: { 
+    isActive: false, 
+    startX: 0, 
+    startY: 0, 
+    initialPanX: 0, 
+    initialPanY: 0, 
+    targetElement: null, 
+    viewportElement: null, 
+    dataObject: null,
+    mouseMoveHandler: null // Add this
+  },
   };
 
   // --- WEB WORKER SETUP ---
@@ -350,18 +359,15 @@ window.gameSessionData.customPlanetDesigns = (loadedState.customPlanetDesigns ||
  }
 
 function generateStarBackgroundCanvas(containerElement) {
-  // Remove any existing star background
   const existingBackground = containerElement.querySelector('.star-background');
   if (existingBackground) {
     existingBackground.remove();
   }
 
-  // Create canvas
   const canvas = document.createElement('canvas');
   canvas.className = 'star-background';
   containerElement.insertBefore(canvas, containerElement.firstChild);
 
-  // Set canvas size
   const updateCanvasSize = () => {
     const rect = containerElement.getBoundingClientRect();
     canvas.width = rect.width;
@@ -372,7 +378,7 @@ function generateStarBackgroundCanvas(containerElement) {
   const ctx = canvas.getContext('2d');
   const stars = [];
 
-  // Generate star data
+  // Generate stars with different parallax layers
   const numStars = Math.floor((canvas.width * canvas.height) / 1000);
   for (let i = 0; i < numStars; i++) {
     stars.push({
@@ -380,20 +386,36 @@ function generateStarBackgroundCanvas(containerElement) {
       y: Math.random() * canvas.height,
       size: 0.5 + Math.random() * 1.5,
       brightness: 0.3 + Math.random() * 0.7,
-      twinkleSpeed: 0.5 + Math.random() * 2
+      twinkleSpeed: 0.5 + Math.random() * 2,
+      // Add parallax factor - different stars move at different speeds
+      parallaxFactor: 0.1 + Math.random() * 0.4 // Values between 0.1 and 0.5
     });
   }
+
+  let offsetX = 0;
+  let offsetY = 0;
+  let targetOffsetX = 0;
+  let targetOffsetY = 0;
 
   // Animation function
   let animationFrame;
   function animate(timestamp) {
     ctx.clearRect(0, 0, canvas.width, canvas.height);
     
+    // Smooth interpolation of offset
+    offsetX += (targetOffsetX - offsetX) * 0.1;
+    offsetY += (targetOffsetY - offsetY) * 0.1;
+
     stars.forEach(star => {
       const twinkle = Math.sin(timestamp * 0.001 * star.twinkleSpeed) * 0.5 + 0.5;
       ctx.fillStyle = `rgba(255, 255, 255, ${star.brightness * twinkle})`;
+      
+      // Calculate position with parallax
+      let drawX = ((star.x + offsetX * star.parallaxFactor) + canvas.width) % canvas.width;
+      let drawY = ((star.y + offsetY * star.parallaxFactor) + canvas.height) % canvas.height;
+      
       ctx.beginPath();
-      ctx.arc(star.x, star.y, star.size, 0, Math.PI * 2);
+      ctx.arc(drawX, drawY, star.size, 0, Math.PI * 2);
       ctx.fill();
     });
 
@@ -403,10 +425,32 @@ function generateStarBackgroundCanvas(containerElement) {
   // Start animation
   animate(0);
 
+  // Add this function to update star positions based on pan
+  const updateStarOffset = (deltaX, deltaY) => {
+    targetOffsetX = -deltaX;
+    targetOffsetY = -deltaY;
+  };
+
+  // Modify panMouseMove to include star parallax
+  const originalPanMouseMove = window.gameSessionData.panning.mouseMoveHandler;
+  window.gameSessionData.panning.mouseMoveHandler = (event) => {
+    if (!window.gameSessionData.panning.isActive) return;
+    
+    const deltaX = event.clientX - window.gameSessionData.panning.startX;
+    const deltaY = event.clientY - window.gameSessionData.panning.startY;
+    
+    // Update star positions
+    updateStarOffset(deltaX * 0.5, deltaY * 0.5); // Adjust multiplier for parallax intensity
+  };
+
   // Handle cleanup
   return () => {
     if (animationFrame) {
       cancelAnimationFrame(animationFrame);
+    }
+    // Restore original pan handler
+    if (originalPanMouseMove) {
+      window.gameSessionData.panning.mouseMoveHandler = originalPanMouseMove;
     }
   };
 }
@@ -1343,7 +1387,7 @@ function startPan(event, viewportElement, contentElementToTransform, dataObjectW
   event.preventDefault();
  }
 
- function panMouseMove(event) {
+function panMouseMove(event) {
   const p = window.gameSessionData.panning;
   if (!p.isActive) return;
 
@@ -1354,14 +1398,19 @@ function startPan(event, viewportElement, contentElementToTransform, dataObjectW
   p.dataObject[panXKey] = p.initialPanX + deltaX;
   p.dataObject[panYKey] = p.initialPanY + deltaY;
 
-  if (p.viewportElement === galaxyViewport) {
-   clampGalaxyPan(p.dataObject);
-   renderGalaxyDetailScreen(true);
-  } else if (p.viewportElement === solarSystemScreen) {
-   clampSolarSystemPan(p.dataObject, p.viewportElement.offsetWidth, p.viewportElement.offsetHeight);
-   renderSolarSystemScreen(true);
+  // Call the mouseMoveHandler if it exists (for star parallax)
+  if (p.mouseMoveHandler) {
+    p.mouseMoveHandler(event);
   }
- }
+
+  if (p.viewportElement === galaxyViewport) {
+    clampGalaxyPan(p.dataObject);
+    renderGalaxyDetailScreen(true);
+  } else if (p.viewportElement === solarSystemScreen) {
+    clampSolarSystemPan(p.dataObject, p.viewportElement.offsetWidth, p.viewportElement.offsetHeight);
+    renderSolarSystemScreen(true);
+  }
+}
 
  function panMouseUp() {
   const p = window.gameSessionData.panning;

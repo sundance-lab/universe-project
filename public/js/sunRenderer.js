@@ -19,36 +19,44 @@ export class SunRenderer {
         this.camera.lookAt(0, 0, 0);
     };
 
-    constructor(container) {
-        this.container = container;
-        this.scene = new THREE.Scene();
-        
-        const size = 60;
-        container.style.width = size + 'px';
-        container.style.height = size + 'px';
-        
-        this.camera = new THREE.OrthographicCamera(
-            -1.2, 1.2, 1.2, -1.2, 0.1, 1000
-        );
-        
-        this.renderer = new THREE.WebGLRenderer({ 
-            antialias: true, 
-            alpha: true,
-            preserveDrawingBuffer: true
-        });
-        
-        // Use pure black for the background - it will be made transparent by the blend mode
-        this.renderer.setClearColor(0x000000, 1);
-        
-        this.#setupRenderer();
-        this.#createSun();
-        this.#setupLighting();
-        this.#setupPostProcessing();
-        this.#animate();
+   constructor(container) {
+    this.container = container;
+    this.scene = new THREE.Scene();
+    
+    // Make the rendering area smaller, just enough for the sun
+    const size = 45; // Slightly smaller than container size
+    container.style.width = `${size}px`;
+    container.style.height = `${size}px`;
+    
+    // Tighter camera bounds
+    this.camera = new THREE.OrthographicCamera(
+        -0.9, 0.9, 0.9, -0.9, 0.1, 1000
+    );
+    
+    this.renderer = new THREE.WebGLRenderer({ 
+        antialias: true, 
+        alpha: true,
+        preserveDrawingBuffer: false
+    });
+    this.renderer.setClearColor(0x000000, 0);
+    
+    this.#setupRenderer();
+    this.#createSun();
+    this.#setupLighting();
+    this.#setupPostProcessing();
+    this.#animate();
 
-        window.addEventListener('resize', () => this.resize());
-    }
+    window.addEventListener('resize', () => this.resize());
+}
 
+#createSun = () => {
+    // Make the sun geometry slightly smaller to fit tighter bounds
+    const sunGeometry = new THREE.CircleGeometry(0.6, 32);
+    // ... rest of sun creation ...
+
+    // Make corona slightly smaller too
+    this.corona.scale.setScalar(0.9);
+}
     #createSun = () => {
         const sunGeometry = new THREE.CircleGeometry(0.7, 32);
         const sunMaterial = new THREE.ShaderMaterial({

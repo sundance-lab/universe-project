@@ -205,7 +205,13 @@ export class SunRenderer {
 
     #setupPostProcessing = () => {
         this.composer = new EffectComposer(this.renderer);
+        this.composer.renderTarget1.texture.format = THREE.RGBAFormat;
+        this.composer.renderTarget2.texture.format = THREE.RGBAFormat;
+        
         const renderPass = new RenderPass(this.scene, this.camera);
+        renderPass.clearColor = new THREE.Color(0x000000);
+        renderPass.clearAlpha = 0;
+        
         const bloomPass = new UnrealBloomPass(
             new THREE.Vector2(this.container.offsetWidth, this.container.offsetHeight),
             0.5,
@@ -216,7 +222,6 @@ export class SunRenderer {
         this.composer.addPass(renderPass);
         this.composer.addPass(bloomPass);
     };
-
     #animate = () => {
         requestAnimationFrame(() => this.#animate());
         
@@ -230,6 +235,7 @@ export class SunRenderer {
             this.corona.material.uniforms.time.value = time;
         }
         
+        this.renderer.clear();
         this.composer.render();
     };
 

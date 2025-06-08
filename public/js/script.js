@@ -1425,15 +1425,17 @@ function panMouseMove(event) {
   p.isActive = false;
  }
 
-function animate() {
-  requestAnimationFrame(animate);
+let lastFrameTime = 0;
+function animate(currentTime) {
+    requestAnimationFrame(animate);
     if (window.currentSunRenderer) {
-      window.currentSunRenderer.animate();
+        window.currentSunRenderer.update(currentTime);
     }
 }
-animate();
+requestAnimationFrame(animate);
   
  // --- UNIVERSE REGENERATION ---
+  
  function regenerateCurrentUniverseState(forceConfirmationDialog = false) {
   if (forceConfirmationDialog && !confirm("This will erase your current universe and generate a new one. Are you sure?")) {
     return;

@@ -333,7 +333,9 @@ export const PlanetDesigner = (() => {
    document.querySelectorAll('.designer-control').forEach(input => {
     input.addEventListener('input', _handleControlChange);
    });
-    
+
+   designerRandomizeBtn?.addEventListener('click', _randomizeDesignerPlanet);
+
    designerExploreBtn?.addEventListener('click', () => {
           HexPlanetViewController.activate(currentDesignerBasis);
       });

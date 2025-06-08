@@ -90,16 +90,40 @@ export const HexPlanetViewController = (() => {
     _animate();
   };
 
-  const _deactivate = () => {
-    cancelAnimationFrame(animationId);
-    // When going back, reactivate the orbital designer view
-    if (window.PlanetDesigner?.activate) {
-        window.PlanetDesigner.activate(); // This properly hides our current screen and shows the designer
-    }
-  };
+ const _deactivate = () => {
+  // Stop the animation loop to prevent further rendering
+  cancelAnimationFrame(animationId);
 
-  return {
-    init: _init,
-    activate: _activate
-  };
+   // ======================== THE FIX ========================
+   // Proper cleanup of Three.js resources to prevent memory leaks
+   if (controls) controls.dispose();
+   if (renderer) renderer.dispose();
+   if (material) material.dispose();
+   if (mesh && mesh.geometry) mesh.geometry.dispose();
+
+   // Clear references
+   animationId = null;
+   renderer = null;
+   controls = null;
+   scene = null;
+   
+   // Get the designer screen element
+   const designerScreen = document.getElementById('planet-designer-screen');
+
+   // Explicitly switch the active screen back to the Planet Designer
+   if (window.setActiveScreen && designerScreen) {
+     window.setActiveScreen(designerScreen);
+   }
+
+   // Now, tell the PlanetDesigner module to re-initialize its own WebGL scene
+   if (window.PlanetDesigner?.activate) {
+     window.PlanetDesigner.activate();
+   }
+   // =========================================================
+ };
+
+ return {
+  init: _init,
+  activate: _activate
+ };
 })();

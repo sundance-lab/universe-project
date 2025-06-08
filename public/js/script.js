@@ -1144,10 +1144,8 @@ function switchToSolarSystemView(solarSystemId) {
       window.currentSunRenderer.dispose();
     }
     const sunScale = solarSystemObject.sunSizeFactor || 1;
-    window.currentSunRenderer = new SunRenderer(sunContainer, {
-      scale: sunScale,
-      baseSize: SUN_ICON_SIZE
-    });
+    window.currentSunRenderer = new SunRenderer(sunContainer);
+
 
     let usedOrbitalDistances = [];
     const numPlanetsToGenerate = Math.floor(Math.random() * (currentMaxPlanets - currentMinPlanets + 1)) + currentMinPlanets;
@@ -1429,9 +1427,9 @@ function panMouseMove(event) {
 
 function animate() {
   requestAnimationFrame(animate);
-  if (window.currentSunRenderer) {
-    window.currentSunRenderer.render();
-  }
+    if (window.currentSunRenderer) {
+      window.currentSunRenderer.animate();
+    }
 }
 animate();
   
@@ -1539,9 +1537,9 @@ window.addEventListener('resize', () => {
       window.currentSunRenderer.resize();
       // Wait for resize to complete before re-rendering
       requestAnimationFrame(() => {
-        if (window.currentSunRenderer) {
-          window.currentSunRenderer.render();
-        }
+      if (window.currentSunRenderer) {
+        window.currentSunRenderer.animate();
+      }
       });
     }
     console.log("Debounced resize event: Re-initializing universe.");

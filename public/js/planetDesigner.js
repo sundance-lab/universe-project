@@ -49,7 +49,7 @@ export const PlanetDesigner = (() => {
   designerThreeRenderer.setSize(designerPlanetCanvas.offsetWidth, designerPlanetCanvas.offsetHeight);
   designerThreeRenderer.setPixelRatio(window.devicePixelRatio);
    
-  const geometry = new THREE.SphereGeometry(SPHERE_BASE_RADIUS, 128, 64);
+  const geometry = new THREE.SphereGeometry(SPHERE_BASE_RADIUS, 512, 256);
 
   const uniforms = {
    uLandColor: { value: new THREE.Color() }, uWaterColor: { value: new THREE.Color() },

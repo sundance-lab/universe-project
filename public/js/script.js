@@ -1211,10 +1211,9 @@ window.gameSessionData.customPlanetDesigns = (loadedState.customPlanetDesigns ||
   renderFn(true);
  }
 
- function startPan(event, viewportElement, contentElementToTransform, dataObjectWithPanProperties) {
-  if (event.button !== 0 || event.target.closest('button, .solar-system-icon, .planet-icon')) return;
-     if (event.button !== 0 || event.target.closest('button, .solar-system-icon, .planet-icon')) {
-    console.log("SCRIPT: startPan returned early. Clicked on:", event.target); // DEBUG
+function startPan(event, viewportElement, contentElementToTransform, dataObjectWithPanProperties) {
+  if (event.button !== 0 || event.target.closest('button, .solar-system-icon, .planet-icon')) {
+    console.log("SCRIPT: startPan returned early. Clicked on:", event.target);
     return;
   }
 
@@ -1223,8 +1222,8 @@ window.gameSessionData.customPlanetDesigns = (loadedState.customPlanetDesigns ||
   p.startX = event.clientX;
   p.startY = event.clientY;
    // FIXED: Corrected logic to prevent using `zoomLevel` as a fallback for pan coordinates.
-  const panXKey = viewportElement === galaxyViewport ? 'currentPanX' : 'currentPanX';
-  const panYKey = viewportElement === galaxyViewport ? 'currentPanY' : 'currentPanY';
+  const panXKey = 'currentPanX';
+  const panYKey = 'currentPanY';
   p.initialPanX = dataObjectWithPanProperties[panXKey] || 0;
   p.initialPanY = dataObjectWithPanProperties[panYKey] || 0;
   p.targetElement = contentElementToTransform;
@@ -1242,8 +1241,8 @@ window.gameSessionData.customPlanetDesigns = (loadedState.customPlanetDesigns ||
 
   const deltaX = event.clientX - p.startX;
   const deltaY = event.clientY - p.startY;
-  const panXKey = p.viewportElement === galaxyViewport ? 'currentPanX' : 'currentPanX';
-  const panYKey = p.viewportElement === galaxyViewport ? 'currentPanY' : 'currentPanY';
+  const panXKey = 'currentPanX';
+  const panYKey = 'currentPanY';
   p.dataObject[panXKey] = p.initialPanX + deltaX;
   p.dataObject[panYKey] = p.initialPanY + deltaY;
 

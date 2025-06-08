@@ -1118,16 +1118,25 @@ function switchToSolarSystemView(solarSystemId) {
   if (solarSystemContent) {
     solarSystemContent.innerHTML = '';
     
-    const sunContainer = document.createElement('div');
-    sunContainer.id = 'sun-container';
-    solarSystemContent.appendChild(sunContainer);
+  const sunContainer = document.createElement('div');
+  sunContainer.id = 'sun-container';
+
+  sunContainer.style.width = `${SUN_ICON_SIZE}px`;
+  sunContainer.style.height = `${SUN_ICON_SIZE}px`;
+
+  solarSystemContent.appendChild(sunContainer);
+
+  if (window.currentSunRenderer) {
+   window.currentSunRenderer.dispose();
+  }
+  const sunScale = solarSystemObject.sunSizeFactor || 1;
+  window.currentSunRenderer = new SunRenderer(sunContainer);
 
     if (window.currentSunRenderer) {
       window.currentSunRenderer.dispose();
     }
     const sunScale = solarSystemObject.sunSizeFactor || 1;
     window.currentSunRenderer = new SunRenderer(sunContainer);
-
 
     let usedOrbitalDistances = [];
     const numPlanetsToGenerate = Math.floor(Math.random() * (currentMaxPlanets - currentMinPlanets + 1)) + currentMinPlanets;

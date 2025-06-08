@@ -440,7 +440,7 @@ function generateStarBackgroundCanvas(containerElement) {
     const deltaY = event.clientY - window.gameSessionData.panning.startY;
     
     // Update star positions
-    updateStarOffset(deltaX * 0.5, deltaY * 0.5); // Adjust multiplier for parallax intensity
+    updateStarOffset(deltaX * 0.5, deltaY * 0.1); // Adjust multiplier for parallax intensity
   };
 
   // Handle cleanup

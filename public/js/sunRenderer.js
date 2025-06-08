@@ -28,7 +28,31 @@ export class SunRenderer {
         this.#setupPostProcessing();
         
         window.addEventListener('resize', this.boundResize);
+
+        this.renderer.domElement.addEventListener('webglcontextlost', (event) => {
+        event.preventDefault();
+        this.handleContextLost();
+    }, false);
+    
+    this.renderer.domElement.addEventListener('webglcontextrestored', () => {
+        this.handleContextRestored();
+    }, false);
+}
+
+handleContextLost() {
+    console.warn('WebGL context lost. Attempting to recover...');
+    // Cancel any pending animation frames
+    if (this.animationFrameId) {
+        cancelAnimationFrame(this.animationFrameId);
     }
+}
+
+handleContextRestored() {
+    console.log('WebGL context restored. Reinitializing...');
+    this.#setupRenderer();
+    this.#setupPostProcessing();
+    // Reinitialize any other necessary components
+}
     
     #createSun = () => {
         // Main sun disc
@@ -180,43 +204,63 @@ export class SunRenderer {
         this.scene.add(ambientLight);
     };
 
-    #setupPostProcessing = () => {
-        this.composer = new EffectComposer(this.renderer);
-        
-        const renderPass = new RenderPass(this.scene, this.camera);
-        renderPass.clearColor = new THREE.Color(0x000000);
-        renderPass.clearAlpha = 0;
-        
-        const bloomPass = new UnrealBloomPass(
-            new THREE.Vector2(this.container.offsetWidth, this.container.offsetHeight),
-            0.5,
-            0.2,
-            0.95
-        );
-        
-        this.composer.addPass(renderPass);
-        this.composer.addPass(bloomPass);
-    };
+#setupPostProcessing = () => {
+    const width = Math.max(1, this.container.offsetWidth);
+    const height = Math.max(1, this.container.offsetHeight);
+    
+    this.composer = new EffectComposer(this.renderer);
+    
+    // Ensure render targets are properly sized
+    this.composer.renderTarget1.setSize(width, height);
+    this.composer.renderTarget2.setSize(width, height);
+    
+    const renderPass = new RenderPass(this.scene, this.camera);
+    renderPass.clear = true;
+    renderPass.clearColor = new THREE.Color(0x000000);
+    renderPass.clearAlpha = 0;
+    
+    const bloomPass = new UnrealBloomPass(
+        new THREE.Vector2(width, height),
+        0.5,
+        0.2,
+        0.95
+    );
+    
+    this.composer.addPass(renderPass);
+    this.composer.addPass(bloomPass);
+    
+    // Ensure the final pass outputs to screen
+    bloomPass.renderToScreen = true;
+};
 
 #setupRenderer = () => {
-    const size = this.container.offsetWidth;
-    this.renderer.setSize(size, size);
-    this.renderer.setPixelRatio(window.devicePixelRatio);
+    const width = Math.max(1, this.container.offsetWidth);
+    const height = Math.max(1, this.container.offsetHeight);
+    
+    this.renderer.setSize(width, height, false);
+    this.renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2)); // Cap pixel ratio
+    
+    // Enable proper depth and stencil buffers
+    this.renderer.setClearColor(0x000000, 0);
+    this.renderer.setRenderTarget(null);
     
     // Set canvas style
-    this.renderer.domElement.style.position = 'absolute';
-    this.renderer.domElement.style.background = 'transparent';
-    this.renderer.domElement.style.pointerEvents = 'none';
+    const canvas = this.renderer.domElement;
+    canvas.style.position = 'absolute';
+    canvas.style.background = 'transparent';
+    canvas.style.pointerEvents = 'none';
+    canvas.style.width = '100%';
+    canvas.style.height = '100%';
     
-    this.container.appendChild(this.renderer.domElement);
+    this.container.appendChild(canvas);
     this.camera.position.z = 5;
     this.camera.lookAt(0, 0, 0);
 };
     
-        // Change animate to update
-    update(time) {
-        if (!this.sun || !this.corona) return;
-        
+update(time) {
+    if (!this.sun || !this.corona || !this.composer) return;
+    
+    try {
         // Update rotations
         this.sun.rotation.z += 0.00005;
         this.corona.rotation.z -= 0.000025;
@@ -227,25 +271,49 @@ export class SunRenderer {
             this.corona.material.uniforms.time.value = time * 0.001;
         }
         
-        this.composer.render();
-        
+        // Check if render targets are valid before rendering
+        if (this.composer.renderTarget1.width > 0 && 
+            this.composer.renderTarget1.height > 0) {
+            this.composer.render();
+        }
+    } catch (error) {
+        console.error('Error in SunRenderer update:', error);
     }
+}
 
-    resize() {
-        const width = this.container.offsetWidth;
-        const height = this.container.offsetHeight;
-        const aspect = width / height;
-        const viewSize = 2.4;
-        
-        this.camera.left = -viewSize * aspect / 2;
-        this.camera.right = viewSize * aspect / 2;
-        this.camera.top = viewSize / 2;
-        this.camera.bottom = -viewSize / 2;
-        this.camera.updateProjectionMatrix();
-        
-        this.renderer.setSize(width, height);
-        this.composer.setSize(width, height);
+resize() {
+    const width = Math.max(1, this.container.offsetWidth);  // Ensure minimum size of 1
+    const height = Math.max(1, this.container.offsetHeight);
+    const aspect = width / height;
+    const viewSize = 2.4;
+    
+    // Only proceed if we have valid dimensions
+    if (width === 0 || height === 0) {
+        console.warn('Invalid dimensions in resize:', width, height);
+        return;
     }
+    
+    this.camera.left = -viewSize * aspect / 2;
+    this.camera.right = viewSize * aspect / 2;
+    this.camera.top = viewSize / 2;
+    this.camera.bottom = -viewSize / 2;
+    this.camera.updateProjectionMatrix();
+    
+    // Update renderer and composer sizes
+    this.renderer.setSize(width, height, false);  // false to prevent style changes
+    
+    // Properly handle composer resize
+    if (this.composer) {
+        this.composer.setSize(width, height);
+        // Reset render targets
+        if (this.composer.renderTarget1) {
+            this.composer.renderTarget1.setSize(width, height);
+        }
+        if (this.composer.renderTarget2) {
+            this.composer.renderTarget2.setSize(width, height);
+        }
+    }
+}
     
 dispose() {
     try {

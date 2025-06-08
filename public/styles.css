@@ -213,14 +213,9 @@ body {
 
 #sun-container {
     width: 100%;
-    height: 400px; /* Fixed height instead of 100vh */
-    background: transparent; /* Changed from #000 to transparent */
-    position: relative;
-    overflow: hidden;
-    display: flex;
-    justify-content: center;
-    align-items: center;
-    margin-bottom: 20px; /* Space between sun and planets */
+    height: 100%;
+    position: absolute;
+    pointer-events: none;
 }
 
 #sun-container canvas {

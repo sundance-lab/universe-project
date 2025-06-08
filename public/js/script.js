@@ -105,6 +105,7 @@ window.generatePlanetInstanceFromBasis = function (basis, isForDesignerPreview =
 
   // --- STATE VARIABLES ---
   let linesCtx;
+  let currentStarfieldCleanup = null;
   let currentNumGalaxies = DEFAULT_NUM_GALAXIES;
   let currentMinSSCount = DEFAULT_MIN_SS_COUNT_CONST;
   let currentMaxSSCount = DEFAULT_MAX_SS_COUNT_CONST;
@@ -980,9 +981,12 @@ function switchToMainView() {
   window.gameSessionData.activeSolarSystemId = null;
   stopSolarSystemAnimation();
   setActiveScreen(mainScreen);
-  if (mainScreen) {
-    generateStarBackgroundCanvas(mainScreen);
-  }
+    if (mainScreen) {
+        if (currentStarfieldCleanup) {
+            currentStarfieldCleanup();
+        }
+        currentStarfieldCleanup = generateStarBackgroundCanvas(mainScreen);
+    }
 }
 
  function makeTitleEditable(titleTextElement, inputElement, onSaveCallback) {
@@ -1051,19 +1055,19 @@ function switchToGalaxyDetailView(galaxyId) {
   if (galaxyDetailTitleInput) galaxyDetailTitleInput.style.display = 'none';
    
   setActiveScreen(galaxyDetailScreen);
-  if (galaxyDetailScreen) 
-    {
-    generateStarBackgroundCanvas(galaxyDetailScreen); // Add this line
+    if (galaxyDetailScreen) {
+        if (currentStarfieldCleanup) {
+            currentStarfieldCleanup();
+        }
+        currentStarfieldCleanup = generateStarBackgroundCanvas(galaxyDetailScreen);
     }
   makeTitleEditable(galaxyDetailTitleText, galaxyDetailTitleInput, (newName) => { 
    galaxy.customName = newName || null; 
    window.saveGameState(); 
    renderMainScreen();
    if (window.gameSessionData.activeSolarSystemId?.startsWith(galaxy.id) && backToGalaxyButton) {
-      // FIXED: Corrected template literals
      backToGalaxyButton.textContent = galaxy.customName ? `← ${galaxy.customName}` : `← Galaxy ${galaxyNumDisplay}`;
    }
-    // FIXED: Corrected template literal
    return galaxy.customName || `Galaxy ${galaxyNumDisplay}`; 
   });
 
@@ -1252,7 +1256,10 @@ function switchToSolarSystemView(solarSystemId) {
 
     setActiveScreen(solarSystemScreen);
     if (solarSystemScreen) {
-      generateStarBackgroundCanvas(solarSystemScreen);
+        if (currentStarfieldCleanup) {
+            currentStarfieldCleanup();
+        }
+        currentStarfieldCleanup = generateStarBackgroundCanvas(solarSystemScreen);
     }
 
     makeTitleEditable(solarSystemTitleText, solarSystemTitleInput, (newName) => {

@@ -59,10 +59,14 @@ float layeredNoise(vec3 p, float seed, int octaves, float persistence, float lac
  return total / maxValue;
 }
 
+// ========================= SOLUTION PART 1: WIDEN THE RIVER VALLEYS =========================
+// By changing the power from 4.0 to 3.0, we make the river valleys less sharp
+// and more substantial, allowing them to be detected and rendered more easily.
 float ridgedRiverNoise(vec3 p, float seed) {
  float n = layeredNoise(p, seed, 6, 0.5, 2.0, 1.0);
- return pow(1.0 - abs(n), 4.0);
+ return pow(1.0 - abs(n), 3.0); 
 }
+// ===========================================================================================
 
 void main() {
  vec3 p = position;
@@ -142,14 +146,9 @@ void main() {
  vec3 snowColor = vec3(0.9, 0.9, 1.0);
  float landMassRange = 1.0 - uOceanHeightLevel;
 
-
-  // ========================= SOLUTION: CORRECTED LOGIC FLOW =========================
-  // First, check if the pixel is part of the ocean.
   if (vElevation < uOceanHeightLevel) {
-    finalColor = waterColor; // This is ocean, no rivers here.
-  }
-  // If it's not ocean, it must be land. Now we can apply land features.
-  else {
+    finalColor = waterColor;
+  } else {
     float landRatio = max(0.0, (vElevation - uOceanHeightLevel) / landMassRange);
 
     const float BEACH_END = 0.02;
@@ -157,7 +156,6 @@ void main() {
     const float MOUNTAIN_START = 0.60;
     const float SNOW_START = 0.85;
 
-    // Determine the base land color from the biome.
     if (landRatio < BEACH_END) {
       finalColor = mix(plainsColor, beachColor, smoothstep(BEACH_END, 0.0, landRatio));
     } else if (landRatio < PLAINS_END) {
@@ -170,20 +168,20 @@ void main() {
       finalColor = mix(mountainColor, snowColor, smoothstep(SNOW_START, 1.0, landRatio));
     }
 
-    // Add forests on top of the biome color.
     if (landRatio > BEACH_END && landRatio < SNOW_START) {
       float forestNoise = valueNoise(vWorldPosition * 25.0, uContinentSeed * 4.0);
       float forestMask = smoothstep(1.0 - uForestDensity, 1.0 - uForestDensity + 0.1, forestNoise);
       finalColor = mix(finalColor, forestColor, forestMask);
     }
 
-    // FINALLY, check for and draw rivers ON TOP of the final land color.
-    if (vRiverValue > 0.2) {
-      // Mix the final land color with the river water color.
+    // ========================= SOLUTION PART 2: LOWER THE VISIBILITY THRESHOLD =========================
+    // By changing this check from > 0.2 to > 0.1, we allow more of the calculated
+    // river values to actually be drawn, making faint tributaries visible.
+    if (vRiverValue > 0.1) {
       finalColor = mix(finalColor, waterColor * 0.9, vRiverValue);
     }
+    // =================================================================================================
   }
-  // =================================================================================
 
  vec3 viewDirection = normalize(cameraPosition - vWorldPosition);
  gl_FragColor = vec4(calculateLighting(finalColor, vNormal, viewDirection), 1.0);

@@ -50,7 +50,7 @@ export const PlanetDesigner = (() => {
   designerThreeRenderer.setSize(designerPlanetCanvas.offsetWidth, designerPlanetCanvas.offsetHeight);
   designerThreeRenderer.setPixelRatio(window.devicePixelRatio);
    
-  const geometry = new THREE.SphereGeometry(SPHERE_BASE_RADIUS, 1024, 512);
+  const geometry = new THREE.IcosahedronGeometry(SPHERE_BASE_RADIUS, 32);
 
   const uniforms = {
    uLandColor: { value: new THREE.Color() }, uWaterColor: { value: new THREE.Color() },

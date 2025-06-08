@@ -250,12 +250,63 @@ export class SunRenderer {
         this.renderer.setSize(width, height);
         this.composer.setSize(width, height);
     }
+    
+dispose() {
+    try {
+        // Dispose of geometries and materials
+        if (this.sun) {
+            this.scene.remove(this.sun);
+            this.sun.geometry.dispose();
+            this.sun.material.dispose();
+        }
+        
+        if (this.corona) {
+            this.scene.remove(this.corona);
+            this.corona.geometry.dispose();
+            this.corona.material.dispose();
+        }
 
-    dispose() {
-        this.sun.geometry.dispose();
-        this.sun.material.dispose();
-        this.corona.geometry.dispose();
-        this.corona.material.dispose();
-        this.renderer.dispose();
+        // Dispose of render targets in EffectComposer
+        if (this.composer) {
+            if (this.composer.renderTarget1) this.composer.renderTarget1.dispose();
+            if (this.composer.renderTarget2) this.composer.renderTarget2.dispose();
+
+            // Get all passes and dispose them
+            if (this.composer.passes) {
+                this.composer.passes.forEach(pass => {
+                    if (pass.dispose) {
+                        pass.dispose();
+                    }
+                });
+            }
+
+            this.composer.dispose();
+        }
+
+        // Dispose of the renderer
+        if (this.renderer) {
+            this.renderer.forceContextLoss();
+            this.renderer.dispose();
+            
+            const canvas = this.renderer.domElement;
+            if (canvas && canvas.parentNode) {
+                canvas.parentNode.removeChild(canvas);
+            }
+        }
+
+        // Remove event listener with bound context
+        window.removeEventListener('resize', () => this.resize());
+
+    } catch (error) {
+        console.error('Error during SunRenderer disposal:', error);
+    } finally {
+        // Clear all references
+        this.sun = null;
+        this.corona = null;
+        this.composer = null;
+        this.renderer = null;
+        this.scene = null;
+        this.camera = null;
+        this.container = null;
     }
 }

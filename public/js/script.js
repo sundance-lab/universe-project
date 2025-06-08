@@ -403,8 +403,8 @@ function generateStarBackgroundCanvas(containerElement) {
     ctx.clearRect(0, 0, canvas.width, canvas.height);
     
     // Smooth interpolation of offset
-    offsetX += (targetOffsetX - offsetX) * 0.1;
-    offsetY += (targetOffsetY - offsetY) * 0.1;
+    offsetX += (targetOffsetX - offsetX) * 0.005;
+    offsetY += (targetOffsetY - offsetY) * 0.005;
 
     stars.forEach(star => {
       const twinkle = Math.sin(timestamp * 0.001 * star.twinkleSpeed) * 0.5 + 0.5;

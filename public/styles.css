@@ -196,7 +196,7 @@ body {
 }
 
 #sun-container canvas {
-    mix-blend-mode: lighten;  /* This makes black pixels transparent and lets bright pixels add to background */
+  mix-blend-mode: screen; 
 }
 
 body, html {

@@ -189,19 +189,19 @@ class SunRenderer {
         this.scene.add(ambientLight);
     }
 
-    setupPostProcessing() {
-        this.composer = new THREE.EffectComposer(this.renderer);
-        const renderPass = new THREE.RenderPass(this.scene, this.camera);
-        const bloomPass = new THREE.UnrealBloomPass(
-            new THREE.Vector2(this.container.offsetWidth, this.container.offsetHeight),
-            2.0,    // Increased bloom intensity
-            0.5,    // Adjusted bloom radius
-            0.75    // Adjusted bloom threshold
-        );
-        
-        this.composer.addPass(renderPass);
-        this.composer.addPass(bloomPass);
-    }
+setupPostProcessing() {
+    this.composer = new EffectComposer(this.renderer);
+    const renderPass = new RenderPass(this.scene, this.camera);
+    const bloomPass = new UnrealBloomPass(
+        new THREE.Vector2(this.container.offsetWidth, this.container.offsetHeight),
+        2.0,    // Increased bloom intensity
+        0.5,    // Adjusted bloom radius
+        0.75    // Adjusted bloom threshold
+    );
+    
+    this.composer.addPass(renderPass);
+    this.composer.addPass(bloomPass);
+}
 
     animate() {
         requestAnimationFrame(() => this.animate());

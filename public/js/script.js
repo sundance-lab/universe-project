@@ -576,7 +576,7 @@ function generateStarBackgroundCanvas(containerElement) {
       zoomControlsElement.classList.toggle('visible', screenToShow === galaxyDetailScreen || screenToShow === solarSystemScreen);
     }
 
-    const isOnOverlayScreen = screenToShow === planetDesignerScreen;
+    const isOnOverlayScreen = (screenToShow === planetDesignerScreen || screenToShow === planetSurfaceScreen);
 
     if (regenerateUniverseButton) regenerateUniverseButton.style.display = isOnOverlayScreen ? 'none' : 'block';
     if (createPlanetDesignButton) createPlanetDesignButton.style.display = isOnOverlayScreen ? 'none' : 'block';

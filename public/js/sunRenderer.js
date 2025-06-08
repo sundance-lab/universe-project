@@ -5,10 +5,15 @@ import { UnrealBloomPass } from 'three/examples/jsm/postprocessing/UnrealBloomPa
 
 export class SunRenderer {
     #setupRenderer = () => {
-        // Set renderer size to match container
         const size = this.container.offsetWidth;
         this.renderer.setSize(size, size);
         this.renderer.setPixelRatio(window.devicePixelRatio);
+        
+        // Set canvas style
+        this.renderer.domElement.style.position = 'absolute';
+        this.renderer.domElement.style.background = 'transparent';
+        this.renderer.domElement.style.pointerEvents = 'none';
+        
         this.container.appendChild(this.renderer.domElement);
         this.camera.position.z = 5;
         this.camera.lookAt(0, 0, 0);
@@ -28,12 +33,18 @@ export class SunRenderer {
             -1.2, 1.2, 1.2, -1.2, 0.1, 1000
         );
         
+        // Add premultipliedAlpha and change powerPreference
         this.renderer = new THREE.WebGLRenderer({ 
             antialias: true, 
             alpha: true,
-            preserveDrawingBuffer: true
+            premultipliedAlpha: false,
+            powerPreference: "high-performance",
+            preserveDrawingBuffer: false
         });
+        
+        // Ensure complete transparency
         this.renderer.setClearColor(0x000000, 0);
+        this.scene.background = null;
         
         this.#setupRenderer();
         this.#createSun();

@@ -186,6 +186,102 @@ void main() {
  vec3 viewDirection = normalize(cameraPosition - vWorldPosition);
  gl_FragColor = vec4(calculateLighting(finalColor, vNormal, viewDirection), 1.0);
 }
+
+export function getPlanetSurfaceShaders() {
+
+  const surfaceVertexShader = `
+    uniform float uTime;
+    uniform float uDisplacementAmount;
+    uniform float uContinentSeed;
+
+    varying vec3 vWorldPosition;
+    varying float vElevation;
+
+    // We reuse the same noise functions
+    ${glslRandom2to1}
+    ${glslSimpleValueNoise3D}
+
+    float layeredNoise(vec3 p, float seed, int octaves, float persistence, float lacunarity, float scale) {
+      float total = 0.0;
+      float frequency = scale;
+      float amplitude = 1.0;
+      float maxValue = 0.0;
+      for (int i = 0; i < octaves; i++) {
+        total += valueNoise(p * frequency + seed * float(i) * 1.712, seed * 12.345 * float(i+1) * 0.931) * amplitude;
+        maxValue += amplitude;
+        amplitude *= persistence;
+        frequency *= lacunarity;
+      }
+      return total / maxValue;
+    }
+
+    void main() {
+      // Base elevation from large-scale noise (hills and valleys)
+      float baseElevation = layeredNoise(position, uContinentSeed, 6, 0.5, 2.0, 0.05);
+
+      // Add mid-scale noise for rocks and bumps
+      float rockDetail = layeredNoise(position, uContinentSeed * 2.0, 8, 0.4, 2.5, 0.5);
+      baseElevation += rockDetail * 0.1;
+
+      // Add very fine noise for ground texture
+      float groundDetail = layeredNoise(position, uContinentSeed * 3.0, 4, 0.5, 2.0, 5.0);
+      baseElevation += groundDetail * 0.01;
+
+      vElevation = baseElevation;
+
+      vec3 newPosition = position + normal * baseElevation * uDisplacementAmount;
+      vWorldPosition = newPosition;
+
+      gl_Position = projectionMatrix * modelViewMatrix * vec4(newPosition, 1.0);
+    }
+  `;
+
+  const surfaceFragmentShader = `
+    uniform vec3 uWaterColor;
+    uniform vec3 uLandColor;
+    uniform float uOceanHeightLevel;
+
+    varying vec3 vWorldPosition;
+    varying float vElevation;
+
+    vec3 calculateLighting(vec3 surfaceColor, vec3 normalVec) {
+        vec3 lightDirection = normalize(vec3(0.8, 0.6, -0.6)); // Light from behind camera
+        float diffuse = max(0.0, dot(normalVec, lightDirection));
+        return surfaceColor * (diffuse * 0.8 + 0.2); // Simple diffuse + ambient
+    }
+
+    void main() {
+      // Calculate normal from neighboring points to get lighting on our detailed mesh
+      vec3 normal = normalize(cross(dFdx(vWorldPosition), dFdy(vWorldPosition)));
+
+      // Define a richer set of colors
+      vec3 grassColor = uLandColor;
+      vec3 dirtColor = uLandColor * 0.6 + vec3(0.2, 0.1, 0.05);
+      vec3 rockColor = vec3(0.5); // Grey rocks
+      vec3 snowColor = vec3(0.9, 0.9, 1.0);
+
+      vec3 finalColor;
+      
+      // Normalized height (0 = sea level, 1 = max height)
+      float normalizedHeight = smoothstep(-0.2, 0.8, vElevation);
+
+      // Blend between dirt, grass, and rock based on height.
+      finalColor = mix(dirtColor, grassColor, smoothstep(0.0, 0.15, normalizedHeight));
+      finalColor = mix(finalColor, rockColor, smoothstep(0.3, 0.6, normalizedHeight));
+      finalColor = mix(finalColor, snowColor, smoothstep(0.85, 1.0, normalizedHeight));
+
+      // If below a certain absolute elevation, it's water
+      if(vWorldPosition.y < uOceanHeightLevel) {
+          finalColor = uWaterColor;
+      }
+      
+      gl_FragColor = vec4(calculateLighting(finalColor, normal), 1.0);
+    }
+  `;
+
+  return { vertexShader: surfaceVertexShader, fragmentShader: surfaceFragmentShader };
+}
+
 `;
 
 export function getPlanetShaders() {

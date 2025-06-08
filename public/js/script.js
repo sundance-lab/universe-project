@@ -1,7 +1,7 @@
-// These imports are now correct because all files are in the same directory.
 import { startSolarSystemAnimation, stopSolarSystemAnimation, isSolarSystemAnimationRunning } from './animationController.js';
 import * as PlanetDesigner from './planetDesigner.js';
 import * as PlanetVisualPanelManager from './planetVisualPanelManager.js';
+import { SunRenderer } from './sunRenderer.js';
 
 function initializeModules() {
   window.PlanetDesigner = PlanetDesigner.PlanetDesigner;
@@ -49,7 +49,7 @@ document.addEventListener('DOMContentLoaded', () => {
   const createPlanetDesignButton = document.getElementById('create-planet-design-btn');
 
   // --- FUNCTION DEFINITIONS ---
-
+window.currentSunRenderer = null;
 window.generatePlanetInstanceFromBasis = function (basis, isForDesignerPreview = false) {
   console.log("[DEBUG] Generating planet instance:");
   console.log("[DEBUG] Available templates:", window.gameSessionData?.customPlanetDesigns?.length || 0);
@@ -218,7 +218,6 @@ window.generatePlanetInstanceFromBasis = function (basis, isForDesignerPreview =
     console.warn("Web Workers not supported in this browser.");
   }
 
-  // MODIFIED: window.renderPlanetVisual to accept an optional explicitSenderId
   window.renderPlanetVisual = function (planetData, rotationQuaternion, targetCanvas, explicitSenderId = null) {
     const workerToUse = (targetCanvas?.id === 'designer-planet-canvas')
       ? window.designerWorker
@@ -672,7 +671,6 @@ function generateStarBackgroundCanvas(containerElement) {
   }
   
   if (!galaxyViewport) {
-   // FIXED: Corrected template literal
    console.warn(`generateSolarSystemsForGalaxy: galaxyViewport element not found. Cannot determine placement area for galaxy ${galaxyId}.`);
    return;
   }
@@ -685,7 +683,6 @@ function generateStarBackgroundCanvas(containerElement) {
   const galaxyContentRadius = galaxyContentDiameter / 2;
 
   if (galaxyContentRadius <= 0) {
-   // FIXED: Corrected template literals
    console.warn(`generateSolarSystemsForGalaxy: Invalid content dimensions for galaxy ${galaxy.id}. Diameter: ${galaxyContentDiameter}`);
    galaxy.layoutGenerated = true;
    if (!window.gameSessionData.isForceRegenerating) window.saveGameState();
@@ -751,8 +748,6 @@ function generateStarBackgroundCanvas(containerElement) {
 
     if (bestConnection) {
      let connectionMade = false;
-      // This complex connection logic is kept as-is, assuming it reflects the desired generation outcome.
-      // It attempts to connect using progressively larger distance limits to ensure a connected graph.
      if (tryAddConnection(bestConnection.fromId, bestConnection.toId, galaxy.lineConnections, systemConnectionCounts, systemsWithCenters, allowedMaxEuclideanDist)) {
         connectionMade = true;
      } else {
@@ -799,7 +794,6 @@ function generateStarBackgroundCanvas(containerElement) {
         connectedSystemIds.add(bestConnection.toId);
         unconnectedSystemIds.delete(bestConnection.toId);
      } else {
-      // FIXED: Corrected template literal
       console.warn(`System ${bestConnection.toId} could not be connected to the main network. Removing from unconnected set.`);
       unconnectedSystemIds.delete(bestConnection.toId); 
      }
@@ -809,15 +803,12 @@ function generateStarBackgroundCanvas(containerElement) {
        connectedSystemIds.add(nextUnconnectedId); 
        unconnectedSystemIds.delete(nextUnconnectedId);
      } else {
-      // FIXED: Corrected template literal
       console.warn(`generateSolarSystemsForGalaxy: Could not connect all systems. ${unconnectedSystemIds.size} systems remain unconnected.`);
       break; 
      }
     }
    }
   }
-
-  // Add additional connections
   systemsWithCenters.forEach(sys1 => {
    const desiredConnections = getWeightedNumberOfConnections();
    let connectionsToAdd = Math.min(desiredConnections, MAX_CONNECTIONS_PER_SYSTEM) - (systemConnectionCounts[sys1.id] || 0);
@@ -920,7 +911,6 @@ function generateStarBackgroundCanvas(containerElement) {
   if (!galaxyViewport || !galaxyZoomContent) return;
 
   const galaxyContentDiameter = window.gameSessionData.universe.diameter || 500;
-  // FIXED: Corrected template literals
   galaxyViewport.style.width = `${galaxyContentDiameter}px`;
   galaxyViewport.style.height = `${galaxyContentDiameter}px`;
 
@@ -930,7 +920,6 @@ function generateStarBackgroundCanvas(containerElement) {
    const solarSystemElement = document.createElement('div');
    solarSystemElement.className = 'solar-system-icon';
    let displayIconSize = ss.iconSize;
-   // FIXED: Corrected template literals
    solarSystemElement.style.width = `${displayIconSize}px`;
    solarSystemElement.style.height = `${displayIconSize}px`;
    solarSystemElement.style.left = `${ss.x}px`;
@@ -954,7 +943,6 @@ function generateStarBackgroundCanvas(containerElement) {
     
   if (galaxyDetailTitleText) { 
    const galaxyNumDisplay = galaxy.id.split('-').pop();
-    // FIXED: Corrected template literal
    galaxyDetailTitleText.textContent = galaxy.customName || `Galaxy ${galaxyNumDisplay}`; 
   }
  }
@@ -968,7 +956,6 @@ function generateStarBackgroundCanvas(containerElement) {
   const zoom = solarSystemData.zoomLevel || SOLAR_SYSTEM_VIEW_MIN_ZOOM;
 
   solarSystemContent.style.transition = isInteractivePanOrZoom ? 'none' : 'transform 0.1s ease-out';
-  // FIXED: Corrected template literal
   solarSystemContent.style.transform = `translate(${panX}px, ${panY}px) scale(${zoom})`;
 
   const activeGalaxy = window.gameSessionData.galaxies.find(g => window.gameSessionData.activeSolarSystemId.startsWith(g.id));
@@ -976,7 +963,6 @@ function generateStarBackgroundCanvas(containerElement) {
 
   if (solarSystemTitleText) { 
    const systemNumDisplay = solarSystemData.systemId?.split('-').pop() || 'N/A';
-    // FIXED: Corrected template literal
    solarSystemTitleText.textContent = solarSystemObject?.customName || `System ${systemNumDisplay}`; 
   }
  }
@@ -984,16 +970,20 @@ function generateStarBackgroundCanvas(containerElement) {
  // --- VIEW SWITCHING FUNCTIONS ---
 
    window.switchToMainView = switchToMainView;
-  function switchToMainView() {
-    window.gameSessionData.activeGalaxyId = null;
-    window.gameSessionData.activeSolarSystemId = null;
-    stopSolarSystemAnimation();
-    setActiveScreen(mainScreen); // This will also hide PlanetVisualPanelManager if it's open
-    if (mainScreen) 
-     {
-    generateStarBackgroundCanvas(mainScreen); // Add this line
-     }
+function switchToMainView() {
+  cleanupWebGLResources();
+  if (window.currentSunRenderer) {
+    window.currentSunRenderer.dispose();
+    window.currentSunRenderer = null;
   }
+  window.gameSessionData.activeGalaxyId = null;
+  window.gameSessionData.activeSolarSystemId = null;
+  stopSolarSystemAnimation();
+  setActiveScreen(mainScreen);
+  if (mainScreen) {
+    generateStarBackgroundCanvas(mainScreen);
+  }
+}
 
  function makeTitleEditable(titleTextElement, inputElement, onSaveCallback) {
   if (!titleTextElement || !inputElement) return;
@@ -1022,7 +1012,13 @@ function generateStarBackgroundCanvas(containerElement) {
   };
  }
 
- function switchToGalaxyDetailView(galaxyId) {
+function switchToGalaxyDetailView(galaxyId) {
+  cleanupWebGLResources();
+
+  if (window.currentSunRenderer) {
+    window.currentSunRenderer.dispose();
+    window.currentSunRenderer = null;
+  }
   const galaxy = window.gameSessionData.galaxies.find(g => g.id === galaxyId);
   if (!galaxy) {
    // FIXED: Corrected template literal
@@ -1112,38 +1108,46 @@ function calculateInitialZoom(screenWidth, screenHeight) {
   return Math.max(SOLAR_SYSTEM_VIEW_MIN_ZOOM, minRequiredZoom * 1.2);
 }
   
-  function switchToSolarSystemView(solarSystemId) {
-    window.gameSessionData.activeSolarSystemId = solarSystemId;
-    const activeGalaxy = window.gameSessionData.galaxies.find(g => solarSystemId.startsWith(g.id));
-    const solarSystemObject = activeGalaxy?.solarSystems.find(s => s.id === solarSystemId);
+function switchToSolarSystemView(solarSystemId) {
+  window.gameSessionData.activeSolarSystemId = solarSystemId;
+  const activeGalaxy = window.gameSessionData.galaxies.find(g => solarSystemId.startsWith(g.id));
+  const solarSystemObject = activeGalaxy?.solarSystems.find(s => s.id === solarSystemId);
 
-    const initialZoom = calculateInitialZoom(
-      solarSystemScreen.offsetWidth,
-      solarSystemScreen.offsetHeight
-    );
-    
-    if (!solarSystemObject) {
-      console.error(`switchToSolarSystemView: Solar System object ${solarSystemId} not found in game data.`);
-      return switchToMainView();
-    }
+  const initialZoom = calculateInitialZoom(
+    solarSystemScreen.offsetWidth,
+    solarSystemScreen.offsetHeight
+  );
+  
+  if (!solarSystemObject) {
+    console.error(`switchToSolarSystemView: Solar System object ${solarSystemId} not found in game data.`);
+    return switchToMainView();
+  }
 
-    window.gameSessionData.solarSystemView = {
-    zoomLevel: initialZoom, // Use calculated zoom instead of fixed 0.5
+  window.gameSessionData.solarSystemView = {
+    zoomLevel: initialZoom,
     currentPanX: 0,
     currentPanY: 0,
     systemId: solarSystemId,
     planets: []
   };
 
-    if (solarSystemContent) solarSystemContent.innerHTML = '';
+  if (solarSystemContent) {
+    solarSystemContent.innerHTML = '';
+    
+    // Create sun container first
+    const sunContainer = document.createElement('div');
+    sunContainer.id = 'sun-container';
+    solarSystemContent.appendChild(sunContainer);
 
-    let currentSunSize = SUN_ICON_SIZE * (solarSystemObject.sunSizeFactor || 1);
-    currentSunSize = Math.max(currentSunSize, 15);
-    const sunElement = document.createElement('div');
-    sunElement.className = 'sun-icon sun-animated';
-    sunElement.style.width = `${currentSunSize}px`;
-    sunElement.style.height = `${currentSunSize}px`;
-    if (solarSystemContent) solarSystemContent.appendChild(sunElement);
+    // Initialize sun renderer with the system's size factor
+    if (window.currentSunRenderer) {
+      window.currentSunRenderer.dispose();
+    }
+    const sunScale = solarSystemObject.sunSizeFactor || 1;
+    window.currentSunRenderer = new SunRenderer(sunContainer, {
+      scale: sunScale,
+      baseSize: SUN_ICON_SIZE
+    });
 
     let usedOrbitalDistances = [];
     const numPlanetsToGenerate = Math.floor(Math.random() * (currentMaxPlanets - currentMinPlanets + 1)) + currentMinPlanets;
@@ -1170,16 +1174,16 @@ function calculateInitialZoom(screenWidth, screenHeight) {
         size: planetSize
       });
 
-    const basisToUse = window.gameSessionData.customPlanetDesigns?.length ?
-      window.gameSessionData.customPlanetDesigns[Math.floor(Math.random() * window.gameSessionData.customPlanetDesigns.length)] :
-    {
-      waterColor: '#1E90FF',
-      landColor: '#556B2F',
-      minTerrainHeight: window.DEFAULT_MIN_TERRAIN_HEIGHT,
-      maxTerrainHeight: window.DEFAULT_MAX_TERRAIN_HEIGHT,
-      oceanHeightLevel: window.DEFAULT_OCEAN_HEIGHT_LEVEL,
-      continentSeed: Math.random()
-    }  
+      const basisToUse = window.gameSessionData.customPlanetDesigns?.length ?
+        window.gameSessionData.customPlanetDesigns[Math.floor(Math.random() * window.gameSessionData.customPlanetDesigns.length)] :
+        {
+          waterColor: '#1E90FF',
+          landColor: '#556B2F',
+          minTerrainHeight: window.DEFAULT_MIN_TERRAIN_HEIGHT,
+          maxTerrainHeight: window.DEFAULT_MAX_TERRAIN_HEIGHT,
+          oceanHeightLevel: window.DEFAULT_OCEAN_HEIGHT_LEVEL,
+          continentSeed: Math.random()
+        };
 
       const planetInstanceAppearance = window.generatePlanetInstanceFromBasis(basisToUse, false);
 
@@ -1204,8 +1208,6 @@ function calculateInitialZoom(screenWidth, screenHeight) {
       planetElement.classList.add('planet-icon', 'clickable-when-paused');
       planetElement.addEventListener('click', (e) => {
         e.stopPropagation();
-        // Now, clicking a planet icon opens the panel with its preview.
-        // The 360 view is accessed via a button INSIDE this panel.
         window.PlanetVisualPanelManager?.show(newPlanet);
       });
 
@@ -1228,9 +1230,6 @@ function calculateInitialZoom(screenWidth, screenHeight) {
       planetElement.style.background = backgroundStyle;
       planetElement.style.boxShadow = `0 0 ${newPlanet.size / 3}px rgba(200,200,255,0.2)`;
 
-      // REMOVED: The individual "Enter Planet" button that was appended to each planetElement.
-      // Functionality is now within the PlanetVisualPanelManager.
-
       if (solarSystemContent) solarSystemContent.appendChild(planetElement);
       newPlanet.element = planetElement;
 
@@ -1240,7 +1239,7 @@ function calculateInitialZoom(screenWidth, screenHeight) {
           cmd: 'preloadPlanet',
           planetData: planetRenderData,
           rotationQuaternion: [1, 0, 0, 0],
-          canvasWidth: 50, // Small dimensions for simple preload caching
+          canvasWidth: 50,
           canvasHeight: 50,
           senderId: `preload-${newPlanet.id}`
         });
@@ -1254,11 +1253,10 @@ function calculateInitialZoom(screenWidth, screenHeight) {
     if (solarSystemTitleInput) solarSystemTitleInput.style.display = 'none';
 
     setActiveScreen(solarSystemScreen);
-  if (solarSystemScreen) {
-    generateStarBackgroundCanvas(solarSystemScreen); // Add this line
-  }
+    if (solarSystemScreen) {
+      generateStarBackgroundCanvas(solarSystemScreen);
+    }
 
-    
     makeTitleEditable(solarSystemTitleText, solarSystemTitleInput, (newName) => {
       if (solarSystemObject) {
         solarSystemObject.customName = newName || null;
@@ -1272,6 +1270,8 @@ function calculateInitialZoom(screenWidth, screenHeight) {
     renderSolarSystemScreen(false);
     startSolarSystemAnimation();
   }
+}
+  
  // --- PANNING AND ZOOMING ---
 
  function clampSolarSystemPan(solarSystemDataObject, viewportWidth, viewportHeight) { 
@@ -1363,6 +1363,13 @@ function calculateInitialZoom(screenWidth, screenHeight) {
   renderFn(true);
  }
 
+function cleanupWebGLResources() {
+  if (window.currentSunRenderer) {
+    window.currentSunRenderer.dispose();
+    window.currentSunRenderer = null;
+  }
+}
+  
 function startPan(event, viewportElement, contentElementToTransform, dataObjectWithPanProperties) {
   if (event.button !== 0 || event.target.closest('button, .solar-system-icon, .planet-icon')) {
     console.log("SCRIPT: startPan returned early. Clicked on:", event.target);
@@ -1420,12 +1427,25 @@ function panMouseMove(event) {
   p.isActive = false;
  }
 
+function animate() {
+  requestAnimationFrame(animate);
+  if (window.currentSunRenderer) {
+    window.currentSunRenderer.render();
+  }
+}
+animate();
+  
  // --- UNIVERSE REGENERATION ---
  function regenerateCurrentUniverseState(forceConfirmationDialog = false) {
   if (forceConfirmationDialog && !confirm("This will erase your current universe and generate a new one. Are you sure?")) {
-   return;
+    return;
   }
-  
+
+  if (window.currentSunRenderer) {
+    window.currentSunRenderer.dispose();
+    window.currentSunRenderer = null;
+  }
+   
   const existingCustomPlanetDesigns = [...(window.gameSessionData.customPlanetDesigns || [])];
   
   window.gameSessionData.universe = { diameter: null };
@@ -1512,13 +1532,22 @@ if (galaxyViewport) galaxyViewport.addEventListener('mousedown', e => {
   
   // Resize listener
   let resizeTimeout;
-  window.addEventListener('resize', () => {
-    clearTimeout(resizeTimeout);
-    resizeTimeout = setTimeout(() => {
-      console.log("Debounced resize event: Re-initializing universe.");
-      regenerateCurrentUniverseState(false); 
-    }, 500);  
-  });
+window.addEventListener('resize', () => {
+  clearTimeout(resizeTimeout);
+  resizeTimeout = setTimeout(() => {
+    if (window.currentSunRenderer) {
+      window.currentSunRenderer.resize();
+      // Wait for resize to complete before re-rendering
+      requestAnimationFrame(() => {
+        if (window.currentSunRenderer) {
+          window.currentSunRenderer.render();
+        }
+      });
+    }
+    console.log("Debounced resize event: Re-initializing universe.");
+    regenerateCurrentUniverseState(false);
+  }, 500);
+});
 
   // NOTE: The final closing }); for DOMContentLoaded comes much later,
   // after initializeGame(); and module inits. This snippet does NOT include that final closing.

@@ -197,23 +197,24 @@ export class SunRenderer {
     this.camera.lookAt(0, 0, 0);
   };
   
-  update(time) {
+update(time) {
     if (!this.sun || !this.corona || !this.renderer) return;
     
     try {
-      this.sun.rotation.z += 0.00005;
-      this.corona.rotation.z -= 0.000025;
-      
-      this.sun.material.uniforms.time.value = time * 0.001;
-      if (this.corona.material.uniforms) {
-        this.corona.material.uniforms.time.value = time * 0.001;
-      }
-      
-      this.renderer.render(this.scene, this.camera);
+        // Slow down the rotation speeds significantly
+        this.sun.rotation.z += 0.00002;       // Reduced from 0.00005
+        this.corona.rotation.z -= 0.00001;    // Reduced from 0.000025
+        
+        this.sun.material.uniforms.time.value = time * 0.001;
+        if (this.corona.material.uniforms) {
+            this.corona.material.uniforms.time.value = time * 0.001;
+        }
+        
+        this.renderer.render(this.scene, this.camera);
     } catch (error) {
-      console.error('Error in SunRenderer update loop:', error);
+        console.error('Error in SunRenderer update loop:', error);
     }
-  }
+}
   
   resize() {
     const width = Math.max(1, this.container.offsetWidth);

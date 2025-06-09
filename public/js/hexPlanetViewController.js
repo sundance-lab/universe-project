@@ -90,18 +90,16 @@ function initScene(canvas, planetBasis) {
   lod = new LOD();
   scene.add(lod);
 
-  // --- LOD ARRAY USING STRENGTHS INSTEAD OF OCTAVES ---
-  const detailLevels = [
-    // Note: strengths are [mountain, island]
-    { subdivision: 256, distance: 0,   strengths: [1.0, 1.0] }, // Full detail
-    { subdivision: 192, distance: 1.2, strengths: [0.9, 0.9] }, // Almost full detail
-    { subdivision: 128, distance: 1.6, strengths: [0.7, 0.7] },
-    { subdivision: 80,  distance: 2.0, strengths: [0.5, 0.4] },
-    { subdivision: 48,  distance: 2.4, strengths: [0.3, 0.1] }, // <-- Camera starts here
-    { subdivision: 24,  distance: 5.0, strengths: [0.1, 0.0] }, // Islands are fully faded out
-    { subdivision: 12,  distance: 10.0,strengths: [0.0, 0.0] }, // Mountains now faded out
-    { subdivision: 6,   distance: 18.0,strengths: [0.0, 0.0] }
-  ];
+const detailLevels = [
+    { subdivision: 256, distance: 0,   strengths: [1.0, 1.0] },
+    { subdivision: 192, distance: 1.2, strengths: [1.0, 1.0] },
+    { subdivision: 128, distance: 1.6, strengths: [1.0, 1.0] },
+    { subdivision: 80,  distance: 2.0, strengths: [1.0, 1.0] },
+    { subdivision: 48,  distance: 2.4, strengths: [1.0, 1.0] },
+    { subdivision: 24,  distance: 5.0, strengths: [1.0, 1.0] },
+    { subdivision: 12,  distance: 10.0, strengths: [1.0, 1.0] },
+    { subdivision: 6,   distance: 18.0, strengths: [1.0, 1.0] }
+];
 
   detailLevels.forEach(level => {
     const geometry = new THREE.IcosahedronGeometry(SPHERE_BASE_RADIUS, level.subdivision);

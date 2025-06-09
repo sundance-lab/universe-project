@@ -4,27 +4,27 @@ import * as THREE from 'three';
 const LOD_LEVELS = {
   ULTRA_CLOSE: {
     distance: 150,
-    segments: 512,
-    noiseDetail: 2.0,
-    textureDetail: 2.0
+    segments: 1024,
+    noiseDetail: 8.0,
+    textureDetail: 8.0
   },
   CLOSE: {
-    distance: 300,
-    segments: 256,
-    noiseDetail: 1.5,
-    textureDetail: 1.5
+    distance: 300,     // Changed from 512
+    segments: 512,     // Increased from 256
+    noiseDetail: 4.0,  // Added .0 for consistency
+    textureDetail: 4.0 // Added .0 for consistency
   },
   MEDIUM: {
     distance: 600,
-    segments: 128,
-    noiseDetail: 1.0,
-    textureDetail: 1.0
+    segments: 192,     // Increased from 128
+    noiseDetail: 2.0,  // Increased from 1.0
+    textureDetail: 2.0 // Increased from 1.0
   },
   FAR: {
     distance: 1200,
-    segments: 96,
-    noiseDetail: 0.75,
-    textureDetail: 0.75
+    segments: 128,     // Increased from 96
+    noiseDetail: 1.0,  // Increased from 0.75
+    textureDetail: 1.0 // Increased from 0.75
   }
 };
 
@@ -186,7 +186,7 @@ export class SunRenderer {
   #createSunGeometry(segments) {
     return new THREE.SphereGeometry(1, segments, segments);
   }
-
+  
   #createSun = () => {
     const variation = this.sunVariations[this.solarSystemType];
     const baseSize = this.sizeTiers[variation.sizeCategory].size;
@@ -207,7 +207,7 @@ export class SunRenderer {
     });
 
     const coronaScale = 1.2 + (Math.log10(finalSize) * 0.05);
-    const coronaGeometry = new THREE.SphereGeometry(finalSize * coronaScale, 128, 128);
+    const coronaGeometry = new THREE.SphereGeometry(finalSize * coronaScale, 512, 512);
     const coronaMaterial = new THREE.ShaderMaterial({
       uniforms: {
         time: { value: 0 },
@@ -413,27 +413,55 @@ export class SunRenderer {
           return 42.0 * dot(m*m, vec4(dot(p0,x0), dot(p1,x1), dot(p2,x2), dot(p3,x3)));
         }
 
+float microDetail(vec3 p) {
+    float detail = 0.0;
+    float freq = 4.0;
+    float amp = 0.5;
+    
+    for(int i = 0; i < 3; i++) {
+        detail += snoise(p * freq) * amp;
+        freq *= 3.0;
+        amp *= 0.5;
+    }
+    return detail;
+}
+
         float lodNoise(vec3 p, float detail) {
           return snoise(p * detail) * (1.0 / detail);
         }
 
-        float terrainNoise(vec3 p) {
-            float elevation = 0.0;
-            float frequency = 1.0;
-            float amplitude = 1.0;
-            float maxAmplitude = 0.0;
-            
-            int iterations = int(4.0 * detailLevel);
-            
-            for(int i = 0; i < iterations; i++) {
-                elevation += amplitude * lodNoise(p * frequency * terrainScale, textureDetail);
-                maxAmplitude += amplitude;
-                amplitude *= 0.5;
-                frequency *= 2.0;
-            }
-            
-            return elevation / maxAmplitude;
-        }
+float terrainNoise(vec3 p) {
+    float elevation = 0.0;
+    float frequency = 1.0;
+    float amplitude = 1.0;
+    float maxAmplitude = 0.0;
+    
+    // Base detail
+    int iterations = int(8.0 * detailLevel);
+    
+    for(int i = 0; i < iterations; i++) {
+        elevation += amplitude * lodNoise(p * frequency * terrainScale, textureDetail);
+        maxAmplitude += amplitude;
+        amplitude *= 0.65;    // Adjusted for better detail retention
+        frequency *= 2.4;     // Increased frequency scaling
+    }
+    
+    // Add high-frequency detail for close-up views
+    float closeupDetail = 0.0;
+    frequency = 8.0;
+    amplitude = 0.3;
+    
+    for(int i = 0; i < 3; i++) {
+        closeupDetail += amplitude * lodNoise(p * frequency * terrainScale, textureDetail * 2.0);
+        amplitude *= 0.5;
+        frequency *= 3.0;
+    }
+    
+    float dist = length(vViewPosition);
+    float closeupFactor = 1.0 - smoothstep(0.0, 300.0, dist);
+    
+    return (elevation / maxAmplitude) + (closeupDetail * closeupFactor);
+}
 
         float fireNoise(vec3 p) {
             float noise = 0.0;
@@ -448,25 +476,33 @@ export class SunRenderer {
                 0.0
             );
 
-            
+                float highFreqNoise = 0.0;
+                frequency = 6.0;
+                amplitude = 0.4;
             
                   for(int i = 0; i < iterations; i++) {
-                p += flow * amplitude;
-                noise += amplitude * lodNoise(p * frequency + time * fireSpeed, textureDetail);
-                frequency *= 2.0;
-                amplitude *= 0.5;
-                flow *= 0.7;
+                    p += flow * amplitude;
+                    noise += amplitude * lodNoise(p * frequency + time * fireSpeed, textureDetail);
+                    frequency *= 2.0;
+                    amplitude *= 0.5;
+                    flow *= 0.7;
             }
             
-            return noise * fireIntensity;
-        }
+    float dist = length(vViewPosition);
+    float closeupFactor = 1.0 - smoothstep(0.0, 300.0, dist);
+    
+    return (noise + highFreqNoise * closeupFactor) * fireIntensity;        }
 
         void main() {
             vec3 viewDir = normalize(vViewPosition);
             vec3 normal = normalize(vNormal);
+
+            float distanceToCamera = length(vViewPosition);
+            float closeupDetailScale = 1.0 - smoothstep(0.0, 300.0, distanceToCamera);
+            float extraDetail = 1.0 + closeupDetailScale * 2.0;
             
-            float terrain = terrainNoise(vWorldPosition * 0.02);
-            float fireEffect = fireNoise(vWorldPosition * 0.03);
+            float terrain = terrainNoise(vWorldPosition * 0.02 * extraDetail);
+            float fireEffect = fireNoise(vWorldPosition * 0.03 * extraDetail);
             
             vec2 fireUV = vUv * noiseScale;
             float fireTime = time * fireSpeed;
@@ -576,6 +612,7 @@ export class SunRenderer {
       console.error('Error in SunRenderer update loop:', error);
     }
   }
+
   
   resize() {
     if (!this.container || !this.camera || !this.renderer) return;

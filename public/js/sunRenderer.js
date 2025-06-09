@@ -45,10 +45,12 @@ export class SunRenderer {
         time: { value: 0 },
         color: { value: new THREE.Color(0xFFFF00) },
         glowColor: { value: new THREE.Color(0xFFDD00) },
-        noiseScale: { value: 3.0 },
-        pulseSpeed: { value: 0.015 },
+        noiseScale: { value: 2.0 },
+        pulseSpeed: { value: 0.008 },
         centerBrightness: { value: 2.0 },
-        edgeGlow: { value: 0.6 }
+        edgeGlow: { value: 0.6 },
+        turbulence: { value: 0.6 },
+        fireSpeed: { value: 0.3 }
       },
       vertexShader: `
         varying vec2 vUv;
@@ -71,6 +73,8 @@ export class SunRenderer {
         uniform float pulseSpeed;
         uniform float centerBrightness;
         uniform float edgeGlow;
+        uniform float turbulence;
+        uniform float fireSpeed;
         
         varying vec2 vUv;
         varying vec3 vNormal;
@@ -138,6 +142,20 @@ export class SunRenderer {
           m = m * m;
           return 42.0 * dot(m*m, vec4(dot(p0,x0), dot(p1,x1), dot(p2,x2), dot(p3,x3)));
         }
+
+        float fireNoise(vec3 p) {
+          float noise = 0.0;
+          float amplitude = 1.0;
+          float frequency = 1.0;
+          
+          for(int i = 0; i < 4; i++) {
+            noise += amplitude * snoise(p * frequency);
+            frequency *= 2.0;
+            amplitude *= 0.5;
+          }
+          
+          return noise;
+        }
         
         void main() {
           vec3 viewDir = normalize(vViewPosition);
@@ -146,22 +164,32 @@ export class SunRenderer {
           float distFromCenter = length(vUv - vec2(0.5, 0.5)) * 2.0;
           float circular = 1.0 - smoothstep(0.0, 1.0, distFromCenter);
           
-          float noise = snoise(vec3(vUv * noiseScale, time * 0.1));
-          float detailNoise = snoise(vec3(vUv * noiseScale * 2.0, time * 0.2)) * 0.5;
+          vec2 fireUV = vUv * noiseScale;
+          float fireTime = time * fireSpeed;
           
-          float pulse = sin(time * pulseSpeed) * 0.05 + 0.95;
+          float firePattern = fireNoise(vec3(fireUV, fireTime));
+          float secondaryFire = fireNoise(vec3(fireUV * 1.5 + 5.0, fireTime * 0.8));
           
-          vec3 baseColor = mix(color, glowColor, noise * 0.3);
+          float combinedNoise = firePattern * 0.6 + secondaryFire * 0.4;
+          combinedNoise = combinedNoise * turbulence;
+          
+          float pulse = sin(time * pulseSpeed) * 0.03 + 0.97;
+          
+          vec3 baseColor = mix(color, glowColor, combinedNoise * 0.4);
           vec3 finalColor = baseColor;
           
-          finalColor *= (centerBrightness - distFromCenter);
+          finalColor *= (centerBrightness - distFromCenter * 0.5);
           
           float edgeFactor = pow(1.0 - abs(dot(normal, viewDir)), 3.0);
           finalColor += glowColor * edgeFactor * edgeGlow;
           
+          finalColor += glowColor * combinedNoise * 0.3;
+          
           finalColor *= circular * pulse;
           
           finalColor += color * (1.0 - distFromCenter) * 0.5;
+          
+          finalColor += vec3(0.1, 0.05, 0.0) * combinedNoise;
           
           gl_FragColor = vec4(finalColor, 1.0);
         }
@@ -196,12 +224,14 @@ export class SunRenderer {
         void main() {
           float dist = length(vUv - vec2(0.5, 0.5)) * 2.0;
           float alpha = 1.0 - smoothstep(0.0, 1.0, dist);
-          float pulse = sin(time * 0.2) * 0.05 + 0.95;
+          float pulse = sin(time * 0.15) * 0.03 + 0.97;
           
           vec3 finalColor = glowColor;
           finalColor *= pulse;
           
-          gl_FragColor = vec4(finalColor, alpha * 0.5);
+          float edgeFade = smoothstep(1.0, 0.2, dist);
+          
+          gl_FragColor = vec4(finalColor, alpha * 0.4 * edgeFade);
         }
       `,
       transparent: true,
@@ -252,11 +282,11 @@ export class SunRenderer {
     if (!this.sun || !this.corona || !this.renderer) return;
     
     try {
-      this.sun.rotation.z += 0.0005;
+      this.sun.rotation.z += 0.0001;
       
-      this.sun.material.uniforms.time.value = time * 0.001;
+      this.sun.material.uniforms.time.value = time * 0.0005;
       if (this.corona.material.uniforms) {
-        this.corona.material.uniforms.time.value = time * 0.001;
+        this.corona.material.uniforms.time.value = time * 0.0003;
       }
       
       this.renderer.render(this.scene, this.camera);

@@ -1273,7 +1273,7 @@ const planetInstanceAppearance = window.generatePlanetInstanceFromBasis({}, fals
  }
 }
 
-window.switchToHexPlanetView = (planetData, onBackCallback) => {
+window.switchToHexPlanetView = (planetData) => {
     if (!planetData) {
         console.error("switchToHexPlanetView: No planet data provided.");
         return;
@@ -1285,11 +1285,12 @@ window.switchToHexPlanetView = (planetData, onBackCallback) => {
         return;
     }
 
+    // Use the central screen manager to correctly switch screens
     setActiveScreen(hexPlanetScreen);
 
-    if (HexPlanetViewController?.activate) {
-        // Pass the callback function along to the controller
-        HexPlanetViewController.activate(planetData, onBackCallback);
+    // Now, initialize the 3D planet view
+    if (HexPlanetViewController && typeof HexPlanetViewController.activate === 'function') {
+        HexPlanetViewController.activate(planetData);
     } else {
         console.error("HexPlanetViewController or its .activate() method is not available.");
     }

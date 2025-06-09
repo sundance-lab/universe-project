@@ -167,27 +167,33 @@ function _showPanel(planetData) {
         currentPlanetData = planetData;
         titleElement.textContent = planetData.planetName || 'Planet';
         sizeElement.textContent = `${Number(planetData.size).toFixed(2)} units`;
+
+        const oldButton = document.getElementById('explore-planet-button');
+        if (oldButton) {
+            oldButton.parentElement.remove();
+        }
         
-        // Add explore button - Add this code here
         const actionDiv = document.createElement('div');
         actionDiv.className = 'panel-actions';
         
         const exploreButton = document.createElement('button');
         exploreButton.id = 'explore-planet-button';
         exploreButton.textContent = 'Explore Surface';
+
         exploreButton.addEventListener('click', () => {
-            if (window.HexPlanetViewController && typeof window.HexPlanetViewController.activate === 'function') {
-                _closePanel(); // Close the panel first
-                window.HexPlanetViewController.activate(currentPlanetData);
+            if (window.switchToHexPlanetView) {
+                _closePanel(); 
+                window.switchToHexPlanetView(currentPlanetData);
+            } else {
+                console.error("The global function 'switchToHexPlanetView' is not available.");
             }
         });
         
         actionDiv.appendChild(exploreButton);
         panelElement.querySelector('.panel-body').appendChild(actionDiv);
         
-        // Initialize the 3D view for the new planet
         is360ViewActive = true;
-        _stopAndCleanupThreeJSView(); // Clean up previous instance
+        _stopAndCleanupThreeJSView(); 
         if (planet360CanvasElement) {
             planet360CanvasElement.style.display = 'block';
             requestAnimationFrame(() => { 

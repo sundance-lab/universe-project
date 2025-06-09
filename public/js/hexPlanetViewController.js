@@ -39,6 +39,7 @@ export const HexPlanetViewController = (() => {
     geometry.setAttribute('barycentric', new THREE.BufferAttribute(barycentric, 3));
   }
 
+
 function initScene(canvas, planetBasis) {
   scene = new THREE.Scene();
   scene.background = new THREE.Color(0x000000);
@@ -78,11 +79,10 @@ function initScene(canvas, planetBasis) {
             uDisplacementAmount: { value: 0.0 },
             uShowStrokes: { value: false },
             uOceanHeightLevel: { value: 0.0 },
-            // Add placeholders for all our noise uniforms
             uContinentOctaves: { value: 5 },
             uMountainOctaves: { value: 6 },
             uIslandOctaves: { value: 7 },
-            uMountainScale: { value: 8.0 } // Add the new mountain scale uniform
+            uMountainScale: { value: 8.0 }
         }
     ]),
     vertexShader,
@@ -98,32 +98,26 @@ function initScene(canvas, planetBasis) {
   lod = new LOD();
   scene.add(lod);
 
-  // --- MODIFIED LOD ARRAY WITH INCREASED DETAIL AT MAX ZOOM ---
+  // --- THIS IS THE FULLY CORRECTED ARRAY WITH 'mountainScale' ADDED TO EVERY LEVEL ---
   const detailLevels = [
     // Note: octaves [continent, mountain, island]
-    { subdivision: 256, distance: 0,    octaves: [5, 6, 7] }, // Max Quality
-    { subdivision: 224, distance: 1.0,  octaves: [5, 6, 7] },
-    { subdivision: 192, distance: 1.2,  octaves: [5, 6, 6] },
-    { subdivision: 160, distance: 1.4,  octaves: [5, 5, 6] },
-    { subdivision: 128, distance: 1.6,  octaves: [5, 5, 5] },
-    { subdivision: 104, distance: 1.8,  octaves: [4, 5, 5] },
-    { subdivision: 80,  distance: 2.0,  octaves: [4, 4, 4] },
-    { subdivision: 64,  distance: 2.2,  octaves: [4, 4, 2] },
-
-    // --- Starting Level ---
-    { subdivision: 48,  distance: 2.4,  octaves: [4, 3, 0] }, // <-- Camera starts here
-
-    // --- Mid-range Zoom-out Levels ---
-    { subdivision: 36,  distance: 3.5,  octaves: [3, 3, 0] },
-    { subdivision: 24,  distance: 5.0,  octaves: [3, 2, 0] },
-    { subdivision: 18,  distance: 7.5,  octaves: [3, 1, 0] },
-    { subdivision: 12,  distance: 10.0, octaves: [3, 0, 0] },
-
-    // --- Far Distance Levels ---
-    { subdivision: 8,   distance: 14.0, octaves: [2, 0, 0] },
-    { subdivision: 6,   distance: 18.0, octaves: [2, 0, 0] },
-    { subdivision: 4,   distance: 24.0, octaves: [1, 0, 0] },
-    { subdivision: 2,   distance: 30.0, octaves: [1, 0, 0] }  // Simplest possible placeholder
+    { subdivision: 256, distance: 0,   octaves: [6, 7, 8], mountainScale: 14.0 }, // Max detail
+    { subdivision: 224, distance: 1.0, octaves: [5, 7, 7], mountainScale: 13.0 },
+    { subdivision: 192, distance: 1.2, octaves: [5, 6, 7], mountainScale: 12.0 },
+    { subdivision: 160, distance: 1.4, octaves: [5, 6, 6], mountainScale: 11.0 },
+    { subdivision: 128, distance: 1.6, octaves: [5, 5, 6], mountainScale: 10.0 },
+    { subdivision: 104, distance: 1.8, octaves: [5, 5, 5], mountainScale: 9.0  },
+    { subdivision: 80,  distance: 2.0, octaves: [4, 5, 4], mountainScale: 8.5  },
+    { subdivision: 64,  distance: 2.2, octaves: [4, 4, 2], mountainScale: 8.0  }, // Baseline detail
+    { subdivision: 48,  distance: 2.4, octaves: [4, 3, 0], mountainScale: 8.0  }, // <-- Camera starts here
+    { subdivision: 36,  distance: 3.5, octaves: [3, 3, 0], mountainScale: 7.0  },
+    { subdivision: 24,  distance: 5.0, octaves: [3, 2, 0], mountainScale: 7.0  },
+    { subdivision: 18,  distance: 7.5, octaves: [3, 1, 0], mountainScale: 6.0  },
+    { subdivision: 12,  distance: 10.0,octaves: [3, 0, 0], mountainScale: 6.0  },
+    { subdivision: 8,   distance: 14.0,octaves: [2, 0, 0], mountainScale: 5.0  },
+    { subdivision: 6,   distance: 18.0,octaves: [2, 0, 0], mountainScale: 5.0  },
+    { subdivision: 4,   distance: 24.0,octaves: [1, 0, 0], mountainScale: 4.0  },
+    { subdivision: 2,   distance: 30.0,octaves: [1, 0, 0], mountainScale: 4.0  }
   ];
 
   detailLevels.forEach(level => {
@@ -131,11 +125,11 @@ function initScene(canvas, planetBasis) {
     addBarycentricCoordinates(geometry);
     const materialForLevel = baseMaterial.clone();
 
-    // Set the unique noise detail for this material
+    // Now this code works because 'level.mountainScale' exists!
     materialForLevel.uniforms.uContinentOctaves.value = level.octaves[0];
     materialForLevel.uniforms.uMountainOctaves.value = level.octaves[1];
     materialForLevel.uniforms.uIslandOctaves.value = level.octaves[2];
-    materialForLevel.uniforms.uMountainScale.value = level.mountainScale; // Set the new scale
+    materialForLevel.uniforms.uMountainScale.value = level.mountainScale;
 
     const mesh = new THREE.Mesh(geometry, materialForLevel);
     lod.addLevel(mesh, level.distance);

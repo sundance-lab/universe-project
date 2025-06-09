@@ -141,13 +141,13 @@ export const PlanetVisualPanelManager = (() => {
     threeCamera = null;
   }
 
-  function _closePanel() {
-  if (panelElement) {
+function _closePanel() {
+    if (panelElement) {
         panelElement.classList.remove('visible');
-        // Remove the explore button if it exists
-        const exploreButton = document.getElementById('explore-planet-button');
-        if (exploreButton) {
-            exploreButton.remove();
+        const exploreButton = panelElement.querySelector('#explore-planet-button');
+        
+        if (exploreButton && exploreButton.parentElement) {
+            exploreButton.parentElement.remove();
         }
     }
     is360ViewActive = false;

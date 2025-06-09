@@ -38,7 +38,7 @@ export class SunRenderer {
   }
   
   #createSun = () => {
-    const sunGeometry = new THREE.SphereGeometry(3.0, 64, 64);
+    const sunGeometry = new THREE.SphereGeometry(30.0, 64, 64);
 
     const sunMaterial = new THREE.ShaderMaterial({
       uniforms: {
@@ -232,14 +232,14 @@ export class SunRenderer {
     this.sun = new THREE.Mesh(sunGeometry, sunMaterial);
     this.scene.add(this.sun);
 
-    const coronaGeometry = new THREE.SphereGeometry(5.0, 64, 64);
+    const coronaGeometry = new THREE.SphereGeometry(50.0, 64, 64);
     const coronaMaterial = new THREE.ShaderMaterial({
       uniforms: {
         time: { value: 0 },
         glowColor: { value: new THREE.Color(0xFFA726) },
         pulseSpeed: { value: 0.1 },
-        fadeStart: { value: 0.2 }, // Changed from 0.4 to 0.2 for earlier fade start
-        fadeEnd: { value: 1.2 }    // Changed from 1.0 to 1.2 for longer fade
+        fadeStart: { value: 0.2 }, 
+        fadeEnd: { value: 1.2 }    
       },
       vertexShader: `
         varying vec2 vUv;
@@ -269,29 +269,22 @@ export class SunRenderer {
             vec3 viewDir = normalize(vViewPosition);
             vec3 normal = normalize(vNormal);
             
-            // Increased power for softer edges
             float rim = pow(1.0 - abs(dot(normal, viewDir)), 6.0);
             
-            // Radial distance from center
             float dist = length(vUv - vec2(0.5, 0.5)) * 2.0;
             
-            // Smooth fade with no sharp edges
             float alpha = smoothstep(fadeEnd, fadeStart, dist);
             alpha *= rim;
             
-            // Subtle pulse effect
             float pulse = sin(time * pulseSpeed) * 0.02 + 0.98;
             vec3 finalColor = glowColor;
             
-            // Subtle color variation
             float colorShift = sin(dist * 3.14159 + time * 0.1) * 0.1 + 0.9;
             finalColor *= colorShift;
             finalColor *= pulse;
             
-            // More gradual alpha falloff
             alpha = pow(alpha, 2.0);
             
-            // Reduced final alpha for smoother blend
             gl_FragColor = vec4(finalColor, alpha * 0.3);
         }
       `,
@@ -303,9 +296,10 @@ export class SunRenderer {
 
     this.corona = new THREE.Mesh(coronaGeometry, coronaMaterial);
     this.corona.position.z = 0;
-    this.corona.scale.setScalar(1.6); // Increased from 1.4 to 1.6 for wider effect
+    this.corona.scale.setScalar(1.6);
     this.scene.add(this.corona);
   }
+  
   #setupLighting = () => {
     const ambientLight = new THREE.AmbientLight(0xFFFFFF, 0.4);
     this.scene.add(ambientLight);
@@ -334,7 +328,7 @@ export class SunRenderer {
       this.container.appendChild(canvas);
     }
 
-    this.camera.position.set(0, 0, 25);
+    this.camera.position.set(0, 0, 250);
     this.camera.lookAt(0, 0, 0);
   };
   

@@ -1202,20 +1202,12 @@ const planetInstanceAppearance = window.generatePlanetInstanceFromBasis({}, fals
 
    window.gameSessionData.solarSystemView.planets.push(newPlanet);
 
-   const planetElement = document.createElement('div');
-   planetElement.classList.add('planet-icon', 'clickable-when-paused');
-   const exploreButton = document.createElement('button');
-   exploreButton.textContent = 'Explore';
-   exploreButton.classList.add('enter-planet-button');
-   planetElement.appendChild(exploreButton);
-   // In the solar system planet generation code:
-   planetElement.addEventListener('click', (e) => {
+    const planetElement = document.createElement('div');
+    planetElement.classList.add('planet-icon', 'clickable-when-paused');
+
+    planetElement.addEventListener('click', (e) => {
     e.stopPropagation();
-    if (e.target.classList.contains('enter-planet-button')) {
-        window.switchToHexPlanetView(newPlanet, true); // true indicates from solar system
-    } else {
-        window.PlanetVisualPanelManager?.show(newPlanet);
-    }
+    window.PlanetVisualPanelManager?.show(newPlanet);
 });
 
    planetElement.style.width = `${newPlanet.size}px`;

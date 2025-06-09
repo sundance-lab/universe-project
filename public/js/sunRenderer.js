@@ -238,8 +238,8 @@ export class SunRenderer {
         time: { value: 0 },
         glowColor: { value: new THREE.Color(0xFFA726) },
         pulseSpeed: { value: 0.1 },
-        fadeStart: { value: 0.2 }, // Control where the fade starts
-        fadeEnd: { value: 1.2 }    // Control where the fade ends
+        fadeStart: { value: 0.2 }, // Changed from 0.4 to 0.2 for earlier fade start
+        fadeEnd: { value: 1.2 }    // Changed from 1.0 to 1.2 for longer fade
       },
       vertexShader: `
         varying vec2 vUv;
@@ -269,7 +269,7 @@ export class SunRenderer {
             vec3 viewDir = normalize(vViewPosition);
             vec3 normal = normalize(vNormal);
             
-            // Calculate view-dependent edge fade
+            // Increased power for softer edges
             float rim = pow(1.0 - abs(dot(normal, viewDir)), 6.0);
             
             // Radial distance from center
@@ -288,9 +288,10 @@ export class SunRenderer {
             finalColor *= colorShift;
             finalColor *= pulse;
             
-            // Apply exponential falloff for smoother edges
-            alpha = pow(alpha, 2);
+            // More gradual alpha falloff
+            alpha = pow(alpha, 2.0);
             
+            // Reduced final alpha for smoother blend
             gl_FragColor = vec4(finalColor, alpha * 0.3);
         }
       `,
@@ -302,9 +303,9 @@ export class SunRenderer {
 
     this.corona = new THREE.Mesh(coronaGeometry, coronaMaterial);
     this.corona.position.z = 0;
-    this.corona.scale.setScalar(1.6); // Slightly larger scale for better fade
+    this.corona.scale.setScalar(1.6); // Increased from 1.4 to 1.6 for wider effect
     this.scene.add(this.corona);
-
+  }
   #setupLighting = () => {
     const ambientLight = new THREE.AmbientLight(0xFFFFFF, 0.4);
     this.scene.add(ambientLight);

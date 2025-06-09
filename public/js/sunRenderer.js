@@ -42,28 +42,28 @@ export class SunRenderer {
     this.lodGroup = new THREE.LOD();
     this.scene.add(this.lodGroup);
 
-    this.sizeTiers = {
-      dwarf: {
-        size: 15,
-        detailMultiplier: 1.2
-      },
-      normal: {
-        size: 30,
-        detailMultiplier: 1.0
-      },
-      giant: {
-        size: 60,
-        detailMultiplier: 0.8
-      },
-      supergiant: {
-        size: 120,
-        detailMultiplier: 0.7
-      },
-      hypergiant: {
-        size: 240,
-        detailMultiplier: 0.6
-      }
-    };
+this.sizeTiers = {
+  dwarf: {
+    size: 15,
+    detailMultiplier: 1.5
+  },
+  normal: {
+    size: 30,
+    detailMultiplier: 1.3
+  },
+  giant: {
+    size: 60,
+    detailMultiplier: 1.1
+  },
+  supergiant: {
+    size: 120,
+    detailMultiplier: 1.0
+  },
+  hypergiant: {
+    size: 240,
+    detailMultiplier: 0.9
+  }
+};
     
     this.sunVariations = [
       { // Type 0: Young, Blue-White Hot Star
@@ -300,7 +300,7 @@ export class SunRenderer {
         edgeGlow: { value: 0.7 },
         turbulence: { value: variation.turbulence },
         fireSpeed: { value: variation.fireSpeed },
-        colorIntensity: { value: 1.4 },
+        colorIntensity: { value: 2 },
         flowScale: { value: 2.0 },
         flowSpeed: { value: 0.3 },
         sunSize: { value: finalSize },
@@ -463,35 +463,42 @@ float terrainNoise(vec3 p) {
     return (elevation / maxAmplitude) + (closeupDetail * closeupFactor);
 }
 
-        float fireNoise(vec3 p) {
-            float noise = 0.0;
-            float amplitude = 1.0;
-            float frequency = 1.0;
-            
-            int iterations = int(3.0 * detailLevel);
-            
-            vec3 flow = vec3(
-                sin(p.y * 0.5 + time * flowSpeed) * 0.5,
-                cos(p.x * 0.5 + time * flowSpeed) * 0.5,
-                0.0
-            );
+float fireNoise(vec3 p) {
+    float noise = 0.0;
+    float amplitude = 1.0;
+    float frequency = 1.0;
+    
+    vec3 flow = vec3(
+        sin(p.y * 0.5 + time * flowSpeed) * 0.5,
+        cos(p.x * 0.5 + time * flowSpeed) * 0.5,
+        0.0
+    );
 
-                float highFreqNoise = 0.0;
-                frequency = 6.0;
-                amplitude = 0.4;
-            
-                  for(int i = 0; i < iterations; i++) {
-                    p += flow * amplitude;
-                    noise += amplitude * lodNoise(p * frequency + time * fireSpeed, textureDetail);
-                    frequency *= 2.0;
-                    amplitude *= 0.5;
-                    flow *= 0.7;
-            }
-            
+    // First pass for base noise
+    for(int i = 0; i < int(3.0 * detailLevel); i++) {
+        p += flow * amplitude;
+        noise += amplitude * lodNoise(p * frequency + time * fireSpeed, textureDetail);
+        frequency *= 2.0;
+        amplitude *= 0.5;
+        flow *= 0.7;
+    }
+    
+    // Second pass for high frequency detail
+    float highFreqNoise = 0.0;
+    frequency = 6.0;
+    amplitude = 0.4;
+    
+    for(int i = 0; i < 3; i++) {
+        highFreqNoise += amplitude * lodNoise(p * frequency + time * fireSpeed * 2.0, textureDetail);
+        frequency *= 2.0;
+        amplitude *= 0.5;
+    }
+    
     float dist = length(vViewPosition);
     float closeupFactor = 1.0 - smoothstep(0.0, 300.0, dist);
     
-    return (noise + highFreqNoise * closeupFactor) * fireIntensity;        }
+    return (noise + highFreqNoise * closeupFactor) * fireIntensity;
+}
 
         void main() {
             vec3 viewDir = normalize(vViewPosition);
@@ -577,11 +584,11 @@ float terrainNoise(vec3 p) {
 
     const variation = this.sunVariations[this.solarSystemType];
     const baseSize = this.sizeTiers[variation.sizeCategory].size;
-    const cameraDistance = baseSize * 4 + 100;
+    const cameraDistance = baseSize * 6 + 150; // Increased distance
     
     this.camera.position.set(0, 0, cameraDistance);
     this.camera.lookAt(0, 0, 0);
-  };
+};
   
   update(time) {
     if (!this.lodGroup || !this.corona || !this.renderer) return;

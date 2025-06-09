@@ -214,27 +214,31 @@ const detailLevels = [
     }
   }
 
-  return {
+return {
     init: () => {
-      console.log("HexPlanetViewController initialized");
+        console.log("HexPlanetViewController initialized");
     },
     activate: (planetBasis) => {
-      const canvas = document.getElementById('hex-planet-canvas');
-      const screen = document.getElementById('hex-planet-screen');
-      backButton = document.getElementById('back-from-hex-view');
+        const canvas = document.getElementById('hex-planet-canvas');
+        const screen = document.getElementById('hex-planet-screen');
+        backButton = document.getElementById('back-from-hex-view');
 
-      if (!canvas || !screen || !backButton) {
-        console.error("HexPlanetViewController: Missing required elements...");
-        return;
-      }
-      
-      cleanup();
-      initScene(canvas, planetBasis);
-      
-      window.addEventListener('resize', onResize);
-      backButton.addEventListener('click', boundDeactivate);
-      screen.classList.add('active');
+        if (!canvas || !screen || !backButton) {
+            console.error("HexPlanetViewController: Missing required elements...");
+            return;
+        }
+        
+        cleanup();
+        initScene(canvas, planetBasis);
+        
+        window.addEventListener('resize', onResize);
+        backButton.addEventListener('click', boundDeactivate);
+        screen.classList.add('active');
     },
-    deactivate: deactivate
-  };
-})();
+    initializeWithPlanet: (planetBasis) => {
+        // This is just an alias for activate to maintain compatibility
+        return HexPlanetViewController.activate(planetBasis);
+    },
+    deactivate: deactivate,
+    cleanup: cleanup
+};

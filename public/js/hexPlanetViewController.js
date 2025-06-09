@@ -176,6 +176,11 @@ export const HexPlanetViewController = (() => {
   }
 
   return {
+    init: () => {
+      // Initialize any DOM elements or event listeners that need to be set up once
+      console.log("HexPlanetViewController initialized");
+    },
+
     activate: (planetBasis) => {
       const canvas = document.getElementById('hex-planet-canvas');
       if (!canvas) return;

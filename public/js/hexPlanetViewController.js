@@ -90,8 +90,12 @@ export const HexPlanetViewController = (() => {
   // THIS IS THE CORRECTED ARRAY DEFINITION
   const detailLevels = [
 
-    { subdivision: 650, distance: 0.5 },
-    { subdivision: 512, distance: 0.8 },
+    { subdivision: 512, distance: 0.0 },
+    { subdivision: 500, distance: 0.2 },
+    { subdivision: 475, distance: 0.4 },
+    { subdivision: 450, distance: 0.6 },
+    { subdivision: 400, distance: 0.8 },
+    { subdivision: 340, distance: 1.0 },
     { subdivision: 256, distance: 1.3 }, 
     { subdivision: 128, distance: 1.5 }, 
     { subdivision: 64, distance: 1.8 },

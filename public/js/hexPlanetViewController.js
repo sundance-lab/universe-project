@@ -90,18 +90,14 @@ export const HexPlanetViewController = (() => {
   // THIS IS THE CORRECTED ARRAY DEFINITION
   const detailLevels = [
 
-    { subdivision: 512, distance: 0.0 },
-    { subdivision: 500, distance: 0.2 },
-    { subdivision: 475, distance: 0.4 },
-    { subdivision: 450, distance: 0.6 },
-    { subdivision: 400, distance: 0.8 },
-    { subdivision: 340, distance: 1.0 },
-    { subdivision: 256, distance: 1.3 }, 
-    { subdivision: 128, distance: 1.5 }, 
-    { subdivision: 64, distance: 1.8 },
-    { subdivision: 32, distance: 2.4 }, //camera starts here
-    { subdivision: 16, distance: 5.0 }
-
+    { subdivision: 256, distance: 0 },    // Max detail - high but safe.
+    { subdivision: 192, distance: 0.6 },  // Gradual steps to reduce "popping"
+    { subdivision: 128, distance: 1.0 },
+    { subdivision: 96,  distance: 1.3 },
+    { subdivision: 64,  distance: 1.6 },
+    { subdivision: 48,  distance: 2.0 },
+    { subdivision: 32,  distance: 2.4 },  // <-- Camera starts here, good performance.
+    
   ];
 
     detailLevels.forEach(level => {

@@ -1444,11 +1444,14 @@ function panMouseMove(event) {
   const zoomKey = p.dataObject.hasOwnProperty('currentZoom') ? 'currentZoom' : 'zoomLevel';
   const zoom = p.dataObject[zoomKey] || 1.0;
 
+  const zoomCompensation = Math.max(0.5, Math.min(1, 1 / zoom));
+  
   const panXKey = 'currentPanX';
   const panYKey = 'currentPanY';
-  p.dataObject[panXKey] = p.initialPanX + (deltaX / zoom);
-  p.dataObject[panYKey] = p.initialPanY + (deltaY / zoom);
   
+  p.dataObject[panXKey] = p.initialPanX + (deltaX * zoomCompensation);
+  p.dataObject[panYKey] = p.initialPanY + (deltaY * zoomCompensation);
+
   if (p.mouseMoveHandler) {
     p.mouseMoveHandler(event);
   }

@@ -18,6 +18,7 @@ export class SunRenderer {
       hypergiant: 240
     };
     
+    // Enhanced color variations and intensities
     this.sunVariations = [
       { // Type 0: Young, Blue-White Hot Star
         baseColor: new THREE.Color(0x4A90E2),
@@ -25,10 +26,15 @@ export class SunRenderer {
         coolColor: new THREE.Color(0x2979FF),
         glowColor: new THREE.Color(0x64B5F6),
         coronaColor: new THREE.Color(0x90CAF9),
-        turbulence: 0.9,
-        fireSpeed: 0.2,
+        midColor: new THREE.Color(0x82B1FF), // New middle tone
+        peakColor: new THREE.Color(0xE3F2FD), // New peak highlight
+        valleyColor: new THREE.Color(0x1565C0), // New valley shadow
+        turbulence: 1.2, // Increased from 0.9
+        fireSpeed: 0.35, // Increased from 0.2
         pulseSpeed: 0.006,
-        sizeCategory: 'normal'
+        sizeCategory: 'normal',
+        terrainScale: 2.0,
+        fireIntensity: 1.8
       },
       { // Type 1: Red Giant
         baseColor: new THREE.Color(0xFF5722),
@@ -36,21 +42,31 @@ export class SunRenderer {
         coolColor: new THREE.Color(0xBF360C),
         glowColor: new THREE.Color(0xFF7043),
         coronaColor: new THREE.Color(0xFFAB91),
-        turbulence: 0.6,
-        fireSpeed: 0.1,
+        midColor: new THREE.Color(0xFF7043),
+        peakColor: new THREE.Color(0xFFCCBC),
+        valleyColor: new THREE.Color(0x8D1F06),
+        turbulence: 1.0,
+        fireSpeed: 0.25,
         pulseSpeed: 0.003,
-        sizeCategory: 'giant'
+        sizeCategory: 'giant',
+        terrainScale: 1.8,
+        fireIntensity: 1.6
       },
-      { // Type 2: Yellow Main Sequence (Similar to Sol)
+      { // Type 2: Yellow Main Sequence
         baseColor: new THREE.Color(0xFFA500),
         hotColor: new THREE.Color(0xFFF7E6),
         coolColor: new THREE.Color(0xFF4500),
         glowColor: new THREE.Color(0xFFDF00),
         coronaColor: new THREE.Color(0xFFA726),
-        turbulence: 0.8,
-        fireSpeed: 0.15,
+        midColor: new THREE.Color(0xFFB74D),
+        peakColor: new THREE.Color(0xFFE0B2),
+        valleyColor: new THREE.Color(0xE65100),
+        turbulence: 1.1,
+        fireSpeed: 0.3,
         pulseSpeed: 0.004,
-        sizeCategory: 'normal'
+        sizeCategory: 'normal',
+        terrainScale: 2.2,
+        fireIntensity: 1.7
       },
       { // Type 3: White Dwarf
         baseColor: new THREE.Color(0xE0E0E0),
@@ -58,10 +74,15 @@ export class SunRenderer {
         coolColor: new THREE.Color(0xBDBDBD),
         glowColor: new THREE.Color(0xF5F5F5),
         coronaColor: new THREE.Color(0xEEEEEE),
-        turbulence: 1.0,
-        fireSpeed: 0.25,
+        midColor: new THREE.Color(0xE0E0E0),
+        peakColor: new THREE.Color(0xFFFFFF),
+        valleyColor: new THREE.Color(0x9E9E9E),
+        turbulence: 1.3,
+        fireSpeed: 0.4,
         pulseSpeed: 0.008,
-        sizeCategory: 'dwarf'
+        sizeCategory: 'dwarf',
+        terrainScale: 2.5,
+        fireIntensity: 2.0
       },
       { // Type 4: Hypergiant
         baseColor: new THREE.Color(0xE65100),
@@ -69,10 +90,15 @@ export class SunRenderer {
         coolColor: new THREE.Color(0xBF360C),
         glowColor: new THREE.Color(0xFFD740),
         coronaColor: new THREE.Color(0xFFC107),
-        turbulence: 0.7,
-        fireSpeed: 0.12,
+        midColor: new THREE.Color(0xFF9800),
+        peakColor: new THREE.Color(0xFFE0B2),
+        valleyColor: new THREE.Color(0xBF360C),
+        turbulence: 1.15,
+        fireSpeed: 0.28,
         pulseSpeed: 0.002,
-        sizeCategory: 'hypergiant'
+        sizeCategory: 'hypergiant',
+        terrainScale: 1.5,
+        fireIntensity: 1.9
       }
     ];
     
@@ -94,7 +120,7 @@ export class SunRenderer {
     canvas.addEventListener('webglcontextlost', this.boundContextLost, false);
     canvas.addEventListener('webglcontextrestored', this.boundContextRestored, false);
   }
-  
+
   handleContextLost() {
     console.warn('SunRenderer: WebGL context lost. Rendering will be paused.');
   }
@@ -103,14 +129,11 @@ export class SunRenderer {
     console.log('SunRenderer: WebGL context restored. Reinitializing renderer state.');
     this.#setupRenderer();
   }
-
-  #createSun = () => {
+    #createSun = () => {
     const variation = this.sunVariations[this.solarSystemType];
     const baseSize = this.sizeTiers[variation.sizeCategory];
-    
     const sizeVariation = 0.8 + Math.random() * 0.4;
     const finalSize = baseSize * sizeVariation;
-    
     const coronaScale = 1.2 + (Math.log10(finalSize) * 0.05);
     
     const sunGeometry = new THREE.SphereGeometry(finalSize, 64, 64);
@@ -121,6 +144,9 @@ export class SunRenderer {
         color: { value: variation.baseColor },
         hotColor: { value: variation.hotColor },
         coolColor: { value: variation.coolColor },
+        midColor: { value: variation.midColor },
+        peakColor: { value: variation.peakColor },
+        valleyColor: { value: variation.valleyColor },
         glowColor: { value: variation.glowColor },
         noiseScale: { value: 1.5 },
         pulseSpeed: { value: variation.pulseSpeed },
@@ -130,18 +156,22 @@ export class SunRenderer {
         fireSpeed: { value: variation.fireSpeed },
         colorIntensity: { value: 1.4 },
         flowScale: { value: 2.0 },
-        flowSpeed: { value: 0.2 },
-        sunSize: { value: finalSize }
+        flowSpeed: { value: 0.3 },
+        sunSize: { value: finalSize },
+        terrainScale: { value: variation.terrainScale },
+        fireIntensity: { value: variation.fireIntensity }
       },
       vertexShader: `
         varying vec2 vUv;
         varying vec3 vNormal;
         varying vec3 vViewPosition;
-        uniform float sunSize;
+        varying vec3 vWorldPosition;
         
         void main() {
           vUv = uv;
           vNormal = normalize(normalMatrix * normal);
+          vec4 worldPosition = modelMatrix * vec4(position, 1.0);
+          vWorldPosition = worldPosition.xyz;
           vec4 mvPosition = modelViewMatrix * vec4(position, 1.0);
           vViewPosition = -mvPosition.xyz;
           gl_Position = projectionMatrix * mvPosition;
@@ -152,6 +182,9 @@ export class SunRenderer {
         uniform vec3 color;
         uniform vec3 hotColor;
         uniform vec3 coolColor;
+        uniform vec3 midColor;
+        uniform vec3 peakColor;
+        uniform vec3 valleyColor;
         uniform vec3 glowColor;
         uniform float noiseScale;
         uniform float pulseSpeed;
@@ -163,10 +196,13 @@ export class SunRenderer {
         uniform float flowScale;
         uniform float flowSpeed;
         uniform float sunSize;
+        uniform float terrainScale;
+        uniform float fireIntensity;
         
         varying vec2 vUv;
         varying vec3 vNormal;
         varying vec3 vViewPosition;
+        varying vec3 vWorldPosition;
         
         vec4 permute(vec4 x){return mod(((x*34.0)+1.0)*x, 289.0);}
         vec4 taylorInvSqrt(vec4 r){return 1.79284291400159 - 0.85373472095314 * r;}
@@ -174,131 +210,122 @@ export class SunRenderer {
         float snoise(vec3 v){ 
           const vec2 C = vec2(1.0/6.0, 1.0/3.0);
           const vec4 D = vec4(0.0, 0.5, 1.0, 2.0);
-          
           vec3 i  = floor(v + dot(v, C.yyy));
           vec3 x0 = v - i + dot(i, C.xxx);
-          
           vec3 g = step(x0.yzx, x0.xyz);
           vec3 l = 1.0 - g;
           vec3 i1 = min(g.xyz, l.zxy);
           vec3 i2 = max(g.xyz, l.zxy);
-          
           vec3 x1 = x0 - i1 + C.xxx;
           vec3 x2 = x0 - i2 + C.yyy;
           vec3 x3 = x0 - D.yyy;
-          
           i = mod(i, 289.0);
           vec4 p = permute(permute(permute(
                     i.z + vec4(0.0, i1.z, i2.z, 1.0))
                     + i.y + vec4(0.0, i1.y, i2.y, 1.0))
                     + i.x + vec4(0.0, i1.x, i2.x, 1.0));
-                    
           float n_ = 0.142857142857;
           vec3 ns = n_ * D.wyz - D.xzx;
-          
           vec4 j = p - 49.0 * floor(p * ns.z * ns.z);
-          
           vec4 x_ = floor(j * ns.z);
           vec4 y_ = floor(j - 7.0 * x_);
-          
           vec4 x = x_ *ns.x + ns.yyyy;
           vec4 y = y_ *ns.x + ns.yyyy;
           vec4 h = 1.0 - abs(x) - abs(y);
-          
           vec4 b0 = vec4(x.xy, y.xy);
           vec4 b1 = vec4(x.zw, y.zw);
-          
           vec4 s0 = floor(b0)*2.0 + 1.0;
           vec4 s1 = floor(b1)*2.0 + 1.0;
           vec4 sh = -step(h, vec4(0.0));
-          
           vec4 a0 = b0.xzyw + s0.xzyw*sh.xxyy;
           vec4 a1 = b1.xzyw + s1.xzyw*sh.zzww;
-          
-          vec3 p0 = vec3(a0.xy, h.x);
-          vec3 p1 = vec3(a0.zw, h.y);
-          vec3 p2 = vec3(a1.xy, h.z);
-          vec3 p3 = vec3(a1.zw, h.w);
-          
+          vec3 p0 = vec3(a0.xy,h.x);
+          vec3 p1 = vec3(a0.zw,h.y);
+          vec3 p2 = vec3(a1.xy,h.z);
+          vec3 p3 = vec3(a1.zw,h.w);
           vec4 norm = taylorInvSqrt(vec4(dot(p0,p0), dot(p1,p1), dot(p2,p2), dot(p3,p3)));
           p0 *= norm.x;
           p1 *= norm.y;
           p2 *= norm.z;
           p3 *= norm.w;
-          
           vec4 m = max(0.6 - vec4(dot(x0,x0), dot(x1,x1), dot(x2,x2), dot(x3,x3)), 0.0);
           m = m * m;
           return 42.0 * dot(m*m, vec4(dot(p0,x0), dot(p1,x1), dot(p2,x2), dot(p3,x3)));
         }
 
-        float flowNoise(vec3 p) {
+        float terrainNoise(vec3 p) {
+            float elevation = 0.0;
+            float frequency = 1.0;
+            float amplitude = 1.0;
+            float maxAmplitude = 0.0;
+            
+            for(int i = 0; i < 4; i++) {
+                elevation += amplitude * snoise(p * frequency * terrainScale);
+                maxAmplitude += amplitude;
+                amplitude *= 0.5;
+                frequency *= 2.0;
+            }
+            
+            return elevation / maxAmplitude;
+        }
+
+        float fireNoise(vec3 p) {
             float noise = 0.0;
             float amplitude = 1.0;
             float frequency = 1.0;
-            float speed = flowSpeed * 0.5;
-            
-            float sizeScale = log(sunSize) * 0.2;
             
             vec3 flow = vec3(
-                sin(p.y * 0.5 + time * speed) * 0.5,
-                cos(p.x * 0.5 + time * speed) * 0.5,
+                sin(p.y * 0.5 + time * flowSpeed) * 0.5,
+                cos(p.x * 0.5 + time * flowSpeed) * 0.5,
                 0.0
             );
             
             for(int i = 0; i < 3; i++) {
                 p += flow * amplitude;
-                noise += amplitude * snoise(p * frequency * sizeScale);
+                noise += amplitude * snoise(p * frequency + time * fireSpeed);
                 frequency *= 2.0;
                 amplitude *= 0.5;
                 flow *= 0.7;
             }
             
-            return noise;
+            return noise * fireIntensity;
         }
 
         void main() {
             vec3 viewDir = normalize(vViewPosition);
             vec3 normal = normalize(vNormal);
             
-            float uvScale = 1.0 / log(sunSize + 1.0);
-            vec2 fireUV = vUv * noiseScale * uvScale;
+            // Terrain-based coloring
+            float terrain = terrainNoise(vWorldPosition * 0.02);
+            float fireEffect = fireNoise(vWorldPosition * 0.03);
+            
+            // Enhanced fire effect
+            vec2 fireUV = vUv * noiseScale;
             float fireTime = time * fireSpeed;
+            float flowPattern = fireNoise(vec3(fireUV * flowScale, fireTime));
             
-            float flowPattern = flowNoise(vec3(fireUV * flowScale, fireTime));
-            float firePattern = snoise(vec3(fireUV + flowPattern * 0.2, fireTime));
-            float secondaryFlow = flowNoise(vec3(fireUV * 1.2 + 3.0, fireTime * 0.7));
+            // Combine terrain and fire
+            vec3 terrainColor;
+            if(terrain > 0.6) {
+                terrainColor = mix(peakColor, hotColor, (terrain - 0.6) / 0.4);
+            } else if(terrain > 0.4) {
+                terrainColor = mix(midColor, peakColor, (terrain - 0.4) / 0.2);
+            } else if(terrain > 0.2) {
+                terrainColor = mix(color, midColor, (terrain - 0.2) / 0.2);
+            } else {
+                terrainColor = mix(valleyColor, color, terrain / 0.2);
+            }
             
-            float combinedNoise = mix(
-                firePattern * 0.6 + secondaryFlow * 0.4,
-                flowPattern,
-                0.4
-            ) * turbulence;
+            // Mix with fire effect
+            vec3 fireColor = mix(coolColor, hotColor, fireEffect);
+            vec3 finalColor = mix(terrainColor, fireColor, flowPattern * 0.6);
             
-            float tempNoise = (flowPattern + firePattern) * 0.5;
-            
-            vec3 tempColor = mix(coolColor, hotColor, tempNoise);
-            vec3 baseColor = mix(color, tempColor, combinedNoise * 0.6);
-            
-            float surfaceFlow = flowNoise(vec3(fireUV * 2.5, fireTime * 0.3));
-            baseColor = mix(baseColor, hotColor, surfaceFlow * 0.3);
-            
-            vec3 finalColor = baseColor;
-            
-            float sizeAdjustedGlow = centerBrightness * (1.0 + log(sunSize) * 0.1);
-            float centerGlow = 1.0 - length(vUv - vec2(0.5));
-            centerGlow += flowPattern * 0.2;
-            finalColor = mix(finalColor, hotColor, centerGlow * 0.5);
-            
-            float edge = 1.0 - smoothstep(0.3, 0.5, length(vUv - vec2(0.5)));
-            finalColor *= (sizeAdjustedGlow - (1.0 - edge) * 0.5);
-            
+            // Edge glow and rim lighting
             float edgeFactor = pow(1.0 - abs(dot(normal, viewDir)), 3.0);
-            finalColor += glowColor * edgeFactor * edgeGlow * (1.0 + flowPattern * 0.2);
+            finalColor += glowColor * edgeFactor * edgeGlow * (1.0 + flowPattern * 0.4);
             
-            finalColor += vec3(0.2, 0.1, 0.0) * combinedNoise * 0.3;
-            
+            // Intensity adjustments
             finalColor *= colorIntensity;
-            
             float pulse = sin(time * pulseSpeed + flowPattern) * 0.02 + 0.98;
             finalColor *= pulse;
             

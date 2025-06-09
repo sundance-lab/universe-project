@@ -88,9 +88,12 @@ export const HexPlanetViewController = (() => {
     scene.add(lod);
 
     const detailLevels = [
-      { subdivision: 256, distance: 0 },
-      { subdivision: 127, distance: 1.5 },
-      { subdivision: 64, distance: 2.5 }
+      { subdivision: 2048, distance: 0 },
+      { subdivision: 1024, distance: 1.5 },
+      { subdivision: 512, distance: 2.5 },
+      { subdivision: 256, distance: 3.5 },
+      { subdivision: 127, distance: 4.5 },
+      { subdivision: 64, distance: 5.5 }
     ];
 
     detailLevels.forEach(level => {

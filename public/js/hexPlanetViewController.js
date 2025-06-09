@@ -71,6 +71,7 @@ export const HexPlanetViewController = (() => {
       uTime: { value: 0.0 },
       uSphereRadius: { value: SPHERE_BASE_RADIUS },
       uDisplacementAmount: { value: 0.0 }
+      uShowStrokes: { value: true } // true = ON, false = OFF
     };
 
     const terrainRange = Math.max(0.1, planetBasis.maxTerrainHeight - planetBasis.minTerrainHeight);

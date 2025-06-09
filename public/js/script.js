@@ -24,6 +24,8 @@ document.addEventListener('DOMContentLoaded', () => {
   const DEFAULT_MIN_PLANETS_PER_SYSTEM = 0;
   const DEFAULT_MAX_PLANETS_PER_SYSTEM = 3;
   const DEFAULT_SHOW_PLANET_ORBITS = false;
+  const PLANET_EXPLORE_BUTTON_SIZE = 30;
+  const PLANET_EXPLORE_BUTTON_MARGIN = 5;
   window.DEFAULT_PLANET_AXIAL_SPEED = 0.01;
 
   const BASE_MAX_PLANET_DISTANCE_FACTOR = 25;
@@ -90,21 +92,30 @@ window.generatePlanetInstanceFromBasis = function (basis, isForDesignerPreview =
     isForDesignerPreview ? "is preview mode" : "no custom designs available");
   
   return {
-    waterColor: basis.waterColor || '#0000FF',
-    landColor: basis.landColor || '#008000',
-    continentSeed: isForDesignerPreview
-      ? (basis.continentSeed !== undefined ? basis.continentSeed : Math.random())
-      : Math.random(),
-    minTerrainHeight: (typeof basis.minTerrainHeight === 'number')
-      ? basis.minTerrainHeight : window.DEFAULT_MIN_TERRAIN_HEIGHT,
-    maxTerrainHeight: (typeof basis.maxTerrainHeight === 'number')
-      ? basis.maxTerrainHeight : window.DEFAULT_MAX_TERRAIN_HEIGHT,
-    oceanHeightLevel: (typeof basis.oceanHeightLevel === 'number')
-      ? basis.oceanHeightLevel : window.DEFAULT_OCEAN_HEIGHT_LEVEL,
-    riverBasin: basis.riverBasin || 0.05,
-    forestDensity: basis.forestDensity || 0.5
-  };
-}
+ waterColor: basis.waterColor || '#0000FF',
+        landColor: basis.landColor || '#008000',
+        continentSeed: isForDesignerPreview ? 
+            (basis.continentSeed !== undefined ? basis.continentSeed : Math.random()) : 
+            Math.random(),
+        minTerrainHeight: (typeof basis.minTerrainHeight === 'number') ? 
+            basis.minTerrainHeight : window.DEFAULT_MIN_TERRAIN_HEIGHT,
+        maxTerrainHeight: (typeof basis.maxTerrainHeight === 'number') ? 
+            basis.maxTerrainHeight : window.DEFAULT_MAX_TERRAIN_HEIGHT,
+        oceanHeightLevel: (typeof basis.oceanHeightLevel === 'number') ? 
+            basis.oceanHeightLevel : window.DEFAULT_OCEAN_HEIGHT_LEVEL,
+        riverBasin: basis.riverBasin || 0.05,
+        forestDensity: basis.forestDensity || 0.5,
+        
+        // Add exploration-specific properties
+        isExplorable: true,
+        explorationData: {
+            surfaceDetail: basis.surfaceDetail || 1.0,
+            atmosphereColor: basis.atmosphereColor || '#87CEEB',
+            rotationSpeed: basis.rotationSpeed || window.DEFAULT_PLANET_AXIAL_SPEED
+        }
+    };
+    return planetData;
+};
 
   // --- STATE VARIABLES ---
   let linesCtx;
@@ -632,6 +643,52 @@ function generateStarBackgroundCanvas(containerElement) {
   }
  }
 
+function createExplorationButton(planet, planetElement) {
+    const exploreButton = document.createElement('button');
+    exploreButton.className = 'explore-planet-btn';
+    exploreButton.innerHTML = '🔍'; // Unicode magnifying glass
+    exploreButton.style.position = 'absolute';
+    exploreButton.style.width = `${PLANET_EXPLORE_BUTTON_SIZE}px`;
+    exploreButton.style.height = `${PLANET_EXPLORE_BUTTON_SIZE}px`;
+    exploreButton.style.bottom = `-${PLANET_EXPLORE_BUTTON_SIZE + PLANET_EXPLORE_BUTTON_MARGIN}px`;
+    exploreButton.style.left = '50%';
+    exploreButton.style.transform = 'translateX(-50%)';
+    exploreButton.style.borderRadius = '50%';
+    exploreButton.style.cursor = 'pointer';
+    
+    exploreButton.addEventListener('click', (e) => {
+        e.stopPropagation();
+        switchToPlanetExploration(planet);
+    });
+    
+    planetElement.appendChild(exploreButton);
+}
+
+function switchToPlanetExploration(planet) {
+    window.gameSessionData.currentExploredPlanet = planet;
+    setActiveScreen(planetSurfaceScreen);
+    
+    // Create back button if it doesn't exist
+    if (!document.getElementById('back-to-solar-system')) {
+        const backButton = document.createElement('button');
+        backButton.id = 'back-to-solar-system';
+        backButton.className = 'navigation-button';
+        backButton.textContent = '← Back to Solar System';
+        backButton.addEventListener('click', () => {
+            setActiveScreen(solarSystemScreen);
+            if (HexPlanetViewController && typeof HexPlanetViewController.cleanup === 'function') {
+                HexPlanetViewController.cleanup();
+            }
+        });
+        planetSurfaceScreen.appendChild(backButton);
+    }
+
+    // Initialize the planet view
+    if (HexPlanetViewController && typeof HexPlanetViewController.initializeWithPlanet === 'function') {
+        HexPlanetViewController.initializeWithPlanet(planet);
+    }
+}
+ 
  function getDistance(system1, system2) { 
   return Math.sqrt(Math.pow(system1.centerX - system2.centerX, 2) + Math.pow(system1.centerY - system2.centerY, 2)); 
  }
@@ -1236,6 +1293,8 @@ function switchToSolarSystemView(solarSystemId) {
    if (solarSystemContent) solarSystemContent.appendChild(planetElement);
    newPlanet.element = planetElement;
 
+   createExplorationButton(newPlanet, planetElement);
+
    if (window.planetVisualWorker) {
     const { element, ...planetRenderData } = newPlanet;
     window.planetVisualWorker.postMessage({
@@ -1277,7 +1336,22 @@ function switchToSolarSystemView(solarSystemId) {
   startSolarSystemAnimation();
  }
 }
-  
+
+ // EXPLORING PLANETS
+
+ 
+function switchToPlanetExplorationView(planetData) {
+    // Store the planet data for exploration
+    window.gameSessionData.currentExploredPlanet = planetData;
+    
+    // Switch to planet surface screen
+    setActiveScreen(planetSurfaceScreen);
+    
+    // Initialize the HexPlanetViewController with the planet data
+    HexPlanetViewController.initializeWithPlanet(planetData);
+}
+
+ 
  // --- PANNING AND ZOOMING ---
 
  function clampSolarSystemPan(solarSystemDataObject, viewportWidth, viewportHeight) { 

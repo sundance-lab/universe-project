@@ -287,6 +287,8 @@ window.generatePlanetInstanceFromBasis = function (basis, isForDesignerPreview =
     }
   }
 
+ window.switchToPlanetDesignerScreen = switchToPlanetDesignerScreen;
+
   function updateDerivedConstants() {
     MAX_PLANET_DISTANCE = (SUN_ICON_SIZE * BASE_MAX_PLANET_DISTANCE_FACTOR) * currentMaxPlanetDistanceMultiplier;
     MIN_PLANET_DISTANCE = SUN_ICON_SIZE * 3.0 * Math.min(1.0, (currentMaxPlanetDistanceMultiplier > 0.5 ? currentMaxPlanetDistanceMultiplier * 0.8 : 0.5));

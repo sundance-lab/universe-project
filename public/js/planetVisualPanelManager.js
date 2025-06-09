@@ -1,7 +1,7 @@
 // public/js/planetVisualPanelManager.js
 import '../styles.css';
 import * as THREE from 'three';
-import { OrbitControls } from 'OrbitControls';
+import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls';
 import { getPlanetShaders } from './shaders.js';
 
 export const PlanetVisualPanelManager = (() => {

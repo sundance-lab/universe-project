@@ -706,3 +706,8 @@ body, html {
 .planet-icon:hover .explore-planet-btn {
     opacity: 1;
 }
+
+.explore-planet-btn:hover {
+    background: rgba(255, 255, 255, 0.3);
+    transform: scale(1.1);
+}

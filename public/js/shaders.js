@@ -195,6 +195,7 @@ export function getHexPlanetShaders() {
     varying float vElevation;
     varying vec3 vWorldPosition;
     varying float vRiverValue;
+    uniform float uMountainScale;
 
     float layeredNoise(vec3 p, float seed, int octaves, float persistence, float lacunarity, float scale) {
       float total = 0.0;
@@ -221,7 +222,7 @@ export function getHexPlanetShaders() {
       vec3 p = position;
       vec3 noiseInputPosition = (p / uSphereRadius) + (uContinentSeed * 10.0);
       float continentShape = (layeredNoise(noiseInputPosition, uContinentSeed, uContinentOctaves, 0.5, 2.0, 1.5) + 1.0) * 0.5;
-      float mountainNoise = (layeredNoise(noiseInputPosition, uContinentSeed * 2.0, uMountainOctaves, 0.45, 2.2, 8.0) + 1.0) * 0.5;
+      float mountainNoise = (layeredNoise(noiseInputPosition, uContinentSeed * 2.0, uMountainOctaves, 0.45, 2.2, uMountainScale) + 1.0) * 0.5;
       float islandNoise = (layeredNoise(noiseInputPosition, uContinentSeed * 3.0, uIslandOctaves, 0.5, 2.5, 18.0) + 1.0) * 0.5;
       float continentMask = smoothstep(0.49, 0.51, continentShape);
       float riverRaw = ridgedRiverNoise(noiseInputPosition * 0.2, uContinentSeed * 5.0);

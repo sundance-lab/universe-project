@@ -232,12 +232,14 @@ export class SunRenderer {
     this.sun = new THREE.Mesh(sunGeometry, sunMaterial);
     this.scene.add(this.sun);
 
-      const coronaGeometry = new THREE.SphereGeometry(5.0, 64, 64);
+    const coronaGeometry = new THREE.SphereGeometry(5.0, 64, 64);
     const coronaMaterial = new THREE.ShaderMaterial({
       uniforms: {
         time: { value: 0 },
         glowColor: { value: new THREE.Color(0xFFA726) },
-        pulseSpeed: { value: 0.1 }
+        pulseSpeed: { value: 0.1 },
+        fadeStart: { value: 0.4 }, // Control where the fade starts
+        fadeEnd: { value: 1.0 }    // Control where the fade ends
       },
       vertexShader: `
         varying vec2 vUv;
@@ -256,6 +258,9 @@ export class SunRenderer {
         uniform float time;
         uniform vec3 glowColor;
         uniform float pulseSpeed;
+        uniform float fadeStart;
+        uniform float fadeEnd;
+        
         varying vec2 vUv;
         varying vec3 vNormal;
         varying vec3 vViewPosition;
@@ -264,26 +269,29 @@ export class SunRenderer {
             vec3 viewDir = normalize(vViewPosition);
             vec3 normal = normalize(vNormal);
             
-            float dist = length(vUv - vec2(0.5, 0.5)) * 2.0;
-            float alpha = 1.0 - smoothstep(0.0, 1.0, dist);
+            // Calculate view-dependent edge fade
+            float rim = pow(1.0 - abs(dot(normal, viewDir)), 4.0);
             
+            // Radial distance from center
+            float dist = length(vUv - vec2(0.5, 0.5)) * 2.0;
+            
+            // Smooth fade with no sharp edges
+            float alpha = smoothstep(fadeEnd, fadeStart, dist);
+            alpha *= rim;
+            
+            // Subtle pulse effect
             float pulse = sin(time * pulseSpeed) * 0.02 + 0.98;
             vec3 finalColor = glowColor;
             
-            float flowEffect = sin(dist * 4.0 + time * 0.2) * 0.1 + 
-                             cos(dist * 3.0 - time * 0.15) * 0.1;
-            float colorShift = sin(dist * 3.14159 + time * 0.1) * 0.2 + 0.8;
-            
-            finalColor *= colorShift + flowEffect;
+            // Subtle color variation
+            float colorShift = sin(dist * 3.14159 + time * 0.1) * 0.1 + 0.9;
+            finalColor *= colorShift;
             finalColor *= pulse;
             
-            float edgeFade = smoothstep(1.0, 0.2, dist);
+            // Apply exponential falloff for smoother edges
+            alpha = pow(alpha, 1.5);
             
-            // Add view-dependent rim effect
-            float rim = pow(1.0 - abs(dot(normal, viewDir)), 3.0);
-            alpha *= rim * 0.8 + 0.2;
-            
-            gl_FragColor = vec4(finalColor, alpha * 0.5 * edgeFade);
+            gl_FragColor = vec4(finalColor, alpha * 0.4);
         }
       `,
       transparent: true,
@@ -294,9 +302,8 @@ export class SunRenderer {
 
     this.corona = new THREE.Mesh(coronaGeometry, coronaMaterial);
     this.corona.position.z = 0;
-    this.corona.scale.setScalar(1.2);
+    this.corona.scale.setScalar(1.4); // Slightly larger scale for better fade
     this.scene.add(this.corona);
-  };
 
   #setupLighting = () => {
     const ambientLight = new THREE.AmbientLight(0xFFFFFF, 0.4);

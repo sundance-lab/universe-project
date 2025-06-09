@@ -178,31 +178,37 @@ export function getPlanetShaders() {
   };
 }
 
+
 // --- Shaders for Hex Planet Surface (Explore View) ---
 
 export function getHexPlanetShaders() {
+  // THIS IS THE CORRECTED VERTEX SHADER using strength uniforms instead of octave uniforms
   const hexVertexShader = `
     attribute vec3 barycentric;
+
+    // --- UNIFORMS ---
     uniform float uContinentSeed;
     uniform float uSphereRadius;
     uniform float uDisplacementAmount;
     uniform float uRiverBasin;
-    uniform int uContinentOctaves;
-    uniform int uMountainOctaves;
-    uniform int uIslandOctaves;
+    // Strength uniforms control the influence of detail layers
+    uniform float uMountainStrength;
+    uniform float uIslandStrength;
+
+    // --- VARYINGS ---
     varying vec3 vBarycentric;
     varying vec3 vNormal;
     varying float vElevation;
     varying vec3 vWorldPosition;
     varying float vRiverValue;
-    uniform float uMountainScale;
 
+    // Noise functions remain the same
     float layeredNoise(vec3 p, float seed, int octaves, float persistence, float lacunarity, float scale) {
       float total = 0.0;
       float frequency = scale;
       float amplitude = 1.0;
       float maxValue = 0.0;
-      for (int i = 0; i < octaves; i++) {
+      for(int i = 0; i < octaves; i++) {
         total += valueNoise(p * frequency + seed * float(i) * 1.712, seed * 12.345 * float(i+1) * 0.931) * amplitude;
         maxValue += amplitude;
         amplitude *= persistence;
@@ -221,18 +227,32 @@ export function getHexPlanetShaders() {
       vBarycentric = barycentric;
       vec3 p = position;
       vec3 noiseInputPosition = (p / uSphereRadius) + (uContinentSeed * 10.0);
-      float continentShape = (layeredNoise(noiseInputPosition, uContinentSeed, uContinentOctaves, 0.5, 2.0, 1.5) + 1.0) * 0.5;
-      float mountainNoise = (layeredNoise(noiseInputPosition, uContinentSeed * 2.0, uMountainOctaves, 0.45, 2.2, uMountainScale) + 1.0) * 0.5;
-      float islandNoise = (layeredNoise(noiseInputPosition, uContinentSeed * 3.0, uIslandOctaves, 0.5, 2.5, 18.0) + 1.0) * 0.5;
+
+      // --- TERRAIN CALCULATION WITH FADING DETAIL ---
+
+      // 1. Base continent shape is ALWAYS calculated at a fixed, high detail
+      float continentShape = (layeredNoise(noiseInputPosition, uContinentSeed, 6, 0.5, 2.0, 1.5) + 1.0) * 0.5;
+
+      // 2. Detail layers are also calculated at full detail
+      float mountainNoise = (layeredNoise(noiseInputPosition, uContinentSeed * 2.0, 7, 0.45, 2.2, 14.0) + 1.0) * 0.5;
+      float islandNoise = (layeredNoise(noiseInputPosition, uContinentSeed * 3.0, 8, 0.5, 2.5, 18.0) + 1.0) * 0.5;
+      
       float continentMask = smoothstep(0.49, 0.51, continentShape);
+      float oceanMask = 1.0 - continentMask;
+
+      // 3. We use the STRENGTH uniform to fade the detail layers' influence in or out
+      float finalElevation = continentShape
+        + (mountainNoise * continentMask * 0.3 * uMountainStrength) // Multiply by strength
+        + (islandNoise * oceanMask * 0.1 * uIslandStrength);     // Multiply by strength
+
+      // River and final displacement logic is unchanged
       float riverRaw = ridgedRiverNoise(noiseInputPosition * 0.2, uContinentSeed * 5.0);
       float riverBed = smoothstep(1.0 - uRiverBasin, 1.0, riverRaw);
       float riverMask = smoothstep(0.50, 0.55, continentShape);
       vRiverValue = riverBed * riverMask;
-      float oceanMask = 1.0 - continentMask;
-      float finalElevation = continentShape + (mountainNoise * continentMask * 0.3) + (islandNoise * oceanMask * 0.1);
       finalElevation -= vRiverValue * 0.08;
       finalElevation = finalElevation - 0.5;
+
       vElevation = finalElevation;
       float displacement = vElevation * uDisplacementAmount;
       vec3 displacedPosition = p + normal * displacement;
@@ -242,6 +262,7 @@ export function getHexPlanetShaders() {
     }
   `;
 
+  // The fragment shader remains unchanged from the last correct version
   const hexFragmentShader = `
     uniform vec3 uLandColor;
     uniform vec3 uWaterColor;
@@ -250,6 +271,7 @@ export function getHexPlanetShaders() {
     uniform float uForestDensity;
     uniform float uSphereRadius;
     uniform bool uShowStrokes; 
+
     varying vec3 vNormal;
     varying float vElevation;
     varying vec3 vWorldPosition;
@@ -334,6 +356,7 @@ export function getHexPlanetShaders() {
     }
   `;
 
+  // Combine noise functions with the main shader code for robustness
   return {
     vertexShader: noiseFunctions + hexVertexShader,
     fragmentShader: noiseFunctions + hexFragmentShader

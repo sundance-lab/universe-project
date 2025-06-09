@@ -695,3 +695,19 @@ body, html {
 
 .designer-controls .color-control { margin-bottom: 15px; }
 .designer-controls .color-control label { display: block; margin-bottom: 5px; }
+
+#explore-planet-button {
+    background-color: #27ae60;
+    color: white;
+    margin-left: 10px;
+    padding: 10px 18px;
+    border-radius: 5px;
+    border: none;
+    cursor: pointer;
+    font-weight: bold;
+    transition: background-color 0.2s ease;
+}
+
+#explore-planet-button:hover {
+    background-color: #2ecc71;
+}

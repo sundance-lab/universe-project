@@ -8,9 +8,8 @@ export class SunRenderer {
     
     this.container = container;
     this.scene = new THREE.Scene();
-    this.solarSystemType = solarSystemType; // 0-4 for different types
+    this.solarSystemType = solarSystemType;
     
-    // Define size variations - base sizes before scaling
     this.sizeTiers = {
       dwarf: 15,
       normal: 30,
@@ -19,7 +18,6 @@ export class SunRenderer {
       hypergiant: 240
     };
     
-    // Define visual variations per solar system type
     this.sunVariations = [
       { // Type 0: Young, Blue-White Hot Star
         baseColor: new THREE.Color(0x4A90E2),
@@ -78,7 +76,7 @@ export class SunRenderer {
       }
     ];
     
-    this.camera = new THREE.PerspectiveCamera(45, container.offsetWidth / container.offsetHeight, 0.1, 10000);
+    this.camera = new THREE.PerspectiveCamera(45, container.offsetWidth / container.offsetHeight, 0.1, 100000);
     
     this.renderer = new THREE.WebGLRenderer({
       antialias: true,
@@ -110,12 +108,10 @@ export class SunRenderer {
     const variation = this.sunVariations[this.solarSystemType];
     const baseSize = this.sizeTiers[variation.sizeCategory];
     
-    // Random size variation within category (±20%)
     const sizeVariation = 0.8 + Math.random() * 0.4;
     const finalSize = baseSize * sizeVariation;
     
-    // Scale corona size based on sun size
-    const coronaScale = 1.6 + (Math.log10(finalSize) * 0.1);
+    const coronaScale = 1.2 + (Math.log10(finalSize) * 0.05);
     
     const sunGeometry = new THREE.SphereGeometry(finalSize, 64, 64);
 
@@ -172,12 +168,67 @@ export class SunRenderer {
         varying vec3 vNormal;
         varying vec3 vViewPosition;
         
-        // [Previous noise functions remain the same]
         vec4 permute(vec4 x){return mod(((x*34.0)+1.0)*x, 289.0);}
         vec4 taylorInvSqrt(vec4 r){return 1.79284291400159 - 0.85373472095314 * r;}
         
         float snoise(vec3 v){ 
-          // [Previous snoise implementation remains the same]
+          const vec2 C = vec2(1.0/6.0, 1.0/3.0);
+          const vec4 D = vec4(0.0, 0.5, 1.0, 2.0);
+          
+          vec3 i  = floor(v + dot(v, C.yyy));
+          vec3 x0 = v - i + dot(i, C.xxx);
+          
+          vec3 g = step(x0.yzx, x0.xyz);
+          vec3 l = 1.0 - g;
+          vec3 i1 = min(g.xyz, l.zxy);
+          vec3 i2 = max(g.xyz, l.zxy);
+          
+          vec3 x1 = x0 - i1 + C.xxx;
+          vec3 x2 = x0 - i2 + C.yyy;
+          vec3 x3 = x0 - D.yyy;
+          
+          i = mod(i, 289.0);
+          vec4 p = permute(permute(permute(
+                    i.z + vec4(0.0, i1.z, i2.z, 1.0))
+                    + i.y + vec4(0.0, i1.y, i2.y, 1.0))
+                    + i.x + vec4(0.0, i1.x, i2.x, 1.0));
+                    
+          float n_ = 0.142857142857;
+          vec3 ns = n_ * D.wyz - D.xzx;
+          
+          vec4 j = p - 49.0 * floor(p * ns.z * ns.z);
+          
+          vec4 x_ = floor(j * ns.z);
+          vec4 y_ = floor(j - 7.0 * x_);
+          
+          vec4 x = x_ *ns.x + ns.yyyy;
+          vec4 y = y_ *ns.x + ns.yyyy;
+          vec4 h = 1.0 - abs(x) - abs(y);
+          
+          vec4 b0 = vec4(x.xy, y.xy);
+          vec4 b1 = vec4(x.zw, y.zw);
+          
+          vec4 s0 = floor(b0)*2.0 + 1.0;
+          vec4 s1 = floor(b1)*2.0 + 1.0;
+          vec4 sh = -step(h, vec4(0.0));
+          
+          vec4 a0 = b0.xzyw + s0.xzyw*sh.xxyy;
+          vec4 a1 = b1.xzyw + s1.xzyw*sh.zzww;
+          
+          vec3 p0 = vec3(a0.xy, h.x);
+          vec3 p1 = vec3(a0.zw, h.y);
+          vec3 p2 = vec3(a1.xy, h.z);
+          vec3 p3 = vec3(a1.zw, h.w);
+          
+          vec4 norm = taylorInvSqrt(vec4(dot(p0,p0), dot(p1,p1), dot(p2,p2), dot(p3,p3)));
+          p0 *= norm.x;
+          p1 *= norm.y;
+          p2 *= norm.z;
+          p3 *= norm.w;
+          
+          vec4 m = max(0.6 - vec4(dot(x0,x0), dot(x1,x1), dot(x2,x2), dot(x3,x3)), 0.0);
+          m = m * m;
+          return 42.0 * dot(m*m, vec4(dot(p0,x0), dot(p1,x1), dot(p2,x2), dot(p3,x3)));
         }
 
         float flowNoise(vec3 p) {
@@ -186,7 +237,6 @@ export class SunRenderer {
             float frequency = 1.0;
             float speed = flowSpeed * 0.5;
             
-            // Scale noise based on sun size
             float sizeScale = log(sunSize) * 0.2;
             
             vec3 flow = vec3(
@@ -210,7 +260,6 @@ export class SunRenderer {
             vec3 viewDir = normalize(vViewPosition);
             vec3 normal = normalize(vNormal);
             
-            // Scale UV coordinates based on sun size
             float uvScale = 1.0 / log(sunSize + 1.0);
             vec2 fireUV = vUv * noiseScale * uvScale;
             float fireTime = time * fireSpeed;
@@ -235,7 +284,6 @@ export class SunRenderer {
             
             vec3 finalColor = baseColor;
             
-            // Adjust glow based on sun size
             float sizeAdjustedGlow = centerBrightness * (1.0 + log(sunSize) * 0.1);
             float centerGlow = 1.0 - length(vUv - vec2(0.5));
             centerGlow += flowPattern * 0.2;
@@ -265,7 +313,6 @@ export class SunRenderer {
     this.sun = new THREE.Mesh(sunGeometry, sunMaterial);
     this.scene.add(this.sun);
 
-    // Corona size scales with sun size
     const coronaGeometry = new THREE.SphereGeometry(finalSize * coronaScale, 64, 64);
     const coronaMaterial = new THREE.ShaderMaterial({
       uniforms: {
@@ -290,8 +337,7 @@ export class SunRenderer {
           gl_Position = projectionMatrix * mvPosition;
         }
       `,
-
-            fragmentShader: `
+      fragmentShader: `
         uniform float time;
         uniform vec3 glowColor;
         uniform float pulseSpeed;
@@ -307,14 +353,12 @@ export class SunRenderer {
             vec3 viewDir = normalize(vViewPosition);
             vec3 normal = normalize(vNormal);
             
-            // Adjust rim effect based on sun size
             float sizeFactor = log(sunSize) * 0.2;
             float rimPower = max(3.0, 6.0 - sizeFactor);
             float rim = pow(1.0 - abs(dot(normal, viewDir)), rimPower);
             
             float dist = length(vUv - vec2(0.5, 0.5)) * 2.0;
             
-            // Adjust fade based on sun size
             float fadeStartAdjusted = fadeStart * (1.0 + sizeFactor * 0.1);
             float fadeEndAdjusted = fadeEnd * (1.0 + sizeFactor * 0.15);
             float alpha = smoothstep(fadeEndAdjusted, fadeStartAdjusted, dist);
@@ -323,12 +367,10 @@ export class SunRenderer {
             float pulse = sin(time * pulseSpeed) * 0.02 + 0.98;
             vec3 finalColor = glowColor;
             
-            // Add subtle color variation based on size
             float colorShift = sin(dist * 3.14159 + time * 0.1) * (0.1 / log(sunSize + 1.0)) + 0.9;
             finalColor *= colorShift;
             finalColor *= pulse;
             
-            // Adjust alpha falloff based on size
             float alphaAdjust = 1.0 / (1.0 + log(sunSize) * 0.1);
             alpha = pow(alpha, 1.5 + sizeFactor * 0.2) * alphaAdjust;
             
@@ -343,7 +385,7 @@ export class SunRenderer {
 
     this.corona = new THREE.Mesh(coronaGeometry, coronaMaterial);
     this.corona.position.z = 0;
-    this.corona.scale.setScalar(1.6);
+    this.corona.scale.setScalar(1.2);
     this.scene.add(this.corona);
   }
   
@@ -377,10 +419,9 @@ export class SunRenderer {
       this.container.appendChild(canvas);
     }
 
-    // Adjust camera distance based on sun size
     const variation = this.sunVariations[this.solarSystemType];
     const baseSize = this.sizeTiers[variation.sizeCategory];
-    const cameraDistance = baseSize * 8 + 250;
+    const cameraDistance = baseSize * 4 + 100;
     
     this.camera.position.set(0, 0, cameraDistance);
     this.camera.lookAt(0, 0, 0);
@@ -390,7 +431,6 @@ export class SunRenderer {
     if (!this.sun || !this.corona || !this.renderer) return;
     
     try {
-      // Adjust rotation speed based on size
       const variation = this.sunVariations[this.solarSystemType];
       const baseSize = this.sizeTiers[variation.sizeCategory];
       const rotationSpeed = 0.00005 / (Math.log10(baseSize) * 0.5);

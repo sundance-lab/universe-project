@@ -1,5 +1,3 @@
-// public/js/sunRenderer.js
-
 import * as THREE from 'three';
 
 export class SunRenderer {
@@ -11,7 +9,6 @@ export class SunRenderer {
     this.container = container;
     this.scene = new THREE.Scene();
     
-    // Change to PerspectiveCamera for better 3D rendering
     this.camera = new THREE.PerspectiveCamera(45, container.offsetWidth / container.offsetHeight, 0.1, 1000);
     
     this.renderer = new THREE.WebGLRenderer({
@@ -41,18 +38,19 @@ export class SunRenderer {
   }
   
   #createSun = () => {
-    // Use SphereGeometry instead of CircleGeometry
-    const sunGeometry = new THREE.SphereGeometry(0.6, 32, 32);
+    const sunGeometry = new THREE.SphereGeometry(0.6, 64, 64);
 
     const sunMaterial = new THREE.ShaderMaterial({
       uniforms: {
         time: { value: 0 },
-        color: { value: new THREE.Color(0xff8800) },
-        noiseScale: { value: 3.0 },
-        pulseSpeed: { value: 0.05 },
-        centerBrightness: { value: 1.2 },
-        edgeDarkness: { value: 0.7 },
-        bumpStrength: { value: 0.15 }
+        color: { value: new THREE.Color(0xFFF5E6) },
+        noiseScale: { value: 4.5 },
+        pulseSpeed: { value: 0.02 },
+        centerBrightness: { value: 1.8 },
+        edgeDarkness: { value: 0.5 },
+        bumpStrength: { value: 0.25 },
+        sunspotIntensity: { value: 0.15 },
+        chromosphereColor: { value: new THREE.Color(0xFF4500) }
       },
       vertexShader: `
         varying vec2 vUv;
@@ -75,6 +73,8 @@ export class SunRenderer {
         uniform float centerBrightness;
         uniform float edgeDarkness;
         uniform float bumpStrength;
+        uniform float sunspotIntensity;
+        uniform vec3 chromosphereColor;
         
         varying vec2 vUv;
         varying vec3 vNormal;
@@ -87,11 +87,9 @@ export class SunRenderer {
           const vec2 C = vec2(1.0/6.0, 1.0/3.0);
           const vec4 D = vec4(0.0, 0.5, 1.0, 2.0);
           
-          // First corner
           vec3 i  = floor(v + dot(v, C.yyy));
           vec3 x0 = v - i + dot(i, C.xxx);
           
-          // Other corners
           vec3 g = step(x0.yzx, x0.xyz);
           vec3 l = 1.0 - g;
           vec3 i1 = min(g.xyz, l.zxy);
@@ -101,14 +99,12 @@ export class SunRenderer {
           vec3 x2 = x0 - i2 + C.yyy;
           vec3 x3 = x0 - D.yyy;
           
-          // Permutations
           i = mod(i, 289.0);
           vec4 p = permute(permute(permute(
                     i.z + vec4(0.0, i1.z, i2.z, 1.0))
                     + i.y + vec4(0.0, i1.y, i2.y, 1.0))
                     + i.x + vec4(0.0, i1.x, i2.x, 1.0));
                     
-          // Gradients
           float n_ = 0.142857142857;
           vec3 ns = n_ * D.wyz - D.xzx;
           
@@ -136,51 +132,51 @@ export class SunRenderer {
           vec3 p2 = vec3(a1.xy, h.z);
           vec3 p3 = vec3(a1.zw, h.w);
           
-          // Normalise gradients
           vec4 norm = taylorInvSqrt(vec4(dot(p0,p0), dot(p1,p1), dot(p2,p2), dot(p3,p3)));
           p0 *= norm.x;
           p1 *= norm.y;
           p2 *= norm.z;
           p3 *= norm.w;
           
-          // Mix final noise value
-          vec4 m = max(0.6 - vec4(dot(x0,x0), dot(x1,x1), dot(x2,x2), dot(x3,x3)), 0.0);
-          m = m * m;
           return 42.0 * dot(m*m, vec4(dot(p0,x0), dot(p1,x1), dot(p2,x2), dot(p3,x3)));
         }
         
         void main() {
-          // Enhanced 3D lighting
           vec3 viewDir = normalize(vViewPosition);
           vec3 normal = normalize(vNormal);
           
-          // Base spherical shading
-          float fresnel = pow(1.0 - max(0.0, dot(normal, viewDir)), 2.0);
+          float fresnel = pow(1.0 - max(0.0, dot(normal, viewDir)), 3.0);
           
-          // Noise-based displacement
-          float noise = snoise(vec3(vUv * noiseScale, time * 0.1));
-          vec3 displaceNormal = normalize(normal + vec3(noise) * bumpStrength);
+          float baseNoise = snoise(vec3(vUv * noiseScale, time * 0.1));
+          float detailNoise = snoise(vec3(vUv * noiseScale * 2.0, time * 0.2)) * 0.5;
+          float combinedNoise = baseNoise + detailNoise;
           
-          // Lighting calculation
+          float sunspots = smoothstep(0.6, 0.8, snoise(vec3(vUv * 2.0, time * 0.05)));
+          sunspots = mix(1.0, 0.3, sunspots * sunspotIntensity);
+          
+          vec3 displaceNormal = normalize(normal + vec3(combinedNoise) * bumpStrength);
+          
           vec3 lightDir = normalize(vec3(1.0, 1.0, 2.0));
           float diffuse = max(0.0, dot(displaceNormal, lightDir));
-          float specular = pow(max(0.0, dot(reflect(-lightDir, displaceNormal), viewDir)), 32.0);
+          float specular = pow(max(0.0, dot(reflect(-lightDir, displaceNormal), viewDir)), 64.0);
           
-          // Color mixing
           vec3 baseColor = color;
-          vec3 hotColor = vec3(1.0, 0.9, 0.5);
-          vec3 finalColor = mix(baseColor, hotColor, noise * 0.3);
+          vec3 hotColor = vec3(1.0, 0.95, 0.8);
+          vec3 finalColor = mix(baseColor, hotColor, combinedNoise * 0.4);
           
-          // Pulse effect
-          float pulse = sin(time * pulseSpeed) * 0.05 + 0.95;
+          finalColor *= sunspots;
           
-          // Combine all lighting effects
-          finalColor *= (diffuse * 0.7 + 0.3) * pulse;
-          finalColor += specular * 0.5;
-          finalColor += fresnel * vec3(1.0, 0.6, 0.3) * 0.3;
+          float pulse = sin(time * pulseSpeed) * 0.03 + 0.97;
           
-          // Final color adjustment
-          finalColor = mix(finalColor, finalColor * centerBrightness, 1.0 - fresnel);
+          float chromosphereEffect = pow(fresnel, 2.0) * 0.5;
+          finalColor = mix(finalColor, chromosphereColor, chromosphereEffect);
+          
+          finalColor *= (diffuse * 0.8 + 0.2) * pulse;
+          finalColor += specular * 0.3;
+          finalColor += fresnel * vec3(1.0, 0.6, 0.3) * 0.4;
+          
+          float centerGlow = 1.0 - length(vUv - vec2(0.5));
+          finalColor = mix(finalColor, finalColor * centerBrightness, centerGlow);
           
           gl_FragColor = vec4(finalColor, 1.0);
         }
@@ -191,11 +187,11 @@ export class SunRenderer {
     this.sun = new THREE.Mesh(sunGeometry, sunMaterial);
     this.scene.add(this.sun);
     
-    // Update corona to match the 3D sun
-    const coronaGeometry = new THREE.SphereGeometry(0.8, 32, 32);
+    const coronaGeometry = new THREE.SphereGeometry(0.9, 64, 64);
     const coronaMaterial = new THREE.ShaderMaterial({
       uniforms: {
-        time: { value: 0 }
+        time: { value: 0 },
+        coronaColor: { value: new THREE.Color(0xFF6B1A) }
       },
       vertexShader: `
         varying vec3 vNormal;
@@ -210,6 +206,7 @@ export class SunRenderer {
       `,
       fragmentShader: `
         uniform float time;
+        uniform vec3 coronaColor;
         varying vec3 vNormal;
         varying vec3 vViewPosition;
         
@@ -217,13 +214,13 @@ export class SunRenderer {
           vec3 viewDir = normalize(vViewPosition);
           vec3 normal = normalize(vNormal);
           
-          float fresnel = pow(1.0 - max(0.0, dot(normal, viewDir)), 3.0);
-          float pulse = sin(time * 0.5) * 0.1 + 0.9;
+          float fresnel = pow(1.0 - max(0.0, dot(normal, viewDir)), 4.0);
+          float pulse = sin(time * 0.3) * 0.05 + 0.95;
           
-          vec3 coronaColor = vec3(1.0, 0.6, 0.2);
-          float alpha = fresnel * 0.6 * pulse;
+          vec3 finalColor = mix(coronaColor, vec3(1.0, 0.8, 0.5), fresnel * 0.5);
+          float alpha = fresnel * 0.7 * pulse;
           
-          gl_FragColor = vec4(coronaColor, alpha);
+          gl_FragColor = vec4(finalColor, alpha);
         }
       `,
       transparent: true,
@@ -232,7 +229,7 @@ export class SunRenderer {
     });
 
     this.corona = new THREE.Mesh(coronaGeometry, coronaMaterial);
-    this.corona.scale.setScalar(1.25);
+    this.corona.scale.setScalar(1.4);
     this.scene.add(this.corona);
   };
 
@@ -272,8 +269,8 @@ export class SunRenderer {
     if (!this.sun || !this.corona || !this.renderer) return;
     
     try {
-      this.sun.rotation.y += 0.007;
-      this.corona.rotation.y -= 0.000025;
+      this.sun.rotation.y += 0.001; // Slower, more realistic rotation
+      this.corona.rotation.y -= 0.0001; // Slower corona rotation
       
       this.sun.material.uniforms.time.value = time * 0.001;
       if (this.corona.material.uniforms) {

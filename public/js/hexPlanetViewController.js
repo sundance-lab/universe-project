@@ -91,13 +91,29 @@ function initScene(canvas, planetBasis) {
   scene.add(lod);
 
 const detailLevels = [
-    { subdivision: 256, distance: 0,   strengths: [1.0, 1.0] },
-    { subdivision: 192, distance: 1.2, strengths: [1.0, 1.0] },
-    { subdivision: 128, distance: 1.6, strengths: [1.0, 1.0] },
-    { subdivision: 80,  distance: 2.0, strengths: [1.0, 1.0] },
-    { subdivision: 48,  distance: 2.4, strengths: [1.0, 1.0] },
-    { subdivision: 24,  distance: 5.0, strengths: [1.0, 1.0] },
-    { subdivision: 12,  distance: 10.0, strengths: [1.0, 1.0] },
+    { subdivision: 256, distance: 0.0,  strengths: [1.0, 1.0] },
+    { subdivision: 240, distance: 0.4,  strengths: [1.0, 1.0] },
+    { subdivision: 224, distance: 0.8,  strengths: [1.0, 1.0] },
+    { subdivision: 208, distance: 1.2,  strengths: [1.0, 1.0] },
+    { subdivision: 192, distance: 1.6,  strengths: [1.0, 1.0] },
+    { subdivision: 176, distance: 2.0,  strengths: [1.0, 1.0] },
+    { subdivision: 160, distance: 2.4,  strengths: [1.0, 1.0] },
+    { subdivision: 144, distance: 2.8,  strengths: [1.0, 1.0] },
+    { subdivision: 128, distance: 3.2,  strengths: [1.0, 1.0] },
+    { subdivision: 112, distance: 3.6,  strengths: [1.0, 1.0] },
+    { subdivision: 96,  distance: 4.0,  strengths: [1.0, 1.0] },
+    { subdivision: 84,  distance: 4.5,  strengths: [1.0, 1.0] },
+    { subdivision: 72,  distance: 5.0,  strengths: [1.0, 1.0] },
+    { subdivision: 60,  distance: 6.0,  strengths: [1.0, 1.0] },
+    { subdivision: 48,  distance: 7.0,  strengths: [1.0, 1.0] },
+    { subdivision: 42,  distance: 8.0,  strengths: [1.0, 1.0] },
+    { subdivision: 36,  distance: 9.0,  strengths: [1.0, 1.0] },
+    { subdivision: 30,  distance: 10.0, strengths: [1.0, 1.0] },
+    { subdivision: 24,  distance: 11.0, strengths: [1.0, 1.0] },
+    { subdivision: 18,  distance: 12.0, strengths: [1.0, 1.0] },
+    { subdivision: 15,  distance: 13.0, strengths: [1.0, 1.0] },
+    { subdivision: 12,  distance: 14.0, strengths: [1.0, 1.0] },
+    { subdivision: 9,   distance: 16.0, strengths: [1.0, 1.0] },
     { subdivision: 6,   distance: 18.0, strengths: [1.0, 1.0] }
 ];
 

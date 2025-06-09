@@ -695,21 +695,3 @@ body, html {
 
 .designer-controls .color-control { margin-bottom: 15px; }
 .designer-controls .color-control label { display: block; margin-bottom: 5px; }
-
-.explore-planet-btn {
-    background: rgba(255, 255, 255, 0.2);
-    border: 1px solid rgba(255, 255, 255, 0.4);
-    color: white;
-    opacity: 0;
-    transition: opacity 0.3s;
-    z-index: 100;
-}
-
-.planet-icon:hover .explore-planet-btn {
-    opacity: 1;
-}
-
-.explore-planet-btn:hover {
-    background: rgba(255, 255, 255, 0.3);
-    transform: scale(1.1);
-}

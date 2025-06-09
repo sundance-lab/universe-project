@@ -30,103 +30,100 @@ export const HexPlanetViewController = (() => {
     geometry.setAttribute('barycentric', new THREE.BufferAttribute(barycentric, 3));
   }
 
-  function initScene(canvas, planetBasis) {
-    scene = new THREE.Scene();
-    scene.background = new THREE.Color(0x000000);
+  
 
-    camera = new THREE.PerspectiveCamera(60, canvas.offsetWidth / canvas.offsetHeight, 0.1, 1000);
-    camera.position.z = 2.4;
+function initScene(canvas, planetBasis) {
+  scene = new THREE.Scene();
+  scene.background = new THREE.Color(0x000000);
 
-    renderer = new THREE.WebGLRenderer({ canvas, antialias: true, logarithmicDepthBuffer: true });
-    renderer.setSize(canvas.offsetWidth, canvas.offsetHeight);
-    renderer.setPixelRatio(window.devicePixelRatio);
+  camera = new THREE.PerspectiveCamera(60, canvas.offsetWidth / canvas.offsetHeight, 0.1, 1000);
+  camera.position.z = 2.4;
 
-    controls = new OrbitControls(camera, renderer.domElement);
-    controls.enableDamping = true;
-    controls.dampingFactor = 0.04;
-    controls.dollySpeed = 0.5;
-    controls.rotateSpeed = 0.5;
-    controls.minDistance = 1.2;
-    controls.maxDistance = 40.0;
-    controls.enablePan = false;
-    controls.minPolarAngle = 0;
-    controls.maxPolarAngle = Math.PI;
+  renderer = new THREE.WebGLRenderer({ canvas, antialias: true, logarithmicDepthBuffer: true });
+  renderer.setSize(canvas.offsetWidth, canvas.offsetHeight);
+  renderer.setPixelRatio(window.devicePixelRatio);
 
-    const { vertexShader, fragmentShader } = getHexPlanetShaders();
+  controls = new OrbitControls(camera, renderer.domElement);
+  controls.enableDamping = true;
+  controls.dampingFactor = 0.04;
+  controls.dollySpeed = 0.5;
+  controls.rotateSpeed = 0.5;
+  controls.minDistance = 1.2;
+  controls.maxDistance = 40.0;
+  controls.enablePan = false;
+  controls.minPolarAngle = 0;
+  controls.maxPolarAngle = Math.PI;
 
-    const baseMaterial = new THREE.ShaderMaterial({
-      uniforms: THREE.UniformsUtils.merge([
-          THREE.UniformsLib.common,
-          THREE.UniformsLib.lights,
-          {
-              uWaterColor: { value: new THREE.Color(planetBasis.waterColor) },
-              uLandColor: { value: new THREE.Color(planetBasis.landColor) },
-              uContinentSeed: { value: planetBasis.continentSeed },
-              uRiverBasin: { value: planetBasis.riverBasin },
-              uForestDensity: { value: planetBasis.forestDensity },
-              uTime: { value: 0.0 },
-              uSphereRadius: { value: SPHERE_BASE_RADIUS },
-              uDisplacementAmount: { value: 0.0 },
-              uShowStrokes: { value: false },
-              uOceanHeightLevel: { value: 0.0 },
-              uContinentOctaves: { value: 5 },
-              uMountainOctaves: { value: 6 },
-              uIslandOctaves: { value: 7 },
-              uMountainScale: { value: 8.0 }
-          }
-      ]),
-      vertexShader,
-      fragmentShader,
-      lights: true
-    });
+  const { vertexShader, fragmentShader } = getHexPlanetShaders();
 
-    const terrainRange = Math.max(0.1, planetBasis.maxTerrainHeight - planetBasis.minTerrainHeight);
-    const normalizedOceanLevel = (planetBasis.oceanHeightLevel - planetBasis.minTerrainHeight) / terrainRange;
-    baseMaterial.uniforms.uOceanHeightLevel.value = normalizedOceanLevel - 0.5;
-    baseMaterial.uniforms.uDisplacementAmount.value = terrainRange * DISPLACEMENT_SCALING_FACTOR;
+  // Define the base material with the new strength uniforms
+  const baseMaterial = new THREE.ShaderMaterial({
+    uniforms: THREE.UniformsUtils.merge([
+        THREE.UniformsLib.common,
+        THREE.UniformsLib.lights,
+        {
+            uWaterColor: { value: new THREE.Color(planetBasis.waterColor) },
+            uLandColor: { value: new THREE.Color(planetBasis.landColor) },
+            uContinentSeed: { value: planetBasis.continentSeed },
+            uRiverBasin: { value: planetBasis.riverBasin },
+            uForestDensity: { value: planetBasis.forestDensity },
+            uTime: { value: 0.0 },
+            uSphereRadius: { value: SPHERE_BASE_RADIUS },
+            uDisplacementAmount: { value: 0.0 },
+            uShowStrokes: { value: false },
+            uOceanHeightLevel: { value: 0.0 },
+            // REMOVED octave uniforms, ADDED strength uniforms
+            uMountainStrength: { value: 1.0 },
+            uIslandStrength: { value: 1.0 },
+        }
+    ]),
+    vertexShader,
+    fragmentShader,
+    lights: true
+  });
 
-    lod = new LOD();
-    scene.add(lod);
+  const terrainRange = Math.max(0.1, planetBasis.maxTerrainHeight - planetBasis.minTerrainHeight);
+  const normalizedOceanLevel = (planetBasis.oceanHeightLevel - planetBasis.minTerrainHeight) / terrainRange;
+  baseMaterial.uniforms.uOceanHeightLevel.value = normalizedOceanLevel - 0.5;
+  baseMaterial.uniforms.uDisplacementAmount.value = terrainRange * DISPLACEMENT_SCALING_FACTOR;
 
-    // --- SMOOTHED OUT LOD ARRAY ---
-    const detailLevels = [
-      // Note: octaves [continent, mountain, island]
-      { subdivision: 256, distance: 0,   octaves: [6, 7, 8], mountainScale: 14.0 },
-      { subdivision: 224, distance: 1.1, octaves: [6, 7, 7], mountainScale: 13.0 }, // Smaller step
-      { subdivision: 192, distance: 1.3, octaves: [5, 6, 7], mountainScale: 12.0 },
-      { subdivision: 160, distance: 1.5, octaves: [5, 6, 6], mountainScale: 11.0 },
-      { subdivision: 128, distance: 1.7, octaves: [5, 5, 5], mountainScale: 10.0 }, // Smoother octave drop
-      { subdivision: 96,  distance: 1.9, octaves: [4, 5, 4], mountainScale: 9.0  },
-      { subdivision: 72,  distance: 2.1, octaves: [4, 4, 3], mountainScale: 8.5  }, //Smoother island drop
-      { subdivision: 56,  distance: 2.3, octaves: [4, 4, 1], mountainScale: 8.0  },
-      { subdivision: 48,  distance: 2.4, octaves: [4, 3, 0], mountainScale: 8.0  }, // Start level
-      { subdivision: 36,  distance: 3.5, octaves: [3, 3, 0], mountainScale: 7.0  },
-      { subdivision: 24,  distance: 5.0, octaves: [3, 2, 0], mountainScale: 7.0  },
-      { subdivision: 12,  distance: 10.0,octaves: [3, 0, 0], mountainScale: 6.0  },
-      { subdivision: 6,   distance: 18.0,octaves: [2, 0, 0], mountainScale: 5.0  },
-      { subdivision: 3,   distance: 30.0,octaves: [1, 0, 0], mountainScale: 4.0  }
-    ];
+  lod = new LOD();
+  scene.add(lod);
 
-    detailLevels.forEach(level => {
-      const geometry = new THREE.IcosahedronGeometry(SPHERE_BASE_RADIUS, level.subdivision);
-      addBarycentricCoordinates(geometry);
-      const materialForLevel = baseMaterial.clone();
-      materialForLevel.uniforms.uContinentOctaves.value = level.octaves[0];
-      materialForLevel.uniforms.uMountainOctaves.value = level.octaves[1];
-      materialForLevel.uniforms.uIslandOctaves.value = level.octaves[2];
-      materialForLevel.uniforms.uMountainScale.value = level.mountainScale;
-      const mesh = new THREE.Mesh(geometry, materialForLevel);
-      lod.addLevel(mesh, level.distance);
-    });
+  // --- LOD ARRAY USING STRENGTHS INSTEAD OF OCTAVES ---
+  const detailLevels = [
+    // Note: strengths are [mountain, island]
+    { subdivision: 256, distance: 0,   strengths: [1.0, 1.0] }, // Full detail
+    { subdivision: 192, distance: 1.2, strengths: [0.9, 0.9] }, // Almost full detail
+    { subdivision: 128, distance: 1.6, strengths: [0.7, 0.7] },
+    { subdivision: 80,  distance: 2.0, strengths: [0.5, 0.4] },
+    { subdivision: 48,  distance: 2.4, strengths: [0.3, 0.1] }, // <-- Camera starts here
+    { subdivision: 24,  distance: 5.0, strengths: [0.1, 0.0] }, // Islands are fully faded out
+    { subdivision: 12,  distance: 10.0,strengths: [0.0, 0.0] }, // Mountains now faded out
+    { subdivision: 6,   distance: 18.0,strengths: [0.0, 0.0] }
+  ];
 
-    const ambientLight = new THREE.AmbientLight(0xffffff, 0.7);
-    scene.add(ambientLight);
-    const directionalLight = new THREE.DirectionalLight(0xffffff, 0.5);
-    directionalLight.position.set(5, 5, 5);
-    scene.add(directionalLight);
+  detailLevels.forEach(level => {
+    const geometry = new THREE.IcosahedronGeometry(SPHERE_BASE_RADIUS, level.subdivision);
+    addBarycentricCoordinates(geometry);
+    const materialForLevel = baseMaterial.clone();
 
-    animate();
-  }
+    // Set the unique STRENGTHS for this material
+    materialForLevel.uniforms.uMountainStrength.value = level.strengths[0];
+    materialForLevel.uniforms.uIslandStrength.value = level.strengths[1];
+
+    const mesh = new THREE.Mesh(geometry, materialForLevel);
+    lod.addLevel(mesh, level.distance);
+  });
+
+  const ambientLight = new THREE.AmbientLight(0xffffff, 0.7);
+  scene.add(ambientLight);
+  const directionalLight = new THREE.DirectionalLight(0xffffff, 0.5);
+  directionalLight.position.set(5, 5, 5);
+  scene.add(directionalLight);
+
+  animate();
+}
     
   function animate(now) { // Pass 'now' for time
     animationId = requestAnimationFrame(animate);

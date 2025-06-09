@@ -4,25 +4,25 @@ import * as THREE from 'three';
 const LOD_LEVELS = {
   ULTRA_CLOSE: {
     distance: 150,
-    segments: 256,
+    segments: 512,
     noiseDetail: 2.0,
     textureDetail: 2.0
   },
   CLOSE: {
     distance: 300,
-    segments: 128,
+    segments: 256,
     noiseDetail: 1.5,
     textureDetail: 1.5
   },
   MEDIUM: {
     distance: 600,
-    segments: 96,
+    segments: 128,
     noiseDetail: 1.0,
     textureDetail: 1.0
   },
   FAR: {
     distance: 1200,
-    segments: 64,
+    segments: 96,
     noiseDetail: 0.75,
     textureDetail: 0.75
   }

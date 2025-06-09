@@ -91,22 +91,27 @@ export const HexPlanetViewController = (() => {
   // THIS IS THE CORRECTED ARRAY DEFINITION
   const detailLevels = [
 
-    { subdivision: 256, distance: 0 },    // The absolute max quality, high but safe
+    { subdivision: 256, distance: 0 },  
+    { subdivision: 240, distance: 0.7 },
     { subdivision: 224, distance: 0.9 },
+    { subdivision: 208, distance: 1.0 },
     { subdivision: 192, distance: 1.1 },
+    { subdivision: 176, distance: 1.2 },
     { subdivision: 160, distance: 1.3 },
+    { subdivision: 144, distance: 1.4 },
     { subdivision: 128, distance: 1.5 },
+    { subdivision: 112, distance: 1.6 },
     { subdivision: 96,  distance: 1.8 },
     { subdivision: 80,  distance: 2.0 },
     { subdivision: 64,  distance: 2.2 },
-    { subdivision: 48,  distance: 2.4 },  
-    { subdivision: 32,  distance: 3.5 },
-    { subdivision: 24,  distance: 5.0 },
-    { subdivision: 16,  distance: 8.0 },
-    { subdivision: 10,  distance: 12.0 },
-    { subdivision: 6,   distance: 18.0 },
-    { subdivision: 3,   distance: 25.0 }   
-    
+    { subdivision: 48,  distance: 2.4 }, //start here
+    { subdivision: 36,  distance: 3.0 },
+    { subdivision: 24,  distance: 4.5 },
+    { subdivision: 16,  distance: 7.0 },
+    { subdivision: 10,  distance: 11.0 },
+    { subdivision: 6,   distance: 16.0 },
+    { subdivision: 4,   distance: 22.0 },
+    { subdivision: 2,   distance: 28.0 }   
   ];
 
     detailLevels.forEach(level => {

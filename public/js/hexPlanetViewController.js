@@ -97,7 +97,7 @@ export const HexPlanetViewController = (() => {
     { subdivision: 128, distance: 1.5 }, 
     { subdivision: 64, distance: 1.8 },
     { subdivision: 32, distance: 2.4 }, //camera starts here
-    { subdivision: 16, distance: 5.0 },
+    { subdivision: 16, distance: 5.0 }
 
   ];
 

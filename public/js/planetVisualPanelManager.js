@@ -1,8 +1,8 @@
 // public/js/planetVisualPanelManager.js
 import '../styles.css';
 import * as THREE from 'three';
-import { OrbitControls } from 'three-examples/controls/OrbitControls.js';
-import { getPlanetShaders } from './shaders.js'; // CORRECT: Import the assembler function
+import { OrbitControls } from 'OrbitControls';
+import { getPlanetShaders } from './shaders.js';
 
 export const PlanetVisualPanelManager = (() => {
   // --- MODULE STATE ---

@@ -11,7 +11,7 @@ export class SunRenderer {
     this.container = container;
     this.scene = new THREE.Scene();
     
-    this.camera = new THREE.OrthographicCamera(-0.9, 0.9, 0.9, -0.9, 0.1, 1000);
+    this.camera = new THREE.OrthographicCamera(-1.1, 1.1, 1.1, -1.1, 0.1, 1000);
     
     this.renderer = new THREE.WebGLRenderer({
       antialias: true,

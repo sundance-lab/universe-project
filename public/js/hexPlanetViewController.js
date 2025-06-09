@@ -70,7 +70,7 @@ export const HexPlanetViewController = (() => {
       uForestDensity: { value: planetBasis.forestDensity },
       uTime: { value: 0.0 },
       uSphereRadius: { value: SPHERE_BASE_RADIUS },
-      uDisplacementAmount: { value: 0.0 }
+      uDisplacementAmount: { value: 0.0 },
       uShowStrokes: { value: false } // true = ON, false = OFF change stroke on or off
     };
 

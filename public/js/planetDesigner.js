@@ -363,19 +363,12 @@ function _handleExploreButtonClick(fromSolarSystem = false) {
 
    designerRandomizeBtn?.addEventListener('click', _randomizeDesignerPlanet);
 
+// In the init function, after the other DOM element assignments
 designerExploreBtn = document.getElementById('designer-explore-btn');
 if (designerExploreBtn) {
-    designerExploreBtn.addEventListener('click', _handleExploreButtonClick);
+    // Pass false to indicate we're coming from the designer
+    designerExploreBtn.addEventListener('click', () => _handleExploreButtonClick(false));
 }
-   
-designerExploreBtn?.addEventListener('click', () => {
-    if (window.switchToHexPlanetView) {
-        const backAction = () => window.switchToPlanetDesignerScreen();
-        window.switchToHexPlanetView(currentDesignerBasis, backAction);
-    } else {
-        console.error("The global function 'switchToHexPlanetView' is not available.");
-    }
-});
    
    designerSaveBtn?.addEventListener('click', _saveCustomPlanetDesign); 
     

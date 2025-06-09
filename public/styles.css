@@ -526,6 +526,24 @@ body, html {
   /* "to" text */
 }
 
+#hex-planet-screen {
+  background-color: #050510; /* A dark background to make the 3D planet pop */
+  cursor: default;
+  flex-direction: column; /* Center content vertically */
+}
+
+#hex-planet-canvas {
+  width: 100%;
+  height: 100%;
+  display: block; /* Ensure it takes up the full space */
+}
+
+.hex-controls {
+  position: fixed; /* Place controls at the bottom, like other screens */
+  bottom: 15px;
+  left: 15px;
+  z-index: 10; /* Ensure controls are on top of the canvas */
+}
 
 .saved-designs-list {
   margin-top: 30px; border-top: 1px solid #5a7d9b; padding-top: 20px;

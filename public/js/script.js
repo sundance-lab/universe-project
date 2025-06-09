@@ -684,8 +684,8 @@ function switchToPlanetExploration(planet) {
     }
 
     // Initialize the planet view
-    if (HexPlanetViewController && typeof HexPlanetViewController.initializeWithPlanet === 'function') {
-        HexPlanetViewController.initializeWithPlanet(planet);
+  if (HexPlanetViewController && typeof HexPlanetViewController.activate === 'function') {
+      HexPlanetViewController.activate(planet);
     }
 }
  

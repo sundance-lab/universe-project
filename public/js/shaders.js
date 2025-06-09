@@ -101,6 +101,7 @@ uniform vec3 uWaterColor;
 uniform float uOceanHeightLevel;
 uniform float uContinentSeed;
 uniform float uForestDensity;
+uniform bool uShowStrokes;
 
 varying vec3 vNormal;
 varying float vElevation;
@@ -165,6 +166,16 @@ void main() {
    finalColor = mix(finalColor, waterColor * 0.9, vRiverValue);
   }
  }
+
+ if (uShowStrokes) {
+  // If the switch is ON, draw the strokes
+  float wire = getWireframe(0.005);
+  vec3 strokeColor = uWaterColor + vec3(0.5);
+  finalColor = mix(strokeColor, biomeColor, wire);
+} else {
+  // If the switch is OFF, just use the biome color
+  finalColor = biomeColor;
+}
  
  vec3 viewDirection = normalize(cameraPosition - vWorldPosition);
  gl_FragColor = vec4(calculateLighting(finalColor, vNormal, viewDirection), 1.0);

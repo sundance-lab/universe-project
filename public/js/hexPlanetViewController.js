@@ -56,14 +56,13 @@ function initScene(canvas, planetBasis) {
   controls.dollySpeed = 0.5;
   controls.rotateSpeed = 0.5;
   controls.minDistance = 1.2;
-  controls.maxDistance = 30.0;
+  controls.maxDistance = 40.0; // Increased max distance to test all LODs
   controls.enablePan = false;
   controls.minPolarAngle = 0;
   controls.maxPolarAngle = Math.PI;
 
   const { vertexShader, fragmentShader } = getHexPlanetShaders();
 
-  // Create a BASE material. We will clone this for each LOD level.
   const baseMaterial = new THREE.ShaderMaterial({
     uniforms: THREE.UniformsUtils.merge([
         THREE.UniformsLib.common,
@@ -78,12 +77,7 @@ function initScene(canvas, planetBasis) {
             uSphereRadius: { value: SPHERE_BASE_RADIUS },
             uDisplacementAmount: { value: 0.0 },
             uShowStrokes: { value: false },
-            
-            // --- START: ADD THE MISSING UNIFORM HERE ---
-            uOceanHeightLevel: { value: 0.0 }, // Add a default placeholder
-            // --- END: ADDITION ---
-
-            // Placeholders for our new noise uniforms
+            uOceanHeightLevel: { value: 0.0 },
             uContinentOctaves: { value: 5 },
             uMountainOctaves: { value: 6 },
             uIslandOctaves: { value: 7 },
@@ -91,28 +85,44 @@ function initScene(canvas, planetBasis) {
     ]),
     vertexShader,
     fragmentShader,
-    lights: true // Tell Three.js this material uses lights
+    lights: true
   });
 
   const terrainRange = Math.max(0.1, planetBasis.maxTerrainHeight - planetBasis.minTerrainHeight);
   const normalizedOceanLevel = (planetBasis.oceanHeightLevel - planetBasis.minTerrainHeight) / terrainRange;
-  
-  // Now this line will work because the uniform exists!
-  baseMaterial.uniforms.uOceanHeightLevel.value = normalizedOceanLevel - 0.5; 
+  baseMaterial.uniforms.uOceanHeightLevel.value = normalizedOceanLevel - 0.5;
   baseMaterial.uniforms.uDisplacementAmount.value = terrainRange * DISPLACEMENT_SCALING_FACTOR;
 
   lod = new LOD();
   scene.add(lod);
 
+  // THIS IS THE FINAL, 17-LEVEL "ULTRA-SMOOTH" LOD ARRAY
   const detailLevels = [
-    { subdivision: 256, distance: 0, octaves: [5, 6, 7] },
-    { subdivision: 192, distance: 1.1, octaves: [5, 6, 6] },
-    { subdivision: 128, distance: 1.5, octaves: [5, 5, 5] },
-    { subdivision: 80,  distance: 2.0, octaves: [4, 4, 4] },
-    { subdivision: 48,  distance: 2.4, octaves: [4, 3, 0] },
-    { subdivision: 24,  distance: 5.0, octaves: [3, 2, 0] },
+    // --- Extreme Close-up Levels (Invisible Transitions) ---
+    // Note: octaves [continent, mountain, island]
+    { subdivision: 256, distance: 0,    octaves: [5, 6, 7] }, // Max Quality
+    { subdivision: 224, distance: 1.0,  octaves: [5, 6, 7] },
+    { subdivision: 192, distance: 1.2,  octaves: [5, 6, 6] },
+    { subdivision: 160, distance: 1.4,  octaves: [5, 5, 6] },
+    { subdivision: 128, distance: 1.6,  octaves: [5, 5, 5] },
+    { subdivision: 104, distance: 1.8,  octaves: [4, 5, 5] },
+    { subdivision: 80,  distance: 2.0,  octaves: [4, 4, 4] },
+    { subdivision: 64,  distance: 2.2,  octaves: [4, 4, 2] },
+
+    // --- Starting Level ---
+    { subdivision: 48,  distance: 2.4,  octaves: [4, 3, 0] }, // <-- Camera starts here
+
+    // --- Mid-range Zoom-out Levels ---
+    { subdivision: 36,  distance: 3.5,  octaves: [3, 3, 0] },
+    { subdivision: 24,  distance: 5.0,  octaves: [3, 2, 0] },
+    { subdivision: 18,  distance: 7.5,  octaves: [3, 1, 0] },
     { subdivision: 12,  distance: 10.0, octaves: [3, 0, 0] },
-    { subdivision: 6,   distance: 18.0, octaves: [2, 0, 0] }
+
+    // --- Far Distance Levels ---
+    { subdivision: 8,   distance: 14.0, octaves: [2, 0, 0] },
+    { subdivision: 6,   distance: 18.0, octaves: [2, 0, 0] },
+    { subdivision: 4,   distance: 24.0, octaves: [1, 0, 0] },
+    { subdivision: 2,   distance: 30.0, octaves: [1, 0, 0] }  // Simplest possible placeholder
   ];
 
   detailLevels.forEach(level => {

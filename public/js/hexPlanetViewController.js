@@ -40,93 +40,102 @@ export const HexPlanetViewController = (() => {
   }
 
   function initScene(canvas, planetBasis) {
-    // ... (no changes in this function)
-    scene = new THREE.Scene();
-    scene.background = new THREE.Color(0x000000);
+  scene = new THREE.Scene();
+  scene.background = new THREE.Color(0x000000);
 
-    camera = new THREE.PerspectiveCamera(60, canvas.offsetWidth / canvas.offsetHeight, 0.1, 1000);
-    camera.position.z = 2.5;
+  camera = new THREE.PerspectiveCamera(60, canvas.offsetWidth / canvas.offsetHeight, 0.1, 1000);
+  camera.position.z = 2.4;
 
-    renderer = new THREE.WebGLRenderer({ canvas, antialias: true });
-    renderer.setSize(canvas.offsetWidth, canvas.offsetHeight);
-    renderer.setPixelRatio(window.devicePixelRatio);
+  renderer = new THREE.WebGLRenderer({ canvas, antialias: true, logarithmicDepthBuffer: true }); //logarithmic buffer can help with z-fighting at large scales
+  renderer.setSize(canvas.offsetWidth, canvas.offsetHeight);
+  renderer.setPixelRatio(window.devicePixelRatio);
 
-    controls = new OrbitControls(camera, renderer.domElement);
-    controls.enableDamping = true;
-    controls.dampingFactor = 0.05;
-    controls.rotateSpeed = 0.5;
-    controls.minDistance = 1.2;
-    controls.maxDistance = 4.0;
-    controls.enablePan = false;
-    controls.minPolarAngle = 0;
-    controls.maxPolarAngle = Math.PI;
+  controls = new OrbitControls(camera, renderer.domElement);
+  controls.enableDamping = true;
+  controls.dampingFactor = 0.04;
+  controls.dollySpeed = 0.5;
+  controls.rotateSpeed = 0.5;
+  controls.minDistance = 1.2;
+  controls.maxDistance = 30.0;
+  controls.enablePan = false;
+  controls.minPolarAngle = 0;
+  controls.maxPolarAngle = Math.PI;
 
-    const { vertexShader, fragmentShader } = getHexPlanetShaders();
-    const uniforms = {
-      uWaterColor: { value: new THREE.Color(planetBasis.waterColor) },
-      uLandColor: { value: new THREE.Color(planetBasis.landColor) },
-      uContinentSeed: { value: planetBasis.continentSeed },
-      uRiverBasin: { value: planetBasis.riverBasin },
-      uForestDensity: { value: planetBasis.forestDensity },
-      uTime: { value: 0.0 },
-      uSphereRadius: { value: SPHERE_BASE_RADIUS },
-      uDisplacementAmount: { value: 0.0 },
-      uShowStrokes: { value: false } // true = ON, false = OFF change stroke on or off
-    };
+  const { vertexShader, fragmentShader } = getHexPlanetShaders();
 
-    const terrainRange = Math.max(0.1, planetBasis.maxTerrainHeight - planetBasis.minTerrainHeight);
-    const normalizedOceanLevel = (planetBasis.oceanHeightLevel - planetBasis.minTerrainHeight) / terrainRange;
-    uniforms.uOceanHeightLevel = { value: normalizedOceanLevel - 0.5 };
-    uniforms.uDisplacementAmount.value = terrainRange * DISPLACEMENT_SCALING_FACTOR;
+  // Create a BASE material. We will clone this for each LOD level.
+  const baseMaterial = new THREE.ShaderMaterial({
+    uniforms: THREE.UniformsUtils.merge([
+        THREE.UniformsLib.common,
+        THREE.UniformsLib.lights,
+        {
+            uWaterColor: { value: new THREE.Color(planetBasis.waterColor) },
+            uLandColor: { value: new THREE.Color(planetBasis.landColor) },
+            uContinentSeed: { value: planetBasis.continentSeed },
+            uRiverBasin: { value: planetBasis.riverBasin },
+            uForestDensity: { value: planetBasis.forestDensity },
+            uTime: { value: 0.0 },
+            uSphereRadius: { value: SPHERE_BASE_RADIUS },
+            uDisplacementAmount: { value: 0.0 },
+            uShowStrokes: { value: false },
+            // Add placeholders for our new noise uniforms
+            uContinentOctaves: { value: 5 },
+            uMountainOctaves: { value: 6 },
+            uIslandOctaves: { value: 7 },
+        }
+    ]),
+    vertexShader,
+    fragmentShader,
+    lights: true // Tell Three.js this material uses lights
+  });
 
-    shaderMaterial = new THREE.ShaderMaterial({
-      uniforms,
-      vertexShader,
-      fragmentShader
-    });
+  const terrainRange = Math.max(0.1, planetBasis.maxTerrainHeight - planetBasis.minTerrainHeight);
+  const normalizedOceanLevel = (planetBasis.oceanHeightLevel - planetBasis.minTerrainHeight) / terrainRange;
+  baseMaterial.uniforms.uOceanHeightLevel.value = normalizedOceanLevel - 0.5;
+  baseMaterial.uniforms.uDisplacementAmount.value = terrainRange * DISPLACEMENT_SCALING_FACTOR;
 
-    lod = new LOD();
-    scene.add(lod);
+  lod = new LOD();
+  scene.add(lod);
 
-  // THIS IS THE CORRECTED ARRAY DEFINITION
   const detailLevels = [
-
-    { subdivision: 256, distance: 0 },  
-    { subdivision: 240, distance: 0.7 },
-    { subdivision: 224, distance: 0.9 },
-    { subdivision: 208, distance: 1.0 },
-    { subdivision: 192, distance: 1.1 },
-    { subdivision: 176, distance: 1.2 },
-    { subdivision: 160, distance: 1.3 },
-    { subdivision: 144, distance: 1.4 },
-    { subdivision: 128, distance: 1.5 },
-    { subdivision: 112, distance: 1.6 },
-    { subdivision: 96,  distance: 1.8 },
-    { subdivision: 80,  distance: 2.0 },
-    { subdivision: 64,  distance: 2.2 },
-    { subdivision: 48,  distance: 2.4 }, //start here
-    { subdivision: 36,  distance: 3.0 },
-    { subdivision: 24,  distance: 4.5 },
-    { subdivision: 16,  distance: 7.0 },
-    { subdivision: 10,  distance: 11.0 },
-    { subdivision: 6,   distance: 16.0 },
-    { subdivision: 4,   distance: 22.0 },
-    { subdivision: 2,   distance: 28.0 }   
+    { subdivision: 256, distance: 0, octaves: [5, 6, 7] }, // [continent, mountain, island]
+    { subdivision: 192, distance: 1.1, octaves: [5, 6, 6] },
+    { subdivision: 128, distance: 1.5, octaves: [5, 5, 5] },
+    { subdivision: 80,  distance: 2.0, octaves: [4, 4, 4] },
+    { subdivision: 48,  distance: 2.4, octaves: [4, 3, 0] }, // <-- Camera starts here
+    { subdivision: 24,  distance: 5.0, octaves: [3, 2, 0] }, // No island noise
+    { subdivision: 12,  distance: 10.0, octaves: [3, 0, 0] }, // No mountain or island
+    { subdivision: 6,   distance: 18.0, octaves: [2, 0, 0] }  // Simplest noise
   ];
 
-    detailLevels.forEach(level => {
-      const geometry = new THREE.IcosahedronGeometry(SPHERE_BASE_RADIUS, level.subdivision);
-      addBarycentricCoordinates(geometry);
-      const mesh = new THREE.Mesh(geometry, shaderMaterial);
-      lod.addLevel(mesh, level.distance);
-    });
+  detailLevels.forEach(level => {
+    // --- THIS IS THE KEY CHANGE ---
+    // 1. Create the geometry as before
+    const geometry = new THREE.IcosahedronGeometry(SPHERE_BASE_RADIUS, level.subdivision);
+    addBarycentricCoordinates(geometry);
 
-    const ambientLight = new THREE.AmbientLight(0xffffff, 0.5);
-    scene.add(ambientLight);
+    // 2. Create a UNIQUE material for this level by cloning the base
+    const materialForLevel = baseMaterial.clone();
 
-    animate();
-  }
+    // 3. Set the unique noise detail for this material
+    materialForLevel.uniforms.uContinentOctaves.value = level.octaves[0];
+    materialForLevel.uniforms.uMountainOctaves.value = level.octaves[1];
+    materialForLevel.uniforms.uIslandOctaves.value = level.octaves[2];
 
+    // 4. Create the mesh with its unique geometry AND material
+    const mesh = new THREE.Mesh(geometry, materialForLevel);
+    lod.addLevel(mesh, level.distance);
+  });
+
+  const ambientLight = new THREE.AmbientLight(0xffffff, 0.7); // Slightly brighter light
+  scene.add(ambientLight);
+
+  const directionalLight = new THREE.DirectionalLight(0xffffff, 0.5);
+  directionalLight.position.set(5, 5, 5);
+  scene.add(directionalLight);
+
+  animate();
+}
   function animate() {
     animationId = requestAnimationFrame(animate);
     if (shaderMaterial?.uniforms.uTime) {

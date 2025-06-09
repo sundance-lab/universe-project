@@ -242,3 +242,4 @@ return {
     deactivate: deactivate,
     cleanup: cleanup
 };
+})();

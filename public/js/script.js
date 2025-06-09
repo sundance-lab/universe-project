@@ -1476,6 +1476,12 @@ function panMouseMove(event) {
 let lastFrameTime = 0;
 function animate(currentTime) {
     requestAnimationFrame(animate);
+    
+    // Calculate delta time
+    const deltaTime = currentTime - lastFrameTime;
+    lastFrameTime = currentTime;
+    
+    // Update sun renderer with the current time
     if (window.currentSunRenderer) {
         window.currentSunRenderer.update(currentTime);
     }

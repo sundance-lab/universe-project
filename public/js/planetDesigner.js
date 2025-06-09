@@ -2,7 +2,7 @@
 
 import '../styles.css';
 import * as THREE from 'three';
-import { OrbitControls } from 'three-examples/controls/OrbitControls.js';
+import { OrbitControls } from 'OrbitControls';
 import { getPlanetShaders } from './shaders.js';
 import { HexPlanetViewController } from './hexPlanetViewController.js';
 

@@ -202,7 +202,7 @@ update(time) {
     
     try {
         // Slow down the rotation speeds significantly
-        this.sun.rotation.z += 0.02;       // Reduced from 0.00005
+        this.sun.rotation.z += 0.007;       // Reduced from 0.00005
         this.corona.rotation.z -= 0.000025;    // Reduced from 0.000025
         
         this.sun.material.uniforms.time.value = time * 0.001;

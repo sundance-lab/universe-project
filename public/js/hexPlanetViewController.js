@@ -40,12 +40,12 @@ export const HexPlanetViewController = (() => {
         renderer = new THREE.WebGLRenderer({ canvas, antialias: true, logarithmicDepthBuffer: true });
         renderer.setSize(canvas.offsetWidth, canvas.offsetHeight);
         renderer.setPixelRatio(window.devicePixelRatio);
-
+      
         controls = new OrbitControls(camera, renderer.domElement);
         controls.enableDamping = true;
-        controls.dampingFactor = 0.04;
-        controls.dollySpeed = 0.5;
-        controls.rotateSpeed = 0.5;
+        controls.dampingFactor = 0.05;  // Slightly increased for smoother movement
+        controls.rotateSpeed = 1.0;     // Doubled for better responsiveness
+        controls.zoomSpeed = 1.2;       // Add this line to improve zoom control
         controls.minDistance = 1.2;
         controls.maxDistance = 40.0;
         controls.enablePan = false;

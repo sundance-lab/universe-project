@@ -39,14 +39,14 @@ export const HexPlanetViewController = (() => {
     geometry.setAttribute('barycentric', new THREE.BufferAttribute(barycentric, 3));
   }
 
-  function initScene(canvas, planetBasis) {
+function initScene(canvas, planetBasis) {
   scene = new THREE.Scene();
   scene.background = new THREE.Color(0x000000);
 
   camera = new THREE.PerspectiveCamera(60, canvas.offsetWidth / canvas.offsetHeight, 0.1, 1000);
   camera.position.z = 2.4;
 
-  renderer = new THREE.WebGLRenderer({ canvas, antialias: true, logarithmicDepthBuffer: true }); //logarithmic buffer can help with z-fighting at large scales
+  renderer = new THREE.WebGLRenderer({ canvas, antialias: true, logarithmicDepthBuffer: true });
   renderer.setSize(canvas.offsetWidth, canvas.offsetHeight);
   renderer.setPixelRatio(window.devicePixelRatio);
 
@@ -78,7 +78,12 @@ export const HexPlanetViewController = (() => {
             uSphereRadius: { value: SPHERE_BASE_RADIUS },
             uDisplacementAmount: { value: 0.0 },
             uShowStrokes: { value: false },
-            // Add placeholders for our new noise uniforms
+            
+            // --- START: ADD THE MISSING UNIFORM HERE ---
+            uOceanHeightLevel: { value: 0.0 }, // Add a default placeholder
+            // --- END: ADDITION ---
+
+            // Placeholders for our new noise uniforms
             uContinentOctaves: { value: 5 },
             uMountainOctaves: { value: 6 },
             uIslandOctaves: { value: 7 },
@@ -91,43 +96,37 @@ export const HexPlanetViewController = (() => {
 
   const terrainRange = Math.max(0.1, planetBasis.maxTerrainHeight - planetBasis.minTerrainHeight);
   const normalizedOceanLevel = (planetBasis.oceanHeightLevel - planetBasis.minTerrainHeight) / terrainRange;
-  baseMaterial.uniforms.uOceanHeightLevel.value = normalizedOceanLevel - 0.5;
+  
+  // Now this line will work because the uniform exists!
+  baseMaterial.uniforms.uOceanHeightLevel.value = normalizedOceanLevel - 0.5; 
   baseMaterial.uniforms.uDisplacementAmount.value = terrainRange * DISPLACEMENT_SCALING_FACTOR;
 
   lod = new LOD();
   scene.add(lod);
 
   const detailLevels = [
-    { subdivision: 256, distance: 0, octaves: [5, 6, 7] }, // [continent, mountain, island]
+    { subdivision: 256, distance: 0, octaves: [5, 6, 7] },
     { subdivision: 192, distance: 1.1, octaves: [5, 6, 6] },
     { subdivision: 128, distance: 1.5, octaves: [5, 5, 5] },
     { subdivision: 80,  distance: 2.0, octaves: [4, 4, 4] },
-    { subdivision: 48,  distance: 2.4, octaves: [4, 3, 0] }, // <-- Camera starts here
-    { subdivision: 24,  distance: 5.0, octaves: [3, 2, 0] }, // No island noise
-    { subdivision: 12,  distance: 10.0, octaves: [3, 0, 0] }, // No mountain or island
-    { subdivision: 6,   distance: 18.0, octaves: [2, 0, 0] }  // Simplest noise
+    { subdivision: 48,  distance: 2.4, octaves: [4, 3, 0] },
+    { subdivision: 24,  distance: 5.0, octaves: [3, 2, 0] },
+    { subdivision: 12,  distance: 10.0, octaves: [3, 0, 0] },
+    { subdivision: 6,   distance: 18.0, octaves: [2, 0, 0] }
   ];
 
   detailLevels.forEach(level => {
-    // --- THIS IS THE KEY CHANGE ---
-    // 1. Create the geometry as before
     const geometry = new THREE.IcosahedronGeometry(SPHERE_BASE_RADIUS, level.subdivision);
     addBarycentricCoordinates(geometry);
-
-    // 2. Create a UNIQUE material for this level by cloning the base
     const materialForLevel = baseMaterial.clone();
-
-    // 3. Set the unique noise detail for this material
     materialForLevel.uniforms.uContinentOctaves.value = level.octaves[0];
     materialForLevel.uniforms.uMountainOctaves.value = level.octaves[1];
     materialForLevel.uniforms.uIslandOctaves.value = level.octaves[2];
-
-    // 4. Create the mesh with its unique geometry AND material
     const mesh = new THREE.Mesh(geometry, materialForLevel);
     lod.addLevel(mesh, level.distance);
   });
 
-  const ambientLight = new THREE.AmbientLight(0xffffff, 0.7); // Slightly brighter light
+  const ambientLight = new THREE.AmbientLight(0xffffff, 0.7);
   scene.add(ambientLight);
 
   const directionalLight = new THREE.DirectionalLight(0xffffff, 0.5);
@@ -136,6 +135,7 @@ export const HexPlanetViewController = (() => {
 
   animate();
 }
+  
   function animate() {
     animationId = requestAnimationFrame(animate);
     if (shaderMaterial?.uniforms.uTime) {

@@ -56,7 +56,7 @@ function initScene(canvas, planetBasis) {
   controls.dollySpeed = 0.5;
   controls.rotateSpeed = 0.5;
   controls.minDistance = 1.2;
-  controls.maxDistance = 40.0; // Increased max distance to test all LODs
+  controls.maxDistance = 40.0;
   controls.enablePan = false;
   controls.minPolarAngle = 0;
   controls.maxPolarAngle = Math.PI;
@@ -78,9 +78,11 @@ function initScene(canvas, planetBasis) {
             uDisplacementAmount: { value: 0.0 },
             uShowStrokes: { value: false },
             uOceanHeightLevel: { value: 0.0 },
+            // Add placeholders for all our noise uniforms
             uContinentOctaves: { value: 5 },
             uMountainOctaves: { value: 6 },
             uIslandOctaves: { value: 7 },
+            uMountainScale: { value: 8.0 } // Add the new mountain scale uniform
         }
     ]),
     vertexShader,
@@ -96,9 +98,8 @@ function initScene(canvas, planetBasis) {
   lod = new LOD();
   scene.add(lod);
 
-  // THIS IS THE FINAL, 17-LEVEL "ULTRA-SMOOTH" LOD ARRAY
+  // --- MODIFIED LOD ARRAY WITH INCREASED DETAIL AT MAX ZOOM ---
   const detailLevels = [
-    // --- Extreme Close-up Levels (Invisible Transitions) ---
     // Note: octaves [continent, mountain, island]
     { subdivision: 256, distance: 0,    octaves: [5, 6, 7] }, // Max Quality
     { subdivision: 224, distance: 1.0,  octaves: [5, 6, 7] },
@@ -129,16 +130,19 @@ function initScene(canvas, planetBasis) {
     const geometry = new THREE.IcosahedronGeometry(SPHERE_BASE_RADIUS, level.subdivision);
     addBarycentricCoordinates(geometry);
     const materialForLevel = baseMaterial.clone();
+
+    // Set the unique noise detail for this material
     materialForLevel.uniforms.uContinentOctaves.value = level.octaves[0];
     materialForLevel.uniforms.uMountainOctaves.value = level.octaves[1];
     materialForLevel.uniforms.uIslandOctaves.value = level.octaves[2];
+    materialForLevel.uniforms.uMountainScale.value = level.mountainScale; // Set the new scale
+
     const mesh = new THREE.Mesh(geometry, materialForLevel);
     lod.addLevel(mesh, level.distance);
   });
 
   const ambientLight = new THREE.AmbientLight(0xffffff, 0.7);
   scene.add(ambientLight);
-
   const directionalLight = new THREE.DirectionalLight(0xffffff, 0.5);
   directionalLight.position.set(5, 5, 5);
   scene.add(directionalLight);

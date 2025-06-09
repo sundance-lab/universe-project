@@ -156,7 +156,7 @@ export class SunRenderer {
       preserveDrawingBuffer: false
     });
     
-    this.#setupRenderer();
+      this.#setupRenderer();
     this.#createSun();
     this.#setupLighting();
     
@@ -187,7 +187,7 @@ export class SunRenderer {
     return new THREE.SphereGeometry(1, segments, segments);
   }
 
-#createSun = () => {
+  #createSun = () => {
     const variation = this.sunVariations[this.solarSystemType];
     const baseSize = this.sizeTiers[variation.sizeCategory].size;
     const detailMultiplier = this.sizeTiers[variation.sizeCategory].detailMultiplier;
@@ -231,7 +231,7 @@ export class SunRenderer {
           gl_Position = projectionMatrix * mvPosition;
         }
       `,
-fragmentShader: `
+      fragmentShader: `
         uniform float time;
         uniform vec3 glowColor;
         uniform float pulseSpeed;
@@ -293,7 +293,7 @@ fragmentShader: `
         midColor: { value: variation.midColor },
         peakColor: { value: variation.peakColor },
         valleyColor: { value: variation.valleyColor },
-        glowColor: { value: variation.glowColor },
+                glowColor: { value: variation.glowColor },
         noiseScale: { value: 1.5 },
         pulseSpeed: { value: variation.pulseSpeed },
         centerBrightness: { value: 2.2 },
@@ -373,6 +373,9 @@ fragmentShader: `
           vec3 l = 1.0 - g;
           vec3 i1 = min(g.xyz, l.zxy);
           vec3 i2 = max(g.xyz, l.zxy);
+
+
+          
           vec3 x1 = x0 - i1 + C.xxx;
           vec3 x2 = x0 - i2 + C.yyy;
           vec3 x3 = x0 - D.yyy;
@@ -444,8 +447,10 @@ fragmentShader: `
                 cos(p.x * 0.5 + time * flowSpeed) * 0.5,
                 0.0
             );
+
             
-            for(int i = 0; i < iterations; i++) {
+            
+                  for(int i = 0; i < iterations; i++) {
                 p += flow * amplitude;
                 noise += amplitude * lodNoise(p * frequency + time * fireSpeed, textureDetail);
                 frequency *= 2.0;
@@ -515,7 +520,7 @@ fragmentShader: `
     this.scene.add(topLight);
   };
   
-  #setupRenderer = () => {
+   #setupRenderer = () => {
     const width = Math.max(1, this.container.offsetWidth);
     const height = Math.max(1, this.container.offsetHeight);
     
@@ -583,7 +588,7 @@ fragmentShader: `
     
     this.renderer.setSize(width, height, false);
   }
-  
+
   dispose() {
     try {
       if (this.boundResize) {
@@ -636,4 +641,3 @@ fragmentShader: `
     }
   }
 }
-

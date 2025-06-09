@@ -176,18 +176,22 @@ function _showPanel(planetData) {
         const actionDiv = document.createElement('div');
         actionDiv.className = 'panel-actions';
         
-        const exploreButton = document.createElement('button');
-        exploreButton.id = 'explore-planet-button';
-        exploreButton.textContent = 'Explore Surface';
+    const exploreButton = document.createElement('button');
+    exploreButton.id = 'explore-planet-button';
+    exploreButton.textContent = 'Explore Surface';
 
-        exploreButton.addEventListener('click', () => {
-            if (window.switchToHexPlanetView) {
-                _closePanel(); 
-                window.switchToHexPlanetView(currentPlanetData);
-            } else {
-                console.error("The global function 'switchToHexPlanetView' is not available.");
-            }
-        });
+    exploreButton.addEventListener('click', () => {
+        if (window.switchToHexPlanetView) {
+            const returnSystemId = window.gameSessionData.activeSolarSystemId;
+            
+            const backAction = () => window.switchToSolarSystemView(returnSystemId);
+
+            _closePanel(); 
+            window.switchToHexPlanetView(currentPlanetData, backAction);
+        } else {
+            console.error("The global function 'switchToHexPlanetView' is not available.");
+        }
+    });
         
         actionDiv.appendChild(exploreButton);
         panelElement.querySelector('.panel-body').appendChild(actionDiv);

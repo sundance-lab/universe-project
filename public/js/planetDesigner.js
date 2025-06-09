@@ -338,9 +338,12 @@ export const PlanetDesigner = (() => {
    designerRandomizeBtn?.addEventListener('click', _randomizeDesignerPlanet);
 
    designerExploreBtn?.addEventListener('click', () => {
-          HexPlanetViewController.activate(currentDesignerBasis);
-      });
-
+    if (window.switchToHexPlanetView) {
+        window.switchToHexPlanetView(currentDesignerBasis);
+    } else {
+        console.error("The global function 'switchToHexPlanetView' is not available.");
+    }
+});
    designerSaveBtn?.addEventListener('click', _saveCustomPlanetDesign); 
     
    designerCancelBtn?.addEventListener('click', () => {

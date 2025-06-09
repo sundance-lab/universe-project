@@ -37,7 +37,7 @@ export class SunRenderer {
     this.#setupRenderer();
   }
   
-#createSun = () => {
+  #createSun = () => {
     const sunGeometry = new THREE.SphereGeometry(3.0, 64, 64);
 
     const sunMaterial = new THREE.ShaderMaterial({
@@ -232,7 +232,7 @@ export class SunRenderer {
     this.sun = new THREE.Mesh(sunGeometry, sunMaterial);
     this.scene.add(this.sun);
 
-      const coronaGeometry = new THREE.CircleGeometry(5.0, 64);
+      const coronaGeometry = new THREE.SphereGeometry(5.0, 64, 64);
     const coronaMaterial = new THREE.ShaderMaterial({
       uniforms: {
         time: { value: 0 },
@@ -241,10 +241,15 @@ export class SunRenderer {
       },
       vertexShader: `
         varying vec2 vUv;
+        varying vec3 vNormal;
+        varying vec3 vViewPosition;
         
         void main() {
           vUv = uv;
-          gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0);
+          vNormal = normalize(normalMatrix * normal);
+          vec4 mvPosition = modelViewMatrix * vec4(position, 1.0);
+          vViewPosition = -mvPosition.xyz;
+          gl_Position = projectionMatrix * mvPosition;
         }
       `,
       fragmentShader: `
@@ -252,8 +257,13 @@ export class SunRenderer {
         uniform vec3 glowColor;
         uniform float pulseSpeed;
         varying vec2 vUv;
+        varying vec3 vNormal;
+        varying vec3 vViewPosition;
         
         void main() {
+            vec3 viewDir = normalize(vViewPosition);
+            vec3 normal = normalize(vNormal);
+            
             float dist = length(vUv - vec2(0.5, 0.5)) * 2.0;
             float alpha = 1.0 - smoothstep(0.0, 1.0, dist);
             
@@ -269,6 +279,10 @@ export class SunRenderer {
             
             float edgeFade = smoothstep(1.0, 0.2, dist);
             
+            // Add view-dependent rim effect
+            float rim = pow(1.0 - abs(dot(normal, viewDir)), 3.0);
+            alpha *= rim * 0.8 + 0.2;
+            
             gl_FragColor = vec4(finalColor, alpha * 0.5 * edgeFade);
         }
       `,
@@ -279,8 +293,8 @@ export class SunRenderer {
     });
 
     this.corona = new THREE.Mesh(coronaGeometry, coronaMaterial);
-    this.corona.position.z = -0.5;
-    this.corona.scale.setScalar(7.5);
+    this.corona.position.z = 0;
+    this.corona.scale.setScalar(1.2);
     this.scene.add(this.corona);
   };
 

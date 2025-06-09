@@ -1288,6 +1288,7 @@ window.switchToHexPlanetView = (planetData, fromSolarSystem = false) => {
 
     // Use the central screen manager to correctly switch screens
     setActiveScreen(hexPlanetScreen);
+    stopSolarSystemAnimation(); // Stop animation when entering hex view
 
     // Initialize the 3D planet view with context
     if (HexPlanetViewController && typeof HexPlanetViewController.activate === 'function') {
@@ -1296,6 +1297,7 @@ window.switchToHexPlanetView = (planetData, fromSolarSystem = false) => {
                 // Return to solar system view
                 const solarSystemScreen = document.getElementById('solar-system-screen');
                 setActiveScreen(solarSystemScreen);
+                startSolarSystemAnimation(); // Restart animation when returning to solar system
             } else {
                 // Return to designer
                 const designerScreen = document.getElementById('planet-designer-screen');

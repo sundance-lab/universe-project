@@ -187,7 +187,6 @@ export class SunRenderer {
     return new THREE.SphereGeometry(1, segments, segments);
   }
 
-[Would you like me to continue with the rest of the code? There's quite a bit more to include...]
 #createSun = () => {
     const variation = this.sunVariations[this.solarSystemType];
     const baseSize = this.sizeTiers[variation.sizeCategory].size;
@@ -232,9 +231,6 @@ export class SunRenderer {
           gl_Position = projectionMatrix * mvPosition;
         }
       `,
-      fragmentShader: `
-        uniform float time;
-        uniform vec3 glow
 fragmentShader: `
         uniform float time;
         uniform vec3 glowColor;

@@ -87,7 +87,7 @@ export const HexPlanetViewController = (() => {
     lod = new LOD();
     scene.add(lod);
 
-    const detailLevels = [
+  // THIS IS THE CORRECTED ARRAY DEFINITION
   const detailLevels = [
     // Level 1: SUPER-ULTRA detail for when the camera is almost touching the surface.
     { subdivision: 256, distance: 0 }, 

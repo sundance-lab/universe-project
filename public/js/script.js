@@ -642,31 +642,6 @@ function generateStarBackgroundCanvas(containerElement) {
    }
   }
  }
-
-function switchToPlanetExploration(planet) {
-    window.gameSessionData.currentExploredPlanet = planet;
-    setActiveScreen(planetSurfaceScreen);
-    
-    // Create back button if it doesn't exist
-    if (!document.getElementById('back-to-solar-system')) {
-        const backButton = document.createElement('button');
-        backButton.id = 'back-to-solar-system';
-        backButton.className = 'navigation-button';
-        backButton.textContent = '← Back to Solar System';
-        backButton.addEventListener('click', () => {
-            setActiveScreen(solarSystemScreen);
-            if (HexPlanetViewController && typeof HexPlanetViewController.cleanup === 'function') {
-                HexPlanetViewController.cleanup();
-            }
-        });
-        planetSurfaceScreen.appendChild(backButton);
-    }
-
-    // Initialize the planet view
-  if (HexPlanetViewController && typeof HexPlanetViewController.activate === 'function') {
-      HexPlanetViewController.activate(planet);
-    }
-}
  
  function getDistance(system1, system2) { 
   return Math.sqrt(Math.pow(system1.centerX - system2.centerX, 2) + Math.pow(system1.centerY - system2.centerY, 2)); 
@@ -1314,20 +1289,28 @@ function switchToSolarSystemView(solarSystemId) {
  }
 }
 
- // EXPLORING PLANETS
+window.switchToHexPlanetView = (planetData) => {
+    if (!planetData) {
+        console.error("switchToHexPlanetView: No planet data provided.");
+        return;
+    }
 
- 
-function switchToPlanetExplorationView(planetData) {
-    // Store the planet data for exploration
-    window.gameSessionData.currentExploredPlanet = planetData;
-    
-    // Switch to planet surface screen
-    setActiveScreen(planetSurfaceScreen);
-    
-    // Initialize the HexPlanetViewController with the planet data
-    HexPlanetViewController.initializeWithPlanet(planetData);
-}
+    const hexPlanetScreen = document.getElementById('hex-planet-screen');
+    if (!hexPlanetScreen) {
+        console.error("switchToHexPlanetView: hex-planet-screen element not found!");
+        return;
+    }
 
+    // Use the central screen manager to correctly switch screens
+    setActiveScreen(hexPlanetScreen);
+
+    // Now, initialize the 3D planet view
+    if (HexPlanetViewController && typeof HexPlanetViewController.activate === 'function') {
+        HexPlanetViewController.activate(planetData);
+    } else {
+        console.error("HexPlanetViewController or its .activate() method is not available.");
+    }
+};
  
  // --- PANNING AND ZOOMING ---
 

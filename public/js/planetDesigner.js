@@ -249,6 +249,32 @@ export const PlanetDesigner = (() => {
     }
   }
 
+function _handleExploreButtonClick(fromSolarSystem = false) {
+    const planetScreen = document.getElementById('planet-designer-screen');
+    const hexScreen = document.getElementById('hex-planet-screen');
+    
+    HexPlanetViewController.activate(currentDesignerBasis, () => {
+        // This callback will be different based on where we came from
+        if (fromSolarSystem) {
+            if (window.switchToSolarSystemView) {
+                window.switchToSolarSystemView();
+            } else {
+                console.error("Missing switchToSolarSystemView function");
+            }
+        } else {
+            // Coming from designer
+            planetScreen.classList.add('active');
+            hexScreen.classList.remove('active');
+        }
+    });
+
+    if (!fromSolarSystem) {
+        // Only hide the planet screen if we came from designer
+        planetScreen.classList.remove('active');
+    }
+    hexScreen.classList.add('active');
+}
+ 
   function _deleteCustomPlanetDesign(designId) {
     if (!window.gameSessionData?.customPlanetDesigns) return;
 
@@ -337,6 +363,11 @@ export const PlanetDesigner = (() => {
 
    designerRandomizeBtn?.addEventListener('click', _randomizeDesignerPlanet);
 
+designerExploreBtn = document.getElementById('designer-explore-btn');
+if (designerExploreBtn) {
+    designerExploreBtn.addEventListener('click', _handleExploreButtonClick);
+}
+   
 designerExploreBtn?.addEventListener('click', () => {
     if (window.switchToHexPlanetView) {
         const backAction = () => window.switchToPlanetDesignerScreen();

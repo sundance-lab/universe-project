@@ -37,8 +37,8 @@ export class SunRenderer {
     this.#setupRenderer();
   }
   
-  #createSun = () => {
-    const sunGeometry = new THREE.SphereGeometry(0.6, 64, 64);
+#createSun = () => {
+    const sunGeometry = new THREE.SphereGeometry(3.0, 64, 64);
 
     const sunMaterial = new THREE.ShaderMaterial({
       uniforms: {
@@ -232,7 +232,7 @@ export class SunRenderer {
     this.sun = new THREE.Mesh(sunGeometry, sunMaterial);
     this.scene.add(this.sun);
 
-      const coronaGeometry = new THREE.CircleGeometry(1.0, 64);
+      const coronaGeometry = new THREE.CircleGeometry(5.0, 64);
     const coronaMaterial = new THREE.ShaderMaterial({
       uniforms: {
         time: { value: 0 },
@@ -279,8 +279,8 @@ export class SunRenderer {
     });
 
     this.corona = new THREE.Mesh(coronaGeometry, coronaMaterial);
-    this.corona.position.z = -0.1;
-    this.corona.scale.setScalar(1.5);
+    this.corona.position.z = -0.5;
+    this.corona.scale.setScalar(7.5);
     this.scene.add(this.corona);
   };
 
@@ -312,7 +312,7 @@ export class SunRenderer {
       this.container.appendChild(canvas);
     }
 
-    this.camera.position.set(0, 0, 5);
+    this.camera.position.set(0, 0, 25);
     this.camera.lookAt(0, 0, 0);
   };
   

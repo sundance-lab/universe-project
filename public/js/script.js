@@ -34,7 +34,6 @@ document.addEventListener('DOMContentLoaded', () => {
   const mainScreen = document.getElementById('main-screen');
   const galaxyDetailScreen = document.getElementById('galaxy-detail-screen');
   const solarSystemScreen = document.getElementById('solar-system-screen');
-  const planetSurfaceScreen = document.getElementById('planet-surface-screen'); 
   const universeCircle = document.getElementById('universe-circle');
   const galaxyViewport = document.getElementById('galaxy-viewport');
   const galaxyZoomContent = document.getElementById('galaxy-zoom-content');
@@ -56,43 +55,46 @@ document.addEventListener('DOMContentLoaded', () => {
 
   // --- FUNCTION DEFINITIONS ---
 window.currentSunRenderer = null;
-window.generatePlanetInstanceFromBasis = function (basis, isForDesignerPreview = false) {
-  console.log("[DEBUG] Generating planet instance:");
-  console.log("[DEBUG] Available templates:", window.gameSessionData?.customPlanetDesigns?.length || 0);
-  console.log("[DEBUG] Is preview mode:", isForDesignerPreview);
-  
-  // Always use a custom template if available and not in preview mode
-  if (!isForDesignerPreview && 
-      window.gameSessionData?.customPlanetDesigns?.length > 0) {
-    
-    // Randomly select a custom design
-    const randomDesign = window.gameSessionData.customPlanetDesigns[
-      Math.floor(Math.random() * window.gameSessionData.customPlanetDesigns.length)
-    ];
-    
-    console.log("[DEBUG] Using template:", {
-      designId: randomDesign.designId,
-      waterColor: randomDesign.waterColor,
-      landColor: randomDesign.landColor
-    });
-    
-    return {
-      waterColor: randomDesign.waterColor,
-      landColor: randomDesign.landColor,
-      continentSeed: Math.random(), // New continent seed for variety
-      minTerrainHeight: randomDesign.minTerrainHeight,
-      maxTerrainHeight: randomDesign.maxTerrainHeight,
-      oceanHeightLevel: randomDesign.oceanHeightLevel,
-      riverBasin: randomDesign.riverBasin,
-      forestDensity: randomDesign.forestDensity
-    };
-  }
 
-  console.log("[DEBUG] Using default generation because:", 
-    isForDesignerPreview ? "is preview mode" : "no custom designs available");
-  
-  return {
- waterColor: basis.waterColor || '#0000FF',
+window.generatePlanetInstanceFromBasis = function (basis, isForDesignerPreview = false) {
+    console.log("[DEBUG] Generating planet instance:");
+    console.log("[DEBUG] Available templates:", window.gameSessionData?.customPlanetDesigns?.length || 0);
+    console.log("[DEBUG] Is preview mode:", isForDesignerPreview);
+    
+    // Always use a custom template if available and not in preview mode
+    if (!isForDesignerPreview && window.gameSessionData?.customPlanetDesigns?.length > 0) {
+        
+        const randomDesign = window.gameSessionData.customPlanetDesigns[
+            Math.floor(Math.random() * window.gameSessionData.customPlanetDesigns.length)
+        ];
+        
+        console.log("[DEBUG] Using template:", {
+            designId: randomDesign.designId,
+            waterColor: randomDesign.waterColor,
+            landColor: randomDesign.landColor
+        });
+        
+        return {
+            waterColor: randomDesign.waterColor,
+            landColor: randomDesign.landColor,
+            continentSeed: Math.random(),
+            minTerrainHeight: randomDesign.minTerrainHeight,
+            maxTerrainHeight: randomDesign.maxTerrainHeight,
+            oceanHeightLevel: randomDesign.oceanHeightLevel,
+            riverBasin: randomDesign.riverBasin,
+            forestDensity: randomDesign.forestDensity,
+            sourceDesignId: randomDesign.designId 
+        };
+    }
+
+    // This line is now inside the console.log where it belongs.
+    console.log("[DEBUG] Using default generation because:", 
+        isForDesignerPreview ? "is preview mode" : "no custom designs available"
+    );
+    
+    // The final return for the default case.
+    return {
+        waterColor: basis.waterColor || '#0000FF',
         landColor: basis.landColor || '#008000',
         continentSeed: isForDesignerPreview ? 
             (basis.continentSeed !== undefined ? basis.continentSeed : Math.random()) : 
@@ -105,8 +107,8 @@ window.generatePlanetInstanceFromBasis = function (basis, isForDesignerPreview =
             basis.oceanHeightLevel : window.DEFAULT_OCEAN_HEIGHT_LEVEL,
         riverBasin: basis.riverBasin || 0.05,
         forestDensity: basis.forestDensity || 0.5,
+        sourceDesignId: null, // Explicitly return null for default cases
         
-        // Add exploration-specific properties
         isExplorable: true,
         explorationData: {
             surfaceDetail: basis.surfaceDetail || 1.0,
@@ -114,7 +116,7 @@ window.generatePlanetInstanceFromBasis = function (basis, isForDesignerPreview =
             rotationSpeed: basis.rotationSpeed || window.DEFAULT_PLANET_AXIAL_SPEED
         }
     };
-    return planetData;
+    // The extra `return planetData` has been removed.
 };
 
   // --- STATE VARIABLES ---
@@ -1140,28 +1142,19 @@ function switchToSolarSystemView(solarSystemId) {
   const sunContainer = document.createElement('div');
   sunContainer.id = 'sun-container';
 
-  // ========================= SOLUTION =========================
-  // Use the unique sunSizeFactor from the solar system data to
-  // create dramatic variations in the sun's size.
-
-  // 1. Get the unique size factor for this solar system (default to 1 if not found).
   const sunScale = solarSystemObject.sunSizeFactor || 1;
   
-  // 2. Calculate the new size by multiplying the base size by the unique factor.
-  //    This will result in sizes from 30px (60 * 0.5) to 600px (60 * 10).
   const newSunSize = SUN_ICON_SIZE * sunScale;
   
-  // 3. Apply this new, variable size to the sun's container element.
   sunContainer.style.width = `${newSunSize}px`;
   sunContainer.style.height = `${newSunSize}px`;
-  // ==========================================================
 
   solarSystemContent.appendChild(sunContainer);
 
   if (window.currentSunRenderer) {
    window.currentSunRenderer.dispose();
   }
-  // The SunRenderer will now automatically adapt to the size of its new container.
+  
   window.currentSunRenderer = new SunRenderer(sunContainer);
 
 
@@ -1190,33 +1183,21 @@ function switchToSolarSystemView(solarSystemId) {
     size: planetSize
    });
 
-   const basisToUse = window.gameSessionData.customPlanetDesigns?.length ?
-    window.gameSessionData.customPlanetDesigns[Math.floor(Math.random() * window.gameSessionData.customPlanetDesigns.length)] :
-    {
-     waterColor: '#1E90FF',
-     landColor: '#556B2F',
-     minTerrainHeight: window.DEFAULT_MIN_TERRAIN_HEIGHT,
-     maxTerrainHeight: window.DEFAULT_MAX_TERRAIN_HEIGHT,
-     oceanHeightLevel: window.DEFAULT_OCEAN_HEIGHT_LEVEL,
-     continentSeed: Math.random()
+const planetInstanceAppearance = window.generatePlanetInstanceFromBasis({}, false);
+
+    const newPlanet = {
+        id: `${solarSystemId}-planet-${i + 1}`,
+        planetName: `Planet ${i + 1}`,
+        size: planetSize,
+        distance: planetDistance,
+        currentOrbitalAngle: Math.random() * 2 * Math.PI,
+        orbitalSpeed: MIN_ROTATION_SPEED_RAD_PER_PERLIN_UNIT + Math.random() * (MAX_ROTATION_SPEED_RAD_PER_PERLIN_UNIT - MIN_ROTATION_SPEED_RAD_PER_PERLIN_UNIT),
+        currentAxialAngle: Math.random() * 2 * Math.PI,
+        axialSpeed: window.DEFAULT_PLANET_AXIAL_SPEED,
+        element: null,
+        type: 'terrestrial',
+        ...planetInstanceAppearance
     };
-
-   const planetInstanceAppearance = window.generatePlanetInstanceFromBasis(basisToUse, false);
-
-   const newPlanet = {
-      id: `${solarSystemId}-planet-${i + 1}`,
-    planetName: `Planet ${i + 1}`,
-    size: planetSize,
-    distance: planetDistance,
-    currentOrbitalAngle: Math.random() * 2 * Math.PI,
-    orbitalSpeed: MIN_ROTATION_SPEED_RAD_PER_PERLIN_UNIT + Math.random() * (MAX_ROTATION_SPEED_RAD_PER_PERLIN_UNIT - MIN_ROTATION_SPEED_RAD_PER_PERLIN_UNIT),
-    currentAxialAngle: Math.random() * 2 * Math.PI,
-    axialSpeed: window.DEFAULT_PLANET_AXIAL_SPEED,
-    element: null,
-    type: 'terrestrial',
-    ...planetInstanceAppearance,
-    sourceDesignId: basisToUse.designId || null
-   };
 
    window.gameSessionData.solarSystemView.planets.push(newPlanet);
 

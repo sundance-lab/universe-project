@@ -89,23 +89,16 @@ export const HexPlanetViewController = (() => {
 
   // THIS IS THE CORRECTED ARRAY DEFINITION
   const detailLevels = [
-    // Level 1: SUPER-ULTRA detail for when the camera is almost touching the surface.
-    { subdivision: 256, distance: 0 }, 
-    
-    // Level 2: ULTRA detail for very close-up views.
+
+    { subdivision: 512, distance: 0 },
+    { subdivision: 256, distance: 0.8 }, 
     { subdivision: 128, distance: 1.3 }, 
-    
-    // Level 3: HIGH detail, our standard "close" view.
     { subdivision: 64, distance: 1.8 },
-    
-    // Level 4: MEDIUM detail for when you start zooming out.
-    { subdivision: 32, distance: 2.5 },
-    
-    // Level 5: LOW detail for when the planet is a medium-sized object.
+    { subdivision: 32, distance: 2.4 }, //camera starts here
     { subdivision: 16, distance: 5.0 },
+    { subdivision: 8, distance: 10.0 },
+    { subdivision 2, distance: 15}
     
-    // Level 6: VERY-LOW detail for when the planet is small and in the distance.
-    { subdivision: 8, distance: 10.0 }
   ];
 
     detailLevels.forEach(level => {

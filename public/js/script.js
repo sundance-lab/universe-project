@@ -1204,10 +1204,19 @@ const planetInstanceAppearance = window.generatePlanetInstanceFromBasis({}, fals
 
    const planetElement = document.createElement('div');
    planetElement.classList.add('planet-icon', 'clickable-when-paused');
+   const exploreButton = document.createElement('button');
+   exploreButton.textContent = 'Explore';
+   exploreButton.classList.add('enter-planet-button');
+   planetElement.appendChild(exploreButton);
+   // In the solar system planet generation code:
    planetElement.addEventListener('click', (e) => {
     e.stopPropagation();
-    window.PlanetVisualPanelManager?.show(newPlanet);
-   });
+    if (e.target.classList.contains('enter-planet-button')) {
+        window.switchToHexPlanetView(newPlanet, true); // true indicates from solar system
+    } else {
+        window.PlanetVisualPanelManager?.show(newPlanet);
+    }
+});
 
    planetElement.style.width = `${newPlanet.size}px`;
    planetElement.style.height = `${newPlanet.size}px`;
@@ -1273,7 +1282,7 @@ const planetInstanceAppearance = window.generatePlanetInstanceFromBasis({}, fals
  }
 }
 
-window.switchToHexPlanetView = (planetData) => {
+window.switchToHexPlanetView = (planetData, fromSolarSystem = false) => {
     if (!planetData) {
         console.error("switchToHexPlanetView: No planet data provided.");
         return;
@@ -1288,9 +1297,22 @@ window.switchToHexPlanetView = (planetData) => {
     // Use the central screen manager to correctly switch screens
     setActiveScreen(hexPlanetScreen);
 
-    // Now, initialize the 3D planet view
+    // Initialize the 3D planet view with context
     if (HexPlanetViewController && typeof HexPlanetViewController.activate === 'function') {
-        HexPlanetViewController.activate(planetData);
+        HexPlanetViewController.activate(planetData, () => {
+            if (fromSolarSystem) {
+                // Return to solar system view
+                const solarSystemScreen = document.getElementById('solar-system-screen');
+                setActiveScreen(solarSystemScreen);
+            } else {
+                // Return to designer
+                const designerScreen = document.getElementById('planet-designer-screen');
+                setActiveScreen(designerScreen);
+                if (window.PlanetDesigner?.activate) {
+                    window.PlanetDesigner.activate();
+                }
+            }
+        });
     } else {
         console.error("HexPlanetViewController or its .activate() method is not available.");
     }

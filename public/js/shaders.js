@@ -182,7 +182,7 @@ export function getPlanetShaders() {
 // --- Shaders for Hex Planet Surface (Explore View) ---
 
 export function getHexPlanetShaders() {
- // THIS IS THE CORRECTED VERTEX SHADER using strength uniforms instead of octave uniforms
+ // The vertex shader is corrected to prevent sea level changes during zoom.
  const hexVertexShader = `
   attribute vec3 barycentric;
 
@@ -191,7 +191,6 @@ export function getHexPlanetShaders() {
   uniform float uSphereRadius;
   uniform float uDisplacementAmount;
   uniform float uRiverBasin;
-  // Strength uniforms control the influence of detail layers
   uniform float uMountainStrength;
   uniform float uIslandStrength;
 
@@ -202,77 +201,57 @@ export function getHexPlanetShaders() {
   varying vec3 vWorldPosition;
   varying float vRiverValue;
 
-  // Noise functions remain the same
-  float layeredNoise(vec3 p, float seed, int octaves, float persistence, float lacunarity, float scale) {
-   float total = 0.0;
-   float frequency = scale;
-   float amplitude = 1.0;
-   float maxValue = 0.0;
-   for(int i = 0; i < octaves; i++) {
-    total += valueNoise(p * frequency + seed * float(i) * 1.712, seed * 12.345 * float(i+1) * 0.931) * amplitude;
-    maxValue += amplitude;
-    amplitude *= persistence;
-    frequency *= lacunarity;
-   }
-   if (maxValue == 0.0) return 0.0;
-   return total / maxValue;
+  // Noise functions (layeredNoise, etc.) are included here from the 'noiseFunctions' constant
+  // ...
+
+  void main() {
+   vBarycentric = barycentric;
+   vec3 p_normalized = normalize(position);
+   vec3 noiseInputPosition = p_normalized + (uContinentSeed * 10.0);
+
+   // --- TERRAIN CALCULATION WITH FADING DETAIL ---
+
+   // 1. Base continent shape is ALWAYS calculated
+   float continentShape = (layeredNoise(noiseInputPosition, uContinentSeed, 6, 0.5, 2.0, 1.5) + 1.0) * 0.5;
+
+   // 2. Detail layers are also calculated at full detail, mapped to a [0, 1] range
+   float mountainNoise_01 = (layeredNoise(noiseInputPosition, uContinentSeed * 2.0, 7, 0.45, 2.2, 14.0) + 1.0) * 0.5;
+   float islandNoise_01 = (layeredNoise(noiseInputPosition, uContinentSeed * 3.0, 8, 0.5, 2.5, 18.0) + 1.0) * 0.5;
+   
+   float continentMask = smoothstep(0.49, 0.51, continentShape);
+   float oceanMask = 1.0 - continentMask;
+
+   // --- CORRECTED ELEVATION CALCULATION ---
+   // Start with the base continent shape.
+   float finalElevation = continentShape;
+
+   // **FIX**: Add the detail layers after centering them around zero (by subtracting 0.5).
+   // This ensures they add or subtract from the base shape without causing a net vertical 
+   // shift when their strength is faded out, preventing the sea level from changing.
+   finalElevation += (mountainNoise_01 - 0.5) * continentMask * 0.6 * uMountainStrength;
+   finalElevation += (islandNoise_01 - 0.5) * oceanMask * 0.2 * uIslandStrength;
+
+   // River and final displacement logic is unchanged
+   float riverRaw = ridgedRiverNoise(noiseInputPosition * 0.2, uContinentSeed * 5.0);
+   float riverBed = smoothstep(1.0 - uRiverBasin, 1.0, riverRaw);
+   float riverMask = smoothstep(0.50, 0.55, continentShape);
+   vRiverValue = riverBed * riverMask;
+   finalElevation -= vRiverValue * 0.08;
+   
+   // Center the final result around 0 for consistent comparison with uOceanHeightLevel
+   finalElevation = finalElevation - 0.5;
+
+   vElevation = finalElevation;
+   float displacement = vElevation * uDisplacementAmount;
+   vec3 displacedPosition = position + p_normalized * displacement;
+
+   vNormal = p_normalized;
+   vWorldPosition = (modelMatrix * vec4(displacedPosition, 1.0)).xyz;
+   gl_Position = projectionMatrix * modelViewMatrix * vec4(displacedPosition, 1.0);
   }
-
-  float ridgedRiverNoise(vec3 p, float seed) {
-   float n = layeredNoise(p, seed, 6, 0.5, 2.0, 1.0);
-   return pow(1.0 - abs(n), 3.0); 
-  }
-
-		void main() {
-			vBarycentric = barycentric;
-
-			// --- FIX ---
-			// Use normalize(position) to get a consistent direction vector.
-			// This ensures the noise function is sampled at the same conceptual point on the
-			// sphere, regardless of the geometry's subdivision level. This prevents the
-			// entire planet shape from changing during LOD swaps.
-			vec3 p_normalized = normalize(position);
-			vec3 noiseInputPosition = p_normalized + (uContinentSeed * 10.0);
-			// --- END FIX ---
-
-			// --- TERRAIN CALCULATION WITH FADING DETAIL ---
-
-			// 1. Base continent shape is ALWAYS calculated at a fixed, high detail
-			float continentShape = (layeredNoise(noiseInputPosition, uContinentSeed, 6, 0.5, 2.0, 1.5) + 1.0) * 0.5;
-
-			// 2. Detail layers are also calculated at full detail
-			float mountainNoise = (layeredNoise(noiseInputPosition, uContinentSeed * 2.0, 7, 0.45, 2.2, 14.0) + 1.0) * 0.5;
-			float islandNoise = (layeredNoise(noiseInputPosition, uContinentSeed * 3.0, 8, 0.5, 2.5, 18.0) + 1.0) * 0.5;
-			
-			float continentMask = smoothstep(0.49, 0.51, continentShape);
-			float oceanMask = 1.0 - continentMask;
-
-			// 3. We use the STRENGTH uniform to fade the detail layers' influence in or out
-			float finalElevation = continentShape
-				+ (mountainNoise * continentMask * 0.3 * uMountainStrength) // Multiply by strength
-				+ (islandNoise * oceanMask * 0.1 * uIslandStrength);     // Multiply by strength
-
-			// River and final displacement logic is unchanged
-			float riverRaw = ridgedRiverNoise(noiseInputPosition * 0.2, uContinentSeed * 5.0);
-			float riverBed = smoothstep(1.0 - uRiverBasin, 1.0, riverRaw);
-			float riverMask = smoothstep(0.50, 0.55, continentShape);
-			vRiverValue = riverBed * riverMask;
-			finalElevation -= vRiverValue * 0.08;
-			finalElevation = finalElevation - 0.5;
-
-			vElevation = finalElevation;
-			float displacement = vElevation * uDisplacementAmount;
-			
-			// Displace the original vertex position along our consistent, normalized direction
-			vec3 displacedPosition = position + p_normalized * displacement;
-
-			vNormal = p_normalized; // The normal of the undisplaced sphere is the normalized position
-			vWorldPosition = (modelMatrix * vec4(displacedPosition, 1.0)).xyz;
-			gl_Position = projectionMatrix * modelViewMatrix * vec4(displacedPosition, 1.0);
-		}
  `;
 
- // The fragment shader remains unchanged from the last correct version
+ // The fragment shader remains unchanged.
  const hexFragmentShader = `
   uniform vec3 uLandColor;
   uniform vec3 uWaterColor;

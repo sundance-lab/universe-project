@@ -171,14 +171,10 @@ export const HexPlanetViewController = (() => {
         }
     }
     
-    // The old `deactivate` function is no longer needed.
-
     return {
-        init: () => {
-            console.log("HexPlanetViewController initialized");
-        },
-        // *** THIS IS THE CORRECTED FUNCTION ***
-        activate: (planetBasis) => {
+        init: () => { /* ... */ },
+
+        activate: (planetBasis, onBackCallback) => {
             const canvas = document.getElementById('hex-planet-canvas');
             const screen = document.getElementById('hex-planet-screen');
             backButton = document.getElementById('back-from-hex-view');
@@ -187,42 +183,26 @@ export const HexPlanetViewController = (() => {
                 console.error("HexPlanetViewController: Missing required elements...");
                 return;
             }
-            
-            // 1. Clean up any previous instance before creating a new one.
+
             cleanup();
-            
-            // 2. Initialize the new 3D scene with the provided planet data.
             initScene(canvas, planetBasis);
             
-            // 3. Set up the back button's behavior.
             const handleBackClick = () => {
-                cleanup(); // Clean up this view
+                cleanup(); 
                 
-                // Call the global function to switch back to the designer
-                if (window.switchToPlanetDesignerScreen) {
-                    window.switchToPlanetDesignerScreen();
+                if (typeof onBackCallback === 'function') {
+                    onBackCallback();
                 }
 
-                // Remove this listener to prevent memory leaks
                 backButton.removeEventListener('click', handleBackClick);
                 window.removeEventListener('resize', onResize);
             };
 
             backButton.addEventListener('click', handleBackClick);
-            
-            // 4. Add resize listener for this view
             window.addEventListener('resize', onResize);
-
-            // 5. Finally, make the screen active.
-            // (Note: This is now handled by setActiveScreen in script.js,
-            // but keeping it here doesn't hurt as a fallback).
             screen.classList.add('active');
         },
-        initializeWithPlanet: (planetBasis) => {
-            // This is just an alias for activate
-            return HexPlanetViewController.activate(planetBasis);
-        },
-        // 'deactivate' is no longer needed in the public API
+
         cleanup: cleanup
     };
 })();

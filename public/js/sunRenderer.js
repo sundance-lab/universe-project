@@ -43,14 +43,17 @@ export class SunRenderer {
     const sunMaterial = new THREE.ShaderMaterial({
       uniforms: {
         time: { value: 0 },
-        color: { value: new THREE.Color(0xFFFF00) },
-        glowColor: { value: new THREE.Color(0xFFDD00) },
+        color: { value: new THREE.Color(0xFFA500) },
+        hotColor: { value: new THREE.Color(0xFFF7E6) },
+        coolColor: { value: new THREE.Color(0xFF4500) },
+        glowColor: { value: new THREE.Color(0xFFDF00) },
         noiseScale: { value: 2.0 },
         pulseSpeed: { value: 0.008 },
-        centerBrightness: { value: 2.0 },
-        edgeGlow: { value: 0.6 },
+        centerBrightness: { value: 2.2 },
+        edgeGlow: { value: 0.7 },
         turbulence: { value: 0.6 },
-        fireSpeed: { value: 0.3 }
+        fireSpeed: { value: 0.3 },
+        colorIntensity: { value: 1.4 }
       },
       vertexShader: `
         varying vec2 vUv;
@@ -68,6 +71,8 @@ export class SunRenderer {
       fragmentShader: `
         uniform float time;
         uniform vec3 color;
+        uniform vec3 hotColor;
+        uniform vec3 coolColor;
         uniform vec3 glowColor;
         uniform float noiseScale;
         uniform float pulseSpeed;
@@ -75,6 +80,7 @@ export class SunRenderer {
         uniform float edgeGlow;
         uniform float turbulence;
         uniform float fireSpeed;
+        uniform float colorIntensity;
         
         varying vec2 vUv;
         varying vec3 vNormal;
@@ -161,9 +167,6 @@ export class SunRenderer {
           vec3 viewDir = normalize(vViewPosition);
           vec3 normal = normalize(vNormal);
           
-          float distFromCenter = length(vUv - vec2(0.5, 0.5)) * 2.0;
-          float circular = 1.0 - smoothstep(0.0, 1.0, distFromCenter);
-          
           vec2 fireUV = vUv * noiseScale;
           float fireTime = time * fireSpeed;
           
@@ -173,23 +176,31 @@ export class SunRenderer {
           float combinedNoise = firePattern * 0.6 + secondaryFire * 0.4;
           combinedNoise = combinedNoise * turbulence;
           
-          float pulse = sin(time * pulseSpeed) * 0.03 + 0.97;
+          float tempNoise = (firePattern + 1.0) * 0.5;
           
-          vec3 baseColor = mix(color, glowColor, combinedNoise * 0.4);
+          vec3 tempColor = mix(coolColor, hotColor, tempNoise);
+          vec3 baseColor = mix(color, tempColor, combinedNoise * 0.6);
+          
+          float surfaceDetail = snoise(vec3(fireUV * 3.0, fireTime * 0.5));
+          baseColor = mix(baseColor, hotColor, surfaceDetail * 0.3);
+          
           vec3 finalColor = baseColor;
           
-          finalColor *= (centerBrightness - distFromCenter * 0.5);
+          float centerGlow = 1.0 - length(vUv - vec2(0.5));
+          finalColor = mix(finalColor, hotColor, centerGlow * 0.5);
+          
+          float edge = 1.0 - smoothstep(0.4, 0.5, length(vUv - vec2(0.5)));
+          finalColor *= (centerBrightness - (1.0 - edge) * 0.5);
           
           float edgeFactor = pow(1.0 - abs(dot(normal, viewDir)), 3.0);
           finalColor += glowColor * edgeFactor * edgeGlow;
           
-          finalColor += glowColor * combinedNoise * 0.3;
+          finalColor += vec3(0.2, 0.1, 0.0) * combinedNoise * 0.3;
           
-          finalColor *= circular * pulse;
+          finalColor *= colorIntensity;
           
-          finalColor += color * (1.0 - distFromCenter) * 0.5;
-          
-          finalColor += vec3(0.1, 0.05, 0.0) * combinedNoise;
+          float pulse = sin(time * pulseSpeed) * 0.03 + 0.97;
+          finalColor *= pulse;
           
           gl_FragColor = vec4(finalColor, 1.0);
         }
@@ -201,12 +212,12 @@ export class SunRenderer {
 
     this.sun = new THREE.Mesh(sunGeometry, sunMaterial);
     this.scene.add(this.sun);
-    
-    const coronaGeometry = new THREE.CircleGeometry(1.0, 64);
+        const coronaGeometry = new THREE.CircleGeometry(1.0, 64);
     const coronaMaterial = new THREE.ShaderMaterial({
       uniforms: {
         time: { value: 0 },
-        glowColor: { value: new THREE.Color(0xFFFF80) }
+        glowColor: { value: new THREE.Color(0xFFA726) },
+        pulseSpeed: { value: 0.15 }
       },
       vertexShader: `
         varying vec2 vUv;
@@ -219,19 +230,23 @@ export class SunRenderer {
       fragmentShader: `
         uniform float time;
         uniform vec3 glowColor;
+        uniform float pulseSpeed;
         varying vec2 vUv;
         
         void main() {
           float dist = length(vUv - vec2(0.5, 0.5)) * 2.0;
           float alpha = 1.0 - smoothstep(0.0, 1.0, dist);
-          float pulse = sin(time * 0.15) * 0.03 + 0.97;
           
+          float pulse = sin(time * pulseSpeed) * 0.03 + 0.97;
           vec3 finalColor = glowColor;
+          
+          float colorShift = sin(dist * 3.14159 + time * 0.1) * 0.2 + 0.8;
+          finalColor *= colorShift;
           finalColor *= pulse;
           
           float edgeFade = smoothstep(1.0, 0.2, dist);
           
-          gl_FragColor = vec4(finalColor, alpha * 0.4 * edgeFade);
+          gl_FragColor = vec4(finalColor, alpha * 0.5 * edgeFade);
         }
       `,
       transparent: true,

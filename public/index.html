@@ -103,12 +103,9 @@
                   <input type="number" id="designer-ocean-height" class="designer-control" value="2.0" step="0.1" min="-100" max="100">
                 </label>
               </div>
-
-                    <!-- Saved Designs list -->
                     <div class="saved-designs-list">
                         <h4>Saved Designs:</h4>
                         <ul id="saved-designs-ul">
-                            <!-- List items will be populated by JS -->
                         </ul>
                     </div>
                 </div>
@@ -125,8 +122,14 @@
                 <button id="designer-cancel-btn" class="modal-button-cancel">Back</button>
             </div>
         </div>
-    </div>
-
+<div id="hex-planet-screen" class="screen">
+  <canvas id="hex-planet-canvas"></canvas>
+  <div class="hex-controls">
+    <button class="back-button" id="back-from-hex-view">← Back to Designer</button>
+  </div>
+</div>
+</div>
+  
     <div class="controls-overlay">
         <div id="zoom-controls"><button id="zoom-out-btn">-</button><button id="zoom-in-btn">+</button></div>
         <button id="regenerate-universe-btn" class="control-button">Generate New Universe</button>

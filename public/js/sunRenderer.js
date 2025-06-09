@@ -114,22 +114,22 @@ this.sizeTiers = {
         terrainScale: 2.2,
         fireIntensity: 1.7
       },
-      { // Type 3: White Dwarf
-        baseColor: new THREE.Color(0xE0E0E0),
-        hotColor: new THREE.Color(0xFAFAFA),
-        coolColor: new THREE.Color(0xBDBDBD),
-        glowColor: new THREE.Color(0xF5F5F5),
-        coronaColor: new THREE.Color(0xEEEEEE),
-        midColor: new THREE.Color(0xE0E0E0),
-        peakColor: new THREE.Color(0xFFFFFF),
-        valleyColor: new THREE.Color(0x9E9E9E),
-        turbulence: 1.3,
-        fireSpeed: 0.4,
-        pulseSpeed: 0.008,
-        sizeCategory: 'dwarf',
-        terrainScale: 2.5,
-        fireIntensity: 2.0
-      },
+{ // Type 3: White Dwarf
+  baseColor: new THREE.Color(0xE0E0E0),
+  hotColor: new THREE.Color(0xFFFFFF),     // Kept pure white
+  coolColor: new THREE.Color(0x9E9E9E),    // Darkened
+  glowColor: new THREE.Color(0x82B1FF),    // Changed to blue-white for better visibility
+  coronaColor: new THREE.Color(0xBBDEFB),  // Changed to light blue
+  midColor: new THREE.Color(0xF5F5F5),     // Lightened
+  peakColor: new THREE.Color(0xFFFFFF),    // Kept pure white
+  valleyColor: new THREE.Color(0x757575),  // Darkened significantly
+  turbulence: 1.5,                         // Increased from 1.3
+  fireSpeed: 0.5,                          // Increased from 0.4
+  pulseSpeed: 0.01,                        // Increased from 0.008
+  sizeCategory: 'dwarf',
+  terrainScale: 3.0,                       // Increased from 2.5
+  fireIntensity: 2.5                       // Increased from 2.0
+},
       { // Type 4: Hypergiant
         baseColor: new THREE.Color(0xE65100),
         hotColor: new THREE.Color(0xFFAB40),

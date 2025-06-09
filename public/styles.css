@@ -218,30 +218,6 @@ body, html {
   cursor: pointer;
 }
 
-/* Button that appears on planet icons in solar system view */
-.enter-planet-button {
-    position: absolute;
-    bottom: -25px; /* Position below the planet icon */
-    left: 50%;
-    transform: translateX(-50%);
-    padding: 4px 8px;
-    background-color: rgba(50, 50, 70, 0.7);
-    color: white;
-    border: 1px solid rgba(100, 100, 120, 0.9);
-    border-radius: 5px;
-    cursor: pointer;
-    font-size: 0.7em;
-    opacity: 0; /* Hidden by default */
-    transition: opacity 0.2s ease, bottom 0.2s ease;
-    white-space: nowrap;
-    z-index: 5; /* Ensure it's clickable */
-}
-
-.planet-icon:hover .enter-planet-button {
-    opacity: 1; /* Show on hover */
-    bottom: -20px; /* Move slightly up on hover */
-}
-
 .controls-overlay {
   position: fixed; /* Stays in place regardless of page scroll (though body overflow is hidden) */
   top: 0;

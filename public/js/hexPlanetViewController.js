@@ -1,8 +1,8 @@
 // public/js/hexPlanetViewController.js
 
 import * as THREE from 'three';
-import { OrbitControls } from 'three-examples/controls/OrbitControls.js';
-import { LOD } from 'three-examples/objects/LOD.js';
+import { OrbitControls } from 'OrbitControls';
+import { LOD } from 'LOD';
 import { getHexPlanetShaders } from './shaders.js';
 
 export const HexPlanetViewController = (() => {

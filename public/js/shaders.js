@@ -32,21 +32,9 @@ float valueNoise(vec3 p, float seed) {
 }
 `;
 
-const noiseFunctions = glslRandom2to1 + glslSimpleValueNoise3D;
-
-// --- Shaders for Standard Planet Preview (Designer View) ---
-
-const planetVertexShaderSource = `
-uniform float uContinentSeed;
-uniform float uSphereRadius;
-uniform float uDisplacementAmount;
-uniform float uRiverBasin;
-
-varying vec3 vNormal;
-varying float vElevation;
-varying vec3 vWorldPosition;
-varying float vRiverValue;
-
+// --- NEW: Moved terrain functions to shared scope ---
+const glslLayeredNoise = `
+// Depends on: valueNoise
 float layeredNoise(vec3 p, float seed, int octaves, float persistence, float lacunarity, float scale) {
  float total = 0.0;
  float frequency = scale;
@@ -61,11 +49,34 @@ float layeredNoise(vec3 p, float seed, int octaves, float persistence, float lac
  if (maxValue == 0.0) return 0.0;
  return total / maxValue;
 }
+`;
 
+const glslRidgedRiverNoise = `
+// Depends on: layeredNoise
 float ridgedRiverNoise(vec3 p, float seed) {
  float n = layeredNoise(p, seed, 6, 0.5, 2.0, 1.0);
  return pow(1.0 - abs(n), 3.0); 
 }
+`;
+
+// --- The master string of all shared GLSL functions ---
+const noiseFunctions = glslRandom2to1 + glslSimpleValueNoise3D + glslLayeredNoise + glslRidgedRiverNoise;
+
+
+// --- Shaders for Standard Planet Preview (Designer View) ---
+
+const planetVertexShaderSource = `
+uniform float uContinentSeed;
+uniform float uSphereRadius;
+uniform float uDisplacementAmount;
+uniform float uRiverBasin;
+
+varying vec3 vNormal;
+varying float vElevation;
+varying vec3 vWorldPosition;
+varying float vRiverValue;
+
+// REMOVED: layeredNoise and ridgedRiverNoise definitions are now in noiseFunctions.
 
 void main() {
  vec3 p = position;
@@ -182,11 +193,10 @@ export function getPlanetShaders() {
 // --- Shaders for Hex Planet Surface (Explore View) ---
 
 export function getHexPlanetShaders() {
- // The vertex shader is corrected to prevent sea level changes during zoom.
+ // This shader now includes all fixes for the LOD zoom issues.
  const hexVertexShader = `
   attribute vec3 barycentric;
 
-  // --- UNIFORMS ---
   uniform float uContinentSeed;
   uniform float uSphereRadius;
   uniform float uDisplacementAmount;
@@ -194,64 +204,47 @@ export function getHexPlanetShaders() {
   uniform float uMountainStrength;
   uniform float uIslandStrength;
 
-  // --- VARYINGS ---
   varying vec3 vBarycentric;
   varying vec3 vNormal;
   varying float vElevation;
   varying vec3 vWorldPosition;
   varying float vRiverValue;
 
-  // Noise functions (layeredNoise, etc.) are included here from the 'noiseFunctions' constant
-  // ...
+  // REMOVED: layeredNoise and ridgedRiverNoise definitions are now in noiseFunctions.
 
   void main() {
    vBarycentric = barycentric;
-   vec3 p_normalized = normalize(position);
-   vec3 noiseInputPosition = p_normalized + (uContinentSeed * 10.0);
+		vec3 p_normalized = normalize(position);
+		vec3 noiseInputPosition = p_normalized + (uContinentSeed * 10.0);
 
-   // --- TERRAIN CALCULATION WITH FADING DETAIL ---
+		float continentShape = (layeredNoise(noiseInputPosition, uContinentSeed, 6, 0.5, 2.0, 1.5) + 1.0) * 0.5;
+		float mountainNoise_01 = (layeredNoise(noiseInputPosition, uContinentSeed * 2.0, 7, 0.45, 2.2, 14.0) + 1.0) * 0.5;
+		float islandNoise_01 = (layeredNoise(noiseInputPosition, uContinentSeed * 3.0, 8, 0.5, 2.5, 18.0) + 1.0) * 0.5;
+		
+		float continentMask = smoothstep(0.49, 0.51, continentShape);
+		float oceanMask = 1.0 - continentMask;
 
-   // 1. Base continent shape is ALWAYS calculated
-   float continentShape = (layeredNoise(noiseInputPosition, uContinentSeed, 6, 0.5, 2.0, 1.5) + 1.0) * 0.5;
+		float finalElevation = continentShape;
+		finalElevation += (mountainNoise_01 - 0.5) * continentMask * 0.6 * uMountainStrength;
+		finalElevation += (islandNoise_01 - 0.5) * oceanMask * 0.2 * uIslandStrength;
 
-   // 2. Detail layers are also calculated at full detail, mapped to a [0, 1] range
-   float mountainNoise_01 = (layeredNoise(noiseInputPosition, uContinentSeed * 2.0, 7, 0.45, 2.2, 14.0) + 1.0) * 0.5;
-   float islandNoise_01 = (layeredNoise(noiseInputPosition, uContinentSeed * 3.0, 8, 0.5, 2.5, 18.0) + 1.0) * 0.5;
-   
-   float continentMask = smoothstep(0.49, 0.51, continentShape);
-   float oceanMask = 1.0 - continentMask;
+		float riverRaw = ridgedRiverNoise(noiseInputPosition * 0.2, uContinentSeed * 5.0);
+		float riverBed = smoothstep(1.0 - uRiverBasin, 1.0, riverRaw);
+		float riverMask = smoothstep(0.50, 0.55, continentShape);
+		vRiverValue = riverBed * riverMask;
+		finalElevation -= vRiverValue * 0.08;
+		finalElevation = finalElevation - 0.5;
 
-   // --- CORRECTED ELEVATION CALCULATION ---
-   // Start with the base continent shape.
-   float finalElevation = continentShape;
+		vElevation = finalElevation;
+		float displacement = vElevation * uDisplacementAmount;
+		vec3 displacedPosition = position + p_normalized * displacement;
 
-   // **FIX**: Add the detail layers after centering them around zero (by subtracting 0.5).
-   // This ensures they add or subtract from the base shape without causing a net vertical 
-   // shift when their strength is faded out, preventing the sea level from changing.
-   finalElevation += (mountainNoise_01 - 0.5) * continentMask * 0.6 * uMountainStrength;
-   finalElevation += (islandNoise_01 - 0.5) * oceanMask * 0.2 * uIslandStrength;
-
-   // River and final displacement logic is unchanged
-   float riverRaw = ridgedRiverNoise(noiseInputPosition * 0.2, uContinentSeed * 5.0);
-   float riverBed = smoothstep(1.0 - uRiverBasin, 1.0, riverRaw);
-   float riverMask = smoothstep(0.50, 0.55, continentShape);
-   vRiverValue = riverBed * riverMask;
-   finalElevation -= vRiverValue * 0.08;
-   
-   // Center the final result around 0 for consistent comparison with uOceanHeightLevel
-   finalElevation = finalElevation - 0.5;
-
-   vElevation = finalElevation;
-   float displacement = vElevation * uDisplacementAmount;
-   vec3 displacedPosition = position + p_normalized * displacement;
-
-   vNormal = p_normalized;
-   vWorldPosition = (modelMatrix * vec4(displacedPosition, 1.0)).xyz;
-   gl_Position = projectionMatrix * modelViewMatrix * vec4(displacedPosition, 1.0);
+		vNormal = p_normalized;
+		vWorldPosition = (modelMatrix * vec4(displacedPosition, 1.0)).xyz;
+		gl_Position = projectionMatrix * modelViewMatrix * vec4(displacedPosition, 1.0);
   }
  `;
 
- // The fragment shader remains unchanged.
  const hexFragmentShader = `
   uniform vec3 uLandColor;
   uniform vec3 uWaterColor;
@@ -308,27 +301,18 @@ export function getHexPlanetShaders() {
     const float MOUNTAIN_START = 0.60;
     const float SNOW_START = 0.85;
 
-    if (landRatio < BEACH_END) {
-     biomeColor = mix(plainsColor, beachColor, smoothstep(BEACH_END, 0.0, landRatio));
-    } else if (landRatio < PLAINS_END) {
-     biomeColor = plainsColor;
-    } else if (landRatio < MOUNTAIN_START) {
-     biomeColor = mix(plainsColor, mountainColor, smoothstep(PLAINS_END, MOUNTAIN_START, landRatio));
-    } else if (landRatio < SNOW_START) {
-     biomeColor = mountainColor;
-    } else {
-     biomeColor = mix(mountainColor, snowColor, smoothstep(SNOW_START, 1.0, landRatio));
-    }
+    if (landRatio < BEACH_END) biomeColor = mix(plainsColor, beachColor, smoothstep(BEACH_END, 0.0, landRatio));
+    else if (landRatio < PLAINS_END) biomeColor = plainsColor;
+    else if (landRatio < MOUNTAIN_START) biomeColor = mix(plainsColor, mountainColor, smoothstep(PLAINS_END, MOUNTAIN_START, landRatio));
+    else if (landRatio < SNOW_START) biomeColor = mountainColor;
+    else biomeColor = mix(mountainColor, snowColor, smoothstep(SNOW_START, 1.0, landRatio));
 
     if (landRatio > BEACH_END && landRatio < SNOW_START) {
      float forestNoise = valueNoise((vWorldPosition / uSphereRadius) * 25.0, uContinentSeed * 4.0);
      float forestMask = smoothstep(1.0 - uForestDensity, 1.0 - uForestDensity + 0.1, forestNoise);
      biomeColor = mix(biomeColor, forestColor, forestMask);
     }
-     
-    if (vRiverValue > 0.1) {
-     biomeColor = mix(biomeColor, waterColor * 0.9, vRiverValue);
-    }
+    if (vRiverValue > 0.1) biomeColor = mix(biomeColor, waterColor * 0.9, vRiverValue);
    }
 
    vec3 finalColor;
@@ -345,7 +329,6 @@ export function getHexPlanetShaders() {
   }
  `;
 
- // Combine noise functions with the main shader code for robustness
  return {
   vertexShader: noiseFunctions + hexVertexShader,
   fragmentShader: noiseFunctions + hexFragmentShader

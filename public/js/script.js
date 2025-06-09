@@ -643,27 +643,6 @@ function generateStarBackgroundCanvas(containerElement) {
   }
  }
 
-function createExplorationButton(planet, planetElement) {
-    const exploreButton = document.createElement('button');
-    exploreButton.className = 'explore-planet-btn';
-    exploreButton.innerHTML = '🔍'; // Unicode magnifying glass
-    exploreButton.style.position = 'absolute';
-    exploreButton.style.width = `${PLANET_EXPLORE_BUTTON_SIZE}px`;
-    exploreButton.style.height = `${PLANET_EXPLORE_BUTTON_SIZE}px`;
-    exploreButton.style.bottom = `-${PLANET_EXPLORE_BUTTON_SIZE + PLANET_EXPLORE_BUTTON_MARGIN}px`;
-    exploreButton.style.left = '50%';
-    exploreButton.style.transform = 'translateX(-50%)';
-    exploreButton.style.borderRadius = '50%';
-    exploreButton.style.cursor = 'pointer';
-    
-    exploreButton.addEventListener('click', (e) => {
-        e.stopPropagation();
-        switchToPlanetExploration(planet);
-    });
-    
-    planetElement.appendChild(exploreButton);
-}
-
 function switchToPlanetExploration(planet) {
     window.gameSessionData.currentExploredPlanet = planet;
     setActiveScreen(planetSurfaceScreen);
@@ -1292,8 +1271,6 @@ function switchToSolarSystemView(solarSystemId) {
 
    if (solarSystemContent) solarSystemContent.appendChild(planetElement);
    newPlanet.element = planetElement;
-
-   createExplorationButton(newPlanet, planetElement);
 
    if (window.planetVisualWorker) {
     const { element, ...planetRenderData } = newPlanet;

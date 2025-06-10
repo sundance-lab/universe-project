@@ -1,3 +1,7 @@
+/*
+File: sundance-lab/universe-project/universe-project-1c890612324cf52378cad7dd053c3e9f4655c465/public/js/solarSystemRenderer.js
+*/
+
 import * as THREE from 'three';
 import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls.js';
 import { getPlanetShaders } from './shaders.js';
@@ -168,7 +172,6 @@ export const SolarSystemRenderer = (() => {
             autoRotateSpeed: 0.5
         });
 
-        // START: Modify this listener
         controls.addEventListener('start', () => {
             if (cameraAnimation) {
                 cameraAnimation = null;
@@ -177,7 +180,6 @@ export const SolarSystemRenderer = (() => {
             controls.autoRotate = false;
             focusedPlanetMesh = null;
         });
-        // END: Modify this listener
 
         boundWheelHandler = (event) => {
             event.preventDefault();
@@ -222,45 +224,11 @@ export const SolarSystemRenderer = (() => {
         const deltaTime = (now - lastAnimateTime) / 1000;
         lastAnimateTime = now;
 
-        if (currentSystemData?.planets) {
-            currentSystemData.planets.forEach(planet => {
-                planet.currentOrbitalAngle += planet.orbitalSpeed * 0.1 * deltaTime * orbitSpeedMultiplier;
-                planet.currentAxialAngle += planet.axialSpeed * 2 * deltaTime;
-            });
-        }
-        
-        if (cameraAnimation) {
-            const speed = 0.05;
-            camera.position.lerp(cameraAnimation.targetPosition, speed);
-            controls.target.lerp(cameraAnimation.targetLookAt, speed);
-            if (camera.position.distanceTo(cameraAnimation.targetPosition) < 10) {
-                camera.position.copy(cameraAnimation.targetPosition);
-                controls.target.copy(cameraAnimation.targetLookAt);
-                cameraAnimation = null;
-                controls.enabled = true;
-                controls.autoRotate = true;
-            }
-        }
-        
-        // START: Add this block to keep the camera target locked on the orbiting planet
-        if (focusedPlanetMesh && !cameraAnimation) {
-            const planetWorldPosition = new THREE.Vector3();
-            focusedPlanetMesh.getWorldPosition(planetWorldPosition);
-            controls.target.copy(planetWorldPosition);
-        }
-        // END: Add this block
-
-        if(controls) controls.update(); // This is crucial for autoRotate to work
-        if (skybox) skybox.rotation.y += 0.00002;
-        if (sunLOD) {
-            sunLOD.rotation.y += 0.0001;
-            sunLOD.update(camera);
-            sunLOD.levels.forEach(level => {
-                if (level.object.material.uniforms) level.object.material.uniforms.time.value = now * 0.0003;
-            });
-        }
+        // Update planet positions first
         if (currentSystemData?.planets) {
             currentSystemData.planets.forEach((planet, index) => {
+                planet.currentOrbitalAngle += planet.orbitalSpeed * 0.1 * deltaTime * orbitSpeedMultiplier;
+                planet.currentAxialAngle += planet.axialSpeed * 2 * deltaTime;
                 const mesh = planetMeshes[index];
                 if (mesh) {
                     mesh.rotation.y = planet.currentAxialAngle;
@@ -271,10 +239,45 @@ export const SolarSystemRenderer = (() => {
                 }
             });
         }
+        
+        if (cameraAnimation) {
+            const speed = 0.05;
+            // Dynamically update targetLookAt to the planet's current position during the animation
+            if (focusedPlanetMesh) {
+                const currentPlanetWorldPosition = new THREE.Vector3();
+                focusedPlanetMesh.getWorldPosition(currentPlanetWorldPosition);
+                cameraAnimation.targetLookAt.copy(currentPlanetWorldPosition);
+            }
+
+            camera.position.lerp(cameraAnimation.targetPosition, speed);
+            controls.target.lerp(cameraAnimation.targetLookAt, speed);
+
+            if (camera.position.distanceTo(cameraAnimation.targetPosition) < 10) {
+                camera.position.copy(cameraAnimation.targetPosition);
+                controls.target.copy(cameraAnimation.targetLookAt);
+                cameraAnimation = null;
+                controls.enabled = true;
+                controls.autoRotate = true;
+            }
+        } else if (focusedPlanetMesh) { // After initial animation, keep target locked on moving planet
+            const planetWorldPosition = new THREE.Vector3();
+            focusedPlanetMesh.getWorldPosition(planetWorldPosition);
+            controls.target.copy(planetWorldPosition);
+        }
+
+        if(controls) controls.update(); // This is crucial for autoRotate to work
+        if (skybox) skybox.rotation.y += 0.00002;
+        if (sunLOD) {
+            sunLOD.rotation.y += 0.0001;
+            sunLOD.update(camera);
+            sunLOD.levels.forEach(level => {
+                if (level.object.material.uniforms) level.object.material.uniforms.time.value = now * 0.0003;
+            });
+        }
+        // Planet mesh position updates are now handled at the beginning of _animate
         renderer.render(scene, camera);
     }
     
-    // START: Modify this function
     function focusOnPlanet(planetId) {
         controls.autoRotate = false; // Stop any current rotation
         focusedPlanetMesh = planetMeshes.find(p => p.userData.id === planetId);
@@ -285,10 +288,9 @@ export const SolarSystemRenderer = (() => {
         focusedPlanetMesh.getWorldPosition(planetWorldPosition);
         const offset = new THREE.Vector3(0, focusedPlanetMesh.userData.size * 0.5, focusedPlanetMesh.userData.size * 2.0);
         const targetPosition = planetWorldPosition.clone().add(offset);
-        cameraAnimation = { targetPosition: targetPosition, targetLookAt: planetWorldPosition };
+        cameraAnimation = { targetPosition: targetPosition, targetLookAt: planetWorldPosition }; // Initial target for lerp
         controls.enabled = false;
     }
-    // END: Modify this function
     
     function setOrbitLinesVisible(visible) {
         orbitLines.forEach(line => { line.visible = !!visible; });

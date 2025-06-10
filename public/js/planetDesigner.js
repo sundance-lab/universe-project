@@ -61,7 +61,8 @@ export const PlanetDesigner = (() => {
    uOceanHeightLevel: { value: 0.5 }, uContinentSeed: { value: Math.random() },
    uRiverBasin: { value: 0.05 }, uForestDensity: { value: 0.5 },
    uTime: { value: 0.0 }, uSphereRadius: { value: SPHERE_BASE_RADIUS },
-   uDisplacementAmount: { value: 0.0 }
+   uDisplacementAmount: { value: 0.0 },
+   uLightDirection: { value: new THREE.Vector3(0.8, 0.6, 1.0) } // <-- FIX IS HERE
   };
    
   designerShaderMaterial = new THREE.ShaderMaterial({

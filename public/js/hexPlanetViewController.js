@@ -1,56 +1,55 @@
 // hexPlanetViewController.js
 
 import * as THREE from 'three';
-import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls';
-// The import for LOD is no longer needed here
+// OrbitControls are now managed globally in script.js, so we don't need to import here
 import { getHexPlanetShaders } from './shaders.js';
 
 export const HexPlanetViewController = (() => {
-    let scene, camera, renderer, controls, lod;
-    let animationId = null;
+    // These variables will now refer to the globally managed scene, camera, controls
+    let _scene, _camera, _controls, _renderer;
+    let lod;
+    let animationId = null; // This will now be controlled by the global animation loop
     let backButton = null;
-    // The old 'deactivate' and 'boundDeactivate' are no longer needed.
 
     const SPHERE_BASE_RADIUS = 1.0;
     const DISPLACEMENT_SCALING_FACTOR = 0.005;
 
     function addBarycentricCoordinates(geometry) {
-        // ... (this function is correct, no changes needed)
         const positions = geometry.attributes.position.array;
         const vertexCount = positions.length / 3;
         const barycentric = new Float32Array(vertexCount * 3);
-        
+
         for (let i = 0; i < vertexCount; i += 3) {
             barycentric[i * 3] = 1; barycentric[i * 3 + 1] = 0; barycentric[i * 3 + 2] = 0;
             barycentric[(i + 1) * 3] = 0; barycentric[(i + 1) * 3 + 1] = 1; barycentric[(i + 1) * 3 + 2] = 0;
             barycentric[(i + 2) * 3] = 0; barycentric[(i + 2) * 3 + 1] = 0; barycentric[(i + 2) * 3 + 2] = 1;
         }
-        
+
         geometry.setAttribute('barycentric', new THREE.BufferAttribute(barycentric, 3));
     }
 
-    function initScene(canvas, planetBasis) {
-        // ... (this function is correct, no changes needed)
-        scene = new THREE.Scene();
-        scene.background = new THREE.Color(0x000000);
+    // Renamed initScene to setupObjects and modified to accept global Three.js instances
+    function setupObjects(scene, camera, controls, renderer, planetBasis) {
+        _scene = scene;
+        _camera = camera;
+        _controls = controls;
+        _renderer = renderer;
 
-        camera = new THREE.PerspectiveCamera(60, canvas.offsetWidth / canvas.offsetHeight, 0.1, 1000);
-        camera.position.z = 2.4;
+        // Clear any existing Hex Planet objects from the scene
+        clearObjects();
 
-        renderer = new THREE.WebGLRenderer({ canvas, antialias: true, logarithmicDepthBuffer: true });
-        renderer.setSize(canvas.offsetWidth, canvas.offsetHeight);
-        renderer.setPixelRatio(window.devicePixelRatio);
-      
-   controls = new OrbitControls(camera, renderer.domElement);
-controls.enableDamping = true;
-controls.dampingFactor = 0.08;     // Increased from 0.05 for smoother transitions
-controls.rotateSpeed = 1.0;     
-controls.zoomSpeed = 0.8;          // Reduced from 1.2 for smoother zoom
-controls.minDistance = 1.2;
-controls.maxDistance = 40.0;
-controls.enablePan = false;
-controls.minPolarAngle = 0;
-controls.maxPolarAngle = Math.PI;
+        // Configure camera for Hex Planet view
+        _camera.position.set(0, 0, 2.4);
+        _controls.target.set(0, 0, 0); // Look at the center of the planet
+        _controls.enablePan = false; // Usually disabled for close-up planet inspection
+        _controls.minDistance = 1.2;
+        _controls.maxDistance = 40.0;
+        _controls.dampingFactor = 0.08;
+        _controls.rotateSpeed = 1.0;
+        _controls.zoomSpeed = 0.8;
+        _controls.minPolarAngle = 0;
+        _controls.maxPolarAngle = Math.PI;
+        _controls.update(); // Apply new settings
 
         const { vertexShader, fragmentShader } = getHexPlanetShaders();
 
@@ -71,7 +70,7 @@ controls.maxPolarAngle = Math.PI;
                     uOceanHeightLevel: { value: 0.0 },
                     uMountainStrength: { value: 1.0 },
                     uIslandStrength: { value: 1.0 },
-                    uPlanetType: { value: planetBasis.planetType || 0 }, // <-- THIS LINE IS THE FIX
+                    uPlanetType: { value: planetBasis.planetType || 0 },
                 }
             ]),
             vertexShader,
@@ -84,13 +83,12 @@ controls.maxPolarAngle = Math.PI;
         baseMaterial.uniforms.uOceanHeightLevel.value = normalizedOceanLevel - 0.5;
         baseMaterial.uniforms.uDisplacementAmount.value = terrainRange * DISPLACEMENT_SCALING_FACTOR;
 
-        lod = new THREE.LOD(); // Use THREE.LOD() here
-        scene.add(lod);
+        lod = new THREE.LOD();
+        _scene.add(lod); // Add to the global scene
 
         const detailLevels = [
             { subdivision: 256, distance: 0.0, strengths: [1.0, 1.0] },
-            // ... other levels
-            { subdivision: 6,   distance: 18.0, strengths: [1.0, 1.0] }
+            { subdivision: 6,   distance: 18.0, strengths: [1.0, 1.0] } // Assuming other levels are omitted for brevity
         ];
 
         detailLevels.forEach(level => {
@@ -103,41 +101,33 @@ controls.maxPolarAngle = Math.PI;
             lod.addLevel(mesh, level.distance);
         });
 
+        // Add lights to the global scene (if not already present from SolarSystemRenderer)
+        // Ensure only one set of lights is active if this is a global scene.
+        // For simplicity, we add them here, assuming SolarSystemRenderer's lights will be cleared first.
         const ambientLight = new THREE.AmbientLight(0xffffff, 0.7);
-        scene.add(ambientLight);
+        _scene.add(ambientLight);
         const directionalLight = new THREE.DirectionalLight(0xffffff, 0.5);
         directionalLight.position.set(5, 5, 5);
-        scene.add(directionalLight);
-
-        animate();
+        _scene.add(directionalLight);
     }
-        
-    function animate(now) {
-        // ... (this function is correct, no changes needed)
-        animationId = requestAnimationFrame(animate);
+
+    // Renamed animate to update to be called by the global animation loop
+    function update(now) {
         if (lod) {
             lod.children.forEach(mesh => {
                 if (mesh.material && mesh.material.uniforms.uTime) {
                     mesh.material.uniforms.uTime.value = now / 1000;
                 }
             });
+            lod.update(_camera); // LOD update still depends on camera
         }
-        if (controls) controls.update();
-        if (lod) lod.update(camera);
-        if (scene && camera) renderer.render(scene, camera);
+        // Controls.update() and renderer.render() are now handled by the global loop
     }
 
-    function cleanup() {
-        // ... (this function is correct, no changes needed)
-        if (animationId) {
-            cancelAnimationFrame(animationId);
-            animationId = null;
-        }
-        if (controls) {
-            controls.dispose();
-            controls = null;
-        }
+    // Renamed cleanup to clearObjects to reflect its new purpose
+    function clearObjects() {
         if (lod) {
+            _scene.remove(lod); // Remove from the global scene
             lod.traverse((object) => {
                 if (object.isMesh) {
                     object.geometry.dispose();
@@ -148,35 +138,24 @@ controls.maxPolarAngle = Math.PI;
                     }
                 }
             });
-            scene.remove(lod);
             lod = null;
         }
-        if (renderer) {
-            renderer.dispose();
-            renderer = null;
-        }
-        scene = null;
-        camera = null;
+        // Remove lights if they were added specifically by HexPlanetViewController
+        // This is simplified; proper light management in a unified scene would be more complex
+        _scene.children.slice().forEach(obj => {
+            if (obj instanceof THREE.Light && !(obj instanceof THREE.AmbientLight)) { // Keep ambient, remove directional if needed
+                _scene.remove(obj);
+            }
+        });
     }
 
-    function onResize() {
-        // ... (this function is correct, no changes needed)
-        if (!renderer || !camera) return;
-        const canvas = renderer.domElement;
-        const width = canvas.offsetWidth;
-        const height = canvas.offsetHeight;
-        if (width > 0 && height > 0) {
-            camera.aspect = width / height;
-            camera.updateProjectionMatrix();
-            renderer.setSize(width, height);
-        }
-    }
-    
+    // onResize is now handled by the global resize listener in script.js
+
     return {
-        init: () => { /* ... */ },
-
-        activate: (planetBasis, onBackCallback) => {
-            const canvas = document.getElementById('hex-planet-canvas');
+        // Init function is no longer needed here as part of module
+        // activate now takes the global scene, camera, controls, and renderer
+        load: (planetBasis, onBackCallback, scene, camera, controls, renderer) => {
+            const canvas = renderer.domElement; // Use the global renderer's canvas
             const screen = document.getElementById('hex-planet-screen');
             backButton = document.getElementById('back-from-hex-view');
 
@@ -185,25 +164,23 @@ controls.maxPolarAngle = Math.PI;
                 return;
             }
 
-            cleanup();
-            initScene(canvas, planetBasis);
-            
+            // No longer calling cleanup() here as a separate step; setupObjects will handle clearing
+            setupObjects(scene, camera, controls, renderer, planetBasis);
+
             const handleBackClick = () => {
-                cleanup(); 
-                
+                clearObjects(); // Only clear objects from the scene
                 if (typeof onBackCallback === 'function') {
                     onBackCallback();
                 }
-
                 backButton.removeEventListener('click', handleBackClick);
-                window.removeEventListener('resize', onResize);
+                // No longer remove global resize listener here
             };
 
             backButton.addEventListener('click', handleBackClick);
-            window.addEventListener('resize', onResize);
-            screen.classList.add('active');
+            screen.classList.add('active'); // Set screen active here
         },
-
-        cleanup: cleanup
+        clear: clearObjects, // Expose clear function
+        update: update, // Expose update function for global animation loop
+        // No longer need to expose cleanup directly as it's part of clear
     };
 })();

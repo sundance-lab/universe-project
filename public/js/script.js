@@ -3,6 +3,7 @@ import { PlanetDesigner } from './planetDesigner.js';
 import { HexPlanetViewController } from './hexPlanetViewController.js';
 import { SolarSystemRenderer } from './solarSystemRenderer.js';
 import { getNonOverlappingPositionInCircle, getDistance, adjustColor } from './utils.js';
+import { saveGameState, loadGameState } from './storage.js';
 
 function initializeModules() {
  // The imports now directly provide the objects, so we can assign them directly.
@@ -55,6 +56,9 @@ document.addEventListener('DOMContentLoaded', () => {
   // --- FUNCTION DEFINITIONS ---
   window.activeSolarSystemRenderer = null;
   let galaxyIconCache = {};
+
+  // This function is called from planetDesigner.js, so it needs to be on the window scope.
+  window.saveGameState = saveGameState;
 
   window.generatePlanetInstanceFromBasis = function (basis, isForDesignerPreview = false) {
       const useCustomDesign = !isForDesignerPreview && 
@@ -186,82 +190,6 @@ document.addEventListener('DOMContentLoaded', () => {
     SOLAR_SYSTEM_EXPLORABLE_RADIUS = MAX_PLANET_DISTANCE * 1.2;
   }
  
-  window.saveGameState = function () {
-    try {
-      const stateToSave = {
-        universeDiameter: window.gameSessionData.universe.diameter,
-        galaxies: window.gameSessionData.galaxies,
-        customPlanetDesigns: window.gameSessionData.customPlanetDesigns 
-      };
-      localStorage.setItem('galaxyGameSaveData', JSON.stringify(stateToSave));
-      console.log("Game state saved.");
-    } catch (e) {
-      console.error("Error saving game state:", e);
-    }
-  }
-
-  function loadGameState() {
-    try {
-      const savedStateString = localStorage.getItem('galaxyGameSaveData');
-      if (savedStateString) {
-        const loadedState = JSON.parse(savedStateString);
-        if (loadedState && typeof loadedState.universeDiameter === 'number' && Array.isArray(loadedState.galaxies)) {
-          window.gameSessionData.universe.diameter = loadedState.universeDiameter;
-          window.gameSessionData.galaxies = loadedState.galaxies;
-          
-          window.gameSessionData.galaxies.forEach(gal => {
-            gal.currentZoom = gal.currentZoom || 1.0;
-            gal.currentPanX = gal.currentPanX || 0;
-            gal.currentPanY = gal.currentPanY || 0;
-            gal.customName = gal.customName || null;
-            gal.generationParams = gal.generationParams || { densityFactor: 0.8 + Math.random() * 0.4 };
-            gal.solarSystems = gal.solarSystems || [];
-            gal.solarSystems.forEach(ss => {
-                ss.customName = ss.customName || null;
-                ss.sunSizeFactor = ss.sunSizeFactor ?? (0.5 + Math.random() * 9.5);
-                // Planet data is now generated on-demand in switchToSolarSystemView
-            });
-            gal.lineConnections = gal.lineConnections || [];
-            gal.layoutGenerated = gal.layoutGenerated || false;
-          });
-
-          window.gameSessionData.customPlanetDesigns = (loadedState.customPlanetDesigns || []).map(design => {
-            console.log("[DEBUG] Loading planet template:", {
-              designId: design.designId,
-              waterColor: design.waterColor,
-              landColor: design.landColor
-            });
-            const migratedDesign = { ...design };
-            if (migratedDesign.continentSeed === undefined) migratedDesign.continentSeed = Math.random();
-
-            if (typeof migratedDesign.minTerrainHeight !== 'number' && Array.isArray(migratedDesign.minTerrainHeightRange)) {
-              migratedDesign.minTerrainHeight = migratedDesign.minTerrainHeightRange[0];
-            }
-            if (typeof migratedDesign.maxTerrainHeight !== 'number' && Array.isArray(migratedDesign.maxTerrainHeightRange)) {
-              migratedDesign.maxTerrainHeight = migratedDesign.maxTerrainHeightRange[1];
-            }
-            if (typeof migratedDesign.oceanHeightLevel !== 'number' && Array.isArray(migratedDesign.oceanHeightRange)) {
-              migratedDesign.oceanHeightLevel = migratedDesign.oceanHeightRange[0];
-            }
-
-            delete migratedDesign.minTerrainHeightRange;
-            delete migratedDesign.maxTerrainHeightRange;
-            delete migratedDesign.oceanHeightRange;
-            return migratedDesign;
-          });
-          console.log("[DEBUG] Total templates loaded:", window.gameSessionData.customPlanetDesigns.length);  
-          console.log("Game state loaded successfully.");
-          return true;
-        }
-      }
-    } catch (error) { 
-      console.error("Error loading game state:", error); 
-      localStorage.removeItem('galaxyGameSaveData');
-    }
-    console.log("No valid game state found or error loading.");
-    return false;
-  }
-
   function generateStarBackgroundCanvas(containerElement) {
     const existingBackground = containerElement.querySelector('.star-background');
     if (existingBackground) {

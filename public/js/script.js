@@ -12,13 +12,12 @@ import { UIManager } from './uiManager.js';
 
 // --- INITIALIZATION ---
 function initializeModules() {
- // The imports now directly provide the objects, so we can assign them directly.
- window.PlanetDesigner = PlanetDesigner;
- if (window.PlanetDesigner?.init) {
-    window.PlanetDesigner.init();
- } else {
-    console.error("PlanetDesigner module or init function is missing.");
- }
+    window.PlanetDesigner = PlanetDesigner;
+    if (window.PlanetDesigner?.init) {
+        window.PlanetDesigner.init();
+    } else {
+        console.error("PlanetDesigner module or init function is missing.");
+    }
 }
 
 document.addEventListener('DOMContentLoaded', () => {
@@ -29,11 +28,8 @@ document.addEventListener('DOMContentLoaded', () => {
     window.DEFAULT_OCEAN_HEIGHT_LEVEL = 2.0;
     window.DEFAULT_PLANET_AXIAL_SPEED = 0.01;
     
-    let currentNumGalaxies;
-    let currentMinSSCount;
-    let currentMaxSSCount;
-    let currentMinPlanets;
-    let currentMaxPlanets;
+    const DEV_SETTINGS_KEY = 'universeDevSettings';
+    let devSettings = {};
 
     window.gameSessionData = {
         universe: { diameter: null },
@@ -71,46 +67,85 @@ document.addEventListener('DOMContentLoaded', () => {
         createPlanetDesignButton: document.getElementById('create-planet-design-btn'),
         planetSidebar: document.getElementById('planet-sidebar'),
         planetSidebarList: document.getElementById('planet-sidebar-list'),
-
+        // START: Add Dev Controls Elements
+        devControlsButton: document.getElementById('dev-controls-btn'),
+        devControlsModal: document.getElementById('dev-controls-modal'),
+        devNumGalaxiesInput: document.getElementById('dev-num-galaxies'),
+        devMinPlanetsInput: document.getElementById('dev-min-planets'),
+        devMaxPlanetsInput: document.getElementById('dev-max-planets'),
+        devOrbitLinesVisibleInput: document.getElementById('dev-orbit-lines-visible'),
+        devOrbitSpeedInput: document.getElementById('dev-orbit-speed'),
+        devOrbitSpeedValue: document.getElementById('dev-orbit-speed-value'),
+        devControlsSaveButton: document.getElementById('dev-controls-save'),
+        devControlsCancelButton: document.getElementById('dev-controls-cancel'),
+        // END: Add Dev Controls Elements
     };
     
     // --- FUNCTIONS ---
-    
-    // This function is called from other modules, so it needs to be on the window scope.
     window.saveGameState = saveGameState;
     window.generatePlanetInstanceFromBasis = generatePlanetInstanceFromBasis;
 
-    function loadCustomizationSettings() {
-        const settingsString = localStorage.getItem('galaxyCustomizationSettings');
-        if (settingsString) {
-            try {
-                const s = JSON.parse(settingsString);
-                currentNumGalaxies = s.numGalaxies || 3;
-                currentMinSSCount = s.minSS || 200;
-                currentMaxSSCount = s.maxSS || 300;
-                currentMinPlanets = s.minPlanets || 2;
-                currentMaxPlanets = s.maxPlanets || 8;
-            } catch (e) {
-                resetToDefaultCustomization();
-            }
-        } else {
-            resetToDefaultCustomization();
+    // START: Add Dev Controls Logic
+    function loadDevSettings() {
+        const defaults = { numGalaxies: 3, minPlanets: 2, maxPlanets: 8, orbitLinesVisible: false, orbitSpeed: 1.0 };
+        try {
+            const storedSettings = localStorage.getItem(DEV_SETTINGS_KEY);
+            devSettings = storedSettings ? { ...defaults, ...JSON.parse(storedSettings) } : defaults;
+        } catch (e) {
+            console.error("Error loading dev settings, using defaults.", e);
+            devSettings = defaults;
+        }
+        updateDevControlsUI();
+        applyDynamicDevSettings();
+    }
+
+    function saveDevSettings() {
+        devSettings = {
+            numGalaxies: parseInt(domElements.devNumGalaxiesInput.value, 10),
+            minPlanets: parseInt(domElements.devMinPlanetsInput.value, 10),
+            maxPlanets: parseInt(domElements.devMaxPlanetsInput.value, 10),
+            orbitLinesVisible: domElements.devOrbitLinesVisibleInput.checked,
+            orbitSpeed: parseFloat(domElements.devOrbitSpeedInput.value)
+        };
+        localStorage.setItem(DEV_SETTINGS_KEY, JSON.stringify(devSettings));
+        applyDynamicDevSettings();
+        domElements.devControlsModal.classList.remove('visible');
+        alert("Settings saved. Some settings require a new universe generation to take effect.");
+    }
+
+    function updateDevControlsUI() {
+        domElements.devNumGalaxiesInput.value = devSettings.numGalaxies;
+        domElements.devMinPlanetsInput.value = devSettings.minPlanets;
+        domElements.devMaxPlanetsInput.value = devSettings.maxPlanets;
+        domElements.devOrbitLinesVisibleInput.checked = devSettings.orbitLinesVisible;
+        domElements.devOrbitSpeedInput.value = devSettings.orbitSpeed;
+        domElements.devOrbitSpeedValue.textContent = Number(devSettings.orbitSpeed).toFixed(1);
+    }
+
+    function applyDynamicDevSettings() {
+        if (window.activeSolarSystemRenderer) {
+            window.activeSolarSystemRenderer.setOrbitLinesVisible(devSettings.orbitLinesVisible);
+            window.activeSolarSystemRenderer.setOrbitSpeed(devSettings.orbitSpeed);
         }
     }
 
-    function resetToDefaultCustomization() {
-        currentNumGalaxies = 3;
-        currentMinSSCount = 200;
-        currentMaxSSCount = 300;
-        currentMinPlanets = 2;
-        currentMaxPlanets = 8;
+    function setupDevControlsListeners() {
+        domElements.devControlsButton.addEventListener('click', () => {
+            updateDevControlsUI(); // Ensure UI is up-to-date when opened
+            domElements.devControlsModal.classList.add('visible');
+        });
+        domElements.devControlsCancelButton.addEventListener('click', () => domElements.devControlsModal.classList.remove('visible'));
+        domElements.devControlsSaveButton.addEventListener('click', saveDevSettings);
+        domElements.devOrbitSpeedInput.addEventListener('input', (e) => {
+            domElements.devOrbitSpeedValue.textContent = Number(e.target.value).toFixed(1);
+        });
     }
+    // END: Add Dev Controls Logic
 
     function generatePlanetsForSystem(solarSystemObject){
         solarSystemObject.planets = [];
-        const numPlanets = Math.floor(Math.random() * (currentMaxPlanets - currentMinPlanets + 1)) + currentMinPlanets;
+        const numPlanets = Math.floor(Math.random() * (devSettings.maxPlanets - devSettings.minPlanets + 1)) + devSettings.minPlanets;
         
-        // DEBUGGING LOG
         console.log(`[DEBUG] Generating ${numPlanets} planets for system ${solarSystemObject.id}.`);
 
         const SUN_ICON_SIZE = 60;
@@ -139,7 +174,7 @@ document.addEventListener('DOMContentLoaded', () => {
     
     function initializeGame(isForcedRegeneration = false) {
         console.log("Initializing game...");
-        loadCustomizationSettings();
+        loadDevSettings(); // Load settings first
 
         if (!isForcedRegeneration && loadGameState()) {
             console.log("Loaded existing game state.");
@@ -147,17 +182,15 @@ document.addEventListener('DOMContentLoaded', () => {
         } else {
             if (!isForcedRegeneration) console.log("No valid save found. Generating new universe.");
             generateUniverseLayout(domElements.universeCircle, window.gameSessionData, { universeBg: '#100520' });
-            generateGalaxies(window.gameSessionData, domElements.universeCircle, currentNumGalaxies);
+            generateGalaxies(window.gameSessionData, domElements.universeCircle, devSettings.numGalaxies);
         }
         
         UIManager.renderMainScreen();
-        preGenerateAllGalaxyContents(window.gameSessionData, domElements.galaxyViewport, { min: currentMinSSCount, max: currentMaxSSCount });
+        preGenerateAllGalaxyContents(window.gameSessionData, domElements.galaxyViewport, { min: 200, max: 300 }); // Note: SS count is not in dev controls yet
         
         window.gameSessionData.isInitialized = true;
         console.log("Game initialization complete.");
     }
-    
-    // --- WIRING UP MODULES ---
     
     const callbacks = {
         saveGameState: saveGameState,
@@ -169,15 +202,12 @@ document.addEventListener('DOMContentLoaded', () => {
         ),
         switchToPlanetDesignerScreen: () => {
             UIManager.setActiveScreen(domElements.planetDesignerScreen);
-            if (window.PlanetDesigner?.activate) {
-                window.PlanetDesigner.activate();
-            } else {
-                console.error("switchToPlanetDesignerScreen: PlanetDesigner module or activate function not found.");
-            }
+            if (window.PlanetDesigner?.activate) window.PlanetDesigner.activate();
+            else console.error("switchToPlanetDesignerScreen: PlanetDesigner module or activate function not found.");
         },
         generatePlanetsForSystem: generatePlanetsForSystem,
         getCustomizationSettings: () => ({
-            ssCountRange: { min: currentMinSSCount, max: currentMaxSSCount }
+            ssCountRange: { min: 200, max: 300 } // Note: Not yet in dev controls
         })
     };
 
@@ -185,5 +215,6 @@ document.addEventListener('DOMContentLoaded', () => {
     
     // --- STARTUP ---
     initializeModules();
+    setupDevControlsListeners(); // Set up listeners for the new modal
     initializeGame();
 });

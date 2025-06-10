@@ -352,6 +352,10 @@ export const SolarSystemRenderer = (() => {
         },
         clear: () => clearSceneObjects(), // Renamed dispose to clear
         update: update, // Expose update function for global animation loop
+        focusOnPlanet: focusOnPlanet, // Exposed focusOnPlanet
+        unfocusPlanet: unfocusPlanet, // Exposed unfocusPlanet
+        setOrbitLinesVisible: setOrbitLinesVisible, // Exposed setOrbitLinesVisible
+        setOrbitSpeed: setOrbitSpeed, // Exposed setOrbitSpeed
         // Expose a reference to the global controls, needed by script.js's applyDynamicDevSettings for example
         getControls: () => _controls
     };

@@ -69,6 +69,9 @@ document.addEventListener('DOMContentLoaded', () => {
         zoomOutButton: document.getElementById('zoom-out-btn'),
         regenerateUniverseButton: document.getElementById('regenerate-universe-btn'),
         createPlanetDesignButton: document.getElementById('create-planet-design-btn'),
+        planetSidebar: document.getElementById('planet-sidebar'),
+        planetSidebarList: document.getElementById('planet-sidebar-list'),
+
     };
     
     // --- FUNCTIONS ---

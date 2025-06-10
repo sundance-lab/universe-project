@@ -1,10 +1,4 @@
-/*
-File: sundance-lab/universe-project/universe-project-1c890612324cf52378cad7dd053c3e9f4655c465/public/js/uiManager.js
-*/
-
-// animationController functions are no longer directly used for animation control,
-// as the global Three.js loop handles that, but they might still be called for compatibility.
-import { stopSolarSystemAnimation } from './animationController.js';
+// uiManager.js
 import { generateSolarSystemsForGalaxy } from './universeGenerator.js';
 import { SolarSystemRenderer } from './solarSystemRenderer.js'; // Import the refactored SolarSystemRenderer
 import { HexPlanetViewController } from './hexPlanetViewController.js'; // Import the refactored HexPlanetViewController
@@ -282,7 +276,6 @@ export const UIManager = (() => {
 
         window.gameSessionData.activeGalaxyId = null;
         window.gameSessionData.activeSolarSystemId = null;
-        callbacks.stopSolarSystemAnimation(); // This is a no-op now
         setActiveScreen(elements.mainScreen);
         generateStarBackgroundCanvas(elements.mainScreen);
     }
@@ -304,7 +297,6 @@ export const UIManager = (() => {
         const galaxyNumDisplay = galaxy.id.split('-').pop();
         if (elements.backToGalaxyButton) elements.backToGalaxyButton.textContent = galaxy.customName ? `← ${galaxy.customName}` : `← Galaxy ${galaxyNumDisplay}`;
         window.gameSessionData.activeSolarSystemId = null;
-        callbacks.stopSolarSystemAnimation(); // This is a no-op now
         if (!galaxy.layoutGenerated) generateSolarSystemsForGalaxy(galaxy, elements.galaxyViewport, callbacks.getCustomizationSettings().ssCountRange);
         setActiveScreen(elements.galaxyDetailScreen);
         generateStarBackgroundCanvas(elements.galaxyDetailScreen);
@@ -363,7 +355,6 @@ export const UIManager = (() => {
         }
 
         setActiveScreen(elements.hexPlanetScreen);
-        callbacks.stopSolarSystemAnimation(); // This is a no-op now
 
         // Load hex planet objects into the global scene
         HexPlanetViewController.activate(planetData, onBackCallback, _globalScene, _globalCamera, _globalControls, _globalRenderer); // Changed .load to .activate

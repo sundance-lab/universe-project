@@ -45,7 +45,7 @@ export const SolarSystemRenderer = (() => {
     let boundWheelHandler = null;
     let cameraAnimation = null;
     let orbitSpeedMultiplier = 1.0;
-    let focusedPlanetMesh = null; // ADD THIS LINE
+    let focusedPlanetMesh = null;
 
     const SPHERE_BASE_RADIUS = 0.8;
     const DISPLACEMENT_SCALING_FACTOR = 0.005;
@@ -164,8 +164,8 @@ export const SolarSystemRenderer = (() => {
             minDistance: 50, maxDistance: 450000, enablePan: true, rotateSpeed: 0.4,
             mouseButtons: { LEFT: THREE.MOUSE.PAN, MIDDLE: THREE.MOUSE.PAN, RIGHT: THREE.MOUSE.ROTATE },
             enableZoom: false,
-            autoRotate: false, // ADD THIS
-            autoRotateSpeed: 0.5 // ADD THIS
+            autoRotate: false,
+            autoRotateSpeed: 0.5
         });
 
         // START: Modify this listener
@@ -238,7 +238,7 @@ export const SolarSystemRenderer = (() => {
                 controls.target.copy(cameraAnimation.targetLookAt);
                 cameraAnimation = null;
                 controls.enabled = true;
-                controls.autoRotate = true; // Start orbiting
+                controls.autoRotate = true;
             }
         }
         

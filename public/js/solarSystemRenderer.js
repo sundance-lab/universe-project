@@ -170,9 +170,9 @@ export const SolarSystemRenderer = (() => {
         camera.position.set(0, 20000, 35000);
         camera.lookAt(0, 0, 0);
 
-        // MODIFICATION: Use a new, CORS-friendly NASA image for the skybox
+        // MODIFICATION: Use a new, CORS-friendly image for the skybox from a CDN
         const textureLoader = new THREE.TextureLoader();
-        textureLoader.load('https://dl.polyhaven.com/file/ph-assets/HDRIs/jpg/4k/starry_sky_4k.jpg', (texture) => {
+        textureLoader.load('https://cdn.jsdelivr.net/gh/jeromeetienne/threex.planets@master/images/galaxy_starfield.png', (texture) => {
             const skySphere = new THREE.SphereGeometry(150000, 60, 40);
             const skyMaterial = new THREE.MeshBasicMaterial({
                 map: texture,
@@ -182,6 +182,8 @@ export const SolarSystemRenderer = (() => {
             scene.add(skybox);
         }, undefined, (err) => {
             console.error("Failed to load skybox texture:", err);
+            // Fallback to a simple black background on error
+            scene.background = new THREE.Color(0x000000);
         });
 
         renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
@@ -214,7 +216,6 @@ export const SolarSystemRenderer = (() => {
     }
 
     function _onPlanetClick(event) {
-        // Prevent click detection when the user is dragging to pan/rotate
         if (controls.isDragging) return;
 
         event.preventDefault();

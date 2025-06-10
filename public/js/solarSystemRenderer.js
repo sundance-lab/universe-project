@@ -72,6 +72,9 @@ export const SolarSystemRenderer = (() => {
     }
 
     function _createPlanetMesh(planetData) {
+        // DEBUGGING LOG
+        console.log("[DEBUG] Creating planet mesh with data:", planetData);
+
         const { vertexShader, fragmentShader } = getPlanetShaders();
 
         const geometry = new THREE.SphereGeometry(planetData.size, 32, 32);
@@ -271,8 +274,6 @@ export const SolarSystemRenderer = (() => {
         if (intersects.length > 0) {
             const clickedPlanetData = intersects[0].object.userData;
             
-            // This is the robust fix for the back button.
-            // It captures the ID at the moment of the click, preventing any issues.
             const systemId = currentSystemData.id;
             const onBackCallback = () => {
                 window.switchToSolarSystemView(systemId);
@@ -288,8 +289,6 @@ export const SolarSystemRenderer = (() => {
         if (!renderer) return; // Exit if disposed
         animationFrameId = requestAnimationFrame(_animate);
 
-        // This block is the fix for the orbiting planets.
-        // It consolidates all animation logic into the renderer.
         if (lastAnimateTime === null) lastAnimateTime = now;
         const deltaTime = (now - lastAnimateTime) / 1000;
         lastAnimateTime = now;

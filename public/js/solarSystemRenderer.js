@@ -34,7 +34,7 @@ function _createSunMaterial(variation, finalSize, lodLevel) {
 }
 
 export const SolarSystemRenderer = (() => {
-    let scene, camera, renderer, controls; // MODIFICATION: Added controls
+    let scene, camera, renderer, controls;
     let sunLOD, sunLight;
     let planetMeshes = [];
     let orbitLines = [];
@@ -166,14 +166,13 @@ export const SolarSystemRenderer = (() => {
         const height = container.offsetHeight;
         const aspect = width / height;
 
-        // MODIFICATION: Switched back to PerspectiveCamera for a 3D view
         camera = new THREE.PerspectiveCamera(60, aspect, 100, 300000);
-        camera.position.set(0, 20000, 35000); // Semi-top down view
+        camera.position.set(0, 20000, 35000);
         camera.lookAt(0, 0, 0);
 
-        // MODIFICATION: Add NASA image as a skybox
+        // MODIFICATION: Use a new, CORS-friendly NASA image for the skybox
         const textureLoader = new THREE.TextureLoader();
-        textureLoader.load('https://svs.gsfc.nasa.gov/vis/a010000/a013800/a013875/starmap_2020_4k.jpg', (texture) => {
+        textureLoader.load('https://dl.polyhaven.com/file/ph-assets/HDRIs/jpg/4k/starry_sky_4k.jpg', (texture) => {
             const skySphere = new THREE.SphereGeometry(150000, 60, 40);
             const skyMaterial = new THREE.MeshBasicMaterial({
                 map: texture,
@@ -181,6 +180,8 @@ export const SolarSystemRenderer = (() => {
             });
             const skybox = new THREE.Mesh(skySphere, skyMaterial);
             scene.add(skybox);
+        }, undefined, (err) => {
+            console.error("Failed to load skybox texture:", err);
         });
 
         renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
@@ -188,12 +189,18 @@ export const SolarSystemRenderer = (() => {
         renderer.setSize(width, height);
         container.appendChild(renderer.domElement);
         
-        // MODIFICATION: Initialize OrbitControls
+        // MODIFICATION: Configure OrbitControls for free-panning
         controls = new OrbitControls(camera, renderer.domElement);
         controls.enableDamping = true;
         controls.dampingFactor = 0.05;
         controls.minDistance = 1000;
         controls.maxDistance = 100000;
+        controls.screenSpacePanning = false; // Ensures panning is parallel to the ground plane
+        controls.mouseButtons = {
+            LEFT: THREE.MOUSE.ROTATE,
+            MIDDLE: THREE.MOUSE.DOLLY,
+            RIGHT: THREE.MOUSE.PAN
+        };
 
 
         raycaster = new THREE.Raycaster();
@@ -207,6 +214,9 @@ export const SolarSystemRenderer = (() => {
     }
 
     function _onPlanetClick(event) {
+        // Prevent click detection when the user is dragging to pan/rotate
+        if (controls.isDragging) return;
+
         event.preventDefault();
         if (!renderer || !camera || planetMeshes.length === 0) return;
 
@@ -240,7 +250,7 @@ export const SolarSystemRenderer = (() => {
         if (!renderer) return;
         animationFrameId = requestAnimationFrame(_animate);
 
-        controls.update(); // Required for OrbitControls damping
+        controls.update();
 
         if (sunLOD) {
             sunLOD.rotation.y += 0.0001;
@@ -312,7 +322,6 @@ export const SolarSystemRenderer = (() => {
                 const width = container.offsetWidth;
                 const height = container.offsetHeight;
                 renderer.setSize(width, height);
-                // MODIFICATION: Update aspect ratio for PerspectiveCamera
                 camera.aspect = width / height;
                 camera.updateProjectionMatrix();
             }

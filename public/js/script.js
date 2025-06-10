@@ -134,7 +134,6 @@ document.addEventListener('DOMContentLoaded', () => {
   let MAX_PLANET_DISTANCE = (SUN_ICON_SIZE * BASE_MAX_PLANET_DISTANCE_FACTOR) * DEFAULT_MAX_PLANET_DISTANCE_MULTIPLIER;
   let ORBIT_CANVAS_SIZE = MAX_PLANET_DISTANCE * 2.2;
   let SOLAR_SYSTEM_EXPLORABLE_RADIUS = MAX_PLANET_DISTANCE * 1.2;
-  // MODIFICATION: Increased orbital separation for larger solar systems
   const MIN_ORBITAL_SEPARATION = 2000;
   let MIN_ROTATION_SPEED_RAD_PER_PERLIN_UNIT = 0.0005;
   let MAX_ROTATION_SPEED_RAD_PER_PERLIN_UNIT = 0.005;
@@ -1008,7 +1007,6 @@ document.addEventListener('DOMContentLoaded', () => {
 
           for (let i = 0; i < numPlanets; i++) {
               const planetData = generatePlanetInstanceFromBasis({});
-              // MODIFICATION: Greatly increased the random factor for orbital radius
               const orbitalRadius = lastOrbitalRadius + MIN_ORBITAL_SEPARATION + Math.random() * 15000;
               
               solarSystemObject.planets.push({
@@ -1085,26 +1083,6 @@ document.addEventListener('DOMContentLoaded', () => {
   
   // --- PANNING AND ZOOMING ---
 
-  function clampSolarSystemPan(solarSystemDataObject, viewportWidth, viewportHeight) { 
-    if (!solarSystemDataObject || !viewportWidth || !viewportHeight) { 
-      if (solarSystemDataObject) { 
-        solarSystemDataObject.currentPanX = 0; 
-        solarSystemDataObject.currentPanY = 0; 
-      }
-      return; 
-    }
-    const zoom = solarSystemDataObject.zoomLevel;
-    const contentWidth = SOLAR_SYSTEM_EXPLORABLE_RADIUS * 2; 
-    const contentHeight = SOLAR_SYSTEM_EXPLORABLE_RADIUS * 2;
-    const scaledContentWidth = contentWidth * zoom;
-    const scaledContentHeight = contentHeight * zoom;
-    const maxPanX = Math.max(0, (scaledContentWidth - viewportWidth) / 2);
-    const maxPanY = Math.max(0, (scaledContentHeight - viewportHeight) / 2);
-
-    solarSystemDataObject.currentPanX = Math.max(-maxPanX, Math.min(maxPanX, solarSystemDataObject.currentPanX));
-    solarSystemDataObject.currentPanY = Math.max(-maxPanY, Math.min(maxPanY, solarSystemDataObject.currentPanY));
-  }
-
   function clampGalaxyPan(galaxyDataObject) { 
     if (!galaxyDataObject || !galaxyViewport) return; 
     
@@ -1163,20 +1141,17 @@ document.addEventListener('DOMContentLoaded', () => {
           renderFn(true);
 
       } else if (activeScreen === solarSystemScreen) {
+          // Zoom for the 3D solar system view is handled by OrbitControls scroll wheel.
+          // This button-based zoom can be left as-is for accessibility, though it won't be as smooth.
           const ssViewData = window.gameSessionData.solarSystemView;
           let newZoom = ssViewData.zoomLevel * (1 + (direction === 'in' ? ZOOM_STEP : -ZOOM_STEP));
           newZoom = Math.max(SOLAR_SYSTEM_VIEW_MIN_ZOOM, Math.min(SOLAR_SYSTEM_VIEW_MAX_ZOOM, newZoom));
           ssViewData.zoomLevel = newZoom;
-          
-          if (window.activeSolarSystemRenderer) {
-              window.activeSolarSystemRenderer.handlePanAndZoom(ssViewData.currentPanX, ssViewData.currentPanY, ssViewData.zoomLevel);
-          }
       }
   }
     
   function startPan(event, viewportElement, contentElementToTransform, dataObjectWithPanProperties) {
     if (event.button !== 0 || event.target.closest('button, .solar-system-icon, .planet-icon')) {
-      console.log("SCRIPT: startPan returned early. Clicked on:", event.target);
       return;
     }
 
@@ -1205,24 +1180,8 @@ document.addEventListener('DOMContentLoaded', () => {
     const deltaX = event.clientX - p.startX;
     const deltaY = event.clientY - p.startY;
     
-    // MODIFICATION: Added separate, correct panning logic for the new solar system camera
-    if (p.viewportElement === solarSystemScreen && window.activeSolarSystemRenderer) {
-        const renderer = window.activeSolarSystemRenderer;
-        const camera = renderer.getCamera();
-        const canvas = renderer.getCanvas();
-
-        if (!camera || !canvas) return;
-        
-        // Convert pixel delta to world units based on current zoom
-        const worldWidth = camera.right - camera.left;
-        const scale = worldWidth / canvas.offsetWidth;
-        
-        p.dataObject.currentPanX = p.initialPanX - (deltaX * scale);
-        p.dataObject.currentPanY = p.initialPanY + (deltaY * scale); // Screen Y is inverted from 3D Z
-        
-        renderer.handlePanAndZoom(p.dataObject.currentPanX, p.dataObject.currentPanY, p.dataObject.zoomLevel, true);
-    } else if (p.viewportElement === galaxyViewport) {
-        // Original logic for galaxy view
+    // MODIFICATION: Removed solar system pan logic here, as it's handled by OrbitControls
+    if (p.viewportElement === galaxyViewport) {
         p.dataObject.currentPanX = p.initialPanX + deltaX;
         p.dataObject.currentPanY = p.initialPanY + deltaY;
         clampGalaxyPan(p.dataObject);
@@ -1303,21 +1262,19 @@ document.addEventListener('DOMContentLoaded', () => {
       }
   });
 
-  if (solarSystemScreen) {
-    solarSystemScreen.addEventListener('mousedown', e => {
-      if (e.target.closest('button')) return; 
-      if (window.gameSessionData.solarSystemView?.systemId === window.gameSessionData.activeSolarSystemId) {
-        startPan(e, solarSystemScreen, null, window.gameSessionData.solarSystemView);
-      }
-    });
-  }
+  // MODIFICATION: Removed the mousedown listener for the old solar system pan
+  // if (solarSystemScreen) { ... }
 
   const zoomableScreens = [galaxyDetailScreen, solarSystemScreen];
   zoomableScreens.forEach(screen => {
     if (screen) {
+      // NOTE: The wheel event for solar system zoom is now handled by OrbitControls.
+      // This listener will now only affect the galaxy view.
       screen.addEventListener('wheel', e => {
-        e.preventDefault(); 
-        handleZoom(e.deltaY < 0 ? 'in' : 'out', e); 
+        if (screen === galaxyDetailScreen) {
+            e.preventDefault(); 
+            handleZoom(e.deltaY < 0 ? 'in' : 'out', e);
+        }
       }, { passive: false }); 
     }
   });

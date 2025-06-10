@@ -12,7 +12,7 @@ function getSolarSystemScreenElement() {
 }
 
 function animateSolarSystem(now) {
-    if (!isSolarSystemAnimationRunning()) return; // Check if animation was stopped
+    if (!isSolarSystemAnimationRunning()) return;
 
     animationFrameId = requestAnimationFrame(animateSolarSystem);
 
@@ -20,14 +20,14 @@ function animateSolarSystem(now) {
     const deltaTime = (now - lastAnimationTime) / 1000;
     lastAnimationTime = now;
 
-    if(window.gameSessionData?.solarSystemView?.planets) {
+    if (window.gameSessionData?.solarSystemView?.planets) {
         window.gameSessionData.solarSystemView.planets.forEach(planet => {
             planet.currentOrbitalAngle += planet.orbitalSpeed * 6 * deltaTime;
             planet.currentAxialAngle += planet.axialSpeed * 60 * deltaTime;
         });
     }
 
-    if(window.SolarSystemRenderer) { 
+    if (window.SolarSystemRenderer) {
         window.SolarSystemRenderer.update(now, window.gameSessionData.solarSystemView);
     }
 }

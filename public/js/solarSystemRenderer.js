@@ -94,7 +94,8 @@ export const SolarSystemRenderer = (() => {
                 uSphereRadius: { value: SPHERE_BASE_RADIUS },
                 uDisplacementAmount: { value: displacementAmount },
                 uTime: { value: 0.0 },
-                uPlanetType: { value: planetData.planetType || 0 }
+                uPlanetType: { value: planetData.planetType || 0 },
+                uLightDirection: { value: new THREE.Vector3(0.8, 0.6, 1.0) }
             },
             vertexShader,
             fragmentShader,
@@ -320,6 +321,7 @@ export const SolarSystemRenderer = (() => {
                     const x = planet.orbitalRadius * Math.cos(planet.currentOrbitalAngle);
                     const z = planet.orbitalRadius * Math.sin(planet.currentOrbitalAngle);
                     mesh.position.set(x, 0, z);
+                    mesh.material.uniforms.uLightDirection.value.copy(mesh.position).negate().normalize();
                 }
             });
         }

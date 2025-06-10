@@ -254,6 +254,8 @@ this.sizeTiers = {
         uniform vec3 glowColor;
         uniform float pulseSpeed;
         uniform float fadeStart;
+        uniform float minDetailLevel;
+        uniform float detailScaling;
         uniform float fadeEnd;
         uniform float sunSize;
         
@@ -310,8 +312,6 @@ this.sizeTiers = {
         coolColor: { value: variation.coolColor },
         midColor: { value: variation.midColor },
         peakColor: { value: variation.peakColor },
-        detailScaling: { value: 2.0 },
-        minDetailLevel: { value: 0.5 },
         adaptiveDetail: { value: true },
         valleyColor: { value: variation.valleyColor },
         glowColor: { value: variation.glowColor },
@@ -330,9 +330,9 @@ this.sizeTiers = {
         detailLevel: { value: lodLevel.noiseDetail },
         textureDetail: { value: lodLevel.textureDetail },
         cameraDistance: { value: 0.0 },
-        detailScaling: { value: 2.0 }, // New uniform for detail scaling
-        minDetailLevel: { value: 0.5 }  // New uniform for minimum detail
-     }
+detailScaling: { value: 2.0 }, // New uniform for detail scaling
+minDetailLevel: { value: 0.5 },  // New uniform for minimum detail
+     },
       vertexShader: `
         varying vec2 vUv;
         varying vec3 vNormal;
@@ -640,7 +640,7 @@ float fireNoise(vec3 p) {
     this.camera.lookAt(0, 0, 0);
 };
   
-  update(time) {
+update(time) {
     if (!this.lodGroup || !this.corona || !this.renderer) return;
     
     try {
@@ -650,18 +650,17 @@ float fireNoise(vec3 p) {
       
       this.lodGroup.rotation.z += rotationSpeed;
       
+      const cameraDistance = this.camera.position.distanceTo(this.lodGroup.position);
       const currentLOD = this.#calculateLODLevel(cameraDistance);
       
-    const cameraDistance = this.camera.position.distanceTo(this.lodGroup.position);
-    this.lodGroup.levels.forEach(level => {
-        if (level.object.material.uniforms) {
-            level.object.material.uniforms.time.value = time * 0.0003;
-            level.object.material.uniforms.cameraDistance.value = cameraDistance;
-            // Add adaptive detail based on distance
-            level.object.material.uniforms.detailScaling.value = 
-                2.0 * (1.0 + Math.max(0, (300 - cameraDistance) / 300));
-        }
-    });
+      this.lodGroup.levels.forEach(level => {
+          if (level.object.material.uniforms) {
+              level.object.material.uniforms.time.value = time * 0.0003;
+              level.object.material.uniforms.cameraDistance.value = cameraDistance;
+              level.object.material.uniforms.detailScaling.value = 
+                  2.0 * (1.0 + Math.max(0, (300 - cameraDistance) / 300));
+          }
+      });
       
       if (this.corona.material.uniforms) {
         this.corona.material.uniforms.time.value = time * 0.0002;

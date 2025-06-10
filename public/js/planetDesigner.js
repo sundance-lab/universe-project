@@ -1,9 +1,9 @@
 // public/js/planetDesigner.js
 
 import '../styles.css';
-import * as THREE from 'three';  // Add this line
+import * as THREE from 'three';
 import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls';
-import { LOD } from 'three';
+// The import for LOD is no longer needed here
 import { getPlanetShaders } from './shaders.js';
 import { HexPlanetViewController } from './hexPlanetViewController.js';
 

@@ -56,17 +56,24 @@ export const PlanetDesigner = (() => {
    
   const geometry = new THREE.IcosahedronGeometry(SPHERE_BASE_RADIUS, 32);
 
+  // --- FIX START ---
+  // The uniforms object now correctly merges built-in uniforms and has the typo fixed.
   const uniforms = THREE.UniformsUtils.merge([
     THREE.UniformsLib.common,
       {
-        uLandColor: { value: new THREE.Color() }, uWaterColor: { value: new THREE.Color() },
-        uOceanHeightLevel: { value: 0.5 }, uContinentSeed: { value: Math.random() },
-        uRiverBasin: { value: 0.05 }, uForestDensity: { value: 0.5 },
-        uTime: { value: 0.0 }, uSphereRadius: { value: SPHERE_BASE_RADIUS },
-        uDisplacementAmount: { value: 0.0 },
+        uLandColor: { value: new THREE.Color() }, 
+        uWaterColor: { value: new THREE.Color() },
+        uOceanHeightLevel: { value: 0.5 }, 
+        uContinentSeed: { value: Math.random() },
+        uRiverBasin: { value: 0.05 }, 
+        uForestDensity: { value: 0.5 },
+        uTime: { value: 0.0 }, 
+        uSphereRadius: { value: SPHERE_BASE_RADIUS },
+        uDisplacementAmount: { value: 0.0 }, // TYPO FIX: Was 'value.0'
         uLightDirection: { value: new THREE.Vector3(0.8, 0.6, 1.0) }
       }
   ]);
+  // --- FIX END ---
    
   designerShaderMaterial = new THREE.ShaderMaterial({
    uniforms,

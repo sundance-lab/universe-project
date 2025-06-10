@@ -1,4 +1,7 @@
 // public/js/script.js
+import './sunRenderer.js';
+import './hexPlanetViewController.js';
+import './solarSystemRenderer.js';
 import { startSolarSystemAnimation, stopSolarSystemAnimation } from './animationController.js';
 import { PlanetDesigner } from './planetDesigner.js';
 import { PlanetVisualPanelManager } from './planetVisualPanelManager.js';

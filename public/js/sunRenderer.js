@@ -4,9 +4,9 @@ import * as THREE from 'three';
 const LOD_LEVELS = {
   ULTRA_CLOSE: {
     distance: 150,
-    segments: 1024,
-    noiseDetail: 8.0,
-    textureDetail: 8.0
+    segments: 2048,        // Doubled from 1024
+    noiseDetail: 12.0,     // Increased from 8.0
+    textureDetail: 12.0    // Increased from 8.0
   },
   CLOSE: {
     distance: 300,     // Changed from 512
@@ -176,12 +176,30 @@ this.sizeTiers = {
     this.#setupRenderer();
   }
 
-  #calculateLODLevel(cameraDistance) {
-    if (cameraDistance < LOD_LEVELS.ULTRA_CLOSE.distance) return LOD_LEVELS.ULTRA_CLOSE;
-    if (cameraDistance < LOD_LEVELS.CLOSE.distance) return LOD_LEVELS.CLOSE;
-    if (cameraDistance < LOD_LEVELS.MEDIUM.distance) return LOD_LEVELS.MEDIUM;
-    return LOD_LEVELS.FAR;
-  }
+#calculateLODLevel(cameraDistance) {
+    const levels = Object.values(LOD_LEVELS);
+    for (let i = 0; i < levels.length - 1; i++) {
+        if (cameraDistance < levels[i].distance) {
+            const blend = this.#smoothstep(
+                levels[i+1].distance * 0.8,
+                levels[i+1].distance,
+                cameraDistance
+            );
+            return {
+                ...levels[i],
+                blend,
+                nextLevel: levels[i+1]
+            };
+        }
+    }
+    return levels[levels.length - 1];
+}
+
+// Add this helper function right after #calculateLODLevel
+#smoothstep(edge0, edge1, x) {
+    const t = Math.max(0, Math.min((x - edge0) / (edge1 - edge0), 1));
+    return t * t * (3 - 2 * t);
+}
 
   #createSunGeometry(segments) {
     return new THREE.SphereGeometry(1, segments, segments);
@@ -292,8 +310,11 @@ this.sizeTiers = {
         coolColor: { value: variation.coolColor },
         midColor: { value: variation.midColor },
         peakColor: { value: variation.peakColor },
+        detailScaling: { value: 2.0 },
+        minDetailLevel: { value: 0.5 },
+        adaptiveDetail: { value: true },
         valleyColor: { value: variation.valleyColor },
-                glowColor: { value: variation.glowColor },
+        glowColor: { value: variation.glowColor },
         noiseScale: { value: 1.5 },
         pulseSpeed: { value: variation.pulseSpeed },
         centerBrightness: { value: 2.2 },
@@ -308,8 +329,10 @@ this.sizeTiers = {
         fireIntensity: { value: variation.fireIntensity },
         detailLevel: { value: lodLevel.noiseDetail },
         textureDetail: { value: lodLevel.textureDetail },
-        cameraDistance: { value: 0.0 }
-      },
+        cameraDistance: { value: 0.0 },
+        detailScaling: { value: 2.0 }, // New uniform for detail scaling
+        minDetailLevel: { value: 0.5 }  // New uniform for minimum detail
+     }
       vertexShader: `
         varying vec2 vUv;
         varying vec3 vNormal;
@@ -413,6 +436,25 @@ this.sizeTiers = {
           return 42.0 * dot(m*m, vec4(dot(p0,x0), dot(p1,x1), dot(p2,x2), dot(p3,x3)));
         }
 
+float getDetailLevel() {
+    float dist = length(vViewPosition);
+    float scaledDetail = max(minDetailLevel, vDetailLevel * (1.0 + detailScaling / (dist + 1.0)));
+    return scaledDetail;
+}
+
+vec3 smoothNoise(vec3 x) {
+    vec3 f = fract(x);
+    f = f * f * (3.0 - 2.0 * f); // Smoothstep interpolation
+    
+    vec3 i = floor(x);
+    float n = dot(i, vec3(1.0, 157.0, 113.0));
+    return mix(
+        vec3(fract(sin(n) * 43758.5453123)),
+        vec3(fract(sin(n + 1.0) * 43758.5453123)),
+        f
+    );
+}
+
 float microDetail(vec3 p) {
     float detail = 0.0;
     float freq = 4.0;
@@ -431,39 +473,41 @@ float microDetail(vec3 p) {
         }
 
 float terrainNoise(vec3 p) {
+    float detail = getDetailLevel();
     float elevation = 0.0;
     float frequency = 1.0;
     float amplitude = 1.0;
     float maxAmplitude = 0.0;
     
-    // Base detail
-    int iterations = int(8.0 * detailLevel);
+    // Increase iterations for close-up detail
+    int iterations = int(min(12.0, 8.0 * detail));
     
     for(int i = 0; i < iterations; i++) {
-        elevation += amplitude * lodNoise(p * frequency * terrainScale, textureDetail);
+        vec3 noisePos = p * frequency * terrainScale;
+        float noiseVal = snoise(noisePos + smoothNoise(noisePos * 0.5).xyz * 0.1);
+        elevation += amplitude * noiseVal;
         maxAmplitude += amplitude;
-        amplitude *= 0.65;    // Adjusted for better detail retention
-        frequency *= 2.4;     // Increased frequency scaling
+        amplitude *= 0.65;
+        frequency *= 2.4;
     }
     
-    // Add high-frequency detail for close-up views
-    float closeupDetail = 0.0;
-    frequency = 8.0;
-    amplitude = 0.3;
-    
-    for(int i = 0; i < 3; i++) {
-        closeupDetail += amplitude * lodNoise(p * frequency * terrainScale, textureDetail * 2.0);
-        amplitude *= 0.5;
-        frequency *= 3.0;
-    }
-    
+    // Add micro-detail for very close views
     float dist = length(vViewPosition);
-    float closeupFactor = 1.0 - smoothstep(0.0, 300.0, dist);
+    if(dist < 100.0) {
+        float microFreq = frequency;
+        float microAmp = amplitude * 0.3;
+        for(int i = 0; i < 3; i++) {
+            elevation += microAmp * snoise(p * microFreq * terrainScale * 2.0);
+            microFreq *= 3.0;
+            microAmp *= 0.5;
+        }
+    }
     
-    return (elevation / maxAmplitude) + (closeupDetail * closeupFactor);
+    return elevation / maxAmplitude;
 }
 
 float fireNoise(vec3 p) {
+    float detail = getDetailLevel();
     float noise = 0.0;
     float amplitude = 1.0;
     float frequency = 1.0;
@@ -474,30 +518,36 @@ float fireNoise(vec3 p) {
         0.0
     );
 
-    // First pass for base noise
-    for(int i = 0; i < int(3.0 * detailLevel); i++) {
+    int iterations = int(min(8.0, 4.0 * detail));
+    
+    for(int i = 0; i < iterations; i++) {
         p += flow * amplitude;
-        noise += amplitude * lodNoise(p * frequency + time * fireSpeed, textureDetail);
+        vec3 noisePos = p * frequency + time * fireSpeed;
+        noise += amplitude * (snoise(noisePos) + snoise(noisePos * 1.5) * 0.5);
         frequency *= 2.0;
         amplitude *= 0.5;
         flow *= 0.7;
     }
     
-    // Second pass for high frequency detail
-    float highFreqNoise = 0.0;
-    frequency = 6.0;
-    amplitude = 0.4;
-    
-    for(int i = 0; i < 3; i++) {
-        highFreqNoise += amplitude * lodNoise(p * frequency + time * fireSpeed * 2.0, textureDetail);
-        frequency *= 2.0;
-        amplitude *= 0.5;
+    // Add micro-detail for close-up views
+    float dist = length(vViewPosition);
+    if(dist < 100.0) {
+        float microDetail = 0.0;
+        float microFreq = frequency;
+        float microAmp = amplitude * 0.4;
+        
+        for(int i = 0; i < 3; i++) {
+            vec3 microPos = p * microFreq + time * fireSpeed * 2.0;
+            microDetail += microAmp * snoise(microPos);
+            microFreq *= 2.5;
+            microAmp *= 0.5;
+        }
+        
+        float blend = 1.0 - (dist / 100.0);
+        noise += microDetail * blend;
     }
     
-    float dist = length(vViewPosition);
-    float closeupFactor = 1.0 - smoothstep(0.0, 300.0, dist);
-    
-    return (noise + highFreqNoise * closeupFactor) * fireIntensity;
+    return noise * fireIntensity;
 }
 
         void main() {
@@ -600,15 +650,18 @@ float fireNoise(vec3 p) {
       
       this.lodGroup.rotation.z += rotationSpeed;
       
-      const cameraDistance = this.camera.position.distanceTo(this.lodGroup.position);
       const currentLOD = this.#calculateLODLevel(cameraDistance);
       
-      this.lodGroup.levels.forEach(level => {
+    const cameraDistance = this.camera.position.distanceTo(this.lodGroup.position);
+    this.lodGroup.levels.forEach(level => {
         if (level.object.material.uniforms) {
-          level.object.material.uniforms.time.value = time * 0.0003;
-          level.object.material.uniforms.cameraDistance.value = cameraDistance;
+            level.object.material.uniforms.time.value = time * 0.0003;
+            level.object.material.uniforms.cameraDistance.value = cameraDistance;
+            // Add adaptive detail based on distance
+            level.object.material.uniforms.detailScaling.value = 
+                2.0 * (1.0 + Math.max(0, (300 - cameraDistance) / 300));
         }
-      });
+    });
       
       if (this.corona.material.uniforms) {
         this.corona.material.uniforms.time.value = time * 0.0002;

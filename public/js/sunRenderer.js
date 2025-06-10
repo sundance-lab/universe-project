@@ -227,14 +227,16 @@ this.sizeTiers = {
     const coronaScale = 1.2 + (Math.log10(finalSize) * 0.05);
     const coronaGeometry = new THREE.SphereGeometry(finalSize * coronaScale, 512, 512);
     const coronaMaterial = new THREE.ShaderMaterial({
-      uniforms: {
-        time: { value: 0 },
-        glowColor: { value: variation.coronaColor },
-        pulseSpeed: { value: variation.pulseSpeed * 0.8 },
-        fadeStart: { value: 0.2 }, 
-        fadeEnd: { value: 1.2 },
-        sunSize: { value: finalSize }
-      },
+uniforms: {
+  time: { value: 0 },
+  glowColor: { value: variation.coronaColor },
+  pulseSpeed: { value: variation.pulseSpeed * 0.8 },
+  fadeStart: { value: 0.2 }, 
+  fadeEnd: { value: 1.2 },
+  sunSize: { value: finalSize }, // Add comma here
+  minDetailLevel: { value: 0.5 },
+  detailScaling: { value: 2.0 }
+},
       vertexShader: `
         varying vec2 vUv;
         varying vec3 vNormal;
@@ -355,6 +357,7 @@ minDetailLevel: { value: 0.5 },  // New uniform for minimum detail
         }
       `,
       fragmentShader: `
+        precision highp float;
         uniform float time;
         uniform vec3 color;
         uniform vec3 hotColor;
@@ -377,6 +380,9 @@ minDetailLevel: { value: 0.5 },  // New uniform for minimum detail
         uniform float fireIntensity;
         uniform float detailLevel;
         uniform float textureDetail;
+        uniform float minDetailLevel;  // Add this
+        uniform float detailScaling;   // Add this
+        uniform float cameraDistance;  // Add this
         
         varying vec2 vUv;
         varying vec3 vNormal;
@@ -386,6 +392,11 @@ minDetailLevel: { value: 0.5 },  // New uniform for minimum detail
         
         vec4 permute(vec4 x){return mod(((x*34.0)+1.0)*x, 289.0);}
         vec4 taylorInvSqrt(vec4 r){return 1.79284291400159 - 0.85373472095314 * r;}
+
+        float smoothstep(float edge0, float edge1, float x) {
+            float t = clamp((x - edge0) / (edge1 - edge0), 0.0, 1.0);
+            return t * t * (3.0 - 2.0 * t);
+        }
         
         float snoise(vec3 v){ 
           const vec2 C = vec2(1.0/6.0, 1.0/3.0);
@@ -662,9 +673,11 @@ update(time) {
           }
       });
       
-      if (this.corona.material.uniforms) {
-        this.corona.material.uniforms.time.value = time * 0.0002;
-      }
+if (this.corona.material.uniforms) {
+  this.corona.material.uniforms.time.value = time * 0.0002;
+  this.corona.material.uniforms.detailScaling.value = 
+      2.0 * (1.0 + Math.max(0, (300 - cameraDistance) / 300));
+}
       
       this.renderer.render(this.scene, this.camera);
     } catch (error) {

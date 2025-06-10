@@ -56,7 +56,8 @@ export const SolarSystemRenderer = (() => {
     let orbitSpeedMultiplier = 1.0; 
 
     function _createSun(sunData) {
-        const variation = sunVariations[sunData.type % sunData.length];
+        // Corrected access to sunData.type
+        const variation = sunVariations[sunData.type % sunVariations.length]; 
         const baseSize = sizeTiers[variation.sizeCategory].size;
         const detailMultiplier = sizeTiers[variation.sizeCategory].detailMultiplier;
         const sizeVariation = 0.5 + Math.random() * 1.5;

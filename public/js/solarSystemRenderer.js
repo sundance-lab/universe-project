@@ -1,5 +1,3 @@
-// public/js/solarSystemRenderer.js
-
 import * as THREE from 'three';
 import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls.js';
 import { getPlanetShaders } from './shaders.js';
@@ -101,7 +99,7 @@ export const SolarSystemRenderer = (() => {
             },
             vertexShader,
             fragmentShader,
-            lights: true // <-- FIX: This tells Three.js to include lighting and camera uniforms
+            lights: true // This is the fix
         });
 
         const mesh = new THREE.Mesh(geometry, material);

@@ -122,13 +122,14 @@ export class SunRenderer {
             this.lodGroup.addLevel(sunMesh, level.distance);
         });
 
-        // --- NEW CORONA IMPLEMENTATION ---
+        // --- CORONA IMPLEMENTATION WITH FIXES ---
         
-        // The new corona is a large, camera-facing plane (a billboard) with a custom shader
+        // The corona is a large, camera-facing plane (a billboard) with a custom shader
         // to create a soft, extended, and non-uniform glow.
 
         // 1. Greatly increase the scale of the corona geometry.
-        const coronaScale = 20.0 + (Math.log10(finalSize) * 2.5);
+        // Adjusted values slightly for more flexibility.
+        const coronaScale = 25.0 + (Math.log10(finalSize) * 3.0); 
         const coronaGeometry = new THREE.PlaneGeometry(finalSize * coronaScale, finalSize * coronaScale);
 
         const coronaMaterial = new THREE.ShaderMaterial({
@@ -185,30 +186,40 @@ export class SunRenderer {
 
                     // 2. Create a very soft, gradual falloff using smoothstep and pow.
                     // The glow fades from the center outwards.
-                    float falloff = smoothstep(0.5, 0.0, dist);
-                    falloff = pow(falloff, 2.0); // Use pow to control the fade curve.
+                    // 'uvDist' will be 1.0 at center, 0.0 at radius 0.5.
+                    float uvDist = 1.0 - (dist * 2.0); 
+                    uvDist = max(0.0, uvDist); // Clamp to 0 to prevent negative values.
+                    
+                    // Power function for a smooth, gradual fade, increasing towards the center.
+                    float falloff = pow(uvDist, 3.0); // Adjust exponent for desired softness (e.g., 2.0 to 4.0)
 
                     // Add subtle, slow-moving noise to break up the perfect gradient.
-                    float noise = snoise(vUv * 5.0 + time * 0.05);
+                    // Increased multiplier for vUv to make noise more apparent on a larger corona.
+                    float noise = snoise(vUv * 8.0 + time * 0.05);
                     falloff *= (0.75 + noise * 0.25); // Mix noise in gently.
 
                     // A slow, subtle pulse for the whole corona.
                     float pulse = 1.0 + sin(time * pulseSpeed) * 0.1;
 
-                    // 3. Keep the final alpha very low for a subtle, translucent effect.
-                    float finalAlpha = falloff * 0.12;
+                    // Apply the pulse and keep the final alpha very low for a subtle, translucent effect.
+                    float finalAlpha = falloff * 0.12 * pulse; // Apply pulse here
                     
-                    gl_FragColor = vec4(glowColor * pulse, finalAlpha);
+                    // Crucial: Discard fragments with very low alpha to prevent rendering the square.
+                    if (finalAlpha < 0.005) { // A small threshold to cut off invisible parts
+                        discard;
+                    }
+                            
+                    gl_FragColor = vec4(glowColor, finalAlpha);
                 }
             `,
             transparent: true,
             blending: THREE.AdditiveBlending,
-            depthWrite: false,
+            depthWrite: false, // Don't write to depth buffer for transparency
         });
 
         this.corona = new THREE.Mesh(coronaGeometry, coronaMaterial);
         // The corona is placed at the sun's position but will not rotate with it.
-        // Its rotation will be updated to always face the camera.
+        // Its rotation will be updated to always face the camera (billboarding).
         this.corona.position.copy(this.lodGroup.position);
         this.scene.add(this.corona);
     }
@@ -235,7 +246,7 @@ export class SunRenderer {
                 fireIntensity: { value: variation.fireIntensity },
                 detailLevel: { value: lodLevel.noiseDetail },
                 textureDetail: { value: lodLevel.textureDetail },
-                cameraDistance: { value: 0.0 },
+                cameraDistance: { value: 0.0 }, // This uniform will be updated in the render loop
                 detailScaling: { value: 2.0 },
                 minDetailLevel: { value: 0.5 },
             },
@@ -288,9 +299,9 @@ export class SunRenderer {
                     vec3 x3 = x0 - D.yyy;
                     i = mod(i, 289.0);
                     vec4 p = permute(permute(permute(
-                                i.z + vec4(0.0, i1.z, i2.z, 1.0))
-                                + i.y + vec4(0.0, i1.y, i2.y, 1.0))
-                                + i.x + vec4(0.0, i1.x, i2.x, 1.0));
+                                        i.z + vec4(0.0, i1.z, i2.z, 1.0))
+                                        + i.y + vec4(0.0, i1.y, i2.y, 1.0))
+                                        + i.x + vec4(0.0, i1.x, i2.x, 1.0));
                     float n_ = 0.142857142857;
                     vec3 ns = n_ * D.wyz - D.xzx;
                     vec4 j = p - 49.0 * floor(p * ns.z * ns.z);
@@ -388,7 +399,7 @@ export class SunRenderer {
             `,
             side: THREE.FrontSide,
             blending: THREE.AdditiveBlending,
-            transparent: false,
+            transparent: false, // The sun's surface itself is opaque
             depthWrite: true,
         });
     }
@@ -409,14 +420,14 @@ export class SunRenderer {
 
         this.renderer.setSize(width, height, false);
         this.renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
-        this.renderer.setClearColor(0x000000, 0);
+        this.renderer.setClearColor(0x000000, 0); // Clear with transparent black
 
         const canvas = this.renderer.domElement;
         canvas.style.position = 'absolute';
         canvas.style.top = '0';
         canvas.style.left = '0';
         canvas.style.background = 'transparent';
-        canvas.style.pointerEvents = 'none';
+        canvas.style.pointerEvents = 'none'; // Allow clicks/events to pass through
         canvas.style.width = '100%';
         canvas.style.height = '100%';
 
@@ -426,7 +437,8 @@ export class SunRenderer {
 
         const variation = this.sunVariations[this.solarSystemType];
         const baseSize = this.sizeTiers[variation.sizeCategory].size;
-        const cameraDistance = baseSize * 5;
+        // Adjust camera distance if needed, perhaps based on sun size or desired view
+        const cameraDistance = baseSize * 5; 
 
         this.camera.position.set(0, 0, cameraDistance);
         this.camera.lookAt(0, 0, 0);
@@ -438,7 +450,8 @@ export class SunRenderer {
         try {
             const variation = this.sunVariations[this.solarSystemType];
             const baseSize = this.sizeTiers[variation.sizeCategory].size;
-            const rotationSpeed = 0.00005 / (Math.log10(baseSize) * 0.5);
+            // Adjust rotation speed to be more natural for different star sizes
+            const rotationSpeed = 0.00005 / (Math.log10(baseSize + 1) * 0.5); // Add 1 to baseSize to prevent log(0) issues
 
             this.lodGroup.rotation.y += rotationSpeed;
             this.lodGroup.update(this.camera);
@@ -490,6 +503,7 @@ export class SunRenderer {
                 canvas.removeEventListener('webglcontextrestored', this.boundContextRestored, false);
             }
             
+            // Dispose of LOD group meshes and materials
             this.lodGroup.traverse(object => {
                 if (object.geometry) object.geometry.dispose();
                 if (object.material) {
@@ -502,12 +516,14 @@ export class SunRenderer {
             });
             this.scene.remove(this.lodGroup);
 
+            // Dispose of corona geometry and material
             if (this.corona) {
                 this.corona.geometry.dispose();
                 this.corona.material.dispose();
                 this.scene.remove(this.corona);
             }
             
+            // Dispose of renderer and remove canvas from DOM
             if (this.renderer) {
                 this.renderer.dispose();
                 if (canvas && canvas.parentNode) {
@@ -517,6 +533,7 @@ export class SunRenderer {
         } catch (error) {
             console.error('Error during SunRenderer disposal:', error);
         } finally {
+            // Nullify references to aid garbage collection
             this.container = null;
             this.scene = null;
             this.camera = null;

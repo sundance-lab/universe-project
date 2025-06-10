@@ -10,9 +10,6 @@ export const UIManager = (() => {
     let linesCtx;
     let currentStarfieldCleanup;
 
-    // --- UTILITY FUNCTIONS (Internal to UI Manager) ---
-
-    // START: Add new helper function
     function _getPlanetTypeString(planetType) {
         switch (planetType) {
             case 1: return 'Volcanic World';
@@ -26,7 +23,7 @@ export const UIManager = (() => {
 
     function _renderPlanetSidebar(planets) {
         if (!elements.planetSidebarList) return;
-        elements.planetSidebarList.innerHTML = ''; // Clear previous list
+        elements.planetSidebarList.innerHTML = '';
 
         if (!planets || planets.length === 0) {
             const li = document.createElement('li');
@@ -41,11 +38,20 @@ export const UIManager = (() => {
             const li = document.createElement('li');
             li.className = 'planet-sidebar-item';
             li.textContent = `Planet ${index + 1} (${_getPlanetTypeString(planet.planetType)})`;
-            li.title = `Click to inspect Planet ${index + 1}`;
+            li.title = `Click to focus on Planet ${index + 1}`;
+            li.dataset.planetId = planet.id;
+
+            // START: Add the click listener
+            li.addEventListener('click', () => {
+                if (window.activeSolarSystemRenderer && typeof window.activeSolarSystemRenderer.focusOnPlanet === 'function') {
+                    window.activeSolarSystemRenderer.focusOnPlanet(planet.id);
+                }
+            });
+            // END: Add the click listener
+
             elements.planetSidebarList.appendChild(li);
         });
     }
-    // END: Add new helper function
 
     function makeTitleEditable(titleTextElement, inputElement, onSaveCallback) {
         if (!titleTextElement || !inputElement) return;
@@ -76,26 +82,19 @@ export const UIManager = (() => {
 
     function generateStarBackgroundCanvas(containerElement) {
         if (currentStarfieldCleanup) currentStarfieldCleanup();
-
         const existingBackground = containerElement.querySelector('.star-background');
-        if (existingBackground) {
-            existingBackground.remove();
-        }
-
+        if (existingBackground) existingBackground.remove();
         const canvas = document.createElement('canvas');
         canvas.className = 'star-background';
         containerElement.insertBefore(canvas, containerElement.firstChild);
-
         const updateCanvasSize = () => {
             const rect = containerElement.getBoundingClientRect();
             canvas.width = rect.width;
             canvas.height = rect.height;
         };
         updateCanvasSize();
-
         const ctx = canvas.getContext('2d');
         const stars = [];
-
         const numStars = Math.floor((canvas.width * canvas.height) / 1000);
         for (let i = 0; i < numStars; i++) {
             stars.push({
@@ -107,7 +106,6 @@ export const UIManager = (() => {
                 parallaxFactor: 0.1 + Math.random() * 0.005
             });
         }
-
         let animationFrame;
         function animate(timestamp) {
             ctx.clearRect(0, 0, canvas.width, canvas.height);
@@ -120,49 +118,25 @@ export const UIManager = (() => {
             });
             animationFrame = requestAnimationFrame(animate);
         }
-
         animate(0);
-
-        currentStarfieldCleanup = () => {
-            if (animationFrame) {
-                cancelAnimationFrame(animationFrame);
-            }
-        };
+        currentStarfieldCleanup = () => { if (animationFrame) cancelAnimationFrame(animationFrame); };
     }
-
-
-    // --- SCREEN MANAGEMENT ---
 
     function setActiveScreen(screenToShow) {
         const screens = [elements.mainScreen, elements.galaxyDetailScreen, elements.solarSystemScreen, elements.planetDesignerScreen, elements.hexPlanetScreen].filter(s => s);
         screens.forEach(s => s.classList.remove('active', 'panning-active'));
-
-        if (screenToShow) {
-            screenToShow.classList.add('active');
-        }
-
-        if (elements.zoomControlsElement) {
-            elements.zoomControlsElement.classList.toggle('visible', screenToShow === elements.galaxyDetailScreen);
-        }
-        
-        // START: Add this block to control sidebar visibility
-        if (elements.planetSidebar) {
-            elements.planetSidebar.style.display = (screenToShow === elements.solarSystemScreen) ? 'block' : 'none';
-        }
-        // END: Add this block
-        
+        if (screenToShow) screenToShow.classList.add('active');
+        if (elements.zoomControlsElement) elements.zoomControlsElement.classList.toggle('visible', screenToShow === elements.galaxyDetailScreen);
+        if (elements.planetSidebar) elements.planetSidebar.style.display = (screenToShow === elements.solarSystemScreen) ? 'block' : 'none';
         const isOnOverlayScreen = (screenToShow === elements.planetDesignerScreen || screenToShow === elements.hexPlanetScreen);
         if(elements.regenerateUniverseButton) elements.regenerateUniverseButton.style.display = isOnOverlayScreen ? 'none' : 'block';
         if(elements.createPlanetDesignButton) elements.createPlanetDesignButton.style.display = isOnOverlayScreen ? 'none' : 'block';
     }
 
-    // --- RENDERING & VIEW SWITCHING ---
-
     function renderMainScreen() {
         if (elements.mainScreenTitleText) elements.mainScreenTitleText.textContent = "Universe";
         if (!elements.universeCircle) return;
         elements.universeCircle.innerHTML = '';
-
         window.gameSessionData.galaxies.forEach(galaxy => {
             const GALAXY_ICON_SIZE = 60;
             const galaxyNumDisplay = galaxy.id.split('-').pop();
@@ -181,27 +155,19 @@ export const UIManager = (() => {
 
     function drawGalaxyLines(galaxy) {
         if (!elements.solarSystemLinesCanvasEl || !elements.galaxyZoomContent) return;
-
         const galaxyContentDiameter = parseFloat(elements.galaxyZoomContent.style.width);
         if (elements.solarSystemLinesCanvasEl.width !== galaxyContentDiameter) {
             elements.solarSystemLinesCanvasEl.width = galaxyContentDiameter;
             elements.solarSystemLinesCanvasEl.height = galaxyContentDiameter;
         }
-
         if (!linesCtx) linesCtx = elements.solarSystemLinesCanvasEl.getContext('2d');
         if (!linesCtx) return;
-
         linesCtx.clearRect(0, 0, elements.solarSystemLinesCanvasEl.width, elements.solarSystemLinesCanvasEl.height);
         if (!galaxy?.lineConnections?.length) return;
-
         linesCtx.strokeStyle = 'rgba(128, 128, 255, 0.4)';
         linesCtx.lineWidth = 0.5;
         linesCtx.setLineDash([]);
-
-        const systemPositions = Object.fromEntries(
-            galaxy.solarSystems.map(ss => [ss.id, { x: ss.x + ss.iconSize / 2, y: ss.y + ss.iconSize / 2 }])
-        );
-
+        const systemPositions = Object.fromEntries(galaxy.solarSystems.map(ss => [ss.id, { x: ss.x + ss.iconSize / 2, y: ss.y + ss.iconSize / 2 }]));
         galaxy.lineConnections.forEach(connection => {
             const fromPos = systemPositions[connection.fromId];
             const toPos = systemPositions[connection.toId];
@@ -217,10 +183,8 @@ export const UIManager = (() => {
     function renderGalaxyDetailScreen(isInteractivePanOrZoom = false) {
         const galaxy = window.gameSessionData.galaxies.find(g => g.id === window.gameSessionData.activeGalaxyId);
         if (!galaxy) return switchToMainView();
-        
         const { galaxyViewport, galaxyZoomContent, solarSystemLinesCanvasEl, galaxyDetailTitleText } = elements;
         if (!galaxyViewport || !galaxyZoomContent) return;
-
         const galaxyContentDiameter = window.gameSessionData.universe.diameter || 500;
         galaxyViewport.style.width = `${galaxyContentDiameter}px`;
         galaxyViewport.style.height = `${galaxyContentDiameter}px`;
@@ -228,11 +192,9 @@ export const UIManager = (() => {
         galaxyZoomContent.style.height = `${galaxyContentDiameter}px`;
         solarSystemLinesCanvasEl.style.width = `${galaxyContentDiameter}px`;
         solarSystemLinesCanvasEl.style.height = `${galaxyContentDiameter}px`;
-
         if (!galaxyIconCache[galaxy.id]) {
             galaxyZoomContent.innerHTML = '';
             const fragment = document.createDocumentFragment();
-
             galaxy.solarSystems.forEach(ss => {
                 const solarSystemElement = document.createElement('div');
                 solarSystemElement.className = 'solar-system-icon';
@@ -242,24 +204,16 @@ export const UIManager = (() => {
                 solarSystemElement.style.top = `${ss.y}px`;
                 solarSystemElement.dataset.solarSystemId = ss.id;
                 if (ss.customName) solarSystemElement.title = ss.customName;
-                solarSystemElement.addEventListener('click', (e) => {
-                    e.stopPropagation();
-                    switchToSolarSystemView(ss.id);
-                });
+                solarSystemElement.addEventListener('click', (e) => { e.stopPropagation(); switchToSolarSystemView(ss.id); });
                 fragment.appendChild(solarSystemElement);
             });
-
             galaxyZoomContent.appendChild(solarSystemLinesCanvasEl);
             galaxyZoomContent.appendChild(fragment);
-
             galaxyIconCache[galaxy.id] = true;
         }
-
         drawGalaxyLines(galaxy);
-
         galaxyZoomContent.style.transition = isInteractivePanOrZoom ? 'none' : 'transform 0.1s ease-out';
         galaxyZoomContent.style.transform = `translate(${galaxy.currentPanX}px, ${galaxy.currentPanY}px) scale(${galaxy.currentZoom})`;
-
         if (galaxyDetailTitleText) {
             const galaxyNumDisplay = galaxy.id.split('-').pop();
             galaxyDetailTitleText.textContent = galaxy.customName || `Galaxy ${galaxyNumDisplay}`;
@@ -283,32 +237,21 @@ export const UIManager = (() => {
             window.activeSolarSystemRenderer.dispose();
             window.activeSolarSystemRenderer = null;
         }
-
         const galaxy = window.gameSessionData.galaxies.find(g => g.id === galaxyId);
-        if (!galaxy) {
-            return switchToMainView();
-        }
-
+        if (!galaxy) return switchToMainView();
         window.gameSessionData.activeGalaxyId = galaxyId;
         const galaxyNumDisplay = galaxy.id.split('-').pop();
-        if (elements.backToGalaxyButton) {
-            elements.backToGalaxyButton.textContent = galaxy.customName ? `← ${galaxy.customName}` : `← Galaxy ${galaxyNumDisplay}`;
-        }
+        if (elements.backToGalaxyButton) elements.backToGalaxyButton.textContent = galaxy.customName ? `← ${galaxy.customName}` : `← Galaxy ${galaxyNumDisplay}`;
         window.gameSessionData.activeSolarSystemId = null;
         callbacks.stopSolarSystemAnimation();
-
-        if (!galaxy.layoutGenerated) {
-            generateSolarSystemsForGalaxy(galaxy, elements.galaxyViewport, callbacks.getCustomizationSettings().ssCountRange);
-        }
-
+        if (!galaxy.layoutGenerated) generateSolarSystemsForGalaxy(galaxy, elements.galaxyViewport, callbacks.getCustomizationSettings().ssCountRange);
         setActiveScreen(elements.galaxyDetailScreen);
         generateStarBackgroundCanvas(elements.galaxyDetailScreen);
         renderGalaxyDetailScreen(false);
-
         makeTitleEditable(elements.galaxyDetailTitleText, elements.galaxyDetailTitleInput, (newName) => {
             galaxy.customName = newName || null;
             callbacks.saveGameState();
-            renderMainScreen(); // Re-render main screen to update galaxy title there
+            renderMainScreen();
             return galaxy.customName || `Galaxy ${galaxyNumDisplay}`;
         });
     }
@@ -319,34 +262,22 @@ export const UIManager = (() => {
             window.activeSolarSystemRenderer = null;
         }
         callbacks.stopSolarSystemAnimation();
-
         window.gameSessionData.activeSolarSystemId = solarSystemId;
         const activeGalaxy = window.gameSessionData.galaxies.find(g => solarSystemId.startsWith(g.id));
         const solarSystemObject = activeGalaxy?.solarSystems.find(s => s.id === solarSystemId);
-
         if (!solarSystemObject) return switchToMainView();
-
-        if (!solarSystemObject.planets) {
-            callbacks.generatePlanetsForSystem(solarSystemObject);
-        }
-        
+        if (!solarSystemObject.planets) callbacks.generatePlanetsForSystem(solarSystemObject);
         console.log(`[DEBUG] Rendering system ${solarSystemId} with ${solarSystemObject.planets.length} planets.`);
-
-        // START: Add this line to populate the sidebar
         _renderPlanetSidebar(solarSystemObject.planets);
-        // END: Add this line
-
         const solarSystemDataForRenderer = {
             id: solarSystemObject.id,
             sun: { size: solarSystemObject.sunSizeFactor, type: Math.floor(Math.random() * 5) },
             planets: solarSystemObject.planets.map(p => ({ ...p }))
         };
-
         setActiveScreen(elements.solarSystemScreen);
         SolarSystemRenderer.init(solarSystemDataForRenderer);
         window.activeSolarSystemRenderer = SolarSystemRenderer;
         callbacks.startSolarSystemAnimation();
-
         makeTitleEditable(elements.solarSystemTitleText, elements.solarSystemTitleInput, (newName) => {
             solarSystemObject.customName = newName || null;
             callbacks.saveGameState();
@@ -362,15 +293,11 @@ export const UIManager = (() => {
         HexPlanetViewController.activate(planetData, onBackCallback);
     }
     
-    // --- INPUT HANDLING ---
-    
     function clampGalaxyPan(galaxyDataObject) {
         const GALAXY_VIEW_MIN_ZOOM = 1.0;
         const { galaxyViewport } = elements;
         if (!galaxyDataObject || !galaxyViewport) return;
-    
         const zoom = galaxyDataObject.currentZoom;
-    
         if (zoom <= GALAXY_VIEW_MIN_ZOOM) {
             galaxyDataObject.currentPanX = 0;
             galaxyDataObject.currentPanY = 0;
@@ -389,16 +316,12 @@ export const UIManager = (() => {
         const GALAXY_VIEW_MIN_ZOOM = 1.0;
         const GALAXY_VIEW_MAX_ZOOM = 5.0;
         const ZOOM_STEP = 0.2;
-    
         const galaxy = window.gameSessionData.galaxies.find(g => g.id === window.gameSessionData.activeGalaxyId);
         if (!galaxy) return;
-    
         const oldZoom = galaxy.currentZoom;
         let newZoom = oldZoom * (1 + (direction === 'in' ? ZOOM_STEP : -ZOOM_STEP));
         newZoom = Math.max(GALAXY_VIEW_MIN_ZOOM, Math.min(GALAXY_VIEW_MAX_ZOOM, newZoom));
-    
         if (Math.abs(oldZoom - newZoom) < 0.0001) return;
-    
         if (mouseEvent && elements.galaxyViewport) {
             const rect = elements.galaxyViewport.getBoundingClientRect();
             const mouseX = mouseEvent.clientX - rect.left;
@@ -411,26 +334,20 @@ export const UIManager = (() => {
             galaxy.currentPanY = mouseRelY - (worldY * newZoom);
         }
         galaxy.currentZoom = newZoom;
-    
         clampGalaxyPan(galaxy);
         renderGalaxyDetailScreen(true);
     }
     
     function startPan(event) {
-        if (event.button !== 0 || event.target.closest('button, .solar-system-icon, .planet-icon')) {
-            return;
-        }
+        if (event.button !== 0 || event.target.closest('button, .solar-system-icon, .planet-icon')) return;
         const p = window.gameSessionData.panning;
         const galaxy = window.gameSessionData.galaxies.find(g => g.id === window.gameSessionData.activeGalaxyId);
-
         if(!galaxy) return;
-
         p.isActive = true;
         p.startX = event.clientX;
         p.startY = event.clientY;
         p.initialPanX = galaxy.currentPanX || 0;
         p.initialPanY = galaxy.currentPanY || 0;
-
         elements.galaxyViewport.classList.add('dragging');
         elements.galaxyZoomContent.style.transition = 'none';
         event.preventDefault();
@@ -441,10 +358,8 @@ export const UIManager = (() => {
         if (!p.isActive) return;
         const galaxy = window.gameSessionData.galaxies.find(g => g.id === window.gameSessionData.activeGalaxyId);
         if(!galaxy) return;
-
         const deltaX = event.clientX - p.startX;
         const deltaY = event.clientY - p.startY;
-        
         galaxy.currentPanX = p.initialPanX + deltaX;
         galaxy.currentPanY = p.initialPanY + deltaY;
         clampGalaxyPan(galaxy);
@@ -454,13 +369,10 @@ export const UIManager = (() => {
     function panMouseUp() {
         const p = window.gameSessionData.panning;
         if (!p.isActive) return;
-
         if(elements.galaxyViewport) elements.galaxyViewport.classList.remove('dragging');
         if(elements.galaxyZoomContent) elements.galaxyZoomContent.style.transition = '';
         p.isActive = false;
     }
-
-    // --- PUBLIC API ---
 
     return {
         init: (domElements, appCallbacks) => {
@@ -469,8 +381,6 @@ export const UIManager = (() => {
             window.switchToMainView = switchToMainView;
             window.switchToSolarSystemView = switchToSolarSystemView;
             window.switchToHexPlanetView = switchToHexPlanetView;
-
-            // Setup event listeners
             elements.regenerateUniverseButton.addEventListener('click', () => {
                 callbacks.regenerateUniverseState();
                 galaxyIconCache = {};
@@ -478,11 +388,8 @@ export const UIManager = (() => {
             elements.createPlanetDesignButton.addEventListener('click', callbacks.switchToPlanetDesignerScreen);
             elements.backToMainButton.addEventListener('click', switchToMainView);
             elements.backToGalaxyButton.addEventListener('click', () => {
-                if (window.gameSessionData.activeGalaxyId) {
-                    switchToGalaxyDetailView(window.gameSessionData.activeGalaxyId);
-                } else {
-                    switchToMainView();
-                }
+                if (window.gameSessionData.activeGalaxyId) switchToGalaxyDetailView(window.gameSessionData.activeGalaxyId);
+                else switchToMainView();
             });
             elements.zoomInButton.addEventListener('click', () => handleZoom('in'));
             elements.zoomOutButton.addEventListener('click', () => handleZoom('out'));
@@ -491,7 +398,6 @@ export const UIManager = (() => {
                 e.preventDefault();
                 handleZoom(e.deltaY < 0 ? 'in' : 'out', e);
             }, { passive: false });
-
             window.addEventListener('mousemove', panMouseMove);
             window.addEventListener('mouseup', panMouseUp);
         },

@@ -403,7 +403,7 @@ export function getHexPlanetShaders() {
 
         if (landRatio > BEACH_END && landRatio < SNOW_START) {
          float forestNoise = valueNoise((vWorldPosition / uSphereRadius) * 25.0, uContinentSeed * 4.0);
-         float forestMask = smoothstep(1.0 - uForestDensity, 1.0 - uForestDensity + 0.1, forestMask);
+         float forestMask = smoothstep(1.0 - uForestDensity, 1.0 - uForestDensity + 0.1, forestNoise);
          biomeColor = mix(biomeColor, forestColor, forestMask);
         }
         if (vRiverValue > 0.1) biomeColor = mix(biomeColor, waterColor * 0.9, vRiverValue);

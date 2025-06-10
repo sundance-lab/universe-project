@@ -111,7 +111,7 @@ export class SunRenderer {
         const sizeVariation = 0.8 + Math.random() * 0.4;
         const finalSize = baseSize * sizeVariation;
         
-        // Create different LOD meshes for the sun's surface.
+        // Create different LOD meshes for the sun's surface. This part is unchanged.
         Object.values(LOD_LEVELS).forEach(level => {
             const adjustedSegments = Math.floor(level.segments * detailMultiplier);
             const geometry = this._createSunGeometry(adjustedSegments);
@@ -122,80 +122,94 @@ export class SunRenderer {
             this.lodGroup.addLevel(sunMesh, level.distance);
         });
 
-        // Create the sun's corona (glowing atmosphere).
-        const coronaScale = 1.2 + (Math.log10(finalSize) * 0.05);
-        const coronaGeometry = new THREE.SphereGeometry(finalSize * coronaScale, 256, 256); // Reduced segments for performance.
+        // --- NEW CORONA IMPLEMENTATION ---
+        
+        // The new corona is a large, camera-facing plane (a billboard) with a custom shader
+        // to create a soft, extended, and non-uniform glow.
+
+        // 1. Greatly increase the scale of the corona geometry.
+        const coronaScale = 20.0 + (Math.log10(finalSize) * 2.5);
+        const coronaGeometry = new THREE.PlaneGeometry(finalSize * coronaScale, finalSize * coronaScale);
+
         const coronaMaterial = new THREE.ShaderMaterial({
             uniforms: {
                 time: { value: 0 },
                 glowColor: { value: variation.coronaColor },
-                pulseSpeed: { value: variation.pulseSpeed * 0.8 },
-                fadeStart: { value: 0.2 },
-                fadeEnd: { value: 1.2 },
-                sunSize: { value: finalSize },
-                minDetailLevel: { value: 0.5 },
-                detailScaling: { value: 2.0 }
+                pulseSpeed: { value: variation.pulseSpeed * 0.4 }, // Slow down the pulse for a subtle effect
             },
             vertexShader: `
+                // The vertex shader simply passes the UV coordinates to the fragment shader.
+                // The mesh's rotation will be handled in the update loop to face the camera.
                 varying vec2 vUv;
-                varying vec3 vNormal;
-                varying vec3 vViewPosition;
-                
                 void main() {
                     vUv = uv;
-                    vNormal = normalize(normalMatrix * normal);
-                    vec4 mvPosition = modelViewMatrix * vec4(position, 1.0);
-                    vViewPosition = -mvPosition.xyz;
-                    gl_Position = projectionMatrix * mvPosition;
+                    gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0);
                 }
             `,
             fragmentShader: `
-                uniform float time;
                 uniform vec3 glowColor;
+                uniform float time;
                 uniform float pulseSpeed;
-                uniform float fadeStart;
-                uniform float fadeEnd;
-                uniform float sunSize;
                 
                 varying vec2 vUv;
-                varying vec3 vNormal;
-                varying vec3 vViewPosition;
+
+                // Added permute function, which is a dependency for the snoise function.
+                vec3 permute(vec3 x) { return mod(((x*34.0)+1.0)*x, 289.0); }
                 
+                // 2D Simplex noise function to create a "wispy" and non-uniform corona.
+                float snoise(vec2 v) {
+                    const vec4 C = vec4(0.211324865405187, 0.366025403784439, -0.577350269189626, 0.024390243902439);
+                    vec2 i  = floor(v + dot(v, C.yy));
+                    vec2 x0 = v -   i + dot(i, C.xx);
+                    vec2 i1 = (x0.x > x0.y) ? vec2(1.0, 0.0) : vec2(0.0, 1.0);
+                    vec4 x12 = x0.xyxy + C.xxzz;
+                    x12.xy -= i1;
+                    i = mod(i, 289.0);
+                    vec3 p = permute(permute(i.y + vec3(0.0, i1.y, 1.0)) + i.x + vec3(0.0, i1.x, 1.0));
+                    vec3 m = max(0.5 - vec3(dot(x0,x0), dot(x12.xy,x12.xy), dot(x12.zw,x12.zw)), 0.0);
+                    m = m*m; m = m*m;
+                    vec3 x = 2.0 * fract(p * C.www) - 1.0;
+                    vec3 h = abs(x) - 0.5;
+                    vec3 ox = floor(x + 0.5);
+                    vec3 a0 = x - ox;
+                    m *= 1.79284291400159 - 0.85373472095314 * (a0*a0 + h*h);
+                    vec3 g;
+                    g.x  = a0.x  * x0.x  + h.x  * x0.y;
+                    g.yz = a0.yz * x12.xz + h.yz * x12.yw;
+                    return 130.0 * dot(m, g);
+                }
+
                 void main() {
-                    vec3 viewDir = normalize(vViewPosition);
-                    vec3 normal = normalize(vNormal);
+                    // Calculate distance from the center of the plane (UV coordinates 0.5, 0.5)
+                    float dist = distance(vUv, vec2(0.5));
+
+                    // 2. Create a very soft, gradual falloff using smoothstep and pow.
+                    // The glow fades from the center outwards.
+                    float falloff = smoothstep(0.5, 0.0, dist);
+                    falloff = pow(falloff, 2.0); // Use pow to control the fade curve.
+
+                    // Add subtle, slow-moving noise to break up the perfect gradient.
+                    float noise = snoise(vUv * 5.0 + time * 0.05);
+                    falloff *= (0.75 + noise * 0.25); // Mix noise in gently.
+
+                    // A slow, subtle pulse for the whole corona.
+                    float pulse = 1.0 + sin(time * pulseSpeed) * 0.1;
+
+                    // 3. Keep the final alpha very low for a subtle, translucent effect.
+                    float finalAlpha = falloff * 0.12;
                     
-                    float sizeFactor = log(sunSize) * 0.2;
-                    float rimPower = max(3.0, 6.0 - sizeFactor);
-                    float rim = pow(1.0 - abs(dot(normal, viewDir)), rimPower);
-                    
-                    float dist = length(vUv - vec2(0.5, 0.5)) * 2.0;
-                    
-                    float fadeStartAdjusted = fadeStart * (1.0 + sizeFactor * 0.1);
-                    float fadeEndAdjusted = fadeEnd * (1.0 + sizeFactor * 0.15);
-                    float alpha = smoothstep(fadeEndAdjusted, fadeStartAdjusted, dist);
-                    alpha *= rim;
-                    
-                    float pulse = sin(time * pulseSpeed) * 0.02 + 0.98;
-                    vec3 finalColor = glowColor;
-                    
-                    float colorShift = sin(dist * 3.14159 + time * 0.1) * (0.1 / log(sunSize + 1.0)) + 0.9;
-                    finalColor *= colorShift;
-                    finalColor *= pulse;
-                    
-                    float alphaAdjust = 1.0 / (1.0 + log(sunSize) * 0.1);
-                    alpha = pow(alpha, 1.5 + sizeFactor * 0.2) * alphaAdjust;
-                    
-                    gl_FragColor = vec4(finalColor, alpha * 0.3);
+                    gl_FragColor = vec4(glowColor * pulse, finalAlpha);
                 }
             `,
             transparent: true,
             blending: THREE.AdditiveBlending,
-            side: THREE.BackSide, // Use BackSide for performance and correct appearance.
-            depthWrite: false
+            depthWrite: false,
         });
 
         this.corona = new THREE.Mesh(coronaGeometry, coronaMaterial);
+        // The corona is placed at the sun's position but will not rotate with it.
+        // Its rotation will be updated to always face the camera.
+        this.corona.position.copy(this.lodGroup.position);
         this.scene.add(this.corona);
     }
 
@@ -245,24 +259,19 @@ export class SunRenderer {
                 }
             `,
             fragmentShader: `
-                // This fragment shader creates a dynamic, procedural surface for the sun.
                 precision highp float;
-                // Uniforms passed from the main script.
                 uniform float time;
                 uniform vec3 color, hotColor, coolColor, midColor, peakColor, valleyColor, glowColor;
                 uniform float pulseSpeed, turbulence, fireSpeed, colorIntensity;
                 uniform float flowScale, flowSpeed, sunSize, terrainScale, fireIntensity;
                 uniform float detailLevel, textureDetail, minDetailLevel, detailScaling, cameraDistance;
                 
-                // Varyings passed from the vertex shader.
                 varying vec2 vUv;
                 varying vec3 vNormal;
                 varying vec3 vViewPosition;
                 varying vec3 vWorldPosition;
                 varying float vDetailLevel;
 
-                // --- Simplex Noise (snoise) function ---
-                // Provides a base for procedural texture generation.
                 vec4 permute(vec4 x){return mod(((x*34.0)+1.0)*x, 289.0);}
                 vec4 taylorInvSqrt(vec4 r){return 1.79284291400159 - 0.85373472095314 * r;}
                 float snoise(vec3 v){
@@ -308,13 +317,11 @@ export class SunRenderer {
                     return 42.0 * dot(m*m, vec4(dot(p0,x0), dot(p1,x1), dot(p2,x2), dot(p3,x3)));
                 }
                 
-                // --- Utility functions ---
                 float getDetailLevel() {
                     float dist = length(vViewPosition);
                     return max(minDetailLevel, vDetailLevel * (1.0 + detailScaling / (dist + 1.0)));
                 }
 
-                // Generates terrain-like noise using multiple octaves.
                 float terrainNoise(vec3 p) {
                     float detail = getDetailLevel();
                     float elevation = 0.0;
@@ -334,7 +341,6 @@ export class SunRenderer {
                     return elevation / maxAmplitude;
                 }
 
-                // Generates fire-like, turbulent noise.
                 float fireNoise(vec3 p) {
                     float detail = getDetailLevel();
                     float noise = 0.0;
@@ -357,27 +363,22 @@ export class SunRenderer {
                     vec3 viewDir = normalize(vViewPosition);
                     vec3 normal = normalize(vNormal);
                     
-                    // Generate base procedural values.
                     float terrain = terrainNoise(vWorldPosition * 0.02);
                     float fireEffect = fireNoise(vWorldPosition * 0.03);
                     float flowPattern = fireNoise(vec3(vUv * flowScale, time * fireSpeed));
                     
-                    // Determine color based on terrain elevation.
                     vec3 terrainColor;
                     if(terrain > 0.6) terrainColor = mix(peakColor, hotColor, (terrain - 0.6) / 0.4);
                     else if(terrain > 0.4) terrainColor = mix(midColor, peakColor, (terrain - 0.4) / 0.2);
                     else if(terrain > 0.2) terrainColor = mix(color, midColor, (terrain - 0.2) / 0.2);
                     else terrainColor = mix(valleyColor, color, terrain / 0.2);
                     
-                    // Combine terrain and fire colors.
                     vec3 fireColor = mix(coolColor, hotColor, fireEffect);
                     vec3 finalColor = mix(terrainColor, fireColor, flowPattern * 0.5);
                     
-                    // Add edge glow (limb darkening/brightening effect).
                     float edgeFactor = pow(1.0 - abs(dot(normal, viewDir)), 3.0);
                     finalColor += glowColor * edgeFactor * 0.7 * (1.0 + flowPattern * 0.4);
                     
-                    // Adjust intensity and add pulsing effect.
                     finalColor *= colorIntensity;
                     float pulse = sin(time * pulseSpeed + flowPattern) * 0.02 + 0.98;
                     finalColor *= pulse;
@@ -387,7 +388,7 @@ export class SunRenderer {
             `,
             side: THREE.FrontSide,
             blending: THREE.AdditiveBlending,
-            transparent: false, // Surface is opaque.
+            transparent: false,
             depthWrite: true,
         });
     }
@@ -415,7 +416,7 @@ export class SunRenderer {
         canvas.style.top = '0';
         canvas.style.left = '0';
         canvas.style.background = 'transparent';
-        canvas.style.pointerEvents = 'none'; // Set to none so it doesn't block other game UI.
+        canvas.style.pointerEvents = 'none';
         canvas.style.width = '100%';
         canvas.style.height = '100%';
 
@@ -425,16 +426,12 @@ export class SunRenderer {
 
         const variation = this.sunVariations[this.solarSystemType];
         const baseSize = this.sizeTiers[variation.sizeCategory].size;
-        const cameraDistance = baseSize * 5; // Default camera distance.
+        const cameraDistance = baseSize * 5;
 
         this.camera.position.set(0, 0, cameraDistance);
         this.camera.lookAt(0, 0, 0);
     };
     
-    /**
-     * This method should be called in your game's main animation loop.
-     * @param {number} time - The current time, typically from requestAnimationFrame.
-     */
     update(time) {
         if (!this.lodGroup || !this.corona || !this.renderer) return;
 
@@ -443,15 +440,17 @@ export class SunRenderer {
             const baseSize = this.sizeTiers[variation.sizeCategory].size;
             const rotationSpeed = 0.00005 / (Math.log10(baseSize) * 0.5);
 
-            this.lodGroup.rotation.y += rotationSpeed; // Rotate around Y-axis for a more natural spin.
-            
-            // **CRITICAL FIX**: Update the LOD group with the camera's current position.
-            // This allows Three.js to automatically select the correct mesh for the distance.
+            this.lodGroup.rotation.y += rotationSpeed;
             this.lodGroup.update(this.camera);
+
+            // --- CORONA UPDATE ---
+            // Make the corona plane always face the camera (billboarding).
+            if (this.corona) {
+                this.corona.quaternion.copy(this.camera.quaternion);
+            }
 
             const cameraDistance = this.camera.position.distanceTo(this.lodGroup.position);
             
-            // Update shader uniforms for all LOD levels.
             this.lodGroup.levels.forEach(level => {
                 if (level.object.material.uniforms) {
                     level.object.material.uniforms.time.value = time * 0.0003;
@@ -459,9 +458,9 @@ export class SunRenderer {
                 }
             });
 
-            // Update corona shader uniforms.
             if (this.corona.material.uniforms) {
-                this.corona.material.uniforms.time.value = time * 0.0002;
+                // Use a slightly different time multiplier for the corona to desynchronize it from the surface.
+                this.corona.material.uniforms.time.value = time * 0.00015;
             }
 
             this.renderer.render(this.scene, this.camera);
@@ -470,9 +469,6 @@ export class SunRenderer {
         }
     }
     
-    /**
-     * Handles window resizing.
-     */
     _resize() {
         if (!this.container || !this.camera || !this.renderer) return;
 
@@ -485,12 +481,8 @@ export class SunRenderer {
         this.renderer.setSize(width, height, false);
     }
 
-    /**
-     * Cleans up resources to prevent memory leaks.
-     */
     dispose() {
         try {
-            // Remove event listeners.
             window.removeEventListener('resize', this.boundResize);
             const canvas = this.renderer?.domElement;
             if (canvas) {
@@ -498,11 +490,9 @@ export class SunRenderer {
                 canvas.removeEventListener('webglcontextrestored', this.boundContextRestored, false);
             }
             
-            // Dispose of geometries and materials to free up GPU memory.
             this.lodGroup.traverse(object => {
                 if (object.geometry) object.geometry.dispose();
                 if (object.material) {
-                    // Handle both single materials and arrays of materials.
                     if (Array.isArray(object.material)) {
                         object.material.forEach(material => material.dispose());
                     } else {
@@ -518,7 +508,6 @@ export class SunRenderer {
                 this.scene.remove(this.corona);
             }
             
-            // Dispose of the renderer and remove its canvas from the DOM.
             if (this.renderer) {
                 this.renderer.dispose();
                 if (canvas && canvas.parentNode) {
@@ -528,7 +517,6 @@ export class SunRenderer {
         } catch (error) {
             console.error('Error during SunRenderer disposal:', error);
         } finally {
-            // Nullify all properties to help with garbage collection.
             this.container = null;
             this.scene = null;
             this.camera = null;

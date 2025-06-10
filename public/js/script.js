@@ -1,16 +1,17 @@
 // public/js/script.js
-import { startSolarSystemAnimation, stopSolarSystemAnimation, isSolarSystemAnimationRunning } from './animationController.js';
-import * as PlanetDesigner from './planetDesigner.js';
-import * as PlanetVisualPanelManager from './planetVisualPanelManager.js';
+import { startSolarSystemAnimation, stopSolarSystemAnimation } from './animationController.js';
+import { PlanetDesigner } from './planetDesigner.js';
+import { PlanetVisualPanelManager } from './planetVisualPanelManager.js';
 import { SunRenderer } from './sunRenderer.js';
 import { HexPlanetViewController } from './hexPlanetViewController.js';
-import * as SolarSystemRenderer from './solarSystemRenderer.js'; // <-- ADD THIS LINE
+import * as SolarSystemRenderer from './solarSystemRenderer.js';
 
 window.SolarSystemRenderer = SolarSystemRenderer;
 
 function initializeModules() {
- window.PlanetDesigner = PlanetDesigner.PlanetDesigner;
- window.PlanetVisualPanelManager = PlanetVisualPanelManager.PlanetVisualPanelManager;
+ // The imports now directly provide the objects, so we can assign them directly.
+ window.PlanetDesigner = PlanetDesigner;
+ window.PlanetVisualPanelManager = PlanetVisualPanelManager;
  HexPlanetViewController.init();
 }
 
@@ -1541,7 +1542,7 @@ window.addEventListener('resize', () => {
 });
   
  // --- GAME INITIALIZATION ---
- function initializeGame(isForcedRegeneration = false) {
+ function initializeGame(.isForcedRegeneration = false) {
   console.log("Initializing game...");
   loadCustomizationSettings();
 

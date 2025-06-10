@@ -408,6 +408,7 @@ export const SolarSystemRenderer = (() => {
                 const orbitMaterial = new THREE.LineBasicMaterial({ color: 0x444444 });
                 const orbitLine = new THREE.Line(orbitGeometry, orbitMaterial);
                 orbitLine.rotation.x = Math.PI / 2;
+                orbitLine.visible = false;
                 orbitLines.push(orbitLine);
                 scene.add(orbitLine);
             });

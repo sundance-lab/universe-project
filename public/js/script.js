@@ -1274,7 +1274,7 @@ const planetInstanceAppearance = window.generatePlanetInstanceFromBasis({}, fals
  }
 }
 
-window.switchToHexPlanetView = (planetData, fromSolarSystem = false) => {
+window.switchToHexPlanetView = (planetData, onBackCallback) => {
     if (!planetData) {
         console.error("switchToHexPlanetView: No planet data provided.");
         return;
@@ -1286,27 +1286,13 @@ window.switchToHexPlanetView = (planetData, fromSolarSystem = false) => {
         return;
     }
 
-    // Use the central screen manager to correctly switch screens
     setActiveScreen(hexPlanetScreen);
     stopSolarSystemAnimation(); // Stop animation when entering hex view
 
-    // Initialize the 3D planet view with context
     if (HexPlanetViewController && typeof HexPlanetViewController.activate === 'function') {
-        HexPlanetViewController.activate(planetData, () => {
-            if (fromSolarSystem) {
-                // Return to solar system view
-                const solarSystemScreen = document.getElementById('solar-system-screen');
-                setActiveScreen(solarSystemScreen);
-                startSolarSystemAnimation(); // Restart animation when returning to solar system
-            } else {
-                // Return to designer
-                const designerScreen = document.getElementById('planet-designer-screen');
-                setActiveScreen(designerScreen);
-                if (window.PlanetDesigner?.activate) {
-                    window.PlanetDesigner.activate();
-                }
-            }
-        });
+        // We provide a default fallback if no callback is given.
+        const fallbackCallback = () => window.switchToMainView();
+        HexPlanetViewController.activate(planetData, typeof onBackCallback === 'function' ? onBackCallback : fallbackCallback);
     } else {
         console.error("HexPlanetViewController or its .activate() method is not available.");
     }

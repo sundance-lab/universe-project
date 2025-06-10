@@ -1,8 +1,9 @@
 import { startSolarSystemAnimation, stopSolarSystemAnimation } from './animationController.js';
 import { PlanetDesigner } from './planetDesigner.js';
 import { PlanetVisualPanelManager } from './planetVisualPanelManager.js';
-import { SunRenderer } from './sunRenderer.js';
 import { HexPlanetViewController } from './hexPlanetViewController.js';
+// ADDED: Import the new renderer
+import { SolarSystemRenderer } from './solarSystemRenderer.js';
 
 function initializeModules() {
  // The imports now directly provide the objects, so we can assign them directly.
@@ -54,7 +55,8 @@ document.addEventListener('DOMContentLoaded', () => {
   const createPlanetDesignButton = document.getElementById('create-planet-design-btn');
 
   // --- FUNCTION DEFINITIONS ---
-  window.currentSunRenderer = null;
+  // ADDED: A variable to hold our active renderer instance
+  window.activeSolarSystemRenderer = null;
 
   window.generatePlanetInstanceFromBasis = function (basis, isForDesignerPreview = false) {
       console.log("[DEBUG] Generating planet instance:");
@@ -847,13 +849,15 @@ document.addEventListener('DOMContentLoaded', () => {
   function renderSolarSystemScreen(isInteractivePanOrZoom = false) {
     if (!solarSystemContent || !solarSystemScreen || !window.gameSessionData.activeSolarSystemId) return;
     
+    // This function now only needs to handle the top-level container transform,
+    // as the 3D renderer manages its own camera.
     const solarSystemData = window.gameSessionData.solarSystemView;
     const panX = solarSystemData.currentPanX || 0;
     const panY = solarSystemData.currentPanY || 0;
-    const zoom = solarSystemData.zoomLevel || SOLAR_SYSTEM_VIEW_MIN_ZOOM;
+    const zoom = solarSystemData.zoomLevel || 1.0;
 
-    solarSystemContent.style.transition = isInteractivePanOrZoom ? 'none' : 'transform 0.1s ease-out';
-    solarSystemContent.style.transform = `translate(${panX}px, ${panY}px) scale(${zoom})`;
+    // We can remove the direct transform on solarSystemContent, as the new renderer's camera handles it.
+    // solarSystemContent.style.transform = `translate(${panX}px, ${panY}px) scale(${zoom})`;
 
     const activeGalaxy = window.gameSessionData.galaxies.find(g => window.gameSessionData.activeSolarSystemId.startsWith(g.id));
     const solarSystemObject = activeGalaxy?.solarSystems.find(s => s.id === solarSystemData.systemId);
@@ -868,10 +872,10 @@ document.addEventListener('DOMContentLoaded', () => {
 
   window.switchToMainView = switchToMainView;
   function switchToMainView() {
-    cleanupWebGLResources();
-    if (window.currentSunRenderer) {
-      window.currentSunRenderer.dispose();
-      window.currentSunRenderer = null;
+    // MODIFIED: Centralize cleanup
+    if (window.activeSolarSystemRenderer) {
+      window.activeSolarSystemRenderer.dispose();
+      window.activeSolarSystemRenderer = null;
     }
     window.gameSessionData.activeGalaxyId = null;
     window.gameSessionData.activeSolarSystemId = null;
@@ -913,12 +917,12 @@ document.addEventListener('DOMContentLoaded', () => {
   }
 
   function switchToGalaxyDetailView(galaxyId) {
-    cleanupWebGLResources();
-
-    if (window.currentSunRenderer) {
-      window.currentSunRenderer.dispose();
-      window.currentSunRenderer = null;
+    // MODIFIED: Centralize cleanup
+    if (window.activeSolarSystemRenderer) {
+      window.activeSolarSystemRenderer.dispose();
+      window.activeSolarSystemRenderer = null;
     }
+
     const galaxy = window.gameSessionData.galaxies.find(g => g.id === galaxyId);
     if (!galaxy) {
       console.warn(`switchToGalaxyDetailView: Galaxy ${galaxyId} not found. Switching to main view.`);
@@ -1001,24 +1005,46 @@ document.addEventListener('DOMContentLoaded', () => {
   }
     
   function switchToSolarSystemView(solarSystemId) {
-      // 1. Get the data for the selected solar system
+      // --- THIS FUNCTION IS COMPLETELY REWRITTEN ---
+
+      // 1. Clean up any previous renderer instance to prevent memory leaks
+      if (window.activeSolarSystemRenderer) {
+          window.activeSolarSystemRenderer.dispose();
+          window.activeSolarSystemRenderer = null;
+      }
+      stopSolarSystemAnimation(); // Ensure old animation loop is stopped
+
+      // 2. Get data for the selected solar system
       window.gameSessionData.activeSolarSystemId = solarSystemId;
       const activeGalaxy = window.gameSessionData.galaxies.find(g => solarSystemId.startsWith(g.id));
       const solarSystemObject = activeGalaxy?.solarSystems.find(s => s.id === solarSystemId);
 
       if (!solarSystemObject) {
           console.error(`switchToSolarSystemView: Solar System object ${solarSystemId} not found.`);
-          return switchToMainView(); // Go back if data is missing
+          return switchToMainView();
       }
 
-      // 2. Stop any old animations and clean up previous renderers
-      stopSolarSystemAnimation();
-      if (window.currentSunRenderer) {
-          window.currentSunRenderer.dispose();
-          window.currentSunRenderer = null;
+      // 3. Prepare data for the renderer
+      //    (This is where you would generate planets if they weren't saved)
+      if (!solarSystemObject.planets) {
+          // Placeholder for planet generation logic if needed in the future
+          solarSystemObject.planets = []; 
       }
+
+      const solarSystemDataForRenderer = {
+          id: solarSystemObject.id,
+          sun: {
+              size: solarSystemObject.sunSizeFactor,
+              type: Math.floor(Math.random() * 5) // Random sun type
+          },
+          planets: solarSystemObject.planets.map(p => ({...p})) // Pass a copy
+      };
       
-      // 3. Set the screen titles and UI elements
+      // 4. Update the global state
+      window.gameSessionData.solarSystemView.systemId = solarSystemId;
+      window.gameSessionData.solarSystemView.planets = solarSystemObject.planets;
+      
+      // 5. Set the screen titles and UI elements
       const systemNumDisplay = solarSystemId.split('-').pop();
       if (solarSystemTitleText) {
           solarSystemTitleText.textContent = solarSystemObject?.customName || `System ${systemNumDisplay}`;
@@ -1027,36 +1053,19 @@ document.addEventListener('DOMContentLoaded', () => {
           if (solarSystemObject) {
               solarSystemObject.customName = newName || null;
               window.saveGameState();
-              renderGalaxyDetailScreen(); // Update the galaxy view with the new name
+              renderGalaxyDetailScreen();
               return solarSystemObject.customName || `System ${systemNumDisplay}`;
           }
           return `System ${systemNumDisplay}`;
       });
 
-      // 4. Activate the solar system screen
+      // 6. Activate the screen and initialize the new renderer
       setActiveScreen(solarSystemScreen);
-
-      // 5. Create the new, powerful SunRenderer instance
-      const sunContainer = document.getElementById('sun-container');
-      if (sunContainer) {
-          sunContainer.innerHTML = ''; // Clear any old content
-          // Randomly pick a sun type (0-4) to create variety
-          const sunType = Math.floor(Math.random() * 5);
-          window.currentSunRenderer = new SunRenderer(sunContainer, sunType);
-          
-          // We'll need a new animation loop for this renderer
-          let lastTime = 0;
-          function animateSun(time) {
-              if (!window.currentSunRenderer) return; // Stop if renderer is destroyed
-              lastTime = time;
-              window.currentSunRenderer.update(time);
-              requestAnimationFrame(animateSun);
-          }
-          requestAnimationFrame(animateSun);
-
-      } else {
-          console.error("Could not find the #sun-container element to render the sun.");
-      }
+      SolarSystemRenderer.init(solarSystemDataForRenderer);
+      window.activeSolarSystemRenderer = SolarSystemRenderer; // Store the reference
+      
+      // 7. Start the animation loop
+      startSolarSystemAnimation();
   }
 
   window.switchToHexPlanetView = (planetData, onBackCallback) => {
@@ -1137,12 +1146,15 @@ document.addEventListener('DOMContentLoaded', () => {
       };
 
     } else if (activeScreen === solarSystemScreen) {
-      const viewData = window.gameSessionData.solarSystemView;
-      const oldZoom = viewData.zoomLevel;
-      let newZoom = oldZoom * (1 + (direction === 'in' ? ZOOM_STEP : -ZOOM_STEP));
+      // MODIFIED: Use the new renderer's pan/zoom handler
+      const ssViewData = window.gameSessionData.solarSystemView;
+      let newZoom = ssViewData.zoomLevel * (1 + (direction === 'in' ? ZOOM_STEP : -ZOOM_STEP));
       newZoom = Math.max(SOLAR_SYSTEM_VIEW_MIN_ZOOM, Math.min(SOLAR_SYSTEM_VIEW_MAX_ZOOM, newZoom));
-      viewData.zoomLevel = newZoom;
-      SolarSystemRenderer.handlePanAndZoom(viewData.currentPanX, viewData.currentPanY, viewData.zoomLevel);
+      ssViewData.zoomLevel = newZoom;
+      
+      if (window.activeSolarSystemRenderer) {
+        window.activeSolarSystemRenderer.handlePanAndZoom(ssViewData.currentPanX, ssViewData.currentPanY, ssViewData.zoomLevel);
+      }
       return; 
     } else {
       return;
@@ -1171,13 +1183,6 @@ document.addEventListener('DOMContentLoaded', () => {
 
     clampFn(target, viewElement.offsetWidth, viewElement.offsetHeight);
     renderFn(true);
-  }
-
-  function cleanupWebGLResources() {
-    if (window.currentSunRenderer) {
-      window.currentSunRenderer.dispose();
-      window.currentSunRenderer = null;
-    }
   }
     
   function startPan(event, viewportElement, contentElementToTransform, dataObjectWithPanProperties) {
@@ -1230,7 +1235,10 @@ document.addEventListener('DOMContentLoaded', () => {
       clampGalaxyPan(p.dataObject);
       renderGalaxyDetailScreen(true);
       } else if (p.viewportElement === solarSystemScreen) {
-        SolarSystemRenderer.handlePanAndZoom(p.dataObject.currentPanX, p.dataObject.currentPanY, p.dataObject.zoomLevel);
+        // MODIFIED: Call the new renderer's pan/zoom handler
+        if (window.activeSolarSystemRenderer) {
+            window.activeSolarSystemRenderer.handlePanAndZoom(p.dataObject.currentPanX, p.dataObject.currentPanY, p.dataObject.zoomLevel);
+        }
       }
   }
 
@@ -1249,9 +1257,8 @@ document.addEventListener('DOMContentLoaded', () => {
       const deltaTime = currentTime - lastFrameTime;
       lastFrameTime = currentTime;
       
-      if (window.currentSunRenderer) {
-          window.currentSunRenderer.update(currentTime);
-      }
+      // This local animate function is no longer needed for the sun,
+      // as the main animation is handled by animationController.
   }
   requestAnimationFrame(animate);
     
@@ -1262,9 +1269,10 @@ document.addEventListener('DOMContentLoaded', () => {
       return;
     }
 
-    if (window.currentSunRenderer) {
-      window.currentSunRenderer.dispose();
-      window.currentSunRenderer = null;
+    // MODIFIED: Centralize cleanup
+    if (window.activeSolarSystemRenderer) {
+        window.activeSolarSystemRenderer.dispose();
+        window.activeSolarSystemRenderer = null;
     }
     
     const existingCustomPlanetDesigns = [...(window.gameSessionData.customPlanetDesigns || [])];
@@ -1363,12 +1371,8 @@ document.addEventListener('DOMContentLoaded', () => {
               renderMainScreen();
           }
 
-          if (window.SolarSystemRenderer?.handleResize) {
-            window.SolarSystemRenderer.handleResize();
-          }
-
-          if (window.currentSunRenderer && typeof window.currentSunRenderer.resize === 'function') {
-              window.currentSunRenderer.resize();
+          if (window.activeSolarSystemRenderer?.handleResize) {
+            window.activeSolarSystemRenderer.handleResize();
           }
           
           const activeScreen = document.querySelector('.screen.active');

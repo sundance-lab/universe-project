@@ -276,8 +276,9 @@ document.addEventListener('DOMContentLoaded', () => {
 
     const callbacks = {
         saveGameState: saveGameState,
-        startSolarSystemAnimation: startSolarSystemAnimation, // These will become no-ops if animationController is removed
-        stopSolarSystemAnimation: stopSolarSystemAnimation,   // These will become no-ops if animationController is removed
+        // Removed references to animationController.js functions below
+        // startSolarSystemAnimation: startSolarSystemAnimation,
+        // stopSolarSystemAnimation: stopSolarSystemAnimation,
         regenerateUniverseState: () => regenerateCurrentUniverseState(
             { /* stopSolarSystemAnimation, */ initializeGame },
             domElements

@@ -41,16 +41,16 @@ export const HexPlanetViewController = (() => {
         renderer.setSize(canvas.offsetWidth, canvas.offsetHeight);
         renderer.setPixelRatio(window.devicePixelRatio);
       
-        controls = new OrbitControls(camera, renderer.domElement);
-        controls.enableDamping = true;
-        controls.dampingFactor = 0.05;  // Slightly increased for smoother movement
-        controls.rotateSpeed = 1.0;     // Doubled for better responsiveness
-        controls.zoomSpeed = 1.2;       // Add this line to improve zoom control
-        controls.minDistance = 1.2;
-        controls.maxDistance = 40.0;
-        controls.enablePan = false;
-        controls.minPolarAngle = 0;
-        controls.maxPolarAngle = Math.PI;
+   controls = new OrbitControls(camera, renderer.domElement);
+controls.enableDamping = true;
+controls.dampingFactor = 0.08;     // Increased from 0.05 for smoother transitions
+controls.rotateSpeed = 1.0;     
+controls.zoomSpeed = 0.8;          // Reduced from 1.2 for smoother zoom
+controls.minDistance = 1.2;
+controls.maxDistance = 40.0;
+controls.enablePan = false;
+controls.minPolarAngle = 0;
+controls.maxPolarAngle = Math.PI;
 
         const { vertexShader, fragmentShader } = getHexPlanetShaders();
 

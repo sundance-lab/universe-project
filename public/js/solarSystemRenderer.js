@@ -1,5 +1,5 @@
 import * as THREE from 'three';
-import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls.js';
+import { FlyControls } from 'three/examples/jsm/controls/FlyControls.js';
 import { getPlanetShaders } from './shaders.js';
 
 // --- Sun Creation Logic (Integrated from sunRenderer.js) ---
@@ -40,6 +40,7 @@ export const SolarSystemRenderer = (() => {
     let orbitLines = [];
     let currentSystemData = null;
     let animationFrameId = null;
+    let lastAnimateTime = 0;
     let raycaster, mouse;
 
     const SPHERE_BASE_RADIUS = 0.8;
@@ -170,7 +171,6 @@ export const SolarSystemRenderer = (() => {
         camera.position.set(0, 20000, 35000);
         camera.lookAt(0, 0, 0);
 
-        // MODIFICATION: Use a new, CORS-friendly image for the skybox from a CDN
         const textureLoader = new THREE.TextureLoader();
         textureLoader.load('https://cdn.jsdelivr.net/gh/jeromeetienne/threex.planets@master/images/galaxy_starfield.png', (texture) => {
             const skySphere = new THREE.SphereGeometry(150000, 60, 40);
@@ -182,7 +182,6 @@ export const SolarSystemRenderer = (() => {
             scene.add(skybox);
         }, undefined, (err) => {
             console.error("Failed to load skybox texture:", err);
-            // Fallback to a simple black background on error
             scene.background = new THREE.Color(0x000000);
         });
 
@@ -191,18 +190,12 @@ export const SolarSystemRenderer = (() => {
         renderer.setSize(width, height);
         container.appendChild(renderer.domElement);
         
-        // MODIFICATION: Configure OrbitControls for free-panning
-        controls = new OrbitControls(camera, renderer.domElement);
-        controls.enableDamping = true;
-        controls.dampingFactor = 0.05;
-        controls.minDistance = 1000;
-        controls.maxDistance = 100000;
-        controls.screenSpacePanning = false; // Ensures panning is parallel to the ground plane
-        controls.mouseButtons = {
-            LEFT: THREE.MOUSE.ROTATE,
-            MIDDLE: THREE.MOUSE.DOLLY,
-            RIGHT: THREE.MOUSE.PAN
-        };
+        // MODIFICATION: Use FlyControls for a free-roam camera
+        controls = new FlyControls(camera, renderer.domElement);
+        controls.movementSpeed = 10000; // Increased speed for large distances
+        controls.rollSpeed = Math.PI / 12;
+        controls.autoForward = false;
+        controls.dragToLook = true; // Use mouse drag to look around
 
 
         raycaster = new THREE.Raycaster();
@@ -216,6 +209,7 @@ export const SolarSystemRenderer = (() => {
     }
 
     function _onPlanetClick(event) {
+        // This simple check helps differentiate a click from a drag-to-look action
         if (controls.isDragging) return;
 
         event.preventDefault();
@@ -251,7 +245,10 @@ export const SolarSystemRenderer = (() => {
         if (!renderer) return;
         animationFrameId = requestAnimationFrame(_animate);
 
-        controls.update();
+        // MODIFICATION: Pass deltaTime to FlyControls update
+        const delta = (now - lastAnimateTime) * 0.001;
+        lastAnimateTime = now;
+        if(controls) controls.update(delta || 0);
 
         if (sunLOD) {
             sunLOD.rotation.y += 0.0001;
@@ -310,7 +307,8 @@ export const SolarSystemRenderer = (() => {
                 scene.add(orbitLine);
             });
 
-            _animate();
+            lastAnimateTime = performance.now();
+            _animate(lastAnimateTime);
         },
 
         update: (now, systemData) => {
@@ -325,6 +323,10 @@ export const SolarSystemRenderer = (() => {
                 renderer.setSize(width, height);
                 camera.aspect = width / height;
                 camera.updateProjectionMatrix();
+
+                if (controls) {
+                    controls.handleResize();
+                }
             }
         },
 

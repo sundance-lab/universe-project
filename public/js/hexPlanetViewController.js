@@ -71,6 +71,7 @@ controls.maxPolarAngle = Math.PI;
                     uOceanHeightLevel: { value: 0.0 },
                     uMountainStrength: { value: 1.0 },
                     uIslandStrength: { value: 1.0 },
+                    uPlanetType: { value: planetBasis.planetType || 0 }, // <-- THIS LINE IS THE FIX
                 }
             ]),
             vertexShader,

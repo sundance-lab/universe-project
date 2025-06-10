@@ -35,7 +35,7 @@ function _createSunMaterial(variation, finalSize, lodLevel) {
 
 export const SolarSystemRenderer = (() => {
     let scene, camera, renderer, controls;
-    let sunLOD, sunLight;
+    let sunLOD, sunLight, skybox;
     let planetMeshes = [];
     let orbitLines = [];
     let currentSystemData = null;
@@ -154,6 +154,8 @@ export const SolarSystemRenderer = (() => {
             scene.remove(line);
         });
         orbitLines = [];
+        
+        skybox = null;
 
         if (renderer) {
             renderer.dispose();
@@ -174,18 +176,18 @@ export const SolarSystemRenderer = (() => {
         const height = container.offsetHeight;
         const aspect = width / height;
 
-        camera = new THREE.PerspectiveCamera(60, aspect, 100, 300000);
+        camera = new THREE.PerspectiveCamera(60, aspect, 100, 600000);
         camera.position.set(0, 40000, 20000);
         camera.lookAt(0, 0, 0);
 
         const textureLoader = new THREE.TextureLoader();
         textureLoader.load('https://cdn.jsdelivr.net/gh/jeromeetienne/threex.planets@master/images/galaxy_starfield.png', (texture) => {
-            const skySphere = new THREE.SphereGeometry(150000, 60, 40);
+            const skySphere = new THREE.SphereGeometry(500000, 60, 40);
             const skyMaterial = new THREE.MeshBasicMaterial({
                 map: texture,
                 side: THREE.BackSide
             });
-            const skybox = new THREE.Mesh(skySphere, skyMaterial);
+            skybox = new THREE.Mesh(skySphere, skyMaterial);
             scene.add(skybox);
         }, undefined, (err) => {
             console.error("Failed to load skybox texture:", err);
@@ -202,7 +204,7 @@ export const SolarSystemRenderer = (() => {
         controls.dampingFactor = 0.05;
         controls.screenSpacePanning = true;
         controls.minDistance = 50;
-        controls.maxDistance = 100000;
+        controls.maxDistance = 450000;
         controls.enablePan = true;
         
         controls.rotateSpeed = 0.4;
@@ -254,7 +256,7 @@ export const SolarSystemRenderer = (() => {
         renderer.domElement.addEventListener('click', _onPlanetClick, false);
 
 
-        sunLight = new THREE.PointLight(0xffffff, 2.5, 200000);
+        sunLight = new THREE.PointLight(0xffffff, 2.5, 550000);
         scene.add(sunLight);
         scene.add(new THREE.AmbientLight(0xffffff, 0.1));
     }
@@ -294,6 +296,10 @@ export const SolarSystemRenderer = (() => {
         animationFrameId = requestAnimationFrame(_animate);
 
         if(controls) controls.update();
+        
+        if (skybox) {
+            skybox.rotation.y += 0.00002;
+        }
 
         if (sunLOD) {
             sunLOD.rotation.y += 0.0001;

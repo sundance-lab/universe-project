@@ -6,6 +6,8 @@ import { SunRenderer } from './sunRenderer.js';
 import { HexPlanetViewController } from './hexPlanetViewController.js';
 import * as SolarSystemRenderer from './solarSystemRenderer.js'; // <-- ADD THIS LINE
 
+window.SolarSystemRenderer = SolarSystemRenderer;
+
 function initializeModules() {
  window.PlanetDesigner = PlanetDesigner.PlanetDesigner;
  window.PlanetVisualPanelManager = PlanetVisualPanelManager.PlanetVisualPanelManager;
@@ -1160,7 +1162,7 @@ function switchToSolarSystemView(solarSystemId) {
 
         const planetInstanceAppearance = window.generatePlanetInstanceFromBasis({}, false);
         const newPlanet = {
-            id: `<span class="math-inline">\{solarSystemId\}\-planet\-</span>{i + 1}`,
+            id: `${solarSystemId}-planet-${i + 1}`,
             planetName: `Planet ${i + 1}`,
             size: planetSize,
             distance: planetDistance,
@@ -1286,23 +1288,19 @@ window.switchToHexPlanetView = (planetData, onBackCallback) => {
     target: galaxy, viewElement: galaxyViewport, clampFn: clampGalaxyPan, renderFn: renderGalaxyDetailScreen,
     minZoom: GALAXY_VIEW_MIN_ZOOM, maxZoom: GALAXY_VIEW_MAX_ZOOM, zoomKey: 'currentZoom', panXKey: 'currentPanX', panYKey: 'currentPanY'
    };
-// In public/js/script.js -> handleZoom
-} else if (activeScreen === solarSystemScreen) {
+
+  } else if (activeScreen === solarSystemScreen) {
     const viewData = window.gameSessionData.solarSystemView;
     const oldZoom = viewData.zoomLevel;
     let newZoom = oldZoom * (1 + (direction === 'in' ? ZOOM_STEP : -ZOOM_STEP));
     newZoom = Math.max(SOLAR_SYSTEM_VIEW_MIN_ZOOM, Math.min(SOLAR_SYSTEM_VIEW_MAX_ZOOM, newZoom));
     viewData.zoomLevel = newZoom;
     SolarSystemRenderer.handlePanAndZoom(viewData.currentPanX, viewData.currentPanY, viewData.zoomLevel);
-}
-   viewData = {
-    target: window.gameSessionData.solarSystemView, viewElement: solarSystemScreen, clampFn: clampSolarSystemPan, renderFn: renderSolarSystemScreen,
-    minZoom: dynamicMinZoom, maxZoom: SOLAR_SYSTEM_VIEW_MAX_ZOOM, zoomKey: 'zoomLevel', panXKey: 'currentPanX', panYKey: 'currentPanY'
-   };
+    return; 
   } else {
    return;
   }
-
+   
   const { target, viewElement, clampFn, renderFn, minZoom, maxZoom, zoomKey, panXKey, panYKey } = viewData;
 
   const oldZoom = target[zoomKey];

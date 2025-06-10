@@ -110,11 +110,11 @@ body {
   border-radius: 50%; /* Assuming the viewable galaxy area is circular */
   overflow: hidden;  /* Critical for zoom/pan effect */
   background-color: #100520; /* Consistent with universe */
-  cursor: grab;    /* Indicates pannable */
+  cursor: default;    /* Indicates pannable */
 }
 
 #galaxy-viewport.dragging {
-  cursor: grabbing;
+  cursor: default;
 }
 
 #galaxy-zoom-content {
@@ -153,7 +153,7 @@ body {
 }
 
 #solar-system-screen {
-  cursor: grab;
+  cursor: default;
   display: flex;
   flex-direction: column;
   align-items: center;
@@ -164,7 +164,7 @@ body {
 }
 
 #solar-system-screen.dragging {
-  cursor: grabbing;
+  cursor: default;
 }
 
 #solar-system-content {

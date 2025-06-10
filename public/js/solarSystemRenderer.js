@@ -210,15 +210,11 @@ export const SolarSystemRenderer = (() => {
         
         controls.rotateSpeed = 0.4;
 
-        // --- MODIFICATION IS HERE ---
-        // We set the middle mouse button to also PAN. This avoids the conflicting
-        // DOLLY (zoom) action since we are handling zoom via the scroll wheel.
         controls.mouseButtons = {
             LEFT: THREE.MOUSE.PAN,
-            MIDDLE: THREE.MOUSE.PAN, // Changed from DOLLY to PAN
+            MIDDLE: THREE.MOUSE.PAN,
             RIGHT: THREE.MOUSE.ROTATE
         }
-        // --- END OF MODIFICATION ---
         
         controls.enableZoom = false;
 
@@ -242,10 +238,7 @@ export const SolarSystemRenderer = (() => {
                 controls.maxDistance
             );
         
-            // --- FIX IS HERE ---
-            // Corrected the typo from `camToToTarget` to `camToTarget`
             camera.position.copy(controls.target).addScaledVector(camToTarget.normalize(), -newDist);
-            // --- END OF FIX ---
         
             controls.update();
         };
@@ -276,11 +269,13 @@ export const SolarSystemRenderer = (() => {
 
         if (intersects.length > 0) {
             const clickedPlanetData = intersects[0].object.userData;
-            console.log("Clicked on planet:", clickedPlanetData.id);
+            
+            // Capture the system ID before creating the callback to avoid closure issues.
+            const systemId = currentSystemData?.id;
 
             const onBackCallback = () => {
-                if (window.switchToSolarSystemView && currentSystemData?.id) {
-                    window.switchToSolarSystemView(currentSystemData.id);
+                if (window.switchToSolarSystemView && systemId) {
+                    window.switchToSolarSystemView(systemId);
                 } else {
                     window.switchToMainView();
                 }

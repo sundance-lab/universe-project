@@ -12,12 +12,13 @@ import { UIManager } from './uiManager.js';
 
 // --- INITIALIZATION ---
 function initializeModules() {
-    window.PlanetDesigner = PlanetDesigner;
-    if (window.PlanetDesigner?.init) {
-        window.PlanetDesigner.init();
-    } else {
-        console.error("PlanetDesigner module or init function is missing.");
-    }
+ // The imports now directly provide the objects, so we can assign them directly.
+ window.PlanetDesigner = PlanetDesigner;
+ if (window.PlanetDesigner?.init) {
+    window.PlanetDesigner.init();
+ } else {
+    console.error("PlanetDesigner module or init function is missing.");
+ }
 }
 
 document.addEventListener('DOMContentLoaded', () => {
@@ -72,6 +73,10 @@ document.addEventListener('DOMContentLoaded', () => {
     
     // --- FUNCTIONS ---
     
+    // This function is called from other modules, so it needs to be on the window scope.
+    window.saveGameState = saveGameState;
+    window.generatePlanetInstanceFromBasis = generatePlanetInstanceFromBasis;
+
     function loadCustomizationSettings() {
         const settingsString = localStorage.getItem('galaxyCustomizationSettings');
         if (settingsString) {
@@ -134,12 +139,12 @@ document.addEventListener('DOMContentLoaded', () => {
             console.log("Loaded existing game state.");
             generateUniverseLayout(domElements.universeCircle, window.gameSessionData, { universeBg: '#100520' });
         } else {
-            console.log("No valid save found. Generating new universe.");
+            if (!isForcedRegeneration) console.log("No valid save found. Generating new universe.");
             generateUniverseLayout(domElements.universeCircle, window.gameSessionData, { universeBg: '#100520' });
             generateGalaxies(window.gameSessionData, domElements.universeCircle, currentNumGalaxies);
         }
         
-        UIManager.renderMainScreen(); // Now called from UIManager
+        UIManager.renderMainScreen();
         preGenerateAllGalaxyContents(window.gameSessionData, domElements.galaxyViewport, { min: currentMinSSCount, max: currentMaxSSCount });
         
         window.gameSessionData.isInitialized = true;
@@ -156,7 +161,14 @@ document.addEventListener('DOMContentLoaded', () => {
             { stopSolarSystemAnimation, initializeGame },
             domElements
         ),
-        switchToPlanetDesignerScreen: () => UIManager.setActiveScreen(domElements.planetDesignerScreen),
+        switchToPlanetDesignerScreen: () => {
+            UIManager.setActiveScreen(domElements.planetDesignerScreen);
+            if (window.PlanetDesigner?.activate) {
+                window.PlanetDesigner.activate();
+            } else {
+                console.error("switchToPlanetDesignerScreen: PlanetDesigner module or activate function not found.");
+            }
+        },
         generatePlanetsForSystem: generatePlanetsForSystem,
         getCustomizationSettings: () => ({
             ssCountRange: { min: currentMinSSCount, max: currentMaxSSCount }

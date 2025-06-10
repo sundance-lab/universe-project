@@ -449,5 +449,6 @@ export const UIManager = (() => {
             window.addEventListener('mouseup', panMouseUp);
         },
         renderMainScreen: renderMainScreen,
+        setActiveScreen: setActiveScreen, // <-- THE FIX IS HERE
     };
 })();

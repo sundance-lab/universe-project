@@ -2,7 +2,6 @@ import { startSolarSystemAnimation, stopSolarSystemAnimation } from './animation
 import { PlanetDesigner } from './planetDesigner.js';
 import { PlanetVisualPanelManager } from './planetVisualPanelManager.js';
 import { HexPlanetViewController } from './hexPlanetViewController.js';
-// ADDED: Import the new renderer
 import { SolarSystemRenderer } from './solarSystemRenderer.js';
 
 function initializeModules() {
@@ -21,8 +20,8 @@ document.addEventListener('DOMContentLoaded', () => {
   const DEFAULT_MIN_SS_COUNT_CONST = 200;
   const DEFAULT_MAX_SS_COUNT_CONST = 300;
   const DEFAULT_MAX_PLANET_DISTANCE_MULTIPLIER = 1.0;
-  const DEFAULT_MIN_PLANETS_PER_SYSTEM = 0;
-  const DEFAULT_MAX_PLANETS_PER_SYSTEM = 3;
+  const DEFAULT_MIN_PLANETS_PER_SYSTEM = 2;
+  const DEFAULT_MAX_PLANETS_PER_SYSTEM = 8;
   const DEFAULT_SHOW_PLANET_ORBITS = false;
   const PLANET_EXPLORE_BUTTON_SIZE = 30;
   const PLANET_EXPLORE_BUTTON_MARGIN = 5;
@@ -55,10 +54,10 @@ document.addEventListener('DOMContentLoaded', () => {
   const createPlanetDesignButton = document.getElementById('create-planet-design-btn');
 
   // --- FUNCTION DEFINITIONS ---
-  // ADDED: A variable to hold our active renderer instance
   window.activeSolarSystemRenderer = null;
+  let galaxyIconCache = {};
 
-window.generatePlanetInstanceFromBasis = function (basis, isForDesignerPreview = false) {
+  window.generatePlanetInstanceFromBasis = function (basis, isForDesignerPreview = false) {
       // If not in preview mode, and custom designs exist, there's a 50% chance to use one.
       const useCustomDesign = !isForDesignerPreview && 
                               window.gameSessionData?.customPlanetDesigns?.length > 0 && 
@@ -115,7 +114,6 @@ window.generatePlanetInstanceFromBasis = function (basis, isForDesignerPreview =
 
   // --- STATE VARIABLES ---
   let linesCtx;
-  let galaxyIconCache = {};
   let currentStarfieldCleanup = null;
   let currentNumGalaxies = DEFAULT_NUM_GALAXIES;
   let currentMinSSCount = DEFAULT_MIN_SS_COUNT_CONST;
@@ -137,13 +135,13 @@ window.generatePlanetInstanceFromBasis = function (basis, isForDesignerPreview =
   const MAX_NEIGHBOR_CANDIDATES_FOR_ADDITIONAL_CONNECTIONS = 5;
   const MAX_EUCLIDEAN_CONNECTION_DISTANCE_PERCENT = 0.07;
   const MAX_FORCED_CONNECTION_DISTANCE_PERCENT = 0.20;
-  const MIN_PLANET_SIZE = 5;
-  const MAX_PLANET_SIZE = 15;
+  const MIN_PLANET_SIZE = 50;
+  const MAX_PLANET_SIZE = 150;
   let MIN_PLANET_DISTANCE = SUN_ICON_SIZE * 3.0;
   let MAX_PLANET_DISTANCE = (SUN_ICON_SIZE * BASE_MAX_PLANET_DISTANCE_FACTOR) * DEFAULT_MAX_PLANET_DISTANCE_MULTIPLIER;
   let ORBIT_CANVAS_SIZE = MAX_PLANET_DISTANCE * 2.2;
   let SOLAR_SYSTEM_EXPLORABLE_RADIUS = MAX_PLANET_DISTANCE * 1.2;
-  const MIN_ORBITAL_SEPARATION = 20;
+  const MIN_ORBITAL_SEPARATION = 200;
   let MIN_ROTATION_SPEED_RAD_PER_PERLIN_UNIT = 0.0005;
   let MAX_ROTATION_SPEED_RAD_PER_PERLIN_UNIT = 0.005;
   const FIXED_COLORS = {
@@ -226,8 +224,9 @@ window.generatePlanetInstanceFromBasis = function (basis, isForDesignerPreview =
             gal.generationParams = gal.generationParams || { densityFactor: 0.8 + Math.random() * 0.4 };
             gal.solarSystems = gal.solarSystems || [];
             gal.solarSystems.forEach(ss => {
-            ss.customName = ss.customName || null;
-            ss.sunSizeFactor = ss.sunSizeFactor ?? (0.5 + Math.random() * 9.5); 
+                ss.customName = ss.customName || null;
+                ss.sunSizeFactor = ss.sunSizeFactor ?? (0.5 + Math.random() * 9.5);
+                // Planet data is now generated on-demand in switchToSolarSystemView
             });
             gal.lineConnections = gal.lineConnections || [];
             gal.layoutGenerated = gal.layoutGenerated || false;
@@ -771,8 +770,10 @@ window.generatePlanetInstanceFromBasis = function (basis, isForDesignerPreview =
   function drawGalaxyLines(galaxy) {
     if (!solarSystemLinesCanvasEl || !galaxyZoomContent || !galaxyZoomContent.offsetWidth) return;
     
-    solarSystemLinesCanvasEl.width = galaxyZoomContent.offsetWidth;
-    solarSystemLinesCanvasEl.height = galaxyZoomContent.offsetHeight;
+    // Ensure canvas dimensions match the content area for accurate line drawing
+    const contentRect = galaxyZoomContent.getBoundingClientRect();
+    solarSystemLinesCanvasEl.width = contentRect.width;
+    solarSystemLinesCanvasEl.height = contentRect.height;
     
     if (!linesCtx) linesCtx = solarSystemLinesCanvasEl.getContext('2d');
     if (!linesCtx) return;
@@ -800,7 +801,7 @@ window.generatePlanetInstanceFromBasis = function (basis, isForDesignerPreview =
     });
   }
 
-function renderGalaxyDetailScreen(isInteractivePanOrZoom = false) {
+  function renderGalaxyDetailScreen(isInteractivePanOrZoom = false) {
     const galaxy = window.gameSessionData.galaxies.find(g => g.id === window.gameSessionData.activeGalaxyId);
     if (!galaxy) return switchToMainView();
     if (!galaxyViewport || !galaxyZoomContent) return;
@@ -809,8 +810,7 @@ function renderGalaxyDetailScreen(isInteractivePanOrZoom = false) {
     const galaxyContentDiameter = window.gameSessionData.universe.diameter || 500;
     galaxyViewport.style.width = `${galaxyContentDiameter}px`;
     galaxyViewport.style.height = `${galaxyContentDiameter}px`;
-
-    // --- NEW LOGIC ---
+    
     // If we haven't rendered this galaxy's icons before, create and cache them.
     if (!galaxyIconCache[galaxy.id]) {
         galaxyZoomContent.innerHTML = ''; // Clear previous galaxy's icons
@@ -831,7 +831,7 @@ function renderGalaxyDetailScreen(isInteractivePanOrZoom = false) {
             });
             fragment.appendChild(solarSystemElement);
         });
-
+        
         // Add the lines canvas first, then the icons
         galaxyZoomContent.appendChild(solarSystemLinesCanvasEl);
         galaxyZoomContent.appendChild(fragment);
@@ -839,32 +839,23 @@ function renderGalaxyDetailScreen(isInteractivePanOrZoom = false) {
         // Mark this galaxy as rendered in our cache
         galaxyIconCache[galaxy.id] = true;
     }
-
+    
     drawGalaxyLines(galaxy);
 
     // This is the only part that should run on every pan/zoom
     galaxyZoomContent.style.transition = isInteractivePanOrZoom ? 'none' : 'transform 0.1s ease-out';
-    galaxyZoomContent.style.transform = `translate(${galaxy.currentPanX}px, <span class="math-inline">\{galaxy\.currentPanY\}px\) scale\(</span>{galaxy.currentZoom})`;
+    galaxyZoomContent.style.transform = `translate(${galaxy.currentPanX}px, ${galaxy.currentPanY}px) scale(${galaxy.currentZoom})`;
 
     if (galaxyDetailTitleText) {
         const galaxyNumDisplay = galaxy.id.split('-').pop();
         galaxyDetailTitleText.textContent = galaxy.customName || `Galaxy ${galaxyNumDisplay}`;
     }
-}
+  }
 
   function renderSolarSystemScreen(isInteractivePanOrZoom = false) {
     if (!solarSystemContent || !solarSystemScreen || !window.gameSessionData.activeSolarSystemId) return;
     
-    // This function now only needs to handle the top-level container transform,
-    // as the 3D renderer manages its own camera.
     const solarSystemData = window.gameSessionData.solarSystemView;
-    const panX = solarSystemData.currentPanX || 0;
-    const panY = solarSystemData.currentPanY || 0;
-    const zoom = solarSystemData.zoomLevel || 1.0;
-
-    // We can remove the direct transform on solarSystemContent, as the new renderer's camera handles it.
-    // solarSystemContent.style.transform = `translate(${panX}px, ${panY}px) scale(${zoom})`;
-
     const activeGalaxy = window.gameSessionData.galaxies.find(g => window.gameSessionData.activeSolarSystemId.startsWith(g.id));
     const solarSystemObject = activeGalaxy?.solarSystems.find(s => s.id === solarSystemData.systemId);
 
@@ -878,7 +869,6 @@ function renderGalaxyDetailScreen(isInteractivePanOrZoom = false) {
 
   window.switchToMainView = switchToMainView;
   function switchToMainView() {
-    // MODIFIED: Centralize cleanup
     if (window.activeSolarSystemRenderer) {
       window.activeSolarSystemRenderer.dispose();
       window.activeSolarSystemRenderer = null;
@@ -923,7 +913,6 @@ function renderGalaxyDetailScreen(isInteractivePanOrZoom = false) {
   }
 
   function switchToGalaxyDetailView(galaxyId) {
-    // MODIFIED: Centralize cleanup
     if (window.activeSolarSystemRenderer) {
       window.activeSolarSystemRenderer.dispose();
       window.activeSolarSystemRenderer = null;
@@ -1011,46 +1000,58 @@ function renderGalaxyDetailScreen(isInteractivePanOrZoom = false) {
   }
     
   function switchToSolarSystemView(solarSystemId) {
-      // --- THIS FUNCTION IS COMPLETELY REWRITTEN ---
-
-      // 1. Clean up any previous renderer instance to prevent memory leaks
       if (window.activeSolarSystemRenderer) {
           window.activeSolarSystemRenderer.dispose();
           window.activeSolarSystemRenderer = null;
       }
-      stopSolarSystemAnimation(); // Ensure old animation loop is stopped
+      stopSolarSystemAnimation();
 
-      // 2. Get data for the selected solar system
       window.gameSessionData.activeSolarSystemId = solarSystemId;
       const activeGalaxy = window.gameSessionData.galaxies.find(g => solarSystemId.startsWith(g.id));
       const solarSystemObject = activeGalaxy?.solarSystems.find(s => s.id === solarSystemId);
 
       if (!solarSystemObject) {
-          console.error(`switchToSolarSystemView: Solar System object ${solarSystemId} not found.`);
+          console.error(`Solar System object ${solarSystemId} not found.`);
           return switchToMainView();
       }
 
-      // 3. Prepare data for the renderer
-      //    (This is where you would generate planets if they weren't saved)
-      if (!solarSystemObject.planets) {
-          // Placeholder for planet generation logic if needed in the future
-          solarSystemObject.planets = []; 
-      }
+      // --- FIX: GENERATE PLANETS IF THEY DON'T EXIST ---
+      if (!solarSystemObject.planets || solarSystemObject.planets.length === 0) {
+          console.log(`Generating planets for ${solarSystemId}`);
+          solarSystemObject.planets = [];
+          const numPlanets = Math.floor(Math.random() * (currentMaxPlanets - currentMinPlanets + 1)) + currentMinPlanets;
+          let lastOrbitalRadius = MIN_PLANET_DISTANCE;
 
+          for (let i = 0; i < numPlanets; i++) {
+              const planetData = generatePlanetInstanceFromBasis({});
+              const orbitalRadius = lastOrbitalRadius + MIN_ORBITAL_SEPARATION + Math.random() * 800;
+              
+              solarSystemObject.planets.push({
+                  ...planetData,
+                  id: `${solarSystemId}-planet-${i}`,
+                  size: MIN_PLANET_SIZE + Math.random() * (MAX_PLANET_SIZE - MIN_PLANET_SIZE),
+                  orbitalRadius: orbitalRadius,
+                  orbitalSpeed: Math.sqrt(10000 / orbitalRadius), // Gravitational-like speed
+                  currentOrbitalAngle: Math.random() * 2 * Math.PI,
+                  axialSpeed: (Math.random() - 0.5) * 0.05,
+                  currentAxialAngle: Math.random() * 2 * Math.PI,
+              });
+              lastOrbitalRadius = orbitalRadius + MIN_ORBITAL_SEPARATION;
+          }
+      }
+      
       const solarSystemDataForRenderer = {
           id: solarSystemObject.id,
           sun: {
               size: solarSystemObject.sunSizeFactor,
-              type: Math.floor(Math.random() * 5) // Random sun type
+              type: Math.floor(Math.random() * 5)
           },
-          planets: solarSystemObject.planets.map(p => ({...p})) // Pass a copy
+          planets: solarSystemObject.planets.map(p => ({...p}))
       };
       
-      // 4. Update the global state
       window.gameSessionData.solarSystemView.systemId = solarSystemId;
       window.gameSessionData.solarSystemView.planets = solarSystemObject.planets;
       
-      // 5. Set the screen titles and UI elements
       const systemNumDisplay = solarSystemId.split('-').pop();
       if (solarSystemTitleText) {
           solarSystemTitleText.textContent = solarSystemObject?.customName || `System ${systemNumDisplay}`;
@@ -1065,12 +1066,10 @@ function renderGalaxyDetailScreen(isInteractivePanOrZoom = false) {
           return `System ${systemNumDisplay}`;
       });
 
-      // 6. Activate the screen and initialize the new renderer
       setActiveScreen(solarSystemScreen);
       SolarSystemRenderer.init(solarSystemDataForRenderer);
-      window.activeSolarSystemRenderer = SolarSystemRenderer; // Store the reference
+      window.activeSolarSystemRenderer = SolarSystemRenderer;
       
-      // 7. Start the animation loop
       startSolarSystemAnimation();
   }
 
@@ -1141,54 +1140,51 @@ function renderGalaxyDetailScreen(isInteractivePanOrZoom = false) {
   }
 
   function handleZoom(direction, mouseEvent = null) {
-    let viewData;
-    const activeScreen = document.querySelector('.screen.active');
-    if (activeScreen === galaxyDetailScreen) {
-      const galaxy = window.gameSessionData.galaxies.find(g => g.id === window.gameSessionData.activeGalaxyId);
-      if (!galaxy) return;
-      viewData = {
-        target: galaxy, viewElement: galaxyViewport, clampFn: clampGalaxyPan, renderFn: renderGalaxyDetailScreen,
-        minZoom: GALAXY_VIEW_MIN_ZOOM, maxZoom: GALAXY_VIEW_MAX_ZOOM, zoomKey: 'currentZoom', panXKey: 'currentPanX', panYKey: 'currentPanY'
-      };
-
-    } else if (activeScreen === solarSystemScreen) {
-      // MODIFIED: Use the new renderer's pan/zoom handler
-      const ssViewData = window.gameSessionData.solarSystemView;
-      let newZoom = ssViewData.zoomLevel * (1 + (direction === 'in' ? ZOOM_STEP : -ZOOM_STEP));
-      newZoom = Math.max(SOLAR_SYSTEM_VIEW_MIN_ZOOM, Math.min(SOLAR_SYSTEM_VIEW_MAX_ZOOM, newZoom));
-      ssViewData.zoomLevel = newZoom;
+      const activeScreen = document.querySelector('.screen.active');
       
-      if (window.activeSolarSystemRenderer) {
-        window.activeSolarSystemRenderer.handlePanAndZoom(ssViewData.currentPanX, ssViewData.currentPanY, ssViewData.zoomLevel);
+      if (activeScreen === galaxyDetailScreen) {
+          const galaxy = window.gameSessionData.galaxies.find(g => g.id === window.gameSessionData.activeGalaxyId);
+          if (!galaxy) return;
+          
+          const viewData = {
+              target: galaxy, viewElement: galaxyViewport, clampFn: clampGalaxyPan, renderFn: renderGalaxyDetailScreen,
+              minZoom: GALAXY_VIEW_MIN_ZOOM, maxZoom: GALAXY_VIEW_MAX_ZOOM, zoomKey: 'currentZoom', panXKey: 'currentPanX', panYKey: 'currentPanY'
+          };
+
+          const { target, viewElement, clampFn, renderFn, minZoom, maxZoom, zoomKey, panXKey, panYKey } = viewData;
+
+          const oldZoom = target[zoomKey];
+          let newZoom = oldZoom * (1 + (direction === 'in' ? ZOOM_STEP : -ZOOM_STEP));
+          newZoom = Math.max(minZoom, Math.min(maxZoom, newZoom));
+
+          if (Math.abs(oldZoom - newZoom) < 0.0001) return;
+
+          if (mouseEvent && viewElement) {
+              const rect = viewElement.getBoundingClientRect();
+              const mouseX = mouseEvent.clientX - rect.left;
+              const mouseY = mouseEvent.clientY - rect.top;
+              const mouseRelX = mouseX - viewElement.offsetWidth / 2;
+              const mouseRelY = mouseY - viewElement.offsetHeight / 2;
+              const worldX = (mouseRelX - target[panXKey]) / oldZoom;
+              const worldY = (mouseRelY - target[panYKey]) / oldZoom;
+              target[panXKey] = mouseRelX - (worldX * newZoom);
+              target[panYKey] = mouseRelY - (worldY * newZoom);
+          }
+          target[zoomKey] = newZoom;
+
+          clampFn(target, viewElement.offsetWidth, viewElement.offsetHeight);
+          renderFn(true);
+
+      } else if (activeScreen === solarSystemScreen) {
+          const ssViewData = window.gameSessionData.solarSystemView;
+          let newZoom = ssViewData.zoomLevel * (1 + (direction === 'in' ? ZOOM_STEP : -ZOOM_STEP));
+          newZoom = Math.max(SOLAR_SYSTEM_VIEW_MIN_ZOOM, Math.min(SOLAR_SYSTEM_VIEW_MAX_ZOOM, newZoom));
+          ssViewData.zoomLevel = newZoom;
+          
+          if (window.activeSolarSystemRenderer) {
+              window.activeSolarSystemRenderer.handlePanAndZoom(ssViewData.currentPanX, ssViewData.currentPanY, ssViewData.zoomLevel);
+          }
       }
-      return; 
-    } else {
-      return;
-    }
-    
-    const { target, viewElement, clampFn, renderFn, minZoom, maxZoom, zoomKey, panXKey, panYKey } = viewData;
-
-    const oldZoom = target[zoomKey];
-    let newZoom = oldZoom * (1 + (direction === 'in' ? ZOOM_STEP : -ZOOM_STEP));
-    newZoom = Math.max(minZoom, Math.min(maxZoom, newZoom));
-
-    if (Math.abs(oldZoom - newZoom) < 0.0001) return;
-
-    if (mouseEvent && viewElement) {
-      const rect = viewElement.getBoundingClientRect();
-      const mouseX = mouseEvent.clientX - rect.left;
-      const mouseY = mouseEvent.clientY - rect.top;
-      const mouseRelX = mouseX - viewElement.offsetWidth / 2;
-      const mouseRelY = mouseY - viewElement.offsetHeight / 2;
-      const worldX = (mouseRelX - target[panXKey]) / oldZoom;
-      const worldY = (mouseRelY - target[panYKey]) / oldZoom;
-      target[panXKey] = mouseRelX - (worldX * newZoom);
-      target[panYKey] = mouseRelY - (worldY * newZoom);
-    }
-    target[zoomKey] = newZoom;
-
-    clampFn(target, viewElement.offsetWidth, viewElement.offsetHeight);
-    renderFn(true);
   }
     
   function startPan(event, viewportElement, contentElementToTransform, dataObjectWithPanProperties) {
@@ -1241,7 +1237,6 @@ function renderGalaxyDetailScreen(isInteractivePanOrZoom = false) {
       clampGalaxyPan(p.dataObject);
       renderGalaxyDetailScreen(true);
       } else if (p.viewportElement === solarSystemScreen) {
-        // MODIFIED: Call the new renderer's pan/zoom handler
         if (window.activeSolarSystemRenderer) {
             window.activeSolarSystemRenderer.handlePanAndZoom(p.dataObject.currentPanX, p.dataObject.currentPanY, p.dataObject.zoomLevel);
         }
@@ -1262,9 +1257,6 @@ function renderGalaxyDetailScreen(isInteractivePanOrZoom = false) {
       
       const deltaTime = currentTime - lastFrameTime;
       lastFrameTime = currentTime;
-      
-      // This local animate function is no longer needed for the sun,
-      // as the main animation is handled by animationController.
   }
   requestAnimationFrame(animate);
     
@@ -1275,15 +1267,14 @@ function renderGalaxyDetailScreen(isInteractivePanOrZoom = false) {
       return;
     }
 
-    // MODIFIED: Centralize cleanup
     if (window.activeSolarSystemRenderer) {
         window.activeSolarSystemRenderer.dispose();
         window.activeSolarSystemRenderer = null;
     }
     
     const existingCustomPlanetDesigns = [...(window.gameSessionData.customPlanetDesigns || [])];
-
-    galaxyIconCache = {}; 
+    
+    galaxyIconCache = {};
     window.gameSessionData.universe = { diameter: null };
     window.gameSessionData.galaxies = [];
     window.gameSessionData.activeGalaxyId = null;

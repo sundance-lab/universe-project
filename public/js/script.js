@@ -104,9 +104,12 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     function generatePlanetsForSystem(solarSystemObject){
-        console.log(`Generating planets for ${solarSystemObject.id}`);
         solarSystemObject.planets = [];
         const numPlanets = Math.floor(Math.random() * (currentMaxPlanets - currentMinPlanets + 1)) + currentMinPlanets;
+        
+        // DEBUGGING LOG
+        console.log(`[DEBUG] Generating ${numPlanets} planets for system ${solarSystemObject.id}.`);
+
         const SUN_ICON_SIZE = 60;
         const MIN_ORBITAL_SEPARATION = 2000;
         const MIN_PLANET_DISTANCE = SUN_ICON_SIZE * 3.0;

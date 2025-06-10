@@ -205,16 +205,17 @@ export const SolarSystemRenderer = (() => {
         controls.maxDistance = 100000;
         controls.enablePan = true;
         
-        // --- MODIFICATION IS HERE ---
-        // Decrease the rotation speed. Default is 1.0.
         controls.rotateSpeed = 0.4;
-        // --- END OF MODIFICATION ---
 
+        // --- MODIFICATION IS HERE ---
+        // We set the middle mouse button to also PAN. This avoids the conflicting
+        // DOLLY (zoom) action since we are handling zoom via the scroll wheel.
         controls.mouseButtons = {
             LEFT: THREE.MOUSE.PAN,
-            MIDDLE: THREE.MOUSE.DOLLY,
+            MIDDLE: THREE.MOUSE.PAN, // Changed from DOLLY to PAN
             RIGHT: THREE.MOUSE.ROTATE
         }
+        // --- END OF MODIFICATION ---
         
         controls.enableZoom = false;
 
@@ -238,7 +239,10 @@ export const SolarSystemRenderer = (() => {
                 controls.maxDistance
             );
         
-            camera.position.copy(controls.target).addScaledVector(camToToTarget.normalize(), -newDist);
+            // --- FIX IS HERE ---
+            // Corrected the typo from `camToToTarget` to `camToTarget`
+            camera.position.copy(controls.target).addScaledVector(camToTarget.normalize(), -newDist);
+            // --- END OF FIX ---
         
             controls.update();
         };

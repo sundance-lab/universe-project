@@ -768,12 +768,15 @@ document.addEventListener('DOMContentLoaded', () => {
   }
 
   function drawGalaxyLines(galaxy) {
-    if (!solarSystemLinesCanvasEl || !galaxyZoomContent || !galaxyZoomContent.offsetWidth) return;
+    if (!solarSystemLinesCanvasEl || !galaxyZoomContent) return;
     
-    // Ensure canvas dimensions match the content area for accurate line drawing
-    const contentRect = galaxyZoomContent.getBoundingClientRect();
-    solarSystemLinesCanvasEl.width = contentRect.width;
-    solarSystemLinesCanvasEl.height = contentRect.height;
+    // MODIFICATION: Set a fixed canvas size based on the unscaled content diameter.
+    // This prevents the canvas from being cleared and redrawn on pan/zoom.
+    const galaxyContentDiameter = parseFloat(galaxyZoomContent.style.width);
+    if (solarSystemLinesCanvasEl.width !== galaxyContentDiameter) {
+        solarSystemLinesCanvasEl.width = galaxyContentDiameter;
+        solarSystemLinesCanvasEl.height = galaxyContentDiameter;
+    }
     
     if (!linesCtx) linesCtx = solarSystemLinesCanvasEl.getContext('2d');
     if (!linesCtx) return;
@@ -810,6 +813,11 @@ document.addEventListener('DOMContentLoaded', () => {
     const galaxyContentDiameter = window.gameSessionData.universe.diameter || 500;
     galaxyViewport.style.width = `${galaxyContentDiameter}px`;
     galaxyViewport.style.height = `${galaxyContentDiameter}px`;
+    // MODIFICATION: Explicitly set the zoom content and line canvas size.
+    galaxyZoomContent.style.width = `${galaxyContentDiameter}px`;
+    galaxyZoomContent.style.height = `${galaxyContentDiameter}px`;
+    solarSystemLinesCanvasEl.style.width = `${galaxyContentDiameter}px`;
+    solarSystemLinesCanvasEl.style.height = `${galaxyContentDiameter}px`;
     
     // If we haven't rendered this galaxy's icons before, create and cache them.
     if (!galaxyIconCache[galaxy.id]) {
@@ -1019,7 +1027,8 @@ document.addEventListener('DOMContentLoaded', () => {
       if (!solarSystemObject.planets || solarSystemObject.planets.length === 0) {
           console.log(`Generating planets for ${solarSystemId}`);
           solarSystemObject.planets = [];
-          const numPlanets = Math.floor(Math.random() * (currentMaxPlanets - currentMinPlanets + 1)) + currentMinPlanets;
+          // MODIFICATION: Generate a random number of planets from 0 to 8
+          const numPlanets = Math.floor(Math.random() * 9);
           let lastOrbitalRadius = MIN_PLANET_DISTANCE;
 
           for (let i = 0; i < numPlanets; i++) {
@@ -1029,6 +1038,7 @@ document.addEventListener('DOMContentLoaded', () => {
               solarSystemObject.planets.push({
                   ...planetData,
                   id: `${solarSystemId}-planet-${i}`,
+                  planetName: `Planet ${i + 1}`, // Give a default name
                   size: MIN_PLANET_SIZE + Math.random() * (MAX_PLANET_SIZE - MIN_PLANET_SIZE),
                   orbitalRadius: orbitalRadius,
                   orbitalSpeed: Math.sqrt(10000 / orbitalRadius), // Gravitational-like speed

@@ -12,6 +12,41 @@ export const UIManager = (() => {
 
     // --- UTILITY FUNCTIONS (Internal to UI Manager) ---
 
+    // START: Add new helper function
+    function _getPlanetTypeString(planetType) {
+        switch (planetType) {
+            case 1: return 'Volcanic World';
+            case 2: return 'Icy World';
+            case 3: return 'Desert World';
+            case 0:
+            default:
+                return 'Terran World';
+        }
+    }
+
+    function _renderPlanetSidebar(planets) {
+        if (!elements.planetSidebarList) return;
+        elements.planetSidebarList.innerHTML = ''; // Clear previous list
+
+        if (!planets || planets.length === 0) {
+            const li = document.createElement('li');
+            li.textContent = 'No planets detected.';
+            li.style.fontStyle = 'italic';
+            li.style.color = '#7f8c8d';
+            elements.planetSidebarList.appendChild(li);
+            return;
+        }
+
+        planets.forEach((planet, index) => {
+            const li = document.createElement('li');
+            li.className = 'planet-sidebar-item';
+            li.textContent = `Planet ${index + 1} (${_getPlanetTypeString(planet.planetType)})`;
+            li.title = `Click to inspect Planet ${index + 1}`;
+            elements.planetSidebarList.appendChild(li);
+        });
+    }
+    // END: Add new helper function
+
     function makeTitleEditable(titleTextElement, inputElement, onSaveCallback) {
         if (!titleTextElement || !inputElement) return;
 
@@ -109,6 +144,12 @@ export const UIManager = (() => {
         if (elements.zoomControlsElement) {
             elements.zoomControlsElement.classList.toggle('visible', screenToShow === elements.galaxyDetailScreen);
         }
+        
+        // START: Add this block to control sidebar visibility
+        if (elements.planetSidebar) {
+            elements.planetSidebar.style.display = (screenToShow === elements.solarSystemScreen) ? 'block' : 'none';
+        }
+        // END: Add this block
         
         const isOnOverlayScreen = (screenToShow === elements.planetDesignerScreen || screenToShow === elements.hexPlanetScreen);
         if(elements.regenerateUniverseButton) elements.regenerateUniverseButton.style.display = isOnOverlayScreen ? 'none' : 'block';
@@ -289,8 +330,11 @@ export const UIManager = (() => {
             callbacks.generatePlanetsForSystem(solarSystemObject);
         }
         
-        // DEBUGGING LOG
         console.log(`[DEBUG] Rendering system ${solarSystemId} with ${solarSystemObject.planets.length} planets.`);
+
+        // START: Add this line to populate the sidebar
+        _renderPlanetSidebar(solarSystemObject.planets);
+        // END: Add this line
 
         const solarSystemDataForRenderer = {
             id: solarSystemObject.id,

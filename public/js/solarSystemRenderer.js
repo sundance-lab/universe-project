@@ -47,9 +47,13 @@ export const SolarSystemRenderer = (() => {
     const DISPLACEMENT_SCALING_FACTOR = 0.005;
 
     function _createSun(sunData) {
-        const variation = sunVariations[(sunData.type % sunVariations.length)];
-        const baseSize = sizeTiers[(variation.sizeCategory % Object.keys(sizeTiers).length)].size;
-        const detailMultiplier = sizeTiers[(variation.sizeCategory % Object.keys(sizeTiers).length)].detailMultiplier;
+        const variation = sunVariations[sunData.type % sunVariations.length];
+        
+        // --- FIX IS HERE ---
+        // Directly use the string key from variation.sizeCategory without the incorrect modulo.
+        const baseSize = sizeTiers[variation.sizeCategory].size;
+        const detailMultiplier = sizeTiers[variation.sizeCategory].detailMultiplier;
+        // --- END OF FIX ---
 
         const sizeVariation = 0.5 + Math.random() * 1.5;
         const finalSize = baseSize * sizeVariation;
@@ -196,15 +200,12 @@ export const SolarSystemRenderer = (() => {
         controls.screenSpacePanning = true;
         controls.minDistance = 2000;
         controls.maxDistance = 100000;
-        // MODIFICATION: Remove the maxPolarAngle constraint to allow free vertical rotation
-        // controls.maxPolarAngle = Math.PI / 2.1;
         controls.enablePan = true;
 
-        // MODIFICATION: Configure mouse button mapping
         controls.mouseButtons = {
-            LEFT: THREE.MOUSE.PAN,      // Left mouse button for panning
-            MIDDLE: THREE.MOUSE.DOLLY,   // Middle mouse button for zooming (wheel)
-            RIGHT: THREE.MOUSE.ROTATE    // Right mouse button for rotation
+            LEFT: THREE.MOUSE.PAN,
+            MIDDLE: THREE.MOUSE.DOLLY,
+            RIGHT: THREE.MOUSE.ROTATE
         }
 
         raycaster = new THREE.Raycaster();
@@ -230,7 +231,7 @@ export const SolarSystemRenderer = (() => {
         const intersects = raycaster.intersectObjects(planetMeshes);
 
         if (intersects.length > 0) {
-            const clickedPlanetData = intersects.object.userData;
+            const clickedPlanetData = intersects[0].object.userData;
             console.log("Clicked on planet:", clickedPlanetData.id);
 
             const onBackCallback = () => {
@@ -266,7 +267,7 @@ export const SolarSystemRenderer = (() => {
 
         if (currentSystemData && currentSystemData.planets) {
             currentSystemData.planets.forEach((planet, index) => {
-                const mesh = planetMeshes[(index % planetMeshes.length)];
+                const mesh = planetMeshes[index];
                 if (mesh) {
                     mesh.rotation.y = planet.currentAxialAngle;
                     const x = planet.orbitalRadius * Math.cos(planet.currentOrbitalAngle);

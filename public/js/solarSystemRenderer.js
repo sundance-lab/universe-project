@@ -1,5 +1,4 @@
 import * as THREE from 'three';
-// import { SunRenderer } from './sunRenderer.js'; // No longer needed
 import { getPlanetShaders } from './shaders.js';
 
 // --- Sun Creation Logic (Integrated from sunRenderer.js) ---
@@ -9,12 +8,13 @@ const LOD_LEVELS = {
     MEDIUM: { distance: 600, segments: 256, noiseDetail: 2.0, textureDetail: 2.0 },
     FAR: { distance: 1200, segments: 128, noiseDetail: 1.0, textureDetail: 1.0 }
 };
+// MODIFICATION: Greatly increased sun sizes and ensured they are larger than planets.
 const sizeTiers = {
-    dwarf: { size: 15, detailMultiplier: 1.5 },
-    normal: { size: 30, detailMultiplier: 1.3 },
-    giant: { size: 60, detailMultiplier: 1.1 },
-    supergiant: { size: 120, detailMultiplier: 1.0 },
-    hypergiant: { size: 240, detailMultiplier: 0.9 }
+    dwarf:      { size: 15 * 100, detailMultiplier: 1.5 },   // 1500
+    normal:     { size: 30 * 100, detailMultiplier: 1.3 },   // 3000
+    giant:      { size: 60 * 100, detailMultiplier: 1.1 },   // 6000
+    supergiant: { size: 120 * 100, detailMultiplier: 1.0 },  // 12000
+    hypergiant: { size: 240 * 100, detailMultiplier: 0.9 }   // 24000
 };
 const sunVariations = [
     { baseColor: new THREE.Color(0x4A90E2), hotColor: new THREE.Color(0xFFFFFF), coolColor: new THREE.Color(0x2979FF), glowColor: new THREE.Color(0x64B5F6), coronaColor: new THREE.Color(0x90CAF9), midColor: new THREE.Color(0x82B1FF), peakColor: new THREE.Color(0xE3F2FD), valleyColor: new THREE.Color(0x1565C0), turbulence: 1.2, fireSpeed: 0.35, pulseSpeed: 0.006, sizeCategory: 'normal', terrainScale: 2.0, fireIntensity: 1.8 },
@@ -35,7 +35,7 @@ function _createSunMaterial(variation, finalSize, lodLevel) {
 
 export const SolarSystemRenderer = (() => {
     let scene, camera, renderer;
-    let sunLOD, sunLight; // MODIFICATION: Changed sunRenderer to sunLOD
+    let sunLOD, sunLight;
     let planetMeshes = [];
     let orbitLines = [];
     let currentSystemData = null;
@@ -45,13 +45,13 @@ export const SolarSystemRenderer = (() => {
     const SPHERE_BASE_RADIUS = 0.8;
     const DISPLACEMENT_SCALING_FACTOR = 0.005;
 
-    // MODIFICATION: Added function to create the sun mesh
     function _createSun(sunData) {
         const variation = sunVariations[sunData.type];
         const baseSize = sizeTiers[variation.sizeCategory].size;
         const detailMultiplier = sizeTiers[variation.sizeCategory].detailMultiplier;
-
-        const sizeVariation = 0.8 + Math.random() * 0.4;
+        
+        // MODIFICATION: Increased size variation
+        const sizeVariation = 0.5 + Math.random() * 1.5; 
         const finalSize = baseSize * sizeVariation;
 
         const lod = new THREE.LOD();
@@ -65,7 +65,7 @@ export const SolarSystemRenderer = (() => {
             lod.addLevel(sunMesh, level.distance);
         });
         
-        lod.position.set(0, 0, 0); // Sun is at the center
+        lod.position.set(0, 0, 0);
         return lod;
     }
 
@@ -91,14 +91,16 @@ export const SolarSystemRenderer = (() => {
                 uForestDensity: { value: planetData.forestDensity ?? 0.5 },
                 uSphereRadius: { value: SPHERE_BASE_RADIUS },
                 uDisplacementAmount: { value: displacementAmount },
-                uTime: { value: 0.0 }
+                uTime: { value: 0.0 },
+                // Pass planet type to shader
+                uPlanetType: { value: planetData.planetType || 0 }
             },
             vertexShader,
             fragmentShader,
         });
 
         const mesh = new THREE.Mesh(geometry, material);
-        mesh.userData = { ...planetData }; // Store data for interactions
+        mesh.userData = { ...planetData };
         return mesh;
     }
 
@@ -112,7 +114,6 @@ export const SolarSystemRenderer = (() => {
             renderer.domElement.removeEventListener('click', _onPlanetClick);
         }
 
-        // MODIFICATION: Dispose of sun LOD group
         if (sunLOD) {
             sunLOD.traverse(object => {
                 if (object.geometry) object.geometry.dispose();
@@ -163,8 +164,8 @@ export const SolarSystemRenderer = (() => {
 
         const aspect = width / height;
         const frustumSize = 4000;
-        camera = new THREE.OrthographicCamera(frustumSize * aspect / -2, frustumSize * aspect / 2, frustumSize / 2, frustumSize / -2, 1, 50000);
-        camera.position.set(0, 2000, 0); 
+        camera = new THREE.OrthographicCamera(frustumSize * aspect / -2, frustumSize * aspect / 2, frustumSize / 2, frustumSize / -2, 1, 100000);
+        camera.position.set(0, 50000, 0); 
         camera.lookAt(0, 0, 0);       
 
         renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
@@ -177,7 +178,7 @@ export const SolarSystemRenderer = (() => {
         renderer.domElement.addEventListener('click', _onPlanetClick, false);
 
 
-        sunLight = new THREE.PointLight(0xffffff, 2.5, 50000);
+        sunLight = new THREE.PointLight(0xffffff, 2.5, 200000);
         scene.add(sunLight);
         scene.add(new THREE.AmbientLight(0xffffff, 0.1));
     }
@@ -216,7 +217,6 @@ export const SolarSystemRenderer = (() => {
         if (!renderer) return;
         animationFrameId = requestAnimationFrame(_animate);
 
-        // MODIFICATION: Update sun animation
         if (sunLOD) {
             sunLOD.rotation.y += 0.0001;
             sunLOD.update(camera);
@@ -244,19 +244,22 @@ export const SolarSystemRenderer = (() => {
     }
     
     return {
+        // MODIFICATION: Added getters for script.js to use
+        getCamera: () => camera,
+        getCanvas: () => renderer?.domElement,
+
         init: (solarSystemData) => {
             const container = document.getElementById('solar-system-content');
             if (!container) {
                 console.error("SolarSystemRenderer: Container #solar-system-content not found.");
                 return;
             }
-            container.innerHTML = ''; // Clear previous content
+            container.innerHTML = '';
 
             _setupScene(container);
             
             currentSystemData = solarSystemData;
             
-            // MODIFICATION: Create and add the sun to the main scene
             sunLOD = _createSun(solarSystemData.sun);
             scene.add(sunLOD);
 
@@ -266,7 +269,7 @@ export const SolarSystemRenderer = (() => {
                 scene.add(planetMesh);
 
                 const orbitGeometry = new THREE.BufferGeometry().setFromPoints(
-                    new THREE.Path().absarc(0, 0, planet.orbitalRadius, 0, Math.PI * 2, false).getPoints(128)
+                    new THREE.Path().absarc(0, 0, planet.orbitalRadius, 0, Math.PI * 2, false).getPoints(256)
                 );
                 const orbitMaterial = new THREE.LineBasicMaterial({ color: 0x444444 });
                 const orbitLine = new THREE.Line(orbitGeometry, orbitMaterial);
@@ -282,19 +285,22 @@ export const SolarSystemRenderer = (() => {
             currentSystemData = systemData;
         },
 
-        handlePanAndZoom: (panX, panY, zoom) => {
+        handlePanAndZoom: (panX, panY, zoom, isPanning = false) => {
             if (camera) {
-                const frustumSize = 4000;
-                const aspect = camera.right / (camera.top * 0.5); 
-                
-                camera.left = -frustumSize * aspect / 2 / zoom;
-                camera.right = frustumSize * aspect / 2 / zoom;
-                camera.top = frustumSize / 2 / zoom;
-                camera.bottom = -frustumSize / 2 / zoom;
-
-                camera.position.x = -panX;
+                // MODIFICATION: Simplified logic, direct application of pan values
+                camera.position.x = panX;
                 camera.position.z = panY; 
-
+                
+                if (!isPanning) { // Only adjust frustum on zoom, not during a pan drag
+                    const frustumSize = 4000;
+                    const aspect = camera.right / (camera.top * 0.5); 
+                    
+                    camera.left = -frustumSize * aspect / 2 / zoom;
+                    camera.right = frustumSize * aspect / 2 / zoom;
+                    camera.top = frustumSize / 2 / zoom;
+                    camera.bottom = -frustumSize / 2 / zoom;
+                }
+                
                 camera.updateProjectionMatrix();
             }
         },
@@ -307,13 +313,15 @@ export const SolarSystemRenderer = (() => {
                 renderer.setSize(width, height);
 
                 const aspect = width / height;
-                const currentZoom = (camera.right - camera.left) / aspect / 4000;
+                const currentZoom = (4000 / (camera.top - camera.bottom));
+
                 const frustumSize = 4000;
 
                 camera.left = -frustumSize * aspect / 2 / currentZoom;
                 camera.right = frustumSize * aspect / 2 / currentZoom;
                 camera.top = frustumSize / 2 / currentZoom;
                 camera.bottom = -frustumSize / 2 / currentZoom;
+
                 camera.updateProjectionMatrix();
             }
         },

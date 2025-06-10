@@ -690,3 +690,37 @@ body, html {
   background: #5a7d9b;
   border-radius: 3px;
 }
+
+/* Position for the new Developer Controls button */
+#dev-controls-btn {
+  top: 168px; /* Position below the other buttons */
+  left: 15px;
+  z-index: 301;
+  background-color: #4a6a8a;
+  border: 1.1px solid #3b5a7a;
+}
+#dev-controls-btn:hover {
+  background-color: #5a7d9b;
+}
+
+/* Styling for control groups inside modals */
+.modal-content .control-group {
+    margin-bottom: 20px;
+}
+
+.modal-content .control-group label {
+    display: block;
+    margin-bottom: 8px;
+    font-size: 0.9em;
+    color: #bdc3c7;
+}
+
+.modal-content .input-row {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+}
+
+.modal-content .input-row span {
+    color: #bdc3c7;
+}

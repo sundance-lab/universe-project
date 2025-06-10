@@ -1,3 +1,7 @@
+/*
+File: sundance-lab/universe-project/universe-project-1c890612324cf52378cad7dd053c3e9f4655c465/public/js/uiManager.js
+*/
+
 import { stopSolarSystemAnimation } from './animationController.js';
 import { generateSolarSystemsForGalaxy } from './universeGenerator.js';
 import { SolarSystemRenderer } from './solarSystemRenderer.js';
@@ -43,8 +47,13 @@ export const UIManager = (() => {
 
             // START: Add the click listener
             li.addEventListener('click', () => {
-                if (window.activeSolarSystemRenderer && typeof window.activeSolarSystemRenderer.focusOnPlanet === 'function') {
-                    window.activeSolarSystemRenderer.focusOnPlanet(planet.id);
+                if (window.activeSolarSystemRenderer) {
+                    // Check if the clicked planet is already focused
+                    if (window.activeSolarSystemRenderer.focusedPlanetMesh && window.activeSolarSystemRenderer.focusedPlanetMesh.userData.id === planet.id) {
+                        window.activeSolarSystemRenderer.unfocusPlanet(); // Unfocus if already focused
+                    } else if (typeof window.activeSolarSystemRenderer.focusOnPlanet === 'function') {
+                        window.activeSolarSystemRenderer.focusOnPlanet(planet.id); // Focus if not focused
+                    }
                 }
             });
             // END: Add the click listener

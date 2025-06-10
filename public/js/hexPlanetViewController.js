@@ -2,7 +2,7 @@
 
 import * as THREE from 'three';
 import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls';
-import { LOD } from 'three';
+// The import for LOD is no longer needed here
 import { getHexPlanetShaders } from './shaders.js';
 
 export const HexPlanetViewController = (() => {
@@ -83,7 +83,7 @@ controls.maxPolarAngle = Math.PI;
         baseMaterial.uniforms.uOceanHeightLevel.value = normalizedOceanLevel - 0.5;
         baseMaterial.uniforms.uDisplacementAmount.value = terrainRange * DISPLACEMENT_SCALING_FACTOR;
 
-        lod = new LOD();
+        lod = new THREE.LOD(); // Use THREE.LOD() here
         scene.add(lod);
 
         const detailLevels = [

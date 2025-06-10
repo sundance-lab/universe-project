@@ -43,6 +43,7 @@ export const SolarSystemRenderer = (() => {
     let lastAnimateTime = null;
     let raycaster, mouse;
     let boundWheelHandler = null;
+    let cameraAnimation = null; // ADD THIS LINE
 
     const SPHERE_BASE_RADIUS = 0.8;
     const DISPLACEMENT_SCALING_FACTOR = 0.005;
@@ -73,7 +74,6 @@ export const SolarSystemRenderer = (() => {
 
     function _createPlanetMesh(planetData) {
         const { vertexShader, fragmentShader } = getPlanetShaders();
-
         const geometry = new THREE.SphereGeometry(planetData.size, 32, 32);
 
         const pMin = planetData.minTerrainHeight ?? 0.0;
@@ -83,8 +83,8 @@ export const SolarSystemRenderer = (() => {
         const normalizedOceanLevel = terrainRange > 0 ? (pOcean - pMin) / terrainRange : 0.5;
         const displacementAmount = terrainRange * DISPLACEMENT_SCALING_FACTOR * 40;
 
-const material = new THREE.ShaderMaterial({
-            uniforms: THREE.UniformsUtils.merge([ // <-- Start of fix
+        const material = new THREE.ShaderMaterial({
+            uniforms: THREE.UniformsUtils.merge([
                 THREE.UniformsLib.common,
                 {
                     uLandColor: { value: new THREE.Color(planetData.landColor || '#556B2F') },
@@ -99,7 +99,7 @@ const material = new THREE.ShaderMaterial({
                     uPlanetType: { value: planetData.planetType || 0 },
                     uLightDirection: { value: new THREE.Vector3(0.8, 0.6, 1.0) }
                 }
-            ]), // <-- End of fix
+            ]),
             vertexShader,
             fragmentShader,
         });
@@ -222,6 +222,16 @@ const material = new THREE.ShaderMaterial({
         
         controls.enableZoom = false;
 
+        // START: ADD THIS LISTENER
+        controls.addEventListener('start', () => {
+            // If user starts interacting, cancel any ongoing programmatic animation
+            if (cameraAnimation) {
+                cameraAnimation = null;
+                controls.enabled = true;
+            }
+        });
+        // END: ADD THIS LISTENER
+
         boundWheelHandler = (event) => {
             event.preventDefault();
         
@@ -273,9 +283,6 @@ const material = new THREE.ShaderMaterial({
 
         if (intersects.length > 0) {
             const clickedPlanetData = intersects[0].object.userData;
-            
-            // This is the robust fix for the back button.
-            // It captures the ID at the moment of the click, preventing any issues.
             const systemId = currentSystemData.id;
             const onBackCallback = () => {
                 window.switchToSolarSystemView(systemId);
@@ -288,11 +295,9 @@ const material = new THREE.ShaderMaterial({
     }
 
     function _animate(now) {
-        if (!renderer) return; // Exit if disposed
+        if (!renderer) return;
         animationFrameId = requestAnimationFrame(_animate);
 
-        // This block is the fix for the orbiting planets.
-        // It consolidates all animation logic into the renderer.
         if (lastAnimateTime === null) lastAnimateTime = now;
         const deltaTime = (now - lastAnimateTime) / 1000;
         lastAnimateTime = now;
@@ -303,6 +308,21 @@ const material = new THREE.ShaderMaterial({
                 planet.currentAxialAngle += planet.axialSpeed * 2 * deltaTime;
             });
         }
+        
+        // START: ADD THIS ANIMATION BLOCK
+        if (cameraAnimation) {
+            const speed = 0.05; // Adjust for faster/slower animation
+            camera.position.lerp(cameraAnimation.targetPosition, speed);
+            controls.target.lerp(cameraAnimation.targetLookAt, speed);
+
+            if (camera.position.distanceTo(cameraAnimation.targetPosition) < 10) {
+                camera.position.copy(cameraAnimation.targetPosition);
+                controls.target.copy(cameraAnimation.targetLookAt);
+                cameraAnimation = null;
+                controls.enabled = true; // Re-enable controls once animation is done
+            }
+        }
+        // END: ADD THIS ANIMATION BLOCK
 
         if(controls) controls.update();
         
@@ -335,6 +355,31 @@ const material = new THREE.ShaderMaterial({
 
         renderer.render(scene, camera);
     }
+    
+    // START: ADD THIS NEW FUNCTION
+    function focusOnPlanet(planetId) {
+        const targetMesh = planetMeshes.find(p => p.userData.id === planetId);
+        if (!targetMesh) {
+            console.warn(`focusOnPlanet: Planet with ID ${planetId} not found.`);
+            return;
+        }
+
+        const planetWorldPosition = new THREE.Vector3();
+        targetMesh.getWorldPosition(planetWorldPosition);
+
+        // Calculate a nice viewing position for the camera
+        const offset = new THREE.Vector3(0, targetMesh.userData.size * 0.5, targetMesh.userData.size * 2.0);
+        const targetPosition = planetWorldPosition.clone().add(offset);
+        
+        // Set up the animation object for the _animate loop
+        cameraAnimation = {
+            targetPosition: targetPosition,
+            targetLookAt: planetWorldPosition,
+        };
+        
+        controls.enabled = false; // Disable controls during animation
+    }
+    // END: ADD THIS NEW FUNCTION
 
     return {
         init: (solarSystemData) => {
@@ -373,6 +418,8 @@ const material = new THREE.ShaderMaterial({
 
         dispose: () => {
             _cleanup();
-        }
+        },
+
+        focusOnPlanet: focusOnPlanet // Expose the new function
     };
 })();

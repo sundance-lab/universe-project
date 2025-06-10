@@ -125,6 +125,7 @@ uniform float uOceanHeightLevel;
 uniform float uContinentSeed;
 uniform float uForestDensity;
 uniform int uPlanetType; // MODIFICATION: Added planet type
+uniform vec3 uLightDirection;
 
 varying vec3 vNormal;
 varying float vElevation;
@@ -137,7 +138,7 @@ vec3 calculateLighting(vec3 surfaceColor, vec3 normalVec, vec3 viewDir) {
  float diffuseStrength = 0.7;
  float specularStrength = 0.3;
  float shininess = 16.0;
- vec3 lightDirection = normalize(vec3(0.8, 0.6, 1.0));
+ vec3 lightDirection = normalize(uLightDirection);
 
  vec3 ambient = ambientStrength * lightColor;
  vec3 norm = normalize(normalVec);

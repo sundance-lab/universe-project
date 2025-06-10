@@ -32,8 +32,9 @@ function animateSolarSystem(now) {
     }
 
     // 2. Tell the new 3D renderer to update the visuals using the new data.
-    if(window.SolarSystemRenderer) {
-        window.SolarSystemRenderer.update(now, window.gameSessionData.solarSystemView);
+    // MODIFIED LINE: Call the active renderer instance.
+    if(window.activeSolarSystemRenderer) {
+        window.activeSolarSystemRenderer.update(now, window.gameSessionData.solarSystemView);
     }
 }
 

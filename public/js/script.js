@@ -1007,7 +1007,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
           for (let i = 0; i < numPlanets; i++) {
               const planetData = generatePlanetInstanceFromBasis({});
-              const orbitalRadius = lastOrbitalRadius + MIN_ORBITAL_SEPARATION + Math.random() * 15000;
+              const orbitalRadius = lastOrbitalRadius + MIN_ORBITAL_SEPARATION + Math.random() * 45000;
               
               solarSystemObject.planets.push({
                   ...planetData,

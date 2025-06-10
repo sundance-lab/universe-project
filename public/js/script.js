@@ -58,23 +58,18 @@ document.addEventListener('DOMContentLoaded', () => {
   // ADDED: A variable to hold our active renderer instance
   window.activeSolarSystemRenderer = null;
 
-  window.generatePlanetInstanceFromBasis = function (basis, isForDesignerPreview = false) {
-      console.log("[DEBUG] Generating planet instance:");
-      console.log("[DEBUG] Available templates:", window.gameSessionData?.customPlanetDesigns?.length || 0);
-      console.log("[DEBUG] Is preview mode:", isForDesignerPreview);
-      
-      // Always use a custom template if available and not in preview mode
-      if (!isForDesignerPreview && window.gameSessionData?.customPlanetDesigns?.length > 0) {
-          
+window.generatePlanetInstanceFromBasis = function (basis, isForDesignerPreview = false) {
+      // If not in preview mode, and custom designs exist, there's a 50% chance to use one.
+      const useCustomDesign = !isForDesignerPreview && 
+                              window.gameSessionData?.customPlanetDesigns?.length > 0 && 
+                              Math.random() < 0.5;
+
+      if (useCustomDesign) {
           const randomDesign = window.gameSessionData.customPlanetDesigns[
               Math.floor(Math.random() * window.gameSessionData.customPlanetDesigns.length)
           ];
           
-          console.log("[DEBUG] Using template:", {
-              designId: randomDesign.designId,
-              waterColor: randomDesign.waterColor,
-              landColor: randomDesign.landColor
-          });
+          console.log("[DEBUG] Using custom template:", randomDesign.designId);
           
           return {
               waterColor: randomDesign.waterColor,
@@ -85,13 +80,13 @@ document.addEventListener('DOMContentLoaded', () => {
               oceanHeightLevel: randomDesign.oceanHeightLevel,
               riverBasin: randomDesign.riverBasin,
               forestDensity: randomDesign.forestDensity,
-              sourceDesignId: randomDesign.designId 
+              sourceDesignId: randomDesign.designId,
+              isExplorable: true, // Ensure it's explorable
           };
       }
 
-      console.log("[DEBUG] Using default generation because:", 
-          isForDesignerPreview ? "is preview mode" : "no custom designs available"
-      );
+      // Fallback to default generation for previews, or if the 50% chance fails.
+      console.log("[DEBUG] Using default random generation.");
       
       return {
           waterColor: basis.waterColor || '#0000FF',

@@ -52,8 +52,11 @@ export const SolarSystemRenderer = (() => {
     const SPHERE_BASE_RADIUS = 0.8;
     const DISPLACEMENT_SCALING_FACTOR = 0.005;
 
+    // Declare orbitSpeedMultiplier at the top level of the IIFE
+    let orbitSpeedMultiplier = 1.0; 
+
     function _createSun(sunData) {
-        const variation = sunVariations[sunData.type % sunVariations.length];
+        const variation = sunVariations[sunData.type % sunData.length];
         const baseSize = sizeTiers[variation.sizeCategory].size;
         const detailMultiplier = sizeTiers[variation.sizeCategory].detailMultiplier;
         const sizeVariation = 0.5 + Math.random() * 1.5;

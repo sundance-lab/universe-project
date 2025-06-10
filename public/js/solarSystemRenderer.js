@@ -1,4 +1,5 @@
 import * as THREE from 'three';
+import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls.js';
 import { getPlanetShaders } from './shaders.js';
 
 // --- Sun Creation Logic (Integrated from sunRenderer.js) ---
@@ -8,13 +9,12 @@ const LOD_LEVELS = {
     MEDIUM: { distance: 600, segments: 256, noiseDetail: 2.0, textureDetail: 2.0 },
     FAR: { distance: 1200, segments: 128, noiseDetail: 1.0, textureDetail: 1.0 }
 };
-// MODIFICATION: Greatly increased sun sizes and ensured they are larger than planets.
 const sizeTiers = {
-    dwarf:      { size: 15 * 100, detailMultiplier: 1.5 },   // 1500
-    normal:     { size: 30 * 100, detailMultiplier: 1.3 },   // 3000
-    giant:      { size: 60 * 100, detailMultiplier: 1.1 },   // 6000
-    supergiant: { size: 120 * 100, detailMultiplier: 1.0 },  // 12000
-    hypergiant: { size: 240 * 100, detailMultiplier: 0.9 }   // 24000
+    dwarf:      { size: 15 * 100, detailMultiplier: 1.5 },
+    normal:     { size: 30 * 100, detailMultiplier: 1.3 },
+    giant:      { size: 60 * 100, detailMultiplier: 1.1 },
+    supergiant: { size: 120 * 100, detailMultiplier: 1.0 },
+    hypergiant: { size: 240 * 100, detailMultiplier: 0.9 }
 };
 const sunVariations = [
     { baseColor: new THREE.Color(0x4A90E2), hotColor: new THREE.Color(0xFFFFFF), coolColor: new THREE.Color(0x2979FF), glowColor: new THREE.Color(0x64B5F6), coronaColor: new THREE.Color(0x90CAF9), midColor: new THREE.Color(0x82B1FF), peakColor: new THREE.Color(0xE3F2FD), valleyColor: new THREE.Color(0x1565C0), turbulence: 1.2, fireSpeed: 0.35, pulseSpeed: 0.006, sizeCategory: 'normal', terrainScale: 2.0, fireIntensity: 1.8 },
@@ -34,7 +34,7 @@ function _createSunMaterial(variation, finalSize, lodLevel) {
 }
 
 export const SolarSystemRenderer = (() => {
-    let scene, camera, renderer;
+    let scene, camera, renderer, controls; // MODIFICATION: Added controls
     let sunLOD, sunLight;
     let planetMeshes = [];
     let orbitLines = [];
@@ -50,7 +50,6 @@ export const SolarSystemRenderer = (() => {
         const baseSize = sizeTiers[variation.sizeCategory].size;
         const detailMultiplier = sizeTiers[variation.sizeCategory].detailMultiplier;
         
-        // MODIFICATION: Increased size variation
         const sizeVariation = 0.5 + Math.random() * 1.5; 
         const finalSize = baseSize * sizeVariation;
 
@@ -92,7 +91,6 @@ export const SolarSystemRenderer = (() => {
                 uSphereRadius: { value: SPHERE_BASE_RADIUS },
                 uDisplacementAmount: { value: displacementAmount },
                 uTime: { value: 0.0 },
-                // Pass planet type to shader
                 uPlanetType: { value: planetData.planetType || 0 }
             },
             vertexShader,
@@ -112,6 +110,11 @@ export const SolarSystemRenderer = (() => {
 
         if (renderer?.domElement) {
             renderer.domElement.removeEventListener('click', _onPlanetClick);
+        }
+        
+        if(controls) {
+            controls.dispose();
+            controls = null;
         }
 
         if (sunLOD) {
@@ -161,17 +164,37 @@ export const SolarSystemRenderer = (() => {
         scene = new THREE.Scene();
         const width = container.offsetWidth;
         const height = container.offsetHeight;
-
         const aspect = width / height;
-        const frustumSize = 4000;
-        camera = new THREE.OrthographicCamera(frustumSize * aspect / -2, frustumSize * aspect / 2, frustumSize / 2, frustumSize / -2, 1, 100000);
-        camera.position.set(0, 50000, 0); 
-        camera.lookAt(0, 0, 0);       
+
+        // MODIFICATION: Switched back to PerspectiveCamera for a 3D view
+        camera = new THREE.PerspectiveCamera(60, aspect, 100, 300000);
+        camera.position.set(0, 20000, 35000); // Semi-top down view
+        camera.lookAt(0, 0, 0);
+
+        // MODIFICATION: Add NASA image as a skybox
+        const textureLoader = new THREE.TextureLoader();
+        textureLoader.load('https://svs.gsfc.nasa.gov/vis/a010000/a013800/a013875/starmap_2020_4k.jpg', (texture) => {
+            const skySphere = new THREE.SphereGeometry(150000, 60, 40);
+            const skyMaterial = new THREE.MeshBasicMaterial({
+                map: texture,
+                side: THREE.BackSide
+            });
+            const skybox = new THREE.Mesh(skySphere, skyMaterial);
+            scene.add(skybox);
+        });
 
         renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
         renderer.setPixelRatio(window.devicePixelRatio);
         renderer.setSize(width, height);
         container.appendChild(renderer.domElement);
+        
+        // MODIFICATION: Initialize OrbitControls
+        controls = new OrbitControls(camera, renderer.domElement);
+        controls.enableDamping = true;
+        controls.dampingFactor = 0.05;
+        controls.minDistance = 1000;
+        controls.maxDistance = 100000;
+
 
         raycaster = new THREE.Raycaster();
         mouse = new THREE.Vector2();
@@ -217,6 +240,8 @@ export const SolarSystemRenderer = (() => {
         if (!renderer) return;
         animationFrameId = requestAnimationFrame(_animate);
 
+        controls.update(); // Required for OrbitControls damping
+
         if (sunLOD) {
             sunLOD.rotation.y += 0.0001;
             sunLOD.update(camera);
@@ -244,10 +269,6 @@ export const SolarSystemRenderer = (() => {
     }
     
     return {
-        // MODIFICATION: Added getters for script.js to use
-        getCamera: () => camera,
-        getCanvas: () => renderer?.domElement,
-
         init: (solarSystemData) => {
             const container = document.getElementById('solar-system-content');
             if (!container) {
@@ -285,43 +306,14 @@ export const SolarSystemRenderer = (() => {
             currentSystemData = systemData;
         },
 
-        handlePanAndZoom: (panX, panY, zoom, isPanning = false) => {
-            if (camera) {
-                // MODIFICATION: Simplified logic, direct application of pan values
-                camera.position.x = panX;
-                camera.position.z = panY; 
-                
-                if (!isPanning) { // Only adjust frustum on zoom, not during a pan drag
-                    const frustumSize = 4000;
-                    const aspect = camera.right / (camera.top * 0.5); 
-                    
-                    camera.left = -frustumSize * aspect / 2 / zoom;
-                    camera.right = frustumSize * aspect / 2 / zoom;
-                    camera.top = frustumSize / 2 / zoom;
-                    camera.bottom = -frustumSize / 2 / zoom;
-                }
-                
-                camera.updateProjectionMatrix();
-            }
-        },
-
         handleResize: () => {
             if (renderer && camera) {
                 const container = renderer.domElement.parentElement;
                 const width = container.offsetWidth;
                 const height = container.offsetHeight;
                 renderer.setSize(width, height);
-
-                const aspect = width / height;
-                const currentZoom = (4000 / (camera.top - camera.bottom));
-
-                const frustumSize = 4000;
-
-                camera.left = -frustumSize * aspect / 2 / currentZoom;
-                camera.right = frustumSize * aspect / 2 / currentZoom;
-                camera.top = frustumSize / 2 / currentZoom;
-                camera.bottom = -frustumSize / 2 / currentZoom;
-
+                // MODIFICATION: Update aspect ratio for PerspectiveCamera
+                camera.aspect = width / height;
                 camera.updateProjectionMatrix();
             }
         },

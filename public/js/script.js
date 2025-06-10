@@ -1286,11 +1286,15 @@ window.switchToHexPlanetView = (planetData, onBackCallback) => {
     target: galaxy, viewElement: galaxyViewport, clampFn: clampGalaxyPan, renderFn: renderGalaxyDetailScreen,
     minZoom: GALAXY_VIEW_MIN_ZOOM, maxZoom: GALAXY_VIEW_MAX_ZOOM, zoomKey: 'currentZoom', panXKey: 'currentPanX', panYKey: 'currentPanY'
    };
-  } else if (activeScreen === solarSystemScreen) {
-   let dynamicMinZoom = SOLAR_SYSTEM_VIEW_MIN_ZOOM;
-   if (solarSystemScreen.offsetWidth > 0 && SOLAR_SYSTEM_EXPLORABLE_RADIUS > 0) {
-    dynamicMinZoom = Math.max(dynamicMinZoom, solarSystemScreen.offsetWidth / (SOLAR_SYSTEM_EXPLORABLE_RADIUS * 2));
-   }
+// In public/js/script.js -> handleZoom
+} else if (activeScreen === solarSystemScreen) {
+    const viewData = window.gameSessionData.solarSystemView;
+    const oldZoom = viewData.zoomLevel;
+    let newZoom = oldZoom * (1 + (direction === 'in' ? ZOOM_STEP : -ZOOM_STEP));
+    newZoom = Math.max(SOLAR_SYSTEM_VIEW_MIN_ZOOM, Math.min(SOLAR_SYSTEM_VIEW_MAX_ZOOM, newZoom));
+    viewData.zoomLevel = newZoom;
+    SolarSystemRenderer.handlePanAndZoom(viewData.currentPanX, viewData.currentPanY, viewData.zoomLevel);
+}
    viewData = {
     target: window.gameSessionData.solarSystemView, viewElement: solarSystemScreen, clampFn: clampSolarSystemPan, renderFn: renderSolarSystemScreen,
     minZoom: dynamicMinZoom, maxZoom: SOLAR_SYSTEM_VIEW_MAX_ZOOM, zoomKey: 'zoomLevel', panXKey: 'currentPanX', panYKey: 'currentPanY'
@@ -1380,10 +1384,9 @@ function panMouseMove(event) {
   if (p.viewportElement === galaxyViewport) {
     clampGalaxyPan(p.dataObject);
     renderGalaxyDetailScreen(true);
-  } else if (p.viewportElement === solarSystemScreen) {
-    clampSolarSystemPan(p.dataObject, p.viewportElement.offsetWidth, p.viewportElement.offsetHeight);
-    renderSolarSystemScreen(true);
-  }
+    } else if (p.viewportElement === solarSystemScreen) {
+      SolarSystemRenderer.handlePanAndZoom(p.dataObject.currentPanX, p.dataObject.currentPanY, p.dataObject.zoomLevel);
+    }
 }
 
  function panMouseUp() {
@@ -1516,6 +1519,11 @@ window.addEventListener('resize', () => {
         if (mainScreen.classList.contains('active')) {
             generateUniverseLayout();
             renderMainScreen();
+        }
+
+        // ADD THIS LINE
+        if (solarSystemScreen.classList.contains('active')) {
+            SolarSystemRenderer.handleResize();
         }
 
         if (window.currentSunRenderer && typeof window.currentSunRenderer.resize === 'function') {

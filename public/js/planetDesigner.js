@@ -3,15 +3,18 @@
 import '../styles.css';
 import * as THREE from 'three';
 import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls';
-// The import for LOD is no longer needed here
 import { getPlanetShaders } from './shaders.js';
 import { HexPlanetViewController } from './hexPlanetViewController.js';
 
 export const PlanetDesigner = (() => {
- // --- CACHED DOM ELEMENTS ---
+ // --- CACHED DOM ELEMENTS & STATE ---
  let savedDesignsUl, designerPlanetCanvas, designerWaterColorInput, designerLandColorInput, designerMinHeightInput, designerMaxHeightInput, designerOceanHeightInput,
   designerSaveBtn, designerCancelBtn, designerRiverBasinInput, designerRiverBasinValue,
   designerForestDensityInput, designerForestDensityValue, designerRandomizeBtn, boundResizeHandler, designerExploreBtn;
+
+  // --- NEW: Event handler references for cleanup ---
+  let handleControlChangeRef, randomizeDesignerPlanetRef, handleExploreButtonClickRef, 
+      saveCustomPlanetDesignRef, cancelDesignerRef, savedDesignsClickHandlerRef;
 
  const DISPLACEMENT_SCALING_FACTOR = 0.005;
  const SPHERE_BASE_RADIUS = 0.8;
@@ -82,7 +85,6 @@ export const PlanetDesigner = (() => {
   
   designerThreeControls.minPolarAngle = 0;
   designerThreeControls.maxPolarAngle = Math.PI;
-  // ===========================================================================
   
   _animateDesignerThreeJSView();
  }
@@ -356,48 +358,38 @@ function _handleExploreButtonClick(fromSolarSystem = false) {
    designerSaveBtn = document.getElementById('designer-save-btn');
    designerCancelBtn = document.getElementById('designer-cancel-btn');
 
+   // --- NEW: Define handlers ---
+   handleControlChangeRef = (e) => _handleControlChange(e);
+   randomizeDesignerPlanetRef = () => _randomizeDesignerPlanet();
+   handleExploreButtonClickRef = () => _handleExploreButtonClick(false);
+   saveCustomPlanetDesignRef = () => _saveCustomPlanetDesign();
+   cancelDesignerRef = () => PlanetDesigner.deactivate();
+   savedDesignsClickHandlerRef = (e) => {
+        const targetButton = e.target.closest('button');
+        if (!targetButton) return;
+        const id = targetButton.dataset.id;
+        if (!id) return;
+
+        if (targetButton.classList.contains('design-item-load')) {
+            _loadAndPreviewDesign(id);
+        } else if (targetButton.classList.contains('design-item-delete')) {
+            if (confirm("Are you sure you want to delete this planet design?")) {
+                _deleteCustomPlanetDesign(id);
+            }
+        }
+    };
+   boundResizeHandler = _onDesignerResize.bind(this);
+   
    // --- ATTACH EVENT LISTENERS ---
    document.querySelectorAll('.designer-control').forEach(input => {
-    input.addEventListener('input', _handleControlChange);
+    input.addEventListener('input', handleControlChangeRef);
    });
 
-   designerRandomizeBtn?.addEventListener('click', _randomizeDesignerPlanet);
-
-// In the init function, after the other DOM element assignments
-designerExploreBtn = document.getElementById('designer-explore-btn');
-if (designerExploreBtn) {
-    // Pass false to indicate we're coming from the designer
-    designerExploreBtn.addEventListener('click', () => _handleExploreButtonClick(false));
-}
-   
-   designerSaveBtn?.addEventListener('click', _saveCustomPlanetDesign); 
-    
-   designerCancelBtn?.addEventListener('click', () => {
-    PlanetDesigner.deactivate();
-    if (window.history.length > 1) {
-      window.history.back();
-    } else if (window.switchToMainView) {
-      window.switchToMainView();
-    }
-   });
-
-   savedDesignsUl?.addEventListener('click', (e) => {
-    const targetButton = e.target.closest('button');
-    if (!targetButton) return;
-
-    const id = targetButton.dataset.id;
-    if (!id) return;
-
-    if (targetButton.classList.contains('design-item-load')) {
-      _loadAndPreviewDesign(id);
-    } else if (targetButton.classList.contains('design-item-delete')) {
-     if (confirm("Are you sure you want to delete this planet design?")) {
-      _deleteCustomPlanetDesign(id);
-     }
-    }
-   });
-    
-   boundResizeHandler = _onDesignerResize.bind(this);
+   designerRandomizeBtn?.addEventListener('click', randomizeDesignerPlanetRef);
+   designerExploreBtn?.addEventListener('click', handleExploreButtonClickRef);
+   designerSaveBtn?.addEventListener('click', saveCustomPlanetDesignRef); 
+   designerCancelBtn?.addEventListener('click', cancelDesignerRef);
+   savedDesignsUl?.addEventListener('click', savedDesignsClickHandlerRef);
    window.addEventListener('resize', boundResizeHandler);
   },
 
@@ -416,10 +408,26 @@ if (designerExploreBtn) {
   deactivate: () => {
     console.log("PlanetDesigner.deactivate called for cleanup.");
     _stopAndCleanupDesignerThreeJSView();
-    if (boundResizeHandler) {
-      window.removeEventListener('resize', boundResizeHandler);
-      boundResizeHandler = null;
+
+    // The deactivate function now properly calls the destroy function,
+    // which handles listener cleanup.
+    if (window.switchToMainView) {
+      window.switchToMainView();
     }
+  },
+  
+  destroy: () => {
+    // --- NEW: Cleanup function ---
+    console.log("PlanetDesigner: Removing event listeners.");
+    document.querySelectorAll('.designer-control').forEach(input => {
+        input.removeEventListener('input', handleControlChangeRef);
+    });
+    designerRandomizeBtn?.removeEventListener('click', randomizeDesignerPlanetRef);
+    designerExploreBtn?.removeEventListener('click', handleExploreButtonClickRef);
+    designerSaveBtn?.removeEventListener('click', saveCustomPlanetDesignRef);
+    designerCancelBtn?.removeEventListener('click', cancelDesignerRef);
+    savedDesignsUl?.removeEventListener('click', savedDesignsClickHandlerRef);
+    window.removeEventListener('resize', boundResizeHandler);
   }
  };
 })();

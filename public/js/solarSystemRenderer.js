@@ -42,6 +42,8 @@ export const SolarSystemRenderer = (() => {
     let animationFrameId = null;
     let lastAnimateTime = 0;
     let raycaster, mouse;
+    // MODIFICATION: Add a variable to hold the wheel event handler for later cleanup
+    let boundWheelHandler = null;
 
     const SPHERE_BASE_RADIUS = 0.8;
     const DISPLACEMENT_SCALING_FACTOR = 0.005;
@@ -49,11 +51,8 @@ export const SolarSystemRenderer = (() => {
     function _createSun(sunData) {
         const variation = sunVariations[sunData.type % sunVariations.length];
         
-        // --- FIX IS HERE ---
-        // Directly use the string key from variation.sizeCategory without the incorrect modulo.
         const baseSize = sizeTiers[variation.sizeCategory].size;
         const detailMultiplier = sizeTiers[variation.sizeCategory].detailMultiplier;
-        // --- END OF FIX ---
 
         const sizeVariation = 0.5 + Math.random() * 1.5;
         const finalSize = baseSize * sizeVariation;
@@ -111,6 +110,12 @@ export const SolarSystemRenderer = (() => {
         if (animationFrameId) {
             cancelAnimationFrame(animationFrameId);
             animationFrameId = null;
+        }
+        
+        // MODIFICATION: Clean up the custom wheel event listener
+        if (renderer?.domElement && boundWheelHandler) {
+            renderer.domElement.removeEventListener('wheel', boundWheelHandler);
+            boundWheelHandler = null;
         }
 
         if (renderer?.domElement) {
@@ -198,7 +203,8 @@ export const SolarSystemRenderer = (() => {
         controls.enableDamping = true;
         controls.dampingFactor = 0.05;
         controls.screenSpacePanning = true;
-        controls.minDistance = 2000;
+        // MODIFICATION: Allow much closer zoom
+        controls.minDistance = 50;
         controls.maxDistance = 100000;
         controls.enablePan = true;
 
@@ -207,6 +213,44 @@ export const SolarSystemRenderer = (() => {
             MIDDLE: THREE.MOUSE.DOLLY,
             RIGHT: THREE.MOUSE.ROTATE
         }
+        
+        // MODIFICATION: Disable the default zoom and implement a custom one for linear speed
+        controls.enableZoom = false;
+
+        boundWheelHandler = (event) => {
+            event.preventDefault();
+        
+            // This value can be tweaked to adjust "zoom speed"
+            const linearZoomAmount = 1000;
+        
+            let zoomFactor = 0;
+            if (event.deltaY < 0) {
+                // Zooming in
+                zoomFactor = -linearZoomAmount;
+            } else {
+                // Zooming out
+                zoomFactor = linearZoomAmount;
+            }
+        
+            // Get the vector pointing from camera to target
+            const camToTarget = new THREE.Vector3().subVectors(controls.target, camera.position);
+            
+            // Calculate the new distance and clamp it
+            const newDist = THREE.MathUtils.clamp(
+                camToTarget.length() + zoomFactor,
+                controls.minDistance,
+                controls.maxDistance
+            );
+        
+            // Set the new camera position by moving along the vector from the target to the camera
+            camera.position.copy(controls.target).addScaledVector(camToTarget.normalize(), -newDist);
+        
+            // We changed the camera position manually, so we need to tell the controls to update.
+            controls.update();
+        };
+
+        renderer.domElement.addEventListener('wheel', boundWheelHandler, { passive: false });
+        // --- End of Zoom Modification ---
 
         raycaster = new THREE.Raycaster();
         mouse = new THREE.Vector2();
@@ -252,6 +296,8 @@ export const SolarSystemRenderer = (() => {
         if (!renderer) return;
         animationFrameId = requestAnimationFrame(_animate);
 
+        // We don't call controls.update() here anymore for zoom, but it's still needed
+        // for damping on panning and rotation.
         if(controls) controls.update();
 
         if (sunLOD) {

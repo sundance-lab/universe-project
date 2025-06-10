@@ -1,10 +1,41 @@
 import * as THREE from 'three';
-import { SunRenderer } from './sunRenderer.js';
+// import { SunRenderer } from './sunRenderer.js'; // No longer needed
 import { getPlanetShaders } from './shaders.js';
+
+// --- Sun Creation Logic (Integrated from sunRenderer.js) ---
+const LOD_LEVELS = {
+    ULTRA_CLOSE: { distance: 150, segments: 1024, noiseDetail: 12.0, textureDetail: 12.0 },
+    CLOSE: { distance: 300, segments: 512, noiseDetail: 4.0, textureDetail: 4.0 },
+    MEDIUM: { distance: 600, segments: 256, noiseDetail: 2.0, textureDetail: 2.0 },
+    FAR: { distance: 1200, segments: 128, noiseDetail: 1.0, textureDetail: 1.0 }
+};
+const sizeTiers = {
+    dwarf: { size: 15, detailMultiplier: 1.5 },
+    normal: { size: 30, detailMultiplier: 1.3 },
+    giant: { size: 60, detailMultiplier: 1.1 },
+    supergiant: { size: 120, detailMultiplier: 1.0 },
+    hypergiant: { size: 240, detailMultiplier: 0.9 }
+};
+const sunVariations = [
+    { baseColor: new THREE.Color(0x4A90E2), hotColor: new THREE.Color(0xFFFFFF), coolColor: new THREE.Color(0x2979FF), glowColor: new THREE.Color(0x64B5F6), coronaColor: new THREE.Color(0x90CAF9), midColor: new THREE.Color(0x82B1FF), peakColor: new THREE.Color(0xE3F2FD), valleyColor: new THREE.Color(0x1565C0), turbulence: 1.2, fireSpeed: 0.35, pulseSpeed: 0.006, sizeCategory: 'normal', terrainScale: 2.0, fireIntensity: 1.8 },
+    { baseColor: new THREE.Color(0xFF5722), hotColor: new THREE.Color(0xFF8A65), coolColor: new THREE.Color(0xBF360C), glowColor: new THREE.Color(0xFF7043), coronaColor: new THREE.Color(0xFFAB91), midColor: new THREE.Color(0xFF7043), peakColor: new THREE.Color(0xFFCCBC), valleyColor: new THREE.Color(0x8D1F06), turbulence: 1.0, fireSpeed: 0.25, pulseSpeed: 0.003, sizeCategory: 'giant', terrainScale: 1.8, fireIntensity: 1.6 },
+    { baseColor: new THREE.Color(0xFFA500), hotColor: new THREE.Color(0xFFF7E6), coolColor: new THREE.Color(0xFF4500), glowColor: new THREE.Color(0xFFDF00), coronaColor: new THREE.Color(0xFFA726), midColor: new THREE.Color(0xFFB74D), peakColor: new THREE.Color(0xFFE0B2), valleyColor: new THREE.Color(0xE65100), turbulence: 1.1, fireSpeed: 0.3, pulseSpeed: 0.004, sizeCategory: 'normal', terrainScale: 2.2, fireIntensity: 1.7 },
+    { baseColor: new THREE.Color(0xE0E0E0), hotColor: new THREE.Color(0xFFFFFF), coolColor: new THREE.Color(0x9E9E9E), glowColor: new THREE.Color(0x82B1FF), coronaColor: new THREE.Color(0xBBDEFB), midColor: new THREE.Color(0xF5F5F5), peakColor: new THREE.Color(0xFFFFFF), valleyColor: new THREE.Color(0x757575), turbulence: 1.5, fireSpeed: 0.5, pulseSpeed: 0.01, sizeCategory: 'dwarf', terrainScale: 3.0, fireIntensity: 2.5 },
+    { baseColor: new THREE.Color(0xE65100), hotColor: new THREE.Color(0xFFAB40), coolColor: new THREE.Color(0xBF360C), glowColor: new THREE.Color(0xFFD740), coronaColor: new THREE.Color(0xFFC107), midColor: new THREE.Color(0xFF9800), peakColor: new THREE.Color(0xFFE0B2), valleyColor: new THREE.Color(0xBF360C), turbulence: 1.15, fireSpeed: 0.28, pulseSpeed: 0.002, sizeCategory: 'hypergiant', terrainScale: 1.5, fireIntensity: 1.9 }
+];
+
+function _createSunMaterial(variation, finalSize, lodLevel) {
+    return new THREE.ShaderMaterial({
+        uniforms: { time: { value: 0 }, color: { value: variation.baseColor }, hotColor: { value: variation.hotColor }, coolColor: { value: variation.coolColor }, midColor: { value: variation.midColor }, peakColor: { value: variation.peakColor }, valleyColor: { value: variation.valleyColor }, glowColor: { value: variation.glowColor }, pulseSpeed: { value: variation.pulseSpeed }, turbulence: { value: variation.turbulence }, fireSpeed: { value: variation.fireSpeed }, colorIntensity: { value: 2.0 }, flowScale: { value: 2.0 }, flowSpeed: { value: 0.3 }, sunSize: { value: finalSize }, terrainScale: { value: variation.terrainScale }, fireIntensity: { value: variation.fireIntensity }, detailLevel: { value: lodLevel.noiseDetail }, textureDetail: { value: lodLevel.textureDetail }, cameraDistance: { value: 0.0 }, detailScaling: { value: 2.0 }, minDetailLevel: { value: 0.5 }, },
+        vertexShader: `varying vec2 vUv; varying vec3 vNormal; varying vec3 vViewPosition; varying vec3 vWorldPosition; uniform float detailLevel; varying float vDetailLevel; void main() { vUv = uv; vNormal = normalize(normalMatrix * normal); vec4 worldPosition = modelMatrix * vec4(position, 1.0); vWorldPosition = worldPosition.xyz; vec4 mvPosition = modelViewMatrix * vec4(position, 1.0); vViewPosition = -mvPosition.xyz; vDetailLevel = detailLevel; gl_Position = projectionMatrix * mvPosition; }`,
+        fragmentShader: `precision highp float; uniform float time; uniform vec3 color, hotColor, coolColor, midColor, peakColor, valleyColor, glowColor; uniform float pulseSpeed, turbulence, fireSpeed, colorIntensity; uniform float flowScale, flowSpeed, sunSize, terrainScale, fireIntensity; uniform float detailLevel, textureDetail, minDetailLevel, detailScaling, cameraDistance; varying vec2 vUv; varying vec3 vNormal; varying vec3 vViewPosition; varying vec3 vWorldPosition; varying float vDetailLevel; vec4 permute(vec4 x){return mod(((x*34.0)+1.0)*x, 289.0);} vec4 taylorInvSqrt(vec4 r){return 1.79284291400159 - 0.85373472095314 * r;} float snoise(vec3 v){ const vec2 C = vec2(1.0/6.0, 1.0/3.0); const vec4 D = vec4(0.0, 0.5, 1.0, 2.0); vec3 i  = floor(v + dot(v, C.yyy)); vec3 x0 = v - i + dot(i, C.xxx); vec3 g = step(x0.yzx, x0.xyz); vec3 l = 1.0 - g; vec3 i1 = min(g.xyz, l.zxy); vec3 i2 = max(g.xyz, l.zxy); vec3 x1 = x0 - i1 + C.xxx; vec3 x2 = x0 - i2 + C.yyy; vec3 x3 = x0 - D.yyy; i = mod(i, 289.0); vec4 p = permute(permute(permute( i.z + vec4(0.0, i1.z, i2.z, 1.0)) + i.y + vec4(0.0, i1.y, i2.y, 1.0)) + i.x + vec4(0.0, i1.x, i2.x, 1.0)); float n_ = 0.142857142857; vec3 ns = n_ * D.wyz - D.xzx; vec4 j = p - 49.0 * floor(p * ns.z * ns.z); vec4 x_ = floor(j * ns.z); vec4 y_ = floor(j - 7.0 * x_); vec4 x = x_ *ns.x + ns.yyyy; vec4 y = y_ *ns.x + ns.yyyy; vec4 h = 1.0 - abs(x) - abs(y); vec4 b0 = vec4(x.xy, y.xy); vec4 b1 = vec4(x.zw, y.zw); vec4 s0 = floor(b0)*2.0 + 1.0; vec4 s1 = floor(b1)*2.0 + 1.0; vec4 sh = -step(h, vec4(0.0)); vec4 a0 = b0.xzyw + s0.xzyw*sh.xxyy; vec4 a1 = b1.xzyw + s1.xzyw*sh.zzww; vec3 p0 = vec3(a0.xy,h.x); vec3 p1 = vec3(a0.zw,h.y); vec3 p2 = vec3(a1.xy,h.z); vec3 p3 = vec3(a1.zw,h.w); vec4 norm = taylorInvSqrt(vec4(dot(p0,p0), dot(p1,p1), dot(p2,p2), dot(p3,p3))); p0 *= norm.x; p1 *= norm.y; p2 *= norm.z; p3 *= norm.w; vec4 m = max(0.6 - vec4(dot(x0,x0), dot(x1,x1), dot(x2,x2), dot(x3,x3)), 0.0); m = m * m; return 42.0 * dot(m*m, vec4(dot(p0,x0), dot(p1,x1), dot(p2,x2), dot(p3,x3))); } float getDetailLevel() { float dist = length(vViewPosition); return max(minDetailLevel, vDetailLevel * (1.0 + detailScaling / (dist + 1.0))); } float terrainNoise(vec3 p) { float detail = getDetailLevel(); float elevation = 0.0; float frequency = 1.0; float amplitude = 1.0; float maxAmplitude = 0.0; int iterations = int(min(12.0, 8.0 * detail)); for(int i = 0; i < iterations; i++) { vec3 noisePos = p * frequency * terrainScale; float noiseVal = snoise(noisePos); elevation += amplitude * noiseVal; maxAmplitude += amplitude; amplitude *= 0.65; frequency *= 2.4; } return elevation / maxAmplitude; } float fireNoise(vec3 p) { float detail = getDetailLevel(); float noise = 0.0; float amplitude = 1.0; float frequency = 1.0; vec3 flow = vec3(sin(p.y * 0.5 + time * flowSpeed), cos(p.x * 0.5 + time * flowSpeed), 0.0); int iterations = int(min(8.0, 4.0 * detail)); for(int i = 0; i < iterations; i++) { p += flow * amplitude * turbulence; vec3 noisePos = p * frequency + time * fireSpeed; noise += amplitude * snoise(noisePos); frequency *= 2.0; amplitude *= 0.5; } return noise * fireIntensity; } void main() { vec3 viewDir = normalize(vViewPosition); vec3 normal = normalize(vNormal); float terrain = terrainNoise(vWorldPosition * 0.02); float fireEffect = fireNoise(vWorldPosition * 0.03); float flowPattern = fireNoise(vec3(vUv * flowScale, time * fireSpeed)); vec3 terrainColor; if(terrain > 0.6) terrainColor = mix(peakColor, hotColor, (terrain - 0.6) / 0.4); else if(terrain > 0.4) terrainColor = mix(midColor, peakColor, (terrain - 0.4) / 0.2); else if(terrain > 0.2) terrainColor = mix(color, midColor, (terrain - 0.2) / 0.2); else terrainColor = mix(valleyColor, color, terrain / 0.2); vec3 fireColor = mix(coolColor, hotColor, fireEffect); vec3 finalColor = mix(terrainColor, fireColor, flowPattern * 0.5); float edgeFactor = pow(1.0 - abs(dot(normal, viewDir)), 3.0); finalColor += glowColor * edgeFactor * 0.7 * (1.0 + flowPattern * 0.4); finalColor *= colorIntensity; float pulse = sin(time * pulseSpeed + flowPattern) * 0.02 + 0.98; finalColor *= pulse; gl_FragColor = vec4(finalColor, 1.0); }`,
+        side: THREE.FrontSide, blending: THREE.AdditiveBlending, transparent: false, depthWrite: true,
+    });
+}
 
 export const SolarSystemRenderer = (() => {
     let scene, camera, renderer;
-    let sunRenderer, sunLight;
+    let sunLOD, sunLight; // MODIFICATION: Changed sunRenderer to sunLOD
     let planetMeshes = [];
     let orbitLines = [];
     let currentSystemData = null;
@@ -13,6 +44,30 @@ export const SolarSystemRenderer = (() => {
 
     const SPHERE_BASE_RADIUS = 0.8;
     const DISPLACEMENT_SCALING_FACTOR = 0.005;
+
+    // MODIFICATION: Added function to create the sun mesh
+    function _createSun(sunData) {
+        const variation = sunVariations[sunData.type];
+        const baseSize = sizeTiers[variation.sizeCategory].size;
+        const detailMultiplier = sizeTiers[variation.sizeCategory].detailMultiplier;
+
+        const sizeVariation = 0.8 + Math.random() * 0.4;
+        const finalSize = baseSize * sizeVariation;
+
+        const lod = new THREE.LOD();
+        Object.values(LOD_LEVELS).forEach(level => {
+            const adjustedSegments = Math.floor(level.segments * detailMultiplier);
+            const geometry = new THREE.SphereGeometry(1, adjustedSegments, adjustedSegments);
+            const material = _createSunMaterial(variation, finalSize, level);
+            
+            const sunMesh = new THREE.Mesh(geometry, material);
+            sunMesh.scale.setScalar(finalSize);
+            lod.addLevel(sunMesh, level.distance);
+        });
+        
+        lod.position.set(0, 0, 0); // Sun is at the center
+        return lod;
+    }
 
     function _createPlanetMesh(planetData) {
         const { vertexShader, fragmentShader } = getPlanetShaders();
@@ -57,10 +112,22 @@ export const SolarSystemRenderer = (() => {
             renderer.domElement.removeEventListener('click', _onPlanetClick);
         }
 
-        if (sunRenderer) {
-            sunRenderer.dispose();
-            sunRenderer = null;
+        // MODIFICATION: Dispose of sun LOD group
+        if (sunLOD) {
+            sunLOD.traverse(object => {
+                if (object.geometry) object.geometry.dispose();
+                if (object.material) {
+                    if (Array.isArray(object.material)) {
+                        object.material.forEach(material => material.dispose());
+                    } else {
+                        object.material.dispose();
+                    }
+                }
+            });
+            scene.remove(sunLOD);
+            sunLOD = null;
         }
+
 
         planetMeshes.forEach(mesh => {
             mesh.geometry.dispose();
@@ -94,19 +161,17 @@ export const SolarSystemRenderer = (() => {
         const width = container.offsetWidth;
         const height = container.offsetHeight;
 
-        // MODIFICATION: Switched to OrthographicCamera for a top-down view.
         const aspect = width / height;
-        const frustumSize = 4000; // This value determines the initial "zoom" level
+        const frustumSize = 4000;
         camera = new THREE.OrthographicCamera(frustumSize * aspect / -2, frustumSize * aspect / 2, frustumSize / 2, frustumSize / -2, 1, 50000);
-        camera.position.set(0, 2000, 0); // Position directly above the scene
-        camera.lookAt(0, 0, 0);       // Look at the center (sun)
+        camera.position.set(0, 2000, 0); 
+        camera.lookAt(0, 0, 0);       
 
         renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
         renderer.setPixelRatio(window.devicePixelRatio);
         renderer.setSize(width, height);
         container.appendChild(renderer.domElement);
 
-        // MODIFICATION: Add raycaster for detecting clicks.
         raycaster = new THREE.Raycaster();
         mouse = new THREE.Vector2();
         renderer.domElement.addEventListener('click', _onPlanetClick, false);
@@ -117,7 +182,6 @@ export const SolarSystemRenderer = (() => {
         scene.add(new THREE.AmbientLight(0xffffff, 0.1));
     }
 
-    // MODIFICATION: Added click handler for planets.
     function _onPlanetClick(event) {
         event.preventDefault();
         if (!renderer || !camera || planetMeshes.length === 0) return;
@@ -134,7 +198,6 @@ export const SolarSystemRenderer = (() => {
             const clickedPlanetData = intersects[0].object.userData;
             console.log("Clicked on planet:", clickedPlanetData.id);
 
-            // Callback to return to this view after exploring
             const onBackCallback = () => {
                 if (window.switchToSolarSystemView && currentSystemData?.id) {
                     window.switchToSolarSystemView(currentSystemData.id);
@@ -153,20 +216,23 @@ export const SolarSystemRenderer = (() => {
         if (!renderer) return;
         animationFrameId = requestAnimationFrame(_animate);
 
-        // Update sun animation
-        if (sunRenderer) {
-            sunRenderer.update(now);
+        // MODIFICATION: Update sun animation
+        if (sunLOD) {
+            sunLOD.rotation.y += 0.0001;
+            sunLOD.update(camera);
+            sunLOD.levels.forEach(level => {
+                if (level.object.material.uniforms) {
+                    level.object.material.uniforms.time.value = now * 0.0003;
+                }
+            });
         }
 
-        // Update planet rotations and orbital positions from data calculated in animationController
+
         if (currentSystemData && currentSystemData.planets) {
             currentSystemData.planets.forEach((planet, index) => {
                 const mesh = planetMeshes[index];
                 if (mesh) {
-                    // Axial rotation
                     mesh.rotation.y = planet.currentAxialAngle;
-
-                    // Orbital position
                     const x = planet.orbitalRadius * Math.cos(planet.currentOrbitalAngle);
                     const z = planet.orbitalRadius * Math.sin(planet.currentOrbitalAngle);
                     mesh.position.set(x, 0, z);
@@ -184,23 +250,21 @@ export const SolarSystemRenderer = (() => {
                 console.error("SolarSystemRenderer: Container #solar-system-content not found.");
                 return;
             }
+            container.innerHTML = ''; // Clear previous content
 
             _setupScene(container);
             
             currentSystemData = solarSystemData;
-            const sunContainer = document.createElement('div');
-            container.appendChild(sunContainer);
             
-            // The SunRenderer is now a component managed by the SolarSystemRenderer
-            sunRenderer = new SunRenderer(sunContainer, solarSystemData.sun.type);
+            // MODIFICATION: Create and add the sun to the main scene
+            sunLOD = _createSun(solarSystemData.sun);
+            scene.add(sunLOD);
 
-            // Create planet meshes
             solarSystemData.planets.forEach(planet => {
                 const planetMesh = _createPlanetMesh(planet);
                 planetMeshes.push(planetMesh);
                 scene.add(planetMesh);
 
-                // Create orbit lines
                 const orbitGeometry = new THREE.BufferGeometry().setFromPoints(
                     new THREE.Path().absarc(0, 0, planet.orbitalRadius, 0, Math.PI * 2, false).getPoints(128)
                 );
@@ -215,25 +279,21 @@ export const SolarSystemRenderer = (() => {
         },
 
         update: (now, systemData) => {
-            // This function is called by the external animationController to update data
             currentSystemData = systemData;
         },
 
         handlePanAndZoom: (panX, panY, zoom) => {
             if (camera) {
-                // MODIFICATION: Updated pan/zoom logic for OrthographicCamera.
                 const frustumSize = 4000;
-                const aspect = camera.right / camera.top; // Recalculate aspect
+                const aspect = camera.right / (camera.top * 0.5); 
                 
-                // Zoom affects the camera's view frustum
                 camera.left = -frustumSize * aspect / 2 / zoom;
                 camera.right = frustumSize * aspect / 2 / zoom;
                 camera.top = frustumSize / 2 / zoom;
                 camera.bottom = -frustumSize / 2 / zoom;
 
-                // Pan moves the camera's position on the X and Z axes
                 camera.position.x = -panX;
-                camera.position.z = panY; // Note: panY from screen maps to Z in 3D top-down view
+                camera.position.z = panY; 
 
                 camera.updateProjectionMatrix();
             }
@@ -246,14 +306,15 @@ export const SolarSystemRenderer = (() => {
                 const height = container.offsetHeight;
                 renderer.setSize(width, height);
 
-                // MODIFICATION: Update aspect ratio for OrthographicCamera
                 const aspect = width / height;
-                camera.left = camera.right * -aspect;
-                camera.right = camera.right; // right is maintained
+                const currentZoom = (camera.right - camera.left) / aspect / 4000;
+                const frustumSize = 4000;
+
+                camera.left = -frustumSize * aspect / 2 / currentZoom;
+                camera.right = frustumSize * aspect / 2 / currentZoom;
+                camera.top = frustumSize / 2 / currentZoom;
+                camera.bottom = -frustumSize / 2 / currentZoom;
                 camera.updateProjectionMatrix();
-            }
-             if (sunRenderer) {
-                sunRenderer._resize();
             }
         },
 

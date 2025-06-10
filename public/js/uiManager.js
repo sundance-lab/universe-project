@@ -232,7 +232,7 @@ export const UIManager = (() => {
         }
         window.gameSessionData.activeGalaxyId = null;
         window.gameSessionData.activeSolarSystemId = null;
-        stopSolarSystemAnimation();
+        callbacks.stopSolarSystemAnimation();
         setActiveScreen(elements.mainScreen);
         generateStarBackgroundCanvas(elements.mainScreen);
     }
@@ -254,7 +254,7 @@ export const UIManager = (() => {
             elements.backToGalaxyButton.textContent = galaxy.customName ? `← ${galaxy.customName}` : `← Galaxy ${galaxyNumDisplay}`;
         }
         window.gameSessionData.activeSolarSystemId = null;
-        stopSolarSystemAnimation();
+        callbacks.stopSolarSystemAnimation();
 
         if (!galaxy.layoutGenerated) {
             generateSolarSystemsForGalaxy(galaxy, elements.galaxyViewport, callbacks.getCustomizationSettings().ssCountRange);
@@ -277,7 +277,7 @@ export const UIManager = (() => {
             window.activeSolarSystemRenderer.dispose();
             window.activeSolarSystemRenderer = null;
         }
-        stopSolarSystemAnimation();
+        callbacks.stopSolarSystemAnimation();
 
         window.gameSessionData.activeSolarSystemId = solarSystemId;
         const activeGalaxy = window.gameSessionData.galaxies.find(g => solarSystemId.startsWith(g.id));
@@ -288,6 +288,9 @@ export const UIManager = (() => {
         if (!solarSystemObject.planets) {
             callbacks.generatePlanetsForSystem(solarSystemObject);
         }
+        
+        // DEBUGGING LOG
+        console.log(`[DEBUG] Rendering system ${solarSystemId} with ${solarSystemObject.planets.length} planets.`);
 
         const solarSystemDataForRenderer = {
             id: solarSystemObject.id,
@@ -311,7 +314,7 @@ export const UIManager = (() => {
     function switchToHexPlanetView(planetData, onBackCallback) {
         if (!planetData) return;
         setActiveScreen(elements.hexPlanetScreen);
-        stopSolarSystemAnimation();
+        callbacks.stopSolarSystemAnimation();
         HexPlanetViewController.activate(planetData, onBackCallback);
     }
     
@@ -449,6 +452,6 @@ export const UIManager = (() => {
             window.addEventListener('mouseup', panMouseUp);
         },
         renderMainScreen: renderMainScreen,
-        setActiveScreen: setActiveScreen, // <-- THE FIX IS HERE
+        setActiveScreen: setActiveScreen, 
     };
 })();

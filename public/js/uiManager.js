@@ -2,17 +2,23 @@
 File: sundance-lab/universe-project/universe-project-1c890612324cf52378cad7dd053c3e9f4655c465/public/js/uiManager.js
 */
 
+// animationController functions are no longer directly used for animation control,
+// as the global Three.js loop handles that, but they might still be called for compatibility.
 import { stopSolarSystemAnimation } from './animationController.js';
 import { generateSolarSystemsForGalaxy } from './universeGenerator.js';
-import { SolarSystemRenderer } from './solarSystemRenderer.js';
-import { HexPlanetViewController } from './hexPlanetViewController.js';
+import { SolarSystemRenderer } from './solarSystemRenderer.js'; // Import the refactored SolarSystemRenderer
+import { HexPlanetViewController } from './hexPlanetViewController.js'; // Import the refactored HexPlanetViewController
 
 export const UIManager = (() => {
     let elements = {};
     let callbacks = {};
     let galaxyIconCache = {};
     let linesCtx;
-    let currentStarfieldCleanup;
+    let currentStarfieldCleanup; // This function will no longer cancelAnimationFrame globally
+
+    // Add references to the global Three.js environment
+    let _globalScene, _globalCamera, _globalControls, _globalRenderer;
+
 
     function _getPlanetTypeString(planetType) {
         switch (planetType) {
@@ -45,7 +51,6 @@ export const UIManager = (() => {
             li.title = `Click to focus on Planet ${index + 1}`;
             li.dataset.planetId = planet.id;
 
-            // START: Add the click listener
             li.addEventListener('click', () => {
                 if (window.activeSolarSystemRenderer) {
                     // Check if the clicked planet is already focused
@@ -56,7 +61,6 @@ export const UIManager = (() => {
                     }
                 }
             });
-            // END: Add the click listener
 
             elements.planetSidebarList.appendChild(li);
         });
@@ -128,6 +132,7 @@ export const UIManager = (() => {
             animationFrame = requestAnimationFrame(animate);
         }
         animate(0);
+        // This cleanup now only cancels this specific starfield animation frame
         currentStarfieldCleanup = () => { if (animationFrame) cancelAnimationFrame(animationFrame); };
     }
 
@@ -140,9 +145,34 @@ export const UIManager = (() => {
         const isOnOverlayScreen = (screenToShow === elements.planetDesignerScreen || screenToShow === elements.hexPlanetScreen);
         if(elements.regenerateUniverseButton) elements.regenerateUniverseButton.style.display = isOnOverlayScreen ? 'none' : 'block';
         if(elements.createPlanetDesignButton) elements.createPlanetDesignButton.style.display = isOnOverlayScreen ? 'none' : 'block';
+
+        // Manage visibility of the global Three.js canvas based on active screen
+        if (_globalRenderer && _globalRenderer.domElement) {
+            const isThreeDView = (screenToShow === elements.solarSystemScreen || screenToShow === elements.hexPlanetScreen);
+            _globalRenderer.domElement.style.display = isThreeDView ? 'block' : 'none';
+            // Position the global canvas behind the specific screen content
+            if (isThreeDView) {
+                _globalRenderer.domElement.style.position = 'absolute';
+                _globalRenderer.domElement.style.top = '0';
+                _globalRenderer.domElement.style.left = '0';
+                _globalRenderer.domElement.style.width = '100%';
+                _globalRenderer.domElement.style.height = '100%';
+                _globalRenderer.domElement.style.zIndex = '0'; // Ensure it's behind UI elements
+            }
+        }
     }
 
     function renderMainScreen() {
+        // Clear any active 3D content from the global scene when returning to main screen
+        if (window.activeSolarSystemRenderer) {
+            window.activeSolarSystemRenderer.clear();
+            window.activeSolarSystemRenderer = null;
+        }
+        if (window.activeHexPlanetViewController) {
+            window.activeHexPlanetViewController.clear();
+            window.activeHexPlanetViewController = null;
+        }
+
         if (elements.mainScreenTitleText) elements.mainScreenTitleText.textContent = "Universe";
         if (!elements.universeCircle) return;
         elements.universeCircle.innerHTML = '';
@@ -190,6 +220,16 @@ export const UIManager = (() => {
     }
 
     function renderGalaxyDetailScreen(isInteractivePanOrZoom = false) {
+        // Clear any active 3D content from the global scene when entering galaxy detail
+        if (window.activeSolarSystemRenderer) {
+            window.activeSolarSystemRenderer.clear();
+            window.activeSolarSystemRenderer = null;
+        }
+        if (window.activeHexPlanetViewController) {
+            window.activeHexPlanetViewController.clear();
+            window.activeHexPlanetViewController = null;
+        }
+
         const galaxy = window.gameSessionData.galaxies.find(g => g.id === window.gameSessionData.activeGalaxyId);
         if (!galaxy) return switchToMainView();
         const { galaxyViewport, galaxyZoomContent, solarSystemLinesCanvasEl, galaxyDetailTitleText } = elements;
@@ -228,31 +268,43 @@ export const UIManager = (() => {
             galaxyDetailTitleText.textContent = galaxy.customName || `Galaxy ${galaxyNumDisplay}`;
         }
     }
-    
+
     function switchToMainView() {
+        // Clear any active 3D content
         if (window.activeSolarSystemRenderer) {
-            window.activeSolarSystemRenderer.dispose();
+            window.activeSolarSystemRenderer.clear();
             window.activeSolarSystemRenderer = null;
         }
+        if (window.activeHexPlanetViewController) {
+            window.activeHexPlanetViewController.clear();
+            window.activeHexPlanetViewController = null;
+        }
+
         window.gameSessionData.activeGalaxyId = null;
         window.gameSessionData.activeSolarSystemId = null;
-        callbacks.stopSolarSystemAnimation();
+        callbacks.stopSolarSystemAnimation(); // This is a no-op now
         setActiveScreen(elements.mainScreen);
         generateStarBackgroundCanvas(elements.mainScreen);
     }
 
     function switchToGalaxyDetailView(galaxyId) {
+        // Clear any active 3D content
         if (window.activeSolarSystemRenderer) {
-            window.activeSolarSystemRenderer.dispose();
+            window.activeSolarSystemRenderer.clear();
             window.activeSolarSystemRenderer = null;
         }
+        if (window.activeHexPlanetViewController) {
+            window.activeHexPlanetViewController.clear();
+            window.activeHexPlanetViewController = null;
+        }
+
         const galaxy = window.gameSessionData.galaxies.find(g => g.id === galaxyId);
         if (!galaxy) return switchToMainView();
         window.gameSessionData.activeGalaxyId = galaxyId;
         const galaxyNumDisplay = galaxy.id.split('-').pop();
         if (elements.backToGalaxyButton) elements.backToGalaxyButton.textContent = galaxy.customName ? `← ${galaxy.customName}` : `← Galaxy ${galaxyNumDisplay}`;
         window.gameSessionData.activeSolarSystemId = null;
-        callbacks.stopSolarSystemAnimation();
+        callbacks.stopSolarSystemAnimation(); // This is a no-op now
         if (!galaxy.layoutGenerated) generateSolarSystemsForGalaxy(galaxy, elements.galaxyViewport, callbacks.getCustomizationSettings().ssCountRange);
         setActiveScreen(elements.galaxyDetailScreen);
         generateStarBackgroundCanvas(elements.galaxyDetailScreen);
@@ -266,27 +318,33 @@ export const UIManager = (() => {
     }
 
     function switchToSolarSystemView(solarSystemId) {
-        if (window.activeSolarSystemRenderer) {
-            window.activeSolarSystemRenderer.dispose();
-            window.activeSolarSystemRenderer = null;
+        // Clear any previously loaded 3D content (e.g., Hex Planet)
+        if (window.activeHexPlanetViewController) {
+            window.activeHexPlanetViewController.clear();
+            window.activeHexPlanetViewController = null;
         }
-        callbacks.stopSolarSystemAnimation();
-        window.gameSessionData.activeSolarSystemId = solarSystemId;
+
         const activeGalaxy = window.gameSessionData.galaxies.find(g => solarSystemId.startsWith(g.id));
         const solarSystemObject = activeGalaxy?.solarSystems.find(s => s.id === solarSystemId);
         if (!solarSystemObject) return switchToMainView();
         if (!solarSystemObject.planets) callbacks.generatePlanetsForSystem(solarSystemObject);
+
         console.log(`[DEBUG] Rendering system ${solarSystemId} with ${solarSystemObject.planets.length} planets.`);
         _renderPlanetSidebar(solarSystemObject.planets);
+
         const solarSystemDataForRenderer = {
             id: solarSystemObject.id,
             sun: { size: solarSystemObject.sunSizeFactor, type: Math.floor(Math.random() * 5) },
             planets: solarSystemObject.planets.map(p => ({ ...p }))
         };
+
         setActiveScreen(elements.solarSystemScreen);
-        SolarSystemRenderer.init(solarSystemDataForRenderer);
-        window.activeSolarSystemRenderer = SolarSystemRenderer;
-        callbacks.startSolarSystemAnimation();
+
+        // Load solar system objects into the global scene
+        SolarSystemRenderer.load(solarSystemDataForRenderer, _globalScene, _globalCamera, _globalControls, _globalRenderer);
+        window.activeSolarSystemRenderer = SolarSystemRenderer; // Set global reference for updates
+
+        callbacks.startSolarSystemAnimation(); // This is a no-op now
         makeTitleEditable(elements.solarSystemTitleText, elements.solarSystemTitleInput, (newName) => {
             solarSystemObject.customName = newName || null;
             callbacks.saveGameState();
@@ -297,11 +355,21 @@ export const UIManager = (() => {
 
     function switchToHexPlanetView(planetData, onBackCallback) {
         if (!planetData) return;
+
+        // Clear solar system objects from the global scene
+        if (window.activeSolarSystemRenderer) {
+            window.activeSolarSystemRenderer.clear();
+            window.activeSolarSystemRenderer = null;
+        }
+
         setActiveScreen(elements.hexPlanetScreen);
-        callbacks.stopSolarSystemAnimation();
-        HexPlanetViewController.activate(planetData, onBackCallback);
+        callbacks.stopSolarSystemAnimation(); // This is a no-op now
+
+        // Load hex planet objects into the global scene
+        HexPlanetViewController.load(planetData, onBackCallback, _globalScene, _globalCamera, _globalControls, _globalRenderer);
+        window.activeHexPlanetViewController = HexPlanetViewController; // Set global reference for updates
     }
-    
+
     function clampGalaxyPan(galaxyDataObject) {
         const GALAXY_VIEW_MIN_ZOOM = 1.0;
         const { galaxyViewport } = elements;
@@ -320,7 +388,7 @@ export const UIManager = (() => {
             galaxyDataObject.currentPanY = Math.max(-maxPanY, Math.min(maxPanY, galaxyDataObject.currentPanY));
         }
     }
-    
+
     function handleZoom(direction, mouseEvent = null) {
         const GALAXY_VIEW_MIN_ZOOM = 1.0;
         const GALAXY_VIEW_MAX_ZOOM = 5.0;
@@ -346,7 +414,7 @@ export const UIManager = (() => {
         clampGalaxyPan(galaxy);
         renderGalaxyDetailScreen(true);
     }
-    
+
     function startPan(event) {
         if (event.button !== 0 || event.target.closest('button, .solar-system-icon, .planet-icon')) return;
         const p = window.gameSessionData.panning;
@@ -361,7 +429,7 @@ export const UIManager = (() => {
         elements.galaxyZoomContent.style.transition = 'none';
         event.preventDefault();
     }
-    
+
     function panMouseMove(event) {
         const p = window.gameSessionData.panning;
         if (!p.isActive) return;
@@ -374,7 +442,7 @@ export const UIManager = (() => {
         clampGalaxyPan(galaxy);
         renderGalaxyDetailScreen(true);
     }
-    
+
     function panMouseUp() {
         const p = window.gameSessionData.panning;
         if (!p.isActive) return;
@@ -384,12 +452,22 @@ export const UIManager = (() => {
     }
 
     return {
-        init: (domElements, appCallbacks) => {
-            elements = domElements;
+        init: (domElementsRef, appCallbacks) => {
+            elements = domElementsRef;
             callbacks = appCallbacks;
+
+            // Get the global Three.js environment from callbacks
+            const threeJSEnv = callbacks.getThreeJSEnvironment();
+            _globalScene = threeJSEnv.scene;
+            _globalCamera = threeJSEnv.camera;
+            _globalControls = threeJSEnv.controls;
+            _globalRenderer = threeJSEnv.renderer;
+
+
             window.switchToMainView = switchToMainView;
             window.switchToSolarSystemView = switchToSolarSystemView;
             window.switchToHexPlanetView = switchToHexPlanetView;
+
             elements.regenerateUniverseButton.addEventListener('click', () => {
                 callbacks.regenerateUniverseState();
                 galaxyIconCache = {};
@@ -411,6 +489,6 @@ export const UIManager = (() => {
             window.addEventListener('mouseup', panMouseUp);
         },
         renderMainScreen: renderMainScreen,
-        setActiveScreen: setActiveScreen, 
+        setActiveScreen: setActiveScreen,
     };
 })();

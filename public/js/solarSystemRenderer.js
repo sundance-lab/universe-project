@@ -3,7 +3,7 @@ File: sundance-lab/universe-project/universe-project-1c890612324cf52378cad7dd053
 */
 
 import * as THREE from 'three';
-import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls.js';
+// OrbitControls are now managed globally in script.js, so we don't need to import here
 import { getPlanetShaders } from './shaders.js';
 
 // --- Sun Creation Logic ---
@@ -38,25 +38,22 @@ function _createSunMaterial(variation, finalSize, lodLevel) {
 }
 
 export const SolarSystemRenderer = (() => {
-    let scene, camera, renderer, controls;
+    // These variables will now refer to the globally managed scene, camera, controls, and renderer
+    let _scene, _camera, _controls, _renderer;
     let sunLOD, sunLight, skybox;
     let planetMeshes = [];
     let orbitLines = [];
     let currentSystemData = null;
-    let animationFrameId = null;
+    // animationFrameId is no longer needed here as global loop handles it
     let lastAnimateTime = null;
     let raycaster, mouse;
     let boundWheelHandler = null;
-    let focusedPlanetMesh = null; // No cameraAnimation variable needed
+    let focusedPlanetMesh = null;
 
-    const SPHERE_BASE_RADIUS = 0.8;
-    const DISPLACEMENT_SCALING_FACTOR = 0.005;
-
-    // Declare orbitSpeedMultiplier at the top level of the IIFE
-    let orbitSpeedMultiplier = 1.0; 
+    let orbitSpeedMultiplier = 1.0;
 
     function _createSun(sunData) {
-        const variation = sunVariations[sunData.type % sunVariations.length]; 
+        const variation = sunVariations[sunData.type % sunVariations.length];
         const baseSize = sizeTiers[variation.sizeCategory].size;
         const detailMultiplier = sizeTiers[variation.sizeCategory].detailMultiplier;
         const sizeVariation = 0.5 + Math.random() * 1.5;
@@ -108,12 +105,13 @@ export const SolarSystemRenderer = (() => {
         return mesh;
     }
 
-    function _cleanup() {
-        if (animationFrameId) cancelAnimationFrame(animationFrameId);
-        if (renderer?.domElement && boundWheelHandler) renderer.domElement.removeEventListener('wheel', boundWheelHandler);
-        if (renderer?.domElement) renderer.domElement.removeEventListener('click', _onPlanetClick);
-        if(controls) controls.dispose();
+    // Renamed _cleanup to clearSceneObjects to reflect its new purpose
+    function clearSceneObjects() {
+        if (_renderer?.domElement && boundWheelHandler) _renderer.domElement.removeEventListener('wheel', boundWheelHandler);
+        if (_renderer?.domElement) _renderer.domElement.removeEventListener('click', _onPlanetClick);
+
         if (sunLOD) {
+            _scene.remove(sunLOD);
             sunLOD.traverse(object => {
                 if (object.geometry) object.geometry.dispose();
                 if (object.material) {
@@ -121,125 +119,145 @@ export const SolarSystemRenderer = (() => {
                     else object.material.dispose();
                 }
             });
-            scene.remove(sunLOD);
+            sunLOD = null;
         }
         planetMeshes.forEach(mesh => {
+            _scene.remove(mesh);
             mesh.geometry.dispose();
             mesh.material.dispose();
-            scene.remove(mesh);
         });
+        planetMeshes = [];
+
         orbitLines.forEach(line => {
+            _scene.remove(line);
             line.geometry.dispose();
             line.material.dispose();
-            scene.remove(line);
         });
-        if (renderer) {
-            renderer.dispose();
-            renderer.domElement.remove();
+        orbitLines = [];
+
+        if (skybox) {
+            _scene.remove(skybox);
+            skybox.geometry.dispose();
+            skybox.material.dispose();
+            skybox = null;
         }
-        animationFrameId = null; boundWheelHandler = null; controls = null; sunLOD = null;
-        planetMeshes = []; orbitLines = []; skybox = null; lastAnimateTime = null;
-        renderer = null; scene = null; camera = null; currentSystemData = null;
+
+        if (sunLight) {
+            _scene.remove(sunLight);
+            sunLight = null;
+        }
+
+        // Reset local variables
+        currentSystemData = null;
+        focusedPlanetMesh = null;
+        boundWheelHandler = null;
+        lastAnimateTime = null;
+        // _scene, _camera, _controls, _renderer are NOT disposed here as they are global
     }
 
-    function _setupScene(container) {
-        _cleanup();
-        scene = new THREE.Scene();
-        const aspect = container.offsetWidth / container.offsetHeight;
-        camera = new THREE.PerspectiveCamera(60, aspect, 100, 600000);
-        camera.position.set(0, 40000, 20000);
-        camera.lookAt(0, 0, 0);
+    // Renamed _setupScene to setupObjects to reflect its new purpose of adding objects to existing scene
+    function setupObjects(scene, camera, controls, renderer, solarSystemData) {
+        _scene = scene;
+        _camera = camera;
+        _controls = controls;
+        _renderer = renderer;
+
+        clearSceneObjects(); // Clear any previous objects from the scene
+
+        // Set camera initial position for Solar System view (adjust as needed)
+        _camera.position.set(0, 40000, 20000);
+        _controls.target.set(0, 0, 0); // Point camera at origin for system view
+        _controls.enablePan = true;
+        _controls.autoRotate = false;
+        _controls.minDistance = 50;
+        _controls.maxDistance = 450000;
+        _controls.update();
+
+
         new THREE.TextureLoader().load('https://cdn.jsdelivr.net/gh/jeromeetienne/threex.planets@master/images/galaxy_starfield.png',
             (texture) => {
                 const skySphere = new THREE.SphereGeometry(500000, 60, 40);
                 const skyMaterial = new THREE.MeshBasicMaterial({ map: texture, side: THREE.BackSide });
                 skybox = new THREE.Mesh(skySphere, skyMaterial);
-                scene.add(skybox);
+                _scene.add(skybox);
             },
             undefined,
-            (err) => { console.error("Failed to load skybox texture:", err); scene.background = new THREE.Color(0x000000); }
+            (err) => { console.error("Failed to load skybox texture:", err); _scene.background = new THREE.Color(0x000000); }
         );
-        renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
-        renderer.setPixelRatio(window.devicePixelRatio);
-        renderer.setSize(container.offsetWidth, container.offsetHeight);
-        container.appendChild(renderer.domElement);
-        controls = new OrbitControls(camera, renderer.domElement);
-        Object.assign(controls, {
-            enableDamping: true, dampingFactor: 0.05, screenSpacePanning: true,
-            minDistance: 50, maxDistance: 450000, enablePan: true, rotateSpeed: 0.4,
-            mouseButtons: { LEFT: THREE.MOUSE.PAN, MIDDLE: THREE.MOUSE.PAN, RIGHT: THREE.MOUSE.ROTATE },
-            enableZoom: false, // Zoom is handled manually by wheel handler
-            autoRotate: false,
-            autoRotateSpeed: 0.5
+
+        sunLight = new THREE.PointLight(0xffffff, 2.5, 550000);
+        _scene.add(sunLight);
+        _scene.add(new THREE.AmbientLight(0xffffff, 0.1));
+
+        currentSystemData = solarSystemData;
+        sunLOD = _createSun(solarSystemData.sun);
+        _scene.add(sunLOD);
+
+        solarSystemData.planets.forEach(planet => {
+            const planetMesh = _createPlanetMesh(planet);
+            planetMeshes.push(planetMesh);
+            _scene.add(planetMesh);
+            const orbitGeometry = new THREE.BufferGeometry().setFromPoints(new THREE.Path().absarc(0, 0, planet.orbitalRadius, 0, Math.PI * 2, false).getPoints(256));
+            const orbitMaterial = new THREE.LineBasicMaterial({ color: 0x444444 });
+            const orbitLine = new THREE.Line(orbitGeometry, orbitMaterial);
+            orbitLine.rotation.x = Math.PI / 2;
+            orbitLine.visible = false;
+            orbitLines.push(orbitLine);
+            _scene.add(orbitLine);
         });
 
-        // Event listener for user interaction (mouse down/drag)
-        controls.addEventListener('start', () => {
-            // When user starts interacting, disable auto-rotate and clear focus
-            controls.autoRotate = false;
-            focusedPlanetMesh = null;
-            // Restore default pan behavior if it was disabled for focus
-            controls.enablePan = true;
-        });
-
-        boundWheelHandler = (event) => {
-            event.preventDefault(); // Prevent default scroll behavior
-            controls.autoRotate = false; // Stop auto-rotation on zoom
-            focusedPlanetMesh = null; // Clear focus on manual zoom
-            controls.enablePan = true; // Re-enable pan if focused
-
-            const linearZoomAmount = 1000; // Adjust zoom sensitivity
-            let zoomFactor = event.deltaY < 0 ? -linearZoomAmount : linearZoomAmount;
-            
-            // Calculate new distance from target
-            const camToTarget = new THREE.Vector3().subVectors(controls.target, camera.position);
-            const newDist = THREE.MathUtils.clamp(camToTarget.length() + zoomFactor, controls.minDistance, controls.maxDistance);
-            
-            // Move camera towards/away from target to new distance
-            camera.position.copy(controls.target).addScaledVector(camToTarget.normalize(), -newDist);
-            controls.update();
-        };
-        renderer.domElement.addEventListener('wheel', boundWheelHandler, { passive: false });
-        
         raycaster = new THREE.Raycaster();
         mouse = new THREE.Vector2();
-        renderer.domElement.addEventListener('click', _onPlanetClick, false);
-        
-        sunLight = new THREE.PointLight(0xffffff, 2.5, 550000);
-        scene.add(sunLight);
-        scene.add(new THREE.AmbientLight(0xffffff, 0.1));
+        _renderer.domElement.addEventListener('click', _onPlanetClick, false);
+
+        boundWheelHandler = (event) => {
+            event.preventDefault();
+            _controls.autoRotate = false;
+            focusedPlanetMesh = null;
+            _controls.enablePan = true;
+
+            const linearZoomAmount = 1000;
+            let zoomFactor = event.deltaY < 0 ? -linearZoomAmount : linearZoomAmount;
+
+            const camToTarget = new THREE.Vector3().subVectors(_controls.target, _camera.position);
+            const newDist = THREE.MathUtils.clamp(camToTarget.length() + zoomFactor, _controls.minDistance, _controls.maxDistance);
+
+            _camera.position.copy(_controls.target).addScaledVector(camToTarget.normalize(), -newDist);
+            _controls.update();
+        };
+        _renderer.domElement.addEventListener('wheel', boundWheelHandler, { passive: false });
     }
 
     function _onPlanetClick(event) {
         event.preventDefault();
         // Only allow raycasting if not currently focused on a planet, or if the click is on the current focused planet
-        if (focusedPlanetMesh && focusedPlanetMesh.userData.id === raycaster.intersectObjects(planetMeshes)[0]?.object.userData.id) {
-             // This case is handled by the UI sidebar click for unfocusing
-             return;
-        }
+        // The logic for handling focusedPlanetMesh needs to be re-evaluated for cross-view transitions.
+        // For now, if a planet is clicked, we always attempt to switch to its HexPlanetView.
+        // We will remove the `focusedPlanetMesh` check here for simplicity,
+        // as the switch to hex view will handle de-focusing.
 
-        if (!renderer || !camera || planetMeshes.length === 0) return;
-        const rect = renderer.domElement.getBoundingClientRect();
+        if (!_renderer || !_camera || planetMeshes.length === 0) return;
+        const rect = _renderer.domElement.getBoundingClientRect();
         mouse.x = ((event.clientX - rect.left) / rect.width) * 2 - 1;
         mouse.y = -((event.clientY - rect.top) / rect.height) * 2 + 1;
-        raycaster.setFromCamera(mouse, camera);
+        raycaster.setFromCamera(mouse, _camera);
         const intersects = raycaster.intersectObjects(planetMeshes);
         if (intersects.length > 0) {
             const clickedPlanetData = intersects[0].object.userData;
             const systemId = currentSystemData.id;
+            // The onBackCallback now needs to ensure we return to the SolarSystemRenderer's state
             const onBackCallback = () => window.switchToSolarSystemView(systemId);
             if (window.switchToHexPlanetView) window.switchToHexPlanetView(clickedPlanetData, onBackCallback);
         }
     }
 
-    function _animate(now) {
-        if (!renderer) return;
-        animationFrameId = requestAnimationFrame(_animate);
-        if (lastAnimateTime === null) lastAnimateTime = now;
-        const deltaTime = (now - lastAnimateTime) / 1000;
+    // Renamed _animate to update to be called by the global animation loop
+    function update(now) {
+        if (!currentSystemData) return; // Only update if a system is loaded
+
+        const deltaTime = (now - (lastAnimateTime || now)) / 1000;
         lastAnimateTime = now;
 
-        // Update planet positions first
         if (currentSystemData?.planets) {
             currentSystemData.planets.forEach((planet, index) => {
                 planet.currentOrbitalAngle += planet.orbitalSpeed * 0.1 * deltaTime * orbitSpeedMultiplier;
@@ -254,65 +272,63 @@ export const SolarSystemRenderer = (() => {
                 }
             });
         }
-        
+
         if (focusedPlanetMesh) {
             const planetWorldPosition = new THREE.Vector3();
             focusedPlanetMesh.getWorldPosition(planetWorldPosition);
 
-            // Calculate desired camera position relative to the planet
             const offset = new THREE.Vector3(0, focusedPlanetMesh.userData.size * 0.5, focusedPlanetMesh.userData.size * 2.0);
-            const desiredCameraPosition = planetWorldPosition.clone().add(offset); 
+            const desiredCameraPosition = planetWorldPosition.clone().add(offset);
 
-            // Smoothly move the camera to this desired position
-            const lerpSpeed = 0.1; 
-            camera.position.lerp(desiredCameraPosition, lerpSpeed);
-            controls.target.copy(planetWorldPosition); // Keep the target on the planet
+            const lerpSpeed = 0.1;
+            _camera.position.lerp(desiredCameraPosition, lerpSpeed);
+            _controls.target.lerp(planetWorldPosition, lerpSpeed); // Lerp target as well
 
-            // Lock controls to rotation around the planet
-            controls.enablePan = false;
-            controls.autoRotate = true;
+            _controls.enablePan = false;
+            _controls.autoRotate = true;
         } else {
-            // Restore default behavior when no planet is focused
-            controls.enablePan = true;
-            controls.autoRotate = false;
+            _controls.enablePan = true;
+            _controls.autoRotate = false;
         }
 
-        if(controls) controls.update(); 
+        if (_controls) _controls.update();
         if (skybox) skybox.rotation.y += 0.00002;
         if (sunLOD) {
             sunLOD.rotation.y += 0.0001;
-            sunLOD.update(camera);
+            sunLOD.update(_camera);
             sunLOD.levels.forEach(level => {
                 if (level.object.material.uniforms) level.object.material.uniforms.time.value = now * 0.0003;
             });
         }
-        renderer.render(scene, camera);
+        // Renderer.render is now handled by the global loop in script.js
     }
-    
+
     function focusOnPlanet(planetId) {
         focusedPlanetMesh = planetMeshes.find(p => p.userData.id === planetId);
 
         if (!focusedPlanetMesh) return console.warn(`focusOnPlanet: Planet with ID ${planetId} not found.`);
-        
+
         // Initial setup for camera position and target. The _animate loop will handle the smooth transition.
         const planetWorldPosition = new THREE.Vector3();
         focusedPlanetMesh.getWorldPosition(planetWorldPosition);
         const offset = new THREE.Vector3(0, focusedPlanetMesh.userData.size * 0.5, focusedPlanetMesh.userData.size * 2.0);
-        camera.position.copy(planetWorldPosition).add(offset); // Snap camera to initial position for immediate follow start
-        controls.target.copy(planetWorldPosition); // Snap target to planet for immediate follow start
+        // Set camera position and target immediately to start lerp from a close point
+        _camera.position.copy(planetWorldPosition).add(offset);
+        _controls.target.copy(planetWorldPosition);
 
-        controls.enabled = true; // Ensure controls are enabled immediately
-        controls.enablePan = false; // Disable pan when focused
-        controls.autoRotate = true; // Enable auto-rotate to spin around the planet
+        _controls.enabled = true;
+        _controls.enablePan = false;
+        _controls.autoRotate = true;
     }
 
     function unfocusPlanet() {
         focusedPlanetMesh = null;
-        controls.enablePan = true; // Re-enable pan for general system view
-        controls.autoRotate = false; // Disable auto-rotate
-        // The camera will now stay at its last position and the user can pan/rotate the system again
+        _controls.enablePan = true;
+        _controls.autoRotate = false;
+        // Optionally reset target to origin or galaxy center
+        _controls.target.set(0,0,0);
     }
-    
+
     function setOrbitLinesVisible(visible) {
         orbitLines.forEach(line => { line.visible = !!visible; });
     }
@@ -322,33 +338,24 @@ export const SolarSystemRenderer = (() => {
     }
 
     return {
-        init: (solarSystemData) => {
+        // Init now takes the global scene, camera, controls, and renderer
+        load: (solarSystemData, scene, camera, controls, renderer) => {
             const container = document.getElementById('solar-system-content');
-            if (!container) return console.error("SolarSystemRenderer: Container #solar-system-content not found.");
-            container.innerHTML = '';
-            _setupScene(container);
-            currentSystemData = solarSystemData;
-            sunLOD = _createSun(solarSystemData.sun);
-            scene.add(sunLOD);
-            solarSystemData.planets.forEach(planet => {
-                const planetMesh = _createPlanetMesh(planet);
-                planetMeshes.push(planetMesh);
-                scene.add(planetMesh);
-                const orbitGeometry = new THREE.BufferGeometry().setFromPoints(new THREE.Path().absarc(0, 0, planet.orbitalRadius, 0, Math.PI * 2, false).getPoints(256));
-                const orbitMaterial = new THREE.LineBasicMaterial({ color: 0x444444 });
-                const orbitLine = new THREE.Line(orbitGeometry, orbitMaterial);
-                orbitLine.rotation.x = Math.PI / 2;
-                orbitLine.visible = false;
-                orbitLines.push(orbitLine);
-                scene.add(orbitLine);
-            });
-            lastAnimateTime = performance.now();
-            _animate(lastAnimateTime);
+            if (!container) {
+                console.error("SolarSystemRenderer: Container #solar-system-content not found.");
+                return;
+            }
+            // We no longer clear container.innerHTML here, as Three.js canvas is global
+            setupObjects(scene, camera, controls, renderer, solarSystemData);
+            lastAnimateTime = performance.now(); // Initialize lastAnimateTime for update loop
         },
-        dispose: () => _cleanup(),
+        clear: () => clearSceneObjects(), // Renamed dispose to clear
+        update: update, // Expose update function for global animation loop
         focusOnPlanet: focusOnPlanet,
-        unfocusPlanet: unfocusPlanet, // Expose unfocus method
+        unfocusPlanet: unfocusPlanet,
         setOrbitLinesVisible: setOrbitLinesVisible,
-        setOrbitSpeed: setOrbitSpeed
+        setOrbitSpeed: setOrbitSpeed,
+        // Expose a reference to the global controls, needed by script.js's applyDynamicDevSettings for example
+        getControls: () => _controls
     };
 })();

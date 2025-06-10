@@ -1,5 +1,4 @@
 import * as THREE from 'three';
-// MODIFICATION: Replaced FlyControls with OrbitControls
 import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls.js';
 import { getPlanetShaders } from './shaders.js';
 
@@ -48,11 +47,11 @@ export const SolarSystemRenderer = (() => {
     const DISPLACEMENT_SCALING_FACTOR = 0.005;
 
     function _createSun(sunData) {
-        const variation = sunVariations[sunData.type];
-        const baseSize = sizeTiers[variation.sizeCategory].size;
-        const detailMultiplier = sizeTiers[variation.sizeCategory].detailMultiplier;
-        
-        const sizeVariation = 0.5 + Math.random() * 1.5; 
+        const variation = sunVariations[(sunData.type % sunVariations.length)];
+        const baseSize = sizeTiers[(variation.sizeCategory % Object.keys(sizeTiers).length)].size;
+        const detailMultiplier = sizeTiers[(variation.sizeCategory % Object.keys(sizeTiers).length)].detailMultiplier;
+
+        const sizeVariation = 0.5 + Math.random() * 1.5;
         const finalSize = baseSize * sizeVariation;
 
         const lod = new THREE.LOD();
@@ -60,12 +59,12 @@ export const SolarSystemRenderer = (() => {
             const adjustedSegments = Math.floor(level.segments * detailMultiplier);
             const geometry = new THREE.SphereGeometry(1, adjustedSegments, adjustedSegments);
             const material = _createSunMaterial(variation, finalSize, level);
-            
+
             const sunMesh = new THREE.Mesh(geometry, material);
             sunMesh.scale.setScalar(finalSize);
             lod.addLevel(sunMesh, level.distance);
         });
-        
+
         lod.position.set(0, 0, 0);
         return lod;
     }
@@ -113,7 +112,7 @@ export const SolarSystemRenderer = (() => {
         if (renderer?.domElement) {
             renderer.domElement.removeEventListener('click', _onPlanetClick);
         }
-        
+
         if(controls) {
             controls.dispose();
             controls = null;
@@ -148,7 +147,7 @@ export const SolarSystemRenderer = (() => {
             scene.remove(line);
         });
         orbitLines = [];
-        
+
         if (renderer) {
             renderer.dispose();
             renderer.domElement.remove();
@@ -169,7 +168,6 @@ export const SolarSystemRenderer = (() => {
         const aspect = width / height;
 
         camera = new THREE.PerspectiveCamera(60, aspect, 100, 300000);
-        // MODIFICATION: Set initial camera position to be more top-down
         camera.position.set(0, 40000, 20000);
         camera.lookAt(0, 0, 0);
 
@@ -191,19 +189,24 @@ export const SolarSystemRenderer = (() => {
         renderer.setPixelRatio(window.devicePixelRatio);
         renderer.setSize(width, height);
         container.appendChild(renderer.domElement);
-        
-        // MODIFICATION: Use OrbitControls for a Stellaris-like camera
+
         controls = new OrbitControls(camera, renderer.domElement);
         controls.enableDamping = true;
         controls.dampingFactor = 0.05;
-        controls.screenSpacePanning = true; // Allows panning across the screen plane
-        controls.minDistance = 2000;       // How close you can zoom in
-        controls.maxDistance = 100000;     // How far you can zoom out
-        // This is the key change: It prevents the camera from going below the horizon,
-        // keeping the view "on top" of the system.
-        controls.maxPolarAngle = Math.PI / 2.1; 
-        controls.enablePan = true; // Ensure panning (dragging) is enabled
-        
+        controls.screenSpacePanning = true;
+        controls.minDistance = 2000;
+        controls.maxDistance = 100000;
+        // MODIFICATION: Remove the maxPolarAngle constraint to allow free vertical rotation
+        // controls.maxPolarAngle = Math.PI / 2.1;
+        controls.enablePan = true;
+
+        // MODIFICATION: Configure mouse button mapping
+        controls.mouseButtons = {
+            LEFT: THREE.MOUSE.PAN,      // Left mouse button for panning
+            MIDDLE: THREE.MOUSE.DOLLY,   // Middle mouse button for zooming (wheel)
+            RIGHT: THREE.MOUSE.ROTATE    // Right mouse button for rotation
+        }
+
         raycaster = new THREE.Raycaster();
         mouse = new THREE.Vector2();
         renderer.domElement.addEventListener('click', _onPlanetClick, false);
@@ -215,10 +218,6 @@ export const SolarSystemRenderer = (() => {
     }
 
     function _onPlanetClick(event) {
-        // MODIFICATION: Removed the `controls.isDragging` check as it's not present
-        // in OrbitControls. The 'click' event is generally not fired on a drag
-        // action by modern browsers, making this check unnecessary.
-
         event.preventDefault();
         if (!renderer || !camera || planetMeshes.length === 0) return;
 
@@ -231,7 +230,7 @@ export const SolarSystemRenderer = (() => {
         const intersects = raycaster.intersectObjects(planetMeshes);
 
         if (intersects.length > 0) {
-            const clickedPlanetData = intersects[0].object.userData;
+            const clickedPlanetData = intersects.object.userData;
             console.log("Clicked on planet:", clickedPlanetData.id);
 
             const onBackCallback = () => {
@@ -241,7 +240,7 @@ export const SolarSystemRenderer = (() => {
                     window.switchToMainView();
                 }
             };
-            
+
             if (window.switchToHexPlanetView) {
                 window.switchToHexPlanetView(clickedPlanetData, onBackCallback);
             }
@@ -252,7 +251,6 @@ export const SolarSystemRenderer = (() => {
         if (!renderer) return;
         animationFrameId = requestAnimationFrame(_animate);
 
-        // MODIFICATION: OrbitControls only needs .update() called in the loop.
         if(controls) controls.update();
 
         if (sunLOD) {
@@ -268,7 +266,7 @@ export const SolarSystemRenderer = (() => {
 
         if (currentSystemData && currentSystemData.planets) {
             currentSystemData.planets.forEach((planet, index) => {
-                const mesh = planetMeshes[index];
+                const mesh = planetMeshes[(index % planetMeshes.length)];
                 if (mesh) {
                     mesh.rotation.y = planet.currentAxialAngle;
                     const x = planet.orbitalRadius * Math.cos(planet.currentOrbitalAngle);
@@ -277,10 +275,10 @@ export const SolarSystemRenderer = (() => {
                 }
             });
         }
-        
+
         renderer.render(scene, camera);
     }
-    
+
     return {
         init: (solarSystemData) => {
             const container = document.getElementById('solar-system-content');
@@ -291,9 +289,9 @@ export const SolarSystemRenderer = (() => {
             container.innerHTML = '';
 
             _setupScene(container);
-            
+
             currentSystemData = solarSystemData;
-            
+
             sunLOD = _createSun(solarSystemData.sun);
             scene.add(sunLOD);
 
@@ -328,9 +326,6 @@ export const SolarSystemRenderer = (() => {
                 renderer.setSize(width, height);
                 camera.aspect = width / height;
                 camera.updateProjectionMatrix();
-
-                // MODIFICATION: OrbitControls does not have a handleResize method,
-                // the aspect ratio update on the camera is sufficient.
             }
         },
 

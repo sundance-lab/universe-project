@@ -40,7 +40,7 @@ export const SolarSystemRenderer = (() => {
     let orbitLines = [];
     let currentSystemData = null;
     let animationFrameId = null;
-    let lastAnimateTime = 0;
+    let lastAnimateTime = null;
     let raycaster, mouse;
     let boundWheelHandler = null;
 
@@ -157,6 +157,7 @@ export const SolarSystemRenderer = (() => {
         orbitLines = [];
         
         skybox = null;
+        lastAnimateTime = null;
 
         if (renderer) {
             renderer.dispose();
@@ -270,15 +271,11 @@ export const SolarSystemRenderer = (() => {
         if (intersects.length > 0) {
             const clickedPlanetData = intersects[0].object.userData;
             
-            // Capture the system ID before creating the callback to avoid closure issues.
-            const systemId = currentSystemData?.id;
-
+            // This is the robust fix for the back button.
+            // It captures the ID at the moment of the click, preventing any issues.
+            const systemId = currentSystemData.id;
             const onBackCallback = () => {
-                if (window.switchToSolarSystemView && systemId) {
-                    window.switchToSolarSystemView(systemId);
-                } else {
-                    window.switchToMainView();
-                }
+                window.switchToSolarSystemView(systemId);
             };
 
             if (window.switchToHexPlanetView) {
@@ -288,8 +285,21 @@ export const SolarSystemRenderer = (() => {
     }
 
     function _animate(now) {
-        if (!renderer) return;
+        if (!renderer) return; // Exit if disposed
         animationFrameId = requestAnimationFrame(_animate);
+
+        // This block is the fix for the orbiting planets.
+        // It consolidates all animation logic into the renderer.
+        if (lastAnimateTime === null) lastAnimateTime = now;
+        const deltaTime = (now - lastAnimateTime) / 1000;
+        lastAnimateTime = now;
+
+        if (currentSystemData?.planets) {
+            currentSystemData.planets.forEach(planet => {
+                planet.currentOrbitalAngle += planet.orbitalSpeed * 0.1 * deltaTime;
+                planet.currentAxialAngle += planet.axialSpeed * 2 * deltaTime;
+            });
+        }
 
         if(controls) controls.update();
         
@@ -306,7 +316,6 @@ export const SolarSystemRenderer = (() => {
                 }
             });
         }
-
 
         if (currentSystemData && currentSystemData.planets) {
             currentSystemData.planets.forEach((planet, index) => {
@@ -357,21 +366,6 @@ export const SolarSystemRenderer = (() => {
 
             lastAnimateTime = performance.now();
             _animate(lastAnimateTime);
-        },
-
-        update: (now, systemData) => {
-            currentSystemData = systemData;
-        },
-
-        handleResize: () => {
-            if (renderer && camera) {
-                const container = renderer.domElement.parentElement;
-                const width = container.offsetWidth;
-                const height = container.offsetHeight;
-                renderer.setSize(width, height);
-                camera.aspect = width / height;
-                camera.updateProjectionMatrix();
-            }
         },
 
         dispose: () => {

@@ -32,9 +32,7 @@ export const SolarSystemRenderer = (() => {
         { baseColor: new THREE.Color(0xE65100), hotColor: new THREE.Color(0xFFAB40), coolColor: new THREE.Color(0xBF360C), glowColor: new THREE.Color(0xFFD740), coronaColor: new THREE.Color(0xFFC107), midColor: new THREE.Color(0xFF9800), peakColor: new THREE.Color(0xFFE0B2), valleyColor: new THREE.Color(0xBF360C), turbulence: 1.15, fireSpeed: 0.28, pulseSpeed: 0.002, sizeCategory: 'hypergiant', terrainScale: 1.5, fireIntensity: 1.9 }
     ];
 
-    // These variables will now refer to the globally managed scene, camera, controls, and renderer
     let _scene, _camera, _controls, _renderer;
-    let sunLOD, sunLight, skybox;
     let planetMeshes = [];
     let orbitLines = [];
     let currentSystemData = null;
@@ -107,7 +105,6 @@ export const SolarSystemRenderer = (() => {
         return mesh;
     }
 
-    // Renamed _cleanup to clearSceneObjects to reflect its new purpose
     function clearSceneObjects() {
         if (_renderer?.domElement && boundWheelHandler) _renderer.domElement.removeEventListener('wheel', boundWheelHandler);
         if (_renderer?.domElement) _renderer.domElement.removeEventListener('click', _onPlanetClick);
@@ -137,59 +134,35 @@ export const SolarSystemRenderer = (() => {
         });
         orbitLines = [];
 
-        if (skybox) {
-            _scene.remove(skybox);
-            skybox.geometry.dispose();
-            skybox.material.dispose();
-            skybox = null;
-        }
-
         if (sunLight) {
             _scene.remove(sunLight);
             sunLight = null;
         }
 
-        // Reset local variables
         currentSystemData = null;
         focusedPlanetMesh = null;
         boundWheelHandler = null;
         lastAnimateTime = null;
-        // _scene, _camera, _controls, _renderer are NOT disposed here as they are global
     }
 
-    // Renamed _setupScene to setupObjects to reflect its new purpose of adding objects to existing scene
     function setupObjects(scene, camera, controls, renderer, solarSystemData) {
         _scene = scene;
         _camera = camera;
         _controls = controls;
         _renderer = renderer;
 
-        clearSceneObjects(); // Clear any previous objects from the scene
+        clearSceneObjects(); 
 
-        // Set camera initial position for Solar System view (adjust as needed)
         _camera.position.set(0, 40000, 20000);
-        _controls.target.set(0, 0, 0); // Point camera at origin for system view
+        _controls.target.set(0, 0, 0); 
         _controls.enablePan = true;
         _controls.autoRotate = false;
         _controls.minDistance = 50;
         _controls.maxDistance = 450000;
         _controls.update();
 
-
-        new THREE.TextureLoader().load('https://cdn.jsdelivr.net/gh/jeromeetienne/threex.planets@master/images/galaxy_starfield.png',
-            (texture) => {
-                const skySphere = new THREE.SphereGeometry(500000, 60, 40);
-                const skyMaterial = new THREE.MeshBasicMaterial({ map: texture, side: THREE.BackSide });
-                skybox = new THREE.Mesh(skySphere, skyMaterial);
-                _scene.add(skybox);
-            },
-            undefined,
-            (err) => { console.error("Failed to load skybox texture:", err); _scene.background = new THREE.Color(0x000000); }
-        );
-
         sunLight = new THREE.PointLight(0xffffff, 2.5, 550000);
         _scene.add(sunLight);
-        _scene.add(new THREE.AmbientLight(0xffffff, 0.1));
 
         currentSystemData = solarSystemData;
         sunLOD = _createSun(solarSystemData.sun);
@@ -293,7 +266,6 @@ export const SolarSystemRenderer = (() => {
         }
 
         if (_controls) _controls.update();
-        if (skybox) skybox.rotation.y += 0.00002;
         if (sunLOD) {
             sunLOD.rotation.y += 0.0001;
             sunLOD.update(_camera);

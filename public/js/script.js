@@ -1,4 +1,3 @@
-import { startSolarSystemAnimation, stopSolarSystemAnimation } from './animationController.js';
 import { PlanetDesigner } from './planetDesigner.js';
 import { saveGameState, loadGameState } from './storage.js';
 import {

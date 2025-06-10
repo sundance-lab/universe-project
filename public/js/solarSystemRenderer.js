@@ -246,7 +246,7 @@ export const SolarSystemRenderer = (() => {
             if (focusedPlanetMesh) {
                 const currentPlanetWorldPosition = new THREE.Vector3();
                 focusedPlanetMesh.getWorldPosition(currentPlanetWorldPosition);
-                cameraAnimation.targetLookAt.copy(currentPlanetWorldPosition);
+                cameraAnimation.targetLookAt.copy(currentPlanetWorldPosition); // Update target for lerp
             }
 
             camera.position.lerp(cameraAnimation.targetPosition, speed);
@@ -259,10 +259,18 @@ export const SolarSystemRenderer = (() => {
                 controls.enabled = true;
                 controls.autoRotate = true;
             }
-        } else if (focusedPlanetMesh) { // After initial animation, keep target locked on moving planet
+        } else if (focusedPlanetMesh) { // After initial animation, continuously follow the moving planet
             const planetWorldPosition = new THREE.Vector3();
             focusedPlanetMesh.getWorldPosition(planetWorldPosition);
-            controls.target.copy(planetWorldPosition);
+
+            // Calculate desired camera position relative to the planet
+            const offset = new THREE.Vector3(0, focusedPlanetMesh.userData.size * 0.5, focusedPlanetMesh.userData.size * 2.0);
+            const desiredCameraPosition = planetWorldPosition.clone().add(offset); 
+
+            // Smoothly move the camera to this desired position
+            const lerpSpeed = 0.1; 
+            camera.position.lerp(desiredCameraPosition, lerpSpeed);
+            controls.target.copy(planetWorldPosition); // Keep the target on the planet
         }
 
         if(controls) controls.update(); // This is crucial for autoRotate to work
@@ -274,7 +282,6 @@ export const SolarSystemRenderer = (() => {
                 if (level.object.material.uniforms) level.object.material.uniforms.time.value = now * 0.0003;
             });
         }
-        // Planet mesh position updates are now handled at the beginning of _animate
         renderer.render(scene, camera);
     }
     

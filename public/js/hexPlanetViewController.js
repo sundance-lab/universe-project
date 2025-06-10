@@ -3,6 +3,7 @@
 import * as THREE from 'three';
 // OrbitControls are now managed globally in script.js, so we don't need to import here
 import { getHexPlanetShaders } from './shaders.js';
+import { noiseFunctions } from './shaders.js'; // Import noiseFunctions
 
 export const HexPlanetViewController = (() => {
     // These variables will now refer to the globally managed scene, camera, controls
@@ -154,7 +155,7 @@ export const HexPlanetViewController = (() => {
     return {
         // Init function is no longer needed here as part of module
         // activate now takes the global scene, camera, controls, and renderer
-        load: (planetBasis, onBackCallback, scene, camera, controls, renderer) => {
+        activate: (planetBasis, onBackCallback, scene, camera, controls, renderer) => { // Renamed load to activate
             const canvas = renderer.domElement; // Use the global renderer's canvas
             const screen = document.getElementById('hex-planet-screen');
             backButton = document.getElementById('back-from-hex-view');

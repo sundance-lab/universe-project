@@ -12,66 +12,37 @@ function getSolarSystemScreenElement() {
 }
 
 function animateSolarSystem(now) {
+    // This check is important to allow the animation to be stopped.
     if (!isSolarSystemAnimationRunning()) return;
 
+    // Request the next frame to keep the loop going.
     animationFrameId = requestAnimationFrame(animateSolarSystem);
 
+    // Initialize or calculate time delta.
     if (lastAnimationTime === null) lastAnimationTime = now;
     const deltaTime = (now - lastAnimationTime) / 1000;
     lastAnimationTime = now;
 
-    if (window.gameSessionData?.solarSystemView?.planets) {
+    // 1. Update the data for the planets (their angles).
+    if(window.gameSessionData?.solarSystemView?.planets) {
         window.gameSessionData.solarSystemView.planets.forEach(planet => {
             planet.currentOrbitalAngle += planet.orbitalSpeed * 6 * deltaTime;
             planet.currentAxialAngle += planet.axialSpeed * 60 * deltaTime;
         });
     }
 
-    if (window.SolarSystemRenderer) {
+    // 2. Tell the new 3D renderer to update the visuals using the new data.
+    if(window.SolarSystemRenderer) {
         window.SolarSystemRenderer.update(now, window.gameSessionData.solarSystemView);
     }
 }
 
- const deltaTime = (now - lastAnimationTime) / 1000; 
- lastAnimationTime = now;
-
- const solarSystemScreenElement = getSolarSystemScreenElement();
-
- if (window.gameSessionData?.solarSystemView?.planets &&
-  solarSystemScreenElement &&
-  solarSystemScreenElement.classList.contains('active')) {
-
-  animationFrameId = requestAnimationFrame(animateSolarSystem);
-
-  window.gameSessionData.solarSystemView.planets.forEach(planet => {
-   if (planet.element) { 
-    planet.currentOrbitalAngle += planet.orbitalSpeed * 6 * deltaTime; 
-
-    planet.currentAxialAngle += planet.axialSpeed * 60 * deltaTime;
-
-    const xOrbit = planet.distance * Math.cos(planet.currentOrbitalAngle);
-    const yOrbit = planet.distance * Math.sin(planet.currentOrbitalAngle);
-
-    planet.element.style.left = `calc(50% + ${xOrbit}px)`;
-    planet.element.style.top = `calc(50% + ${yOrbit}px)`;
-    planet.element.style.transform = `translate(-50%, -50%) rotate(${planet.currentAxialAngle}rad)`;
-   }
-  });
- } else {
-  if (animationFrameId) {
-   cancelAnimationFrame(animationFrameId);
-   animationFrameId = null;
-  }
-  lastAnimationTime = null; in
- }
-}
-
 export function startSolarSystemAnimation() {
- const screenElement = getSolarSystemScreenElement(); 
-  
+ const screenElement = getSolarSystemScreenElement();
+
  if (!animationFrameId && screenElement && screenElement.classList.contains('active')) {
   console.log("[AnimationController] Starting solar system animation.");
-  lastAnimationTime = null; 
+  lastAnimationTime = null;
   animationFrameId = requestAnimationFrame(animateSolarSystem);
  } else if (animationFrameId) {
   console.log("[AnimationController] Animation is already running.");
@@ -88,7 +59,7 @@ export function stopSolarSystemAnimation() {
   cancelAnimationFrame(animationFrameId);
   animationFrameId = null;
  }
- lastAnimationTime = null; 
+ lastAnimationTime = null;
 }
 
 export function isSolarSystemAnimationRunning() {

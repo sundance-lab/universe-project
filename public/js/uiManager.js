@@ -366,7 +366,7 @@ export const UIManager = (() => {
         callbacks.stopSolarSystemAnimation(); // This is a no-op now
 
         // Load hex planet objects into the global scene
-        HexPlanetViewController.load(planetData, onBackCallback, _globalScene, _globalCamera, _globalControls, _globalRenderer);
+        HexPlanetViewController.activate(planetData, onBackCallback, _globalScene, _globalCamera, _globalControls, _globalRenderer); // Changed .load to .activate
         window.activeHexPlanetViewController = HexPlanetViewController; // Set global reference for updates
     }
 
@@ -384,7 +384,7 @@ export const UIManager = (() => {
             const scaledContentHeight = contentDiameter * zoom;
             const maxPanX = Math.max(0, (scaledContentWidth - galaxyViewport.offsetWidth) / 2);
             const maxPanY = Math.max(0, (scaledContentHeight - galaxyViewport.offsetHeight) / 2);
-            galaxyDataObject.currentPanX = Math.max(-maxPanX, Math.min(maxPanX, galaxyDataObject.currentPanX));
+            galaxyDataObject.currentPanX = Math.max(-maxPanX, Math.min(maxPanX, galaxyDataObject.currentPanY));
             galaxyDataObject.currentPanY = Math.max(-maxPanY, Math.min(maxPanY, galaxyDataObject.currentPanY));
         }
     }

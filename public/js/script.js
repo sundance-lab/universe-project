@@ -1542,7 +1542,7 @@ window.addEventListener('resize', () => {
 });
   
  // --- GAME INITIALIZATION ---
- function initializeGame(.isForcedRegeneration = false) {
+ function initializeGame(isForcedRegeneration = false) {
   console.log("Initializing game...");
   loadCustomizationSettings();
 

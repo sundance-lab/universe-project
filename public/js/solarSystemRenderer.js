@@ -83,23 +83,25 @@ export const SolarSystemRenderer = (() => {
         const normalizedOceanLevel = terrainRange > 0 ? (pOcean - pMin) / terrainRange : 0.5;
         const displacementAmount = terrainRange * DISPLACEMENT_SCALING_FACTOR * 40;
 
-        const material = new THREE.ShaderMaterial({
-            uniforms: {
-                uLandColor: { value: new THREE.Color(planetData.landColor || '#556B2F') },
-                uWaterColor: { value: new THREE.Color(planetData.waterColor || '#1E90FF') },
-                uOceanHeightLevel: { value: normalizedOceanLevel - 0.5 },
-                uContinentSeed: { value: planetData.continentSeed ?? Math.random() },
-                uRiverBasin: { value: planetData.riverBasin ?? 0.05 },
-                uForestDensity: { value: planetData.forestDensity ?? 0.5 },
-                uSphereRadius: { value: SPHERE_BASE_RADIUS },
-                uDisplacementAmount: { value: displacementAmount },
-                uTime: { value: 0.0 },
-                uPlanetType: { value: planetData.planetType || 0 },
-                uLightDirection: { value: new THREE.Vector3(0.8, 0.6, 1.0) }
-            },
+const material = new THREE.ShaderMaterial({
+            uniforms: THREE.UniformsUtils.merge([ // <-- Start of fix
+                THREE.UniformsLib.common,
+                {
+                    uLandColor: { value: new THREE.Color(planetData.landColor || '#556B2F') },
+                    uWaterColor: { value: new THREE.Color(planetData.waterColor || '#1E90FF') },
+                    uOceanHeightLevel: { value: normalizedOceanLevel - 0.5 },
+                    uContinentSeed: { value: planetData.continentSeed ?? Math.random() },
+                    uRiverBasin: { value: planetData.riverBasin ?? 0.05 },
+                    uForestDensity: { value: planetData.forestDensity ?? 0.5 },
+                    uSphereRadius: { value: SPHERE_BASE_RADIUS },
+                    uDisplacementAmount: { value: displacementAmount },
+                    uTime: { value: 0.0 },
+                    uPlanetType: { value: planetData.planetType || 0 },
+                    uLightDirection: { value: new THREE.Vector3(0.8, 0.6, 1.0) }
+                }
+            ]), // <-- End of fix
             vertexShader,
             fragmentShader,
-            lights: true // This is the fix
         });
 
         const mesh = new THREE.Mesh(geometry, material);

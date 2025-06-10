@@ -417,12 +417,10 @@ function _handleExploreButtonClick(fromSolarSystem = false) {
    });
   },
 
-  deactivate: () => {
-    console.log("PlanetDesigner.deactivate called for cleanup.");
+deactivate: () => {
+    console.log("PlanetDesigner.deactivate called.");
     _stopAndCleanupDesignerThreeJSView();
 
-    // The deactivate function now properly calls the destroy function,
-    // which handles listener cleanup.
     if (window.switchToMainView) {
       window.switchToMainView();
     }

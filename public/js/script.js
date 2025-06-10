@@ -115,6 +115,7 @@ window.generatePlanetInstanceFromBasis = function (basis, isForDesignerPreview =
 
   // --- STATE VARIABLES ---
   let linesCtx;
+  let galaxyIconCache = {};
   let currentStarfieldCleanup = null;
   let currentNumGalaxies = DEFAULT_NUM_GALAXIES;
   let currentMinSSCount = DEFAULT_MIN_SS_COUNT_CONST;
@@ -799,47 +800,57 @@ window.generatePlanetInstanceFromBasis = function (basis, isForDesignerPreview =
     });
   }
 
-  function renderGalaxyDetailScreen(isInteractivePanOrZoom = false) {
+function renderGalaxyDetailScreen(isInteractivePanOrZoom = false) {
     const galaxy = window.gameSessionData.galaxies.find(g => g.id === window.gameSessionData.activeGalaxyId);
     if (!galaxy) return switchToMainView();
     if (!galaxyViewport || !galaxyZoomContent) return;
 
+    // Set container dimensions
     const galaxyContentDiameter = window.gameSessionData.universe.diameter || 500;
     galaxyViewport.style.width = `${galaxyContentDiameter}px`;
     galaxyViewport.style.height = `${galaxyContentDiameter}px`;
 
-    galaxyZoomContent.querySelectorAll('.solar-system-icon').forEach(icon => icon.remove());
+    // --- NEW LOGIC ---
+    // If we haven't rendered this galaxy's icons before, create and cache them.
+    if (!galaxyIconCache[galaxy.id]) {
+        galaxyZoomContent.innerHTML = ''; // Clear previous galaxy's icons
+        const fragment = document.createDocumentFragment();
 
-    galaxy.solarSystems.forEach(ss => {
-      const solarSystemElement = document.createElement('div');
-      solarSystemElement.className = 'solar-system-icon';
-      let displayIconSize = ss.iconSize;
-      solarSystemElement.style.width = `${displayIconSize}px`;
-      solarSystemElement.style.height = `${displayIconSize}px`;
-      solarSystemElement.style.left = `${ss.x}px`;
-      solarSystemElement.style.top = `${ss.y}px`;
-      solarSystemElement.dataset.solarSystemId = ss.id;
-      if (ss.customName) solarSystemElement.title = ss.customName;
-      solarSystemElement.addEventListener('click', (e) => { 
-        e.stopPropagation();
-        switchToSolarSystemView(ss.id); 
-      });
-      galaxyZoomContent.appendChild(solarSystemElement);
-    });
+        galaxy.solarSystems.forEach(ss => {
+            const solarSystemElement = document.createElement('div');
+            solarSystemElement.className = 'solar-system-icon';
+            solarSystemElement.style.width = `${ss.iconSize}px`;
+            solarSystemElement.style.height = `${ss.iconSize}px`;
+            solarSystemElement.style.left = `${ss.x}px`;
+            solarSystemElement.style.top = `${ss.y}px`;
+            solarSystemElement.dataset.solarSystemId = ss.id;
+            if (ss.customName) solarSystemElement.title = ss.customName;
+            solarSystemElement.addEventListener('click', (e) => {
+                e.stopPropagation();
+                switchToSolarSystemView(ss.id);
+            });
+            fragment.appendChild(solarSystemElement);
+        });
 
-    if (solarSystemLinesCanvasEl.parentNode !== galaxyZoomContent || galaxyZoomContent.firstChild !== solarSystemLinesCanvasEl) {
-      galaxyZoomContent.insertBefore(solarSystemLinesCanvasEl, galaxyZoomContent.firstChild);
+        // Add the lines canvas first, then the icons
+        galaxyZoomContent.appendChild(solarSystemLinesCanvasEl);
+        galaxyZoomContent.appendChild(fragment);
+
+        // Mark this galaxy as rendered in our cache
+        galaxyIconCache[galaxy.id] = true;
     }
+
     drawGalaxyLines(galaxy);
 
+    // This is the only part that should run on every pan/zoom
     galaxyZoomContent.style.transition = isInteractivePanOrZoom ? 'none' : 'transform 0.1s ease-out';
-    galaxyZoomContent.style.transform = `translate(${galaxy.currentPanX}px, ${galaxy.currentPanY}px) scale(${galaxy.currentZoom})`;
-      
-    if (galaxyDetailTitleText) { 
-      const galaxyNumDisplay = galaxy.id.split('-').pop();
-      galaxyDetailTitleText.textContent = galaxy.customName || `Galaxy ${galaxyNumDisplay}`; 
+    galaxyZoomContent.style.transform = `translate(${galaxy.currentPanX}px, <span class="math-inline">\{galaxy\.currentPanY\}px\) scale\(</span>{galaxy.currentZoom})`;
+
+    if (galaxyDetailTitleText) {
+        const galaxyNumDisplay = galaxy.id.split('-').pop();
+        galaxyDetailTitleText.textContent = galaxy.customName || `Galaxy ${galaxyNumDisplay}`;
     }
-  }
+}
 
   function renderSolarSystemScreen(isInteractivePanOrZoom = false) {
     if (!solarSystemContent || !solarSystemScreen || !window.gameSessionData.activeSolarSystemId) return;
@@ -1271,7 +1282,8 @@ window.generatePlanetInstanceFromBasis = function (basis, isForDesignerPreview =
     }
     
     const existingCustomPlanetDesigns = [...(window.gameSessionData.customPlanetDesigns || [])];
-    
+
+    galaxyIconCache = {}; 
     window.gameSessionData.universe = { diameter: null };
     window.gameSessionData.galaxies = [];
     window.gameSessionData.activeGalaxyId = null;

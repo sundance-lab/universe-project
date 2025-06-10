@@ -56,9 +56,9 @@ export const PlanetDesigner = (() => {
    
   const geometry = new THREE.IcosahedronGeometry(SPHERE_BASE_RADIUS, 32);
 
-  // --- FIX START ---
-  // Merge custom uniforms with Three.js's built-in "common" uniforms
-  // This provides 'cameraPosition' and other necessary variables to the shader.
+  // --- THIS IS THE FINAL FIX ---
+  // We merge our custom uniforms with Three.js's "common" uniforms library.
+  // This provides the shader with essential built-in variables like 'cameraPosition'.
   const uniforms = THREE.UniformsUtils.merge([
     THREE.UniformsLib.common,
     {
@@ -75,10 +75,9 @@ export const PlanetDesigner = (() => {
       uPlanetType: { value: 0 }
     }
   ]);
-  // --- FIX END ---
    
   designerShaderMaterial = new THREE.ShaderMaterial({
-   uniforms,
+   uniforms: uniforms,
    vertexShader: vertexShader,
    fragmentShader: fragmentShader,
   });

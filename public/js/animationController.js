@@ -26,8 +26,9 @@ function animateSolarSystem(now) {
     // 1. Update the data for the planets (their angles).
     if(window.gameSessionData?.solarSystemView?.planets) {
         window.gameSessionData.solarSystemView.planets.forEach(planet => {
-            planet.currentOrbitalAngle += planet.orbitalSpeed * 6 * deltaTime;
-            planet.currentAxialAngle += planet.axialSpeed * 60 * deltaTime;
+            // MODIFICATION: Drastically reduced orbital and axial speed multipliers.
+            planet.currentOrbitalAngle += planet.orbitalSpeed * 0.1 * deltaTime;
+            planet.currentAxialAngle += planet.axialSpeed * 2 * deltaTime;
         });
     }
 

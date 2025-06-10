@@ -1,13 +1,11 @@
 import { startSolarSystemAnimation, stopSolarSystemAnimation } from './animationController.js';
 import { PlanetDesigner } from './planetDesigner.js';
-// import { PlanetVisualPanelManager } from './planetVisualPanelManager.js'; // REMOVED
 import { HexPlanetViewController } from './hexPlanetViewController.js';
 import { SolarSystemRenderer } from './solarSystemRenderer.js';
 
 function initializeModules() {
  // The imports now directly provide the objects, so we can assign them directly.
  window.PlanetDesigner = PlanetDesigner;
- // window.PlanetVisualPanelManager = PlanetVisualPanelManager; // REMOVED
  HexPlanetViewController.init();
 }
 
@@ -58,7 +56,6 @@ document.addEventListener('DOMContentLoaded', () => {
   let galaxyIconCache = {};
 
   window.generatePlanetInstanceFromBasis = function (basis, isForDesignerPreview = false) {
-      // If not in preview mode, and custom designs exist, there's a 50% chance to use one.
       const useCustomDesign = !isForDesignerPreview && 
                               window.gameSessionData?.customPlanetDesigns?.length > 0 && 
                               Math.random() < 0.5;
@@ -67,8 +64,6 @@ document.addEventListener('DOMContentLoaded', () => {
           const randomDesign = window.gameSessionData.customPlanetDesigns[
               Math.floor(Math.random() * window.gameSessionData.customPlanetDesigns.length)
           ];
-          
-          console.log("[DEBUG] Using custom template:", randomDesign.designId);
           
           return {
               waterColor: randomDesign.waterColor,
@@ -80,12 +75,10 @@ document.addEventListener('DOMContentLoaded', () => {
               riverBasin: randomDesign.riverBasin,
               forestDensity: randomDesign.forestDensity,
               sourceDesignId: randomDesign.designId,
-              isExplorable: true, // Ensure it's explorable
+              isExplorable: true,
+              planetType: randomDesign.planetType ?? Math.floor(Math.random() * 4),
           };
       }
-
-      // Fallback to default generation for previews, or if the 50% chance fails.
-      console.log("[DEBUG] Using default random generation.");
       
       return {
           waterColor: basis.waterColor || '#0000FF',
@@ -102,8 +95,8 @@ document.addEventListener('DOMContentLoaded', () => {
           riverBasin: basis.riverBasin || 0.05,
           forestDensity: basis.forestDensity || 0.5,
           sourceDesignId: null,
-          
           isExplorable: true,
+          planetType: basis.planetType ?? Math.floor(Math.random() * 4), // Assign a random type
           explorationData: {
               surfaceDetail: basis.surfaceDetail || 1.0,
               atmosphereColor: basis.atmosphereColor || '#87CEEB',
@@ -141,7 +134,8 @@ document.addEventListener('DOMContentLoaded', () => {
   let MAX_PLANET_DISTANCE = (SUN_ICON_SIZE * BASE_MAX_PLANET_DISTANCE_FACTOR) * DEFAULT_MAX_PLANET_DISTANCE_MULTIPLIER;
   let ORBIT_CANVAS_SIZE = MAX_PLANET_DISTANCE * 2.2;
   let SOLAR_SYSTEM_EXPLORABLE_RADIUS = MAX_PLANET_DISTANCE * 1.2;
-  const MIN_ORBITAL_SEPARATION = 200;
+  // MODIFICATION: Increased orbital separation for larger solar systems
+  const MIN_ORBITAL_SEPARATION = 2000;
   let MIN_ROTATION_SPEED_RAD_PER_PERLIN_UNIT = 0.0005;
   let MAX_ROTATION_SPEED_RAD_PER_PERLIN_UNIT = 0.005;
   const FIXED_COLORS = {
@@ -1014,7 +1008,8 @@ document.addEventListener('DOMContentLoaded', () => {
 
           for (let i = 0; i < numPlanets; i++) {
               const planetData = generatePlanetInstanceFromBasis({});
-              const orbitalRadius = lastOrbitalRadius + MIN_ORBITAL_SEPARATION + Math.random() * 800;
+              // MODIFICATION: Greatly increased the random factor for orbital radius
+              const orbitalRadius = lastOrbitalRadius + MIN_ORBITAL_SEPARATION + Math.random() * 15000;
               
               solarSystemObject.planets.push({
                   ...planetData,
@@ -1027,7 +1022,7 @@ document.addEventListener('DOMContentLoaded', () => {
                   axialSpeed: (Math.random() - 0.5) * 0.05,
                   currentAxialAngle: Math.random() * 2 * Math.PI,
               });
-              lastOrbitalRadius = orbitalRadius + MIN_ORBITAL_SEPARATION;
+              lastOrbitalRadius = orbitalRadius;
           }
           window.saveGameState(); // Save state after generating planets
       }
@@ -1209,30 +1204,30 @@ document.addEventListener('DOMContentLoaded', () => {
 
     const deltaX = event.clientX - p.startX;
     const deltaY = event.clientY - p.startY;
-
-    const zoomKey = p.dataObject.hasOwnProperty('currentZoom') ? 'currentZoom' : 'zoomLevel';
-    const zoom = p.dataObject[zoomKey] || 1.0;
-
-    const zoomCompensation = Math.max(0.5, Math.min(1, 1 / zoom));
     
-    const panXKey = 'currentPanX';
-    const panYKey = 'currentPanY';
-    
-    p.dataObject[panXKey] = p.initialPanX + deltaX;
-    p.dataObject[panYKey] = p.initialPanY + deltaY;
+    // MODIFICATION: Added separate, correct panning logic for the new solar system camera
+    if (p.viewportElement === solarSystemScreen && window.activeSolarSystemRenderer) {
+        const renderer = window.activeSolarSystemRenderer;
+        const camera = renderer.getCamera();
+        const canvas = renderer.getCanvas();
 
-    if (p.mouseMoveHandler) {
-      p.mouseMoveHandler(event);
+        if (!camera || !canvas) return;
+        
+        // Convert pixel delta to world units based on current zoom
+        const worldWidth = camera.right - camera.left;
+        const scale = worldWidth / canvas.offsetWidth;
+        
+        p.dataObject.currentPanX = p.initialPanX - (deltaX * scale);
+        p.dataObject.currentPanY = p.initialPanY + (deltaY * scale); // Screen Y is inverted from 3D Z
+        
+        renderer.handlePanAndZoom(p.dataObject.currentPanX, p.dataObject.currentPanY, p.dataObject.zoomLevel, true);
+    } else if (p.viewportElement === galaxyViewport) {
+        // Original logic for galaxy view
+        p.dataObject.currentPanX = p.initialPanX + deltaX;
+        p.dataObject.currentPanY = p.initialPanY + deltaY;
+        clampGalaxyPan(p.dataObject);
+        renderGalaxyDetailScreen(true);
     }
-
-    if (p.viewportElement === galaxyViewport) {
-      clampGalaxyPan(p.dataObject);
-      renderGalaxyDetailScreen(true);
-      } else if (p.viewportElement === solarSystemScreen) {
-        if (window.activeSolarSystemRenderer) {
-            window.activeSolarSystemRenderer.handlePanAndZoom(p.dataObject.currentPanX, p.dataObject.currentPanY, p.dataObject.zoomLevel);
-        }
-      }
   }
 
   function panMouseUp() {
@@ -1396,12 +1391,6 @@ document.addEventListener('DOMContentLoaded', () => {
   } else {
     console.error("PlanetDesigner module or init function is missing.");
   }
-
-  // if (window.PlanetVisualPanelManager?.init) { // REMOVED
-  //   window.PlanetVisualPanelManager.init();
-  // } else {
-  //   console.error("PlanetVisualPanelManager module or its init function is missing.");
-  // }
 
   initializeGame();
 });

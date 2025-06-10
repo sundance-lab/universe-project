@@ -1,3 +1,4 @@
+import { startSolarSystemAnimation, stopSolarSystemAnimation } from './animationController.js';
 import { PlanetDesigner } from './planetDesigner.js';
 import { saveGameState, loadGameState } from './storage.js';
 import {
@@ -48,6 +49,27 @@ document.addEventListener('DOMContentLoaded', () => {
         autoRotate: false,
         autoRotateSpeed: 0.5
     });
+
+    // Add global ambient and directional lights
+    const ambientLight = new THREE.AmbientLight(0xffffff, 0.3); // General ambient light
+    scene.add(ambientLight);
+
+    const directionalLight = new THREE.DirectionalLight(0xffffff, 0.7); // Main directional light for the scene
+    directionalLight.position.set(50000, 30000, 50000).normalize(); // Position far away for consistent lighting angle
+    scene.add(directionalLight);
+
+    // Add global skybox/starfield background
+    new THREE.TextureLoader().load('https://cdn.jsdelivr.net/gh/jeromeetienne/threex.planets@master/images/galaxy_starfield.png',
+        (texture) => {
+            scene.background = texture; // Use texture as background for simple starfield
+        },
+        undefined,
+        (err) => {
+            console.error("Failed to load global skybox texture:", err);
+            scene.background = new THREE.Color(0x000000); // Fallback to black if texture fails
+        }
+    );
+
 
     // Store global Three.js instances
     window.appThreeJS = {
@@ -255,8 +277,10 @@ document.addEventListener('DOMContentLoaded', () => {
 
     const callbacks = {
         saveGameState: saveGameState,
+        startSolarSystemAnimation: startSolarSystemAnimation, // These will become no-ops if animationController is removed
+        stopSolarSystemAnimation: stopSolarSystemAnimation,   // These will become no-ops if animationController is removed
         regenerateUniverseState: () => regenerateCurrentUniverseState(
-            { initializeGame },
+            { /* stopSolarSystemAnimation, */ initializeGame },
             domElements
         ),
         switchToPlanetDesignerScreen: () => {

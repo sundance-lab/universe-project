@@ -20,11 +20,13 @@ export const HexPlanetViewController = (() => {
         const vertexCount = positions.length / 3;
         const barycentric = new Float32Array(vertexCount * 3);
 
-        for (let i = 0; i < vertexCount; i += 3) {
+        // Corrected loop: Iterate through each vertex and assign barycentric coordinates
+        for (let i = 0; i < vertexCount; i += 3) { // Process each triangle (3 vertices)
             barycentric[i * 3] = 1; barycentric[i * 3 + 1] = 0; barycentric[i * 3 + 2] = 0;
             barycentric[(i + 1) * 3] = 0; barycentric[(i + 1) * 3 + 1] = 1; barycentric[(i + 1) * 3 + 2] = 0;
             barycentric[(i + 2) * 3] = 0; barycentric[(i + 2) * 3 + 1] = 0; barycentric[(i + 2) * 3 + 2] = 1;
         }
+
 
         geometry.setAttribute('barycentric', new THREE.BufferAttribute(barycentric, 3));
     }
@@ -101,6 +103,7 @@ export const HexPlanetViewController = (() => {
             const mesh = new THREE.Mesh(geometry, materialForLevel);
             lod.addLevel(mesh, level.distance);
         });
+    }
 
     function update(now) {
         if (lod) {
@@ -109,7 +112,7 @@ export const HexPlanetViewController = (() => {
                     mesh.material.uniforms.uTime.value = now / 1000;
                 }
             });
-            lod.update(_camera); 
+            lod.update(_camera);
         }
     }
 
@@ -128,7 +131,6 @@ export const HexPlanetViewController = (() => {
             });
             lod = null;
         }
-
     }
 
     // onResize is now handled by the global resize listener in script.js

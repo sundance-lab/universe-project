@@ -1,5 +1,6 @@
 import * as THREE from 'three';
-import { FlyControls } from 'three/examples/jsm/controls/FlyControls.js';
+// MODIFICATION: Replaced FlyControls with OrbitControls
+import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls.js';
 import { getPlanetShaders } from './shaders.js';
 
 // --- Sun Creation Logic (Integrated from sunRenderer.js) ---
@@ -168,7 +169,8 @@ export const SolarSystemRenderer = (() => {
         const aspect = width / height;
 
         camera = new THREE.PerspectiveCamera(60, aspect, 100, 300000);
-        camera.position.set(0, 20000, 35000);
+        // MODIFICATION: Set initial camera position to be more top-down
+        camera.position.set(0, 40000, 20000);
         camera.lookAt(0, 0, 0);
 
         const textureLoader = new THREE.TextureLoader();
@@ -190,14 +192,18 @@ export const SolarSystemRenderer = (() => {
         renderer.setSize(width, height);
         container.appendChild(renderer.domElement);
         
-        // MODIFICATION: Use FlyControls for a free-roam camera
-        controls = new FlyControls(camera, renderer.domElement);
-        controls.movementSpeed = 10000; // Increased speed for large distances
-        controls.rollSpeed = Math.PI / 12;
-        controls.autoForward = false;
-        controls.dragToLook = true; // Use mouse drag to look around
-
-
+        // MODIFICATION: Use OrbitControls for a Stellaris-like camera
+        controls = new OrbitControls(camera, renderer.domElement);
+        controls.enableDamping = true;
+        controls.dampingFactor = 0.05;
+        controls.screenSpacePanning = true; // Allows panning across the screen plane
+        controls.minDistance = 2000;       // How close you can zoom in
+        controls.maxDistance = 100000;     // How far you can zoom out
+        // This is the key change: It prevents the camera from going below the horizon,
+        // keeping the view "on top" of the system.
+        controls.maxPolarAngle = Math.PI / 2.1; 
+        controls.enablePan = true; // Ensure panning (dragging) is enabled
+        
         raycaster = new THREE.Raycaster();
         mouse = new THREE.Vector2();
         renderer.domElement.addEventListener('click', _onPlanetClick, false);
@@ -209,8 +215,9 @@ export const SolarSystemRenderer = (() => {
     }
 
     function _onPlanetClick(event) {
-        // This simple check helps differentiate a click from a drag-to-look action
-        if (controls.isDragging) return;
+        // MODIFICATION: Removed the `controls.isDragging` check as it's not present
+        // in OrbitControls. The 'click' event is generally not fired on a drag
+        // action by modern browsers, making this check unnecessary.
 
         event.preventDefault();
         if (!renderer || !camera || planetMeshes.length === 0) return;
@@ -245,10 +252,8 @@ export const SolarSystemRenderer = (() => {
         if (!renderer) return;
         animationFrameId = requestAnimationFrame(_animate);
 
-        // MODIFICATION: Pass deltaTime to FlyControls update
-        const delta = (now - lastAnimateTime) * 0.001;
-        lastAnimateTime = now;
-        if(controls) controls.update(delta || 0);
+        // MODIFICATION: OrbitControls only needs .update() called in the loop.
+        if(controls) controls.update();
 
         if (sunLOD) {
             sunLOD.rotation.y += 0.0001;
@@ -324,9 +329,8 @@ export const SolarSystemRenderer = (() => {
                 camera.aspect = width / height;
                 camera.updateProjectionMatrix();
 
-                if (controls) {
-                    controls.handleResize();
-                }
+                // MODIFICATION: OrbitControls does not have a handleResize method,
+                // the aspect ratio update on the camera is sufficient.
             }
         },
 

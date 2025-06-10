@@ -102,17 +102,6 @@ export const HexPlanetViewController = (() => {
             lod.addLevel(mesh, level.distance);
         });
 
-        // Add lights to the global scene (if not already present from SolarSystemRenderer)
-        // Ensure only one set of lights is active if this is a global scene.
-        // For simplicity, we add them here, assuming SolarSystemRenderer's lights will be cleared first.
-        const ambientLight = new THREE.AmbientLight(0xffffff, 0.7);
-        _scene.add(ambientLight);
-        const directionalLight = new THREE.DirectionalLight(0xffffff, 0.5);
-        directionalLight.position.set(5, 5, 5);
-        _scene.add(directionalLight);
-    }
-
-    // Renamed animate to update to be called by the global animation loop
     function update(now) {
         if (lod) {
             lod.children.forEach(mesh => {
@@ -120,12 +109,10 @@ export const HexPlanetViewController = (() => {
                     mesh.material.uniforms.uTime.value = now / 1000;
                 }
             });
-            lod.update(_camera); // LOD update still depends on camera
+            lod.update(_camera); 
         }
-        // Controls.update() and renderer.render() are now handled by the global loop
     }
 
-    // Renamed cleanup to clearObjects to reflect its new purpose
     function clearObjects() {
         if (lod) {
             _scene.remove(lod); // Remove from the global scene
@@ -141,13 +128,7 @@ export const HexPlanetViewController = (() => {
             });
             lod = null;
         }
-        // Remove lights if they were added specifically by HexPlanetViewController
-        // This is simplified; proper light management in a unified scene would be more complex
-        _scene.children.slice().forEach(obj => {
-            if (obj instanceof THREE.Light && !(obj instanceof THREE.AmbientLight)) { // Keep ambient, remove directional if needed
-                _scene.remove(obj);
-            }
-        });
+
     }
 
     // onResize is now handled by the global resize listener in script.js

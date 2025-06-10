@@ -24,8 +24,8 @@ float valueNoise(vec3 p, float seed) {
  float c111 = random(i.xy + vec2(1.0, 1.0) + (i.z + 1.0) * 0.37);
  float u00 = mix(c000, c100, f.x);
  float u01 = mix(c001, c101, f.x);
- float u10 = mix(c010, c110, f.x);
- float u11 = mix(c011, c111, f.x);
+ float u10 = mix(c010, c110, f.y);
+ float u11 = mix(c011, c111, f.y);
  float v0 = mix(u00, u10, f.y);
  float v1 = mix(u01, u11, f.y);
  return mix(v0, v1, f.z);
@@ -58,7 +58,7 @@ float ridgedRiverNoise(vec3 p, float seed) {
 }
 `;
 
-const noiseFunctions = glslRandom2to1 + glslSimpleValueNoise3D + glslLayeredNoise + glslRidgedRiverNoise;
+export const noiseFunctions = glslRandom2to1 + glslSimpleValueNoise3D + glslLayeredNoise + glslRidgedRiverNoise; // Export noiseFunctions
 
 
 // --- Shaders for Standard Planet Preview (Designer View) ---

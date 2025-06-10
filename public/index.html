@@ -4,7 +4,6 @@
   <meta charset="UTF-8">
   
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <!-- The path to styles.css is now relative to index.html -->
   <link rel="stylesheet" href="styles.css">
   <title>Galaxies Reimagined</title>
 </head>
@@ -58,7 +57,6 @@
                         <input type="color" id="designer-land-color" class="designer-control" value="#006400">
                     </div>
 
-          <!-- ADD THIS RIVER SLIDER -->
           <div class="designer-range-control">
               <label for="designer-river-basin">River Basin Width</label>
               <div class="input-row">
@@ -67,7 +65,6 @@
               </div>
           </div>
 
-          <!-- ADD THIS FOREST SLIDER -->
           <div class="designer-range-control">
               <label for="designer-forest-density">Forest Density</label>
               <div class="input-row">
@@ -135,16 +132,6 @@
 
   </div>
 </div>
-
-<script type="importmap">
-  {
-    "imports": {
-      "three": "https://unpkg.com/three@0.165.0/build/three.module.js",
-      "three/examples/jsm/controls/OrbitControls": "https://unpkg.com/three@0.165.0/examples/jsm/controls/OrbitControls.js",
-      "three/examples/jsm/objects/LOD": "https://unpkg.com/three@0.165.0/examples/jsm/objects/LOD.js"
-    }
-  }
-</script>
 
 <script src="js/mathUtils.js"></script>
 <script type="module" src="js/sunRenderer.js"></script>

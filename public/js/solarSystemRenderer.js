@@ -44,7 +44,8 @@ export const SolarSystemRenderer = (() => {
     let raycaster, mouse;
     let boundWheelHandler = null;
     let cameraAnimation = null;
-    let orbitSpeedMultiplier = 1.0; // ADD THIS LINE
+    let orbitSpeedMultiplier = 1.0;
+    let focusedPlanetMesh = null; // ADD THIS LINE
 
     const SPHERE_BASE_RADIUS = 0.8;
     const DISPLACEMENT_SCALING_FACTOR = 0.005;
@@ -162,16 +163,26 @@ export const SolarSystemRenderer = (() => {
             enableDamping: true, dampingFactor: 0.05, screenSpacePanning: true,
             minDistance: 50, maxDistance: 450000, enablePan: true, rotateSpeed: 0.4,
             mouseButtons: { LEFT: THREE.MOUSE.PAN, MIDDLE: THREE.MOUSE.PAN, RIGHT: THREE.MOUSE.ROTATE },
-            enableZoom: false
+            enableZoom: false,
+            autoRotate: false, // ADD THIS
+            autoRotateSpeed: 0.5 // ADD THIS
         });
+
+        // START: Modify this listener
         controls.addEventListener('start', () => {
             if (cameraAnimation) {
                 cameraAnimation = null;
                 controls.enabled = true;
             }
+            controls.autoRotate = false;
+            focusedPlanetMesh = null;
         });
+        // END: Modify this listener
+
         boundWheelHandler = (event) => {
             event.preventDefault();
+            controls.autoRotate = false; // Also stop rotation on wheel zoom
+            focusedPlanetMesh = null;
             const linearZoomAmount = 1000;
             let zoomFactor = event.deltaY < 0 ? -linearZoomAmount : linearZoomAmount;
             const camToTarget = new THREE.Vector3().subVectors(controls.target, camera.position);
@@ -213,7 +224,6 @@ export const SolarSystemRenderer = (() => {
 
         if (currentSystemData?.planets) {
             currentSystemData.planets.forEach(planet => {
-                // APPLY ORBIT SPEED MULTIPLIER
                 planet.currentOrbitalAngle += planet.orbitalSpeed * 0.1 * deltaTime * orbitSpeedMultiplier;
                 planet.currentAxialAngle += planet.axialSpeed * 2 * deltaTime;
             });
@@ -228,10 +238,19 @@ export const SolarSystemRenderer = (() => {
                 controls.target.copy(cameraAnimation.targetLookAt);
                 cameraAnimation = null;
                 controls.enabled = true;
+                controls.autoRotate = true; // Start orbiting
             }
         }
+        
+        // START: Add this block to keep the camera target locked on the orbiting planet
+        if (focusedPlanetMesh && !cameraAnimation) {
+            const planetWorldPosition = new THREE.Vector3();
+            focusedPlanetMesh.getWorldPosition(planetWorldPosition);
+            controls.target.copy(planetWorldPosition);
+        }
+        // END: Add this block
 
-        if(controls) controls.update();
+        if(controls) controls.update(); // This is crucial for autoRotate to work
         if (skybox) skybox.rotation.y += 0.00002;
         if (sunLOD) {
             sunLOD.rotation.y += 0.0001;
@@ -255,28 +274,29 @@ export const SolarSystemRenderer = (() => {
         renderer.render(scene, camera);
     }
     
+    // START: Modify this function
     function focusOnPlanet(planetId) {
-        const targetMesh = planetMeshes.find(p => p.userData.id === planetId);
-        if (!targetMesh) return console.warn(`focusOnPlanet: Planet with ID ${planetId} not found.`);
+        controls.autoRotate = false; // Stop any current rotation
+        focusedPlanetMesh = planetMeshes.find(p => p.userData.id === planetId);
+
+        if (!focusedPlanetMesh) return console.warn(`focusOnPlanet: Planet with ID ${planetId} not found.`);
+        
         const planetWorldPosition = new THREE.Vector3();
-        targetMesh.getWorldPosition(planetWorldPosition);
-        const offset = new THREE.Vector3(0, targetMesh.userData.size * 0.5, targetMesh.userData.size * 2.0);
+        focusedPlanetMesh.getWorldPosition(planetWorldPosition);
+        const offset = new THREE.Vector3(0, focusedPlanetMesh.userData.size * 0.5, focusedPlanetMesh.userData.size * 2.0);
         const targetPosition = planetWorldPosition.clone().add(offset);
         cameraAnimation = { targetPosition: targetPosition, targetLookAt: planetWorldPosition };
         controls.enabled = false;
     }
+    // END: Modify this function
     
-    // START: ADD NEW PUBLIC FUNCTIONS
     function setOrbitLinesVisible(visible) {
-        orbitLines.forEach(line => {
-            line.visible = !!visible;
-        });
+        orbitLines.forEach(line => { line.visible = !!visible; });
     }
 
     function setOrbitSpeed(multiplier) {
         orbitSpeedMultiplier = Number(multiplier);
     }
-    // END: ADD NEW PUBLIC FUNCTIONS
 
     return {
         init: (solarSystemData) => {
@@ -295,7 +315,7 @@ export const SolarSystemRenderer = (() => {
                 const orbitMaterial = new THREE.LineBasicMaterial({ color: 0x444444 });
                 const orbitLine = new THREE.Line(orbitGeometry, orbitMaterial);
                 orbitLine.rotation.x = Math.PI / 2;
-                orbitLine.visible = false; // Set default visibility to false
+                orbitLine.visible = false;
                 orbitLines.push(orbitLine);
                 scene.add(orbitLine);
             });

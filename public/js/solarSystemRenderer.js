@@ -9,6 +9,7 @@ export const SolarSystemRenderer = (() => {
     let orbitLines = [];
     let currentSystemData = null;
     let animationFrameId = null;
+    let raycaster, mouse;
 
     const SPHERE_BASE_RADIUS = 0.8;
     const DISPLACEMENT_SCALING_FACTOR = 0.005;
@@ -52,6 +53,10 @@ export const SolarSystemRenderer = (() => {
             animationFrameId = null;
         }
 
+        if (renderer?.domElement) {
+            renderer.domElement.removeEventListener('click', _onPlanetClick);
+        }
+
         if (sunRenderer) {
             sunRenderer.dispose();
             sunRenderer = null;
@@ -89,18 +94,59 @@ export const SolarSystemRenderer = (() => {
         const width = container.offsetWidth;
         const height = container.offsetHeight;
 
-        camera = new THREE.PerspectiveCamera(50, width / height, 1, 50000);
-        camera.position.set(0, 1200, 2000);
-        camera.lookAt(0, 0, 0);
+        // MODIFICATION: Switched to OrthographicCamera for a top-down view.
+        const aspect = width / height;
+        const frustumSize = 4000; // This value determines the initial "zoom" level
+        camera = new THREE.OrthographicCamera(frustumSize * aspect / -2, frustumSize * aspect / 2, frustumSize / 2, frustumSize / -2, 1, 50000);
+        camera.position.set(0, 2000, 0); // Position directly above the scene
+        camera.lookAt(0, 0, 0);       // Look at the center (sun)
 
         renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
         renderer.setPixelRatio(window.devicePixelRatio);
         renderer.setSize(width, height);
         container.appendChild(renderer.domElement);
 
+        // MODIFICATION: Add raycaster for detecting clicks.
+        raycaster = new THREE.Raycaster();
+        mouse = new THREE.Vector2();
+        renderer.domElement.addEventListener('click', _onPlanetClick, false);
+
+
         sunLight = new THREE.PointLight(0xffffff, 2.5, 50000);
         scene.add(sunLight);
         scene.add(new THREE.AmbientLight(0xffffff, 0.1));
+    }
+
+    // MODIFICATION: Added click handler for planets.
+    function _onPlanetClick(event) {
+        event.preventDefault();
+        if (!renderer || !camera || planetMeshes.length === 0) return;
+
+        const rect = renderer.domElement.getBoundingClientRect();
+        mouse.x = ((event.clientX - rect.left) / rect.width) * 2 - 1;
+        mouse.y = -((event.clientY - rect.top) / rect.height) * 2 + 1;
+
+        raycaster.setFromCamera(mouse, camera);
+
+        const intersects = raycaster.intersectObjects(planetMeshes);
+
+        if (intersects.length > 0) {
+            const clickedPlanetData = intersects[0].object.userData;
+            console.log("Clicked on planet:", clickedPlanetData.id);
+
+            // Callback to return to this view after exploring
+            const onBackCallback = () => {
+                if (window.switchToSolarSystemView && currentSystemData?.id) {
+                    window.switchToSolarSystemView(currentSystemData.id);
+                } else {
+                    window.switchToMainView();
+                }
+            };
+            
+            if (window.switchToHexPlanetView) {
+                window.switchToHexPlanetView(clickedPlanetData, onBackCallback);
+            }
+        }
     }
 
     function _animate(now) {
@@ -175,13 +221,21 @@ export const SolarSystemRenderer = (() => {
 
         handlePanAndZoom: (panX, panY, zoom) => {
             if (camera) {
-                // This is a simplified zoom/pan. A more robust implementation
-                // would use OrbitControls or a similar utility.
-                const newX = -panX * 2;
-                const newY = 1200 / zoom; // Dolly zoom
-                const newZ = 2000 / zoom;
-                camera.position.set(newX, newY, newZ);
-                camera.lookAt(newX, 0, 0);
+                // MODIFICATION: Updated pan/zoom logic for OrthographicCamera.
+                const frustumSize = 4000;
+                const aspect = camera.right / camera.top; // Recalculate aspect
+                
+                // Zoom affects the camera's view frustum
+                camera.left = -frustumSize * aspect / 2 / zoom;
+                camera.right = frustumSize * aspect / 2 / zoom;
+                camera.top = frustumSize / 2 / zoom;
+                camera.bottom = -frustumSize / 2 / zoom;
+
+                // Pan moves the camera's position on the X and Z axes
+                camera.position.x = -panX;
+                camera.position.z = panY; // Note: panY from screen maps to Z in 3D top-down view
+
+                camera.updateProjectionMatrix();
             }
         },
 
@@ -191,7 +245,11 @@ export const SolarSystemRenderer = (() => {
                 const width = container.offsetWidth;
                 const height = container.offsetHeight;
                 renderer.setSize(width, height);
-                camera.aspect = width / height;
+
+                // MODIFICATION: Update aspect ratio for OrthographicCamera
+                const aspect = width / height;
+                camera.left = camera.right * -aspect;
+                camera.right = camera.right; // right is maintained
                 camera.updateProjectionMatrix();
             }
              if (sunRenderer) {

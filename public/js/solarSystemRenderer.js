@@ -1,6 +1,4 @@
-/*
-File: sundance-lab/universe-project/universe-project-1c890612324cf52378cad7dd053c3e9f4655c465/public/js/solarSystemRenderer.js
-*/
+// public/js/solarSystemRenderer.js
 
 import * as THREE from 'three';
 import { getPlanetShaders } from './shaders.js';
@@ -32,7 +30,9 @@ export const SolarSystemRenderer = (() => {
         { baseColor: new THREE.Color(0xE65100), hotColor: new THREE.Color(0xFFAB40), coolColor: new THREE.Color(0xBF360C), glowColor: new THREE.Color(0xFFD740), coronaColor: new THREE.Color(0xFFC107), midColor: new THREE.Color(0xFF9800), peakColor: new THREE.Color(0xFFE0B2), valleyColor: new THREE.Color(0xBF360C), turbulence: 1.15, fireSpeed: 0.28, pulseSpeed: 0.002, sizeCategory: 'hypergiant', terrainScale: 1.5, fireIntensity: 1.9 }
     ];
 
+    // These variables will now refer to the globally managed scene, camera, controls, and renderer
     let _scene, _camera, _controls, _renderer;
+    let sunLOD, sunLight; // Removed skybox declaration
     let planetMeshes = [];
     let orbitLines = [];
     let currentSystemData = null;
@@ -105,6 +105,7 @@ export const SolarSystemRenderer = (() => {
         return mesh;
     }
 
+    // Renamed _cleanup to clearSceneObjects to reflect its new purpose
     function clearSceneObjects() {
         if (_renderer?.domElement && boundWheelHandler) _renderer.domElement.removeEventListener('wheel', boundWheelHandler);
         if (_renderer?.domElement) _renderer.domElement.removeEventListener('click', _onPlanetClick);
@@ -139,27 +140,34 @@ export const SolarSystemRenderer = (() => {
             sunLight = null;
         }
 
+        // Reset local variables
         currentSystemData = null;
         focusedPlanetMesh = null;
         boundWheelHandler = null;
         lastAnimateTime = null;
+        // _scene, _camera, _controls, _renderer are NOT disposed here as they are global
     }
 
+    // Renamed _setupScene to setupObjects to reflect its new purpose of adding objects to existing scene
     function setupObjects(scene, camera, controls, renderer, solarSystemData) {
         _scene = scene;
         _camera = camera;
         _controls = controls;
         _renderer = renderer;
 
-        clearSceneObjects(); 
+        clearSceneObjects(); // Clear any previous objects from the scene
 
+        // Set camera initial position for Solar System view (adjust as needed)
         _camera.position.set(0, 40000, 20000);
-        _controls.target.set(0, 0, 0); 
+        _controls.target.set(0, 0, 0); // Point camera at origin for system view
         _controls.enablePan = true;
         _controls.autoRotate = false;
         _controls.minDistance = 50;
         _controls.maxDistance = 450000;
         _controls.update();
+
+        // Removed skybox loading and ambient light addition from here.
+        // These are now handled globally in script.js
 
         sunLight = new THREE.PointLight(0xffffff, 2.5, 550000);
         _scene.add(sunLight);
@@ -227,6 +235,15 @@ export const SolarSystemRenderer = (() => {
 
     // Renamed _animate to update to be called by the global animation loop
     function update(now) {
+        if (sunLOD !== null && sunLOD !== undefined) { // Added explicit check for undefined/null
+            sunLOD.rotation.y += 0.0001;
+            sunLOD.update(_camera);
+            sunLOD.levels.forEach(level => {
+                if (level.object.material.uniforms) level.object.material.uniforms.time.value = now * 0.0003;
+            });
+        }
+        // Removed skybox rotation from here
+        
         if (!currentSystemData) return; // Only update if a system is loaded
 
         const deltaTime = (now - (lastAnimateTime || now)) / 1000;
@@ -267,7 +284,7 @@ export const SolarSystemRenderer = (() => {
 
         if (_controls) _controls.update();
         if (sunLOD) {
-            sunLOD.rotation.y += 0.0001;
+            sunLOD.rotation.y += 0.0001; // This line still exists, will move it inside the first if-check
             sunLOD.update(_camera);
             sunLOD.levels.forEach(level => {
                 if (level.object.material.uniforms) level.object.material.uniforms.time.value = now * 0.0003;

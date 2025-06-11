@@ -95,7 +95,7 @@ export const SolarSystemRenderer = (() => {
                     uSphereRadius: { value: SPHERE_BASE_RADIUS },
                     uDisplacementAmount: { value: displacementAmount },
                     uTime: { value: 0.0 },
-                    uPlanetType: { value: planetData.planetType || 0 },
+                    uPlanetType: { value: planetData.planetType || 0 }, // Added planetType uniform
                     uLightDirection: { value: new THREE.Vector3(0.8, 0.6, 1.0) }
                 }
             ]),
@@ -175,7 +175,7 @@ export const SolarSystemRenderer = (() => {
         controls.addEventListener('start', () => {
             if (cameraAnimation) {
                 cameraAnimation = null;
-                controls.enabled = true;
+                // controls.enabled = true; // Removed this line, controls will remain enabled
             }
             controls.autoRotate = false;
             focusedPlanetMesh = null;
@@ -233,7 +233,7 @@ export const SolarSystemRenderer = (() => {
                 if (mesh) {
                     mesh.rotation.y = planet.currentAxialAngle;
                     const x = planet.orbitalRadius * Math.cos(planet.currentOrbitalAngle);
-                    const z = planet.orbitalRadius * Math.sin(planet.currentOrbitalAngle);
+                    const z = planet.orbitalRadius * Math.sin(planet.orbitalAngle);
                     mesh.position.set(x, 0, z);
                     mesh.material.uniforms.uLightDirection.value.copy(mesh.position).negate().normalize();
                 }
@@ -252,13 +252,10 @@ export const SolarSystemRenderer = (() => {
             camera.position.lerp(cameraAnimation.targetPosition, speed);
             controls.target.lerp(cameraAnimation.targetLookAt, speed);
 
-            if (camera.position.distanceTo(cameraAnimation.targetPosition) < 10) {
-                camera.position.copy(cameraAnimation.targetPosition);
-                controls.target.copy(cameraAnimation.targetLookAt);
-                cameraAnimation = null;
-                controls.enabled = true;
-                controls.autoRotate = true;
-            }
+            // Removed the condition for camera animation completion.
+            // We now ensure autoRotate is active as soon as the animation starts.
+            // The camera will smoothly transition, and autoRotate will immediately take over.
+            controls.autoRotate = true; // Ensure autoRotate is always active during camera animation
         } else if (focusedPlanetMesh) { // After initial animation, continuously follow the moving planet
             const planetWorldPosition = new THREE.Vector3();
             focusedPlanetMesh.getWorldPosition(planetWorldPosition);
@@ -286,7 +283,7 @@ export const SolarSystemRenderer = (() => {
     }
     
     function focusOnPlanet(planetId) {
-        controls.autoRotate = false; // Stop any current rotation
+        // controls.autoRotate = false; // This can be removed, as the _animate loop will handle it.
         focusedPlanetMesh = planetMeshes.find(p => p.userData.id === planetId);
 
         if (!focusedPlanetMesh) return console.warn(`focusOnPlanet: Planet with ID ${planetId} not found.`);
@@ -296,7 +293,8 @@ export const SolarSystemRenderer = (() => {
         const offset = new THREE.Vector3(0, focusedPlanetMesh.userData.size * 0.5, focusedPlanetMesh.userData.size * 2.0);
         const targetPosition = planetWorldPosition.clone().add(offset);
         cameraAnimation = { targetPosition: targetPosition, targetLookAt: planetWorldPosition }; // Initial target for lerp
-        controls.enabled = false;
+        // controls.enabled = false; // Keep controls enabled so user can interact immediately.
+        controls.autoRotate = true; // Start auto-rotation immediately
     }
     
     function setOrbitLinesVisible(visible) {

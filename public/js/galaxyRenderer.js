@@ -4,28 +4,107 @@ import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls.js';
 export const GalaxyRenderer = (() => {
     // --- STATE ---
     let scene, camera, renderer, controls, raycaster, mouse;
-    let clickableSystemParticles, decorativeStarParticles, dustParticles, backgroundStars, nebulaParticles, distantGalaxies, coreStarParticles, diskStarParticles, haloStarParticles;
-    let skybox, galaxyGroup, sisterGalaxy;
+    let clickableSystemParticles, decorativeStarParticles, dustParticles, backgroundStars, nebulaParticles;
+    let coreStarParticles, diskStarParticles, haloStarParticles;
+    let skybox, galaxyGroup, sisterGalaxy, distantGalaxiesGroup; // Renamed to distantGalaxiesGroup for clarity
     let animationFrameId = null;
     let onSystemClickCallback = null;
     let interactiveSystemsData = [];
     let createdTextures = [];
 
-    // --- PARAMETERS ---
-    const GALAXY_RADIUS = 1500;
-    const GALAXY_THICKNESS = 100;
-    const GALAXY_CORE_RADIUS = 200;
-    const NUM_ARMS = 5;
-    const ARM_ROTATION = 4 * Math.PI;
-    const DECORATIVE_STAR_COUNT = 50000;
-    const CORE_STAR_COUNT = 20000;
-    const DISK_STAR_COUNT = 400000;      // Massively increased to guarantee no black space
-    const HALO_STAR_COUNT = 300000;
-    const DUST_COUNT = 10000;
-    const BACKGROUND_STAR_COUNT = 250000;
-    const NEBULA_CLUSTER_COUNT = 50;
-    const DISTANT_GALAXY_COUNT = 150;
-
+    // --- CONFIGURATION PARAMETERS ---
+    const GALAXY_CONFIG = {
+        RADIUS: 1800, // Slightly increased for a grander scale
+        THICKNESS: 100,
+        CORE_RADIUS: 250, // Slightly larger core
+        NUM_ARMS: 5,
+        ARM_ROTATION_MULTIPLIER: 4.2 * Math.PI, // Slightly tighter arms
+        STAR_COUNTS: {
+            DECORATIVE: 70000, // More decorative stars for richer arms
+            CORE: 25000,
+            DISK: 500000, // Massively increased to guarantee no black space
+            HALO: 300000,
+            BACKGROUND: 250000,
+            CLICKABLE_SYSTEM_SIZE: 50, // Size for interactive system particles
+            DECORATIVE_STAR_MAX_SIZE: 15,
+            DECORATIVE_STAR_MIN_SIZE: 5,
+        },
+        DUST: {
+            COUNT: 15000, // More dust particles
+            SIZE: 150,
+            OPACITY: 0.7, // Slightly more opaque
+        },
+        NEBULA: {
+            CLUSTER_COUNT: 60, // More nebula clusters
+            PARTICLE_COUNT_PER_CLUSTER: 12, // More particles per cluster
+            SIZE: 350, // Larger nebulae
+            OPACITY: 0.4, // Slightly more opaque
+        },
+        DISTANT_GALAXIES: {
+            COUNT: 150,
+            MIN_SCALE: 400,
+            MAX_SCALE: 600,
+            MIN_OPACITY: 0.1,
+            MAX_OPACITY: 0.3,
+            MIN_DISTANCE_MULTIPLIER: 6, // Multiplier for GALAXY_RADIUS
+            MAX_DISTANCE_ADDITION: 6000,
+        },
+        SISTER_GALAXY: {
+            STAR_COUNT: 80000,
+            RADIUS_MULTIPLIER: 0.7, // Slightly smaller
+            THICKNESS_MULTIPLIER: 0.4,
+            DISPLACEMENT_MULTIPLIER: 0.5, // Less displacement
+            PARTICLE_SIZE: 15,
+            OPACITY: 0.95,
+            CORE_GLOW_SCALE: 0.5,
+            POSITION: { x: -5, y: -3, z: -8 }, // Moved further away
+            ROTATION: { x: Math.PI / 6, y: Math.PI / 10, z: Math.PI / 8 },
+        },
+        RENDERER: {
+            CAMERA_FOV: 60,
+            CAMERA_NEAR: 1,
+            CAMERA_FAR: 40000, // Increased far clipping plane
+            CAMERA_POSITION_MULTIPLIERS: { x: 1.2, y: 1.0, z: 1.2 }, // Slightly different starting position
+            CONTROLS_DAMPING_FACTOR: 0.05, // Slightly higher damping for fluidity
+            CONTROLS_MIN_DISTANCE: 100,
+            CONTROLS_MAX_DISTANCE_MULTIPLIER: 4, // Multiplier for GALAXY_RADIUS
+            RAYCASTER_THRESHOLD: 20,
+            ROTATION_SPEED: 0.0001, // Slightly faster overall rotation
+        },
+        COLORS: {
+            STAR_TEXTURE_COLOR: 'rgba(255,255,255,1)',
+            STAR_TEXTURE_GRADIENT_STOP: 0.2,
+            CORE_GLOW_COLOR: 'rgba(255, 200, 150, 1)',
+            CORE_GLOW_GRADIENT_STOP: 0.05,
+            // Realistic dust colors (darker, brownish-red)
+            DUST_COLOR_STOP_0: 'rgba(80, 50, 20, 0.5)',
+            DUST_COLOR_STOP_04: 'rgba(60, 40, 10, 0.2)',
+            DUST_COLOR_STOP_1: 'rgba(30, 20, 5, 0)',
+            // Vibrant nebula colors (blue, purple, orange)
+            NEBULA_COLOR_STOP_0: 'rgba(50, 150, 255, 0.3)', // Blue
+            NEBULA_COLOR_STOP_04: 'rgba(150, 50, 255, 0.1)', // Purple
+            NEBULA_COLOR_STOP_1: 'rgba(255, 100, 50, 0)', // Orange
+            BACKGROUND_STAR_COLOR: 0xffffff,
+            SKYBOX_COLOR: 0x8899bb,
+            // Expanded star color palette for more variety
+            PALETTE: [
+                new THREE.Color(0xFF8C00), // Darker orange
+                new THREE.Color(0xFFDAB9), // Peach
+                new THREE.Color(0xDC143C), // Crimson red
+                new THREE.Color(0x87CEEB), // Sky blue
+                new THREE.Color(0xFFFFFF), // White
+                new THREE.Color(0xFFFFCC), // Pale yellow
+                new THREE.Color(0xFFA500), // Orange
+                new THREE.Color(0xADD8E6), // Light blue
+                new THREE.Color(0xFF6347), // Tomato red
+                new THREE.Color(0x40E0D0)  // Turquoise
+            ],
+        },
+        PATH_TO_ASSETS: {
+            SKYBOX_TEXTURE: 'https://cdn.jsdelivr.net/gh/jeromeetienne/threex.planets@master/images/galaxy_starfield.png',
+            DISTANT_GALAXY_TEXTURE: 'https://cdn.jsdelivr.net/gh/Sean-Bradley/Three.js-TypeScript-Boilerplate@master/src/assets/images/galaxy.png',
+        }
+    };
 
     // --- HELPER FUNCTIONS ---
 
@@ -35,7 +114,7 @@ export const GalaxyRenderer = (() => {
         return texture;
     }
 
-    function _createStarTexture(color = 'rgba(255,255,255,1)', gradientStop = 0.2) {
+    function _createStarTexture(color = GALAXY_CONFIG.COLORS.STAR_TEXTURE_COLOR, gradientStop = GALAXY_CONFIG.COLORS.STAR_TEXTURE_GRADIENT_STOP) {
         return _createAndCacheTexture(() => {
             const size = 128;
             const canvas = document.createElement('canvas');
@@ -51,7 +130,7 @@ export const GalaxyRenderer = (() => {
             return new THREE.CanvasTexture(canvas);
         });
     }
-    
+
     function _createNebulaTexture() {
         return _createAndCacheTexture(() => {
             const size = 256;
@@ -59,12 +138,12 @@ export const GalaxyRenderer = (() => {
             canvas.width = size;
             canvas.height = size;
             const context = canvas.getContext('2d');
-            const gradient = context.createRadialGradient(size/2, size/2, 0, size/2, size/2, size/2);
-            gradient.addColorStop(0, 'rgba(255, 100, 100, 0.3)');
-            gradient.addColorStop(0.4, 'rgba(200, 80, 80, 0.1)');
-            gradient.addColorStop(1, 'rgba(150, 50, 50, 0)');
+            const gradient = context.createRadialGradient(size / 2, size / 2, 0, size / 2, size / 2, size / 2);
+            gradient.addColorStop(0, GALAXY_CONFIG.COLORS.NEBULA_COLOR_STOP_0);
+            gradient.addColorStop(0.4, GALAXY_CONFIG.COLORS.NEBULA_COLOR_STOP_04);
+            gradient.addColorStop(1, GALAXY_CONFIG.COLORS.NEBULA_COLOR_STOP_1);
             context.fillStyle = gradient;
-            context.fillRect(0,0,size,size);
+            context.fillRect(0, 0, size, size);
             return new THREE.CanvasTexture(canvas);
         });
     }
@@ -77,27 +156,33 @@ export const GalaxyRenderer = (() => {
             canvas.height = size;
             const context = canvas.getContext('2d');
             const gradient = context.createRadialGradient(size / 2, size / 2, 0, size / 2, size / 2, size / 2);
-            gradient.addColorStop(0, 'rgba(120, 80, 220, 0.5)');
-            gradient.addColorStop(0.4, 'rgba(80, 40, 180, 0.2)');
-            gradient.addColorStop(1, 'rgba(50, 20, 120, 0)');
+            gradient.addColorStop(0, GALAXY_CONFIG.COLORS.DUST_COLOR_STOP_0);
+            gradient.addColorStop(0.4, GALAXY_CONFIG.COLORS.DUST_COLOR_STOP_04);
+            gradient.addColorStop(1, GALAXY_CONFIG.COLORS.DUST_COLOR_STOP_1);
             context.fillStyle = gradient;
             context.fillRect(0, 0, size, size);
             return new THREE.CanvasTexture(canvas);
         });
     }
 
-    function _createSkybox() {
+    async function _loadSkybox() {
         const loader = new THREE.TextureLoader();
-        loader.load('https://cdn.jsdelivr.net/gh/jeromeetienne/threex.planets@master/images/galaxy_starfield.png', (texture) => {
+        try {
+            const texture = await loader.loadAsync(GALAXY_CONFIG.PATH_TO_ASSETS.SKYBOX_TEXTURE);
             texture.wrapS = texture.wrapT = THREE.RepeatWrapping;
             createdTextures.push(texture);
-            const skyGeometry = new THREE.SphereGeometry(25000, 64, 32);
-            const skyMaterial = new THREE.MeshBasicMaterial({ map: texture, side: THREE.BackSide, color: 0x8899bb });
+            const skyGeometry = new THREE.SphereGeometry(GALAXY_CONFIG.RENDERER.CAMERA_FAR / 1.2, 64, 32); // Scaled relative to far clip
+            const skyMaterial = new THREE.MeshBasicMaterial({ map: texture, side: THREE.BackSide, color: GALAXY_CONFIG.COLORS.SKYBOX_COLOR });
             skybox = new THREE.Mesh(skyGeometry, skyMaterial);
             scene.add(skybox);
-        }, undefined, (error) => console.error('Skybox texture failed to load:', error));
+        } catch (error) {
+            console.error('Skybox texture failed to load:', error);
+            // Fallback: set a black background
+            scene.background = new THREE.Color(0x000000);
+        }
     }
-    
+
+    // Gaussian random for better distribution in certain areas
     function _gaussianRandom() {
         let u = 0, v = 0;
         while (u === 0) u = Math.random();
@@ -105,37 +190,75 @@ export const GalaxyRenderer = (() => {
         return Math.sqrt(-2.0 * Math.log(u)) * Math.cos(2.0 * Math.PI * v);
     }
 
+    function _createParticleSystem(positions, colors, size, texture, opacity, blending, depthWrite, sizeAttenuation = true, vertexColors = true, onBeforeCompile = null) {
+        const geometry = new THREE.BufferGeometry();
+        geometry.setAttribute('position', new THREE.Float32BufferAttribute(positions, 3));
+        if (vertexColors && colors.length > 0) {
+            geometry.setAttribute('color', new THREE.Float32BufferAttribute(colors, 3));
+        }
+
+        const materialParams = {
+            size: size,
+            map: texture,
+            sizeAttenuation: sizeAttenuation,
+            depthWrite: depthWrite,
+            blending: blending,
+            transparent: true, // Always true if opacity is less than 1 or blending is not NormalBlending
+            opacity: opacity,
+        };
+
+        if (vertexColors && colors.length > 0) {
+            materialParams.vertexColors = true;
+        }
+
+        const material = new THREE.PointsMaterial(materialParams);
+
+        if (onBeforeCompile) {
+            material.onBeforeCompile = onBeforeCompile;
+        }
+
+        return new THREE.Points(geometry, material);
+    }
+
     // --- CORE LOGIC ---
 
     function _initScene(canvas, galaxyData) {
         scene = new THREE.Scene();
-        
-        camera = new THREE.PerspectiveCamera(60, canvas.offsetWidth / canvas.offsetHeight, 1, 30000);
-        camera.position.set(GALAXY_RADIUS, GALAXY_RADIUS * 0.8, GALAXY_RADIUS);
+
+        camera = new THREE.PerspectiveCamera(GALAXY_CONFIG.RENDERER.CAMERA_FOV, canvas.offsetWidth / canvas.offsetHeight, GALAXY_CONFIG.RENDERER.CAMERA_NEAR, GALAXY_CONFIG.RENDERER.CAMERA_FAR);
+        camera.position.set(GALAXY_CONFIG.RADIUS * GALAXY_CONFIG.RENDERER.CAMERA_POSITION_MULTIPLIERS.x, GALAXY_CONFIG.RADIUS * GALAXY_CONFIG.RENDERER.CAMERA_POSITION_MULTIPLIERS.y, GALAXY_CONFIG.RADIUS * GALAXY_CONFIG.RENDERER.CAMERA_POSITION_MULTIPLIERS.z);
 
         renderer = new THREE.WebGLRenderer({ canvas, antialias: true, alpha: true, powerPreference: "high-performance" });
-        renderer.setSize(canvas.offsetWidth, canvas.offsetHeight);
+        renderer.setSize(canvas.offsetWidth, canvas.offsetHeight, false); // false for updateStyle
         renderer.setPixelRatio(window.devicePixelRatio);
-        
+
         controls = new OrbitControls(camera, renderer.domElement);
-        Object.assign(controls, { enableDamping: true, dampingFactor: 0.04, minDistance: 100, maxDistance: GALAXY_RADIUS * 4, enablePan: false, minPolarAngle: 0, maxPolarAngle: Math.PI });
-        
+        Object.assign(controls, {
+            enableDamping: true,
+            dampingFactor: GALAXY_CONFIG.RENDERER.CONTROLS_DAMPING_FACTOR,
+            minDistance: GALAXY_CONFIG.RENDERER.CONTROLS_MIN_DISTANCE,
+            maxDistance: GALAXY_CONFIG.RADIUS * GALAXY_CONFIG.RENDERER.CONTROLS_MAX_DISTANCE_MULTIPLIER,
+            enablePan: false,
+            minPolarAngle: 0,
+            maxPolarAngle: Math.PI
+        });
+
         raycaster = new THREE.Raycaster();
         mouse = new THREE.Vector2();
-        raycaster.params.Points.threshold = 20;
+        raycaster.params.Points.threshold = GALAXY_CONFIG.RENDERER.RAYCASTER_THRESHOLD;
 
         _createGalaxy(galaxyData);
         _createDistantStars();
         _createDistantGalaxies();
         _createSisterGalaxy();
-        _createSkybox();
-        
+        _loadSkybox(); // Load skybox asynchronously
+
         renderer.domElement.addEventListener('click', _onCanvasClick);
         window.addEventListener('resize', _onResize);
     }
-    
+
     function _createGalacticCoreGlow() {
-        const coreTexture = _createStarTexture('rgba(255, 200, 150, 1)', 0.05);
+        const coreTexture = _createStarTexture(GALAXY_CONFIG.COLORS.CORE_GLOW_COLOR, GALAXY_CONFIG.COLORS.CORE_GLOW_GRADIENT_STOP);
         const spriteMaterial = new THREE.SpriteMaterial({
             map: coreTexture,
             blending: THREE.AdditiveBlending,
@@ -144,171 +267,194 @@ export const GalaxyRenderer = (() => {
         });
         const glow = new THREE.Sprite(spriteMaterial);
         glow.renderOrder = 3;
-        glow.scale.set(GALAXY_CORE_RADIUS * 3, GALAXY_CORE_RADIUS * 3, 1);
+        glow.scale.set(GALAXY_CONFIG.CORE_RADIUS * 3, GALAXY_CONFIG.CORE_RADIUS * 3, 1);
         return glow;
     }
-    
-    function _createDistantGalaxies() {
-        distantGalaxies = new THREE.Group();
+
+    async function _createDistantGalaxies() {
+        distantGalaxiesGroup = new THREE.Group();
         const loader = new THREE.TextureLoader();
-        const galaxyTexture = loader.load('https://cdn.jsdelivr.net/gh/Sean-Bradley/Three.js-TypeScript-Boilerplate@master/src/assets/images/galaxy.png', 
-            (texture) => createdTextures.push(texture)
-        );
-        for (let i = 0; i < DISTANT_GALAXY_COUNT; i++) {
-            const material = new THREE.SpriteMaterial({ map: galaxyTexture, blending: THREE.AdditiveBlending, transparent: true, opacity: 0.1 + Math.random() * 0.3, color: new THREE.Color(Math.random(), Math.random(), Math.random()) });
-            const sprite = new THREE.Sprite(material);
-            const distance = GALAXY_RADIUS * 6 + Math.random() * 6000;
-            const theta = Math.random() * Math.PI * 2;
-            const phi = Math.acos(Math.random() * 2 - 1);
-            sprite.position.set( distance * Math.sin(phi) * Math.cos(theta), distance * Math.sin(phi) * Math.sin(theta), distance * Math.cos(phi) );
-            const scale = Math.random() * 600 + 400;
-            sprite.scale.set(scale, scale, 1);
-            distantGalaxies.add(sprite);
+        try {
+            const galaxyTexture = await loader.loadAsync(GALAXY_CONFIG.PATH_TO_ASSETS.DISTANT_GALAXY_TEXTURE);
+            createdTextures.push(galaxyTexture);
+            for (let i = 0; i < GALAXY_CONFIG.DISTANT_GALAXIES.COUNT; i++) {
+                const material = new THREE.SpriteMaterial({
+                    map: galaxyTexture,
+                    blending: THREE.AdditiveBlending,
+                    transparent: true,
+                    opacity: GALAXY_CONFIG.DISTANT_GALAXIES.MIN_OPACITY + Math.random() * (GALAXY_CONFIG.DISTANT_GALAXIES.MAX_OPACITY - GALAXY_CONFIG.DISTANT_GALAXIES.MIN_OPACITY),
+                    color: new THREE.Color(Math.random(), Math.random(), Math.random())
+                });
+                const sprite = new THREE.Sprite(material);
+                const distance = GALAXY_CONFIG.RADIUS * GALAXY_CONFIG.DISTANT_GALAXIES.MIN_DISTANCE_MULTIPLIER + Math.random() * GALAXY_CONFIG.DISTANT_GALAXIES.MAX_DISTANCE_ADDITION;
+                const theta = Math.random() * Math.PI * 2;
+                const phi = Math.acos(Math.random() * 2 - 1);
+                sprite.position.set(distance * Math.sin(phi) * Math.cos(theta), distance * Math.sin(phi) * Math.sin(theta), distance * Math.cos(phi));
+                const scale = Math.random() * (GALAXY_CONFIG.DISTANT_GALAXIES.MAX_SCALE - GALAXY_CONFIG.DISTANT_GALAXIES.MIN_SCALE) + GALAXY_CONFIG.DISTANT_GALAXIES.MIN_SCALE;
+                sprite.scale.set(scale, scale, 1);
+                distantGalaxiesGroup.add(sprite);
+            }
+            scene.add(distantGalaxiesGroup);
+        } catch (error) {
+            console.error('Distant galaxy texture failed to load:', error);
         }
-        scene.add(distantGalaxies);
     }
-    
+
     function _createSisterGalaxy() {
         sisterGalaxy = new THREE.Group();
         const positions = [], colors = [];
-        const STAR_COUNT = 80000;
-        const RADIUS = GALAXY_RADIUS * 0.8;
-        
-        const colorPalette = [
-            new THREE.Color(0xFF8C00), new THREE.Color(0xFF8C00), new THREE.Color(0xFF8C00),
-            new THREE.Color(0xFFDAB9), new THREE.Color(0xDC143C), new THREE.Color(0x87CEEB)
-        ];
 
-        for (let i = 0; i < STAR_COUNT; i++) {
-            const r = Math.random() * RADIUS;
+        const colorPalette = GALAXY_CONFIG.COLORS.PALETTE;
+
+        for (let i = 0; i < GALAXY_CONFIG.SISTER_GALAXY.STAR_COUNT; i++) {
+            const r = Math.random() * (GALAXY_CONFIG.RADIUS * GALAXY_CONFIG.SISTER_GALAXY.RADIUS_MULTIPLIER);
             const angle = Math.random() * Math.PI * 2;
-            const y = (Math.random() - 0.5) * GALAXY_THICKNESS * 0.4;
-            
+            const y = (Math.random() - 0.5) * GALAXY_CONFIG.THICKNESS * GALAXY_CONFIG.SISTER_GALAXY.THICKNESS_MULTIPLIER;
+
             const pos = new THREE.Vector3(Math.cos(angle) * r, y, Math.sin(angle) * r);
-            
-            const displacement = new THREE.Vector3((Math.random() - 0.5), (Math.random() - 0.5), (Math.random() - 0.5)).multiplyScalar(RADIUS * 0.6);
+
+            const displacement = new THREE.Vector3((Math.random() - 0.5), (Math.random() - 0.5), (Math.random() - 0.5)).multiplyScalar(GALAXY_CONFIG.RADIUS * GALAXY_CONFIG.SISTER_GALAXY.DISPLACEMENT_MULTIPLIER);
             pos.add(displacement);
 
             positions.push(pos.x, pos.y, pos.z);
             const starColor = colorPalette[Math.floor(Math.random() * colorPalette.length)];
             colors.push(starColor.r, starColor.g, starColor.b);
         }
-        
-        const geometry = new THREE.BufferGeometry();
-        geometry.setAttribute('position', new THREE.Float32BufferAttribute(positions, 3));
-        geometry.setAttribute('color', new THREE.Float32BufferAttribute(colors, 3));
-        const material = new THREE.PointsMaterial({ size: 15, vertexColors: true, map: _createStarTexture(), blending: THREE.AdditiveBlending, transparent: true, opacity: 0.95, depthWrite: false });
-        
-        const mesh = new THREE.Points(geometry, material);
-        sisterGalaxy.add(mesh);
-        
+
+        const sisterGalaxyMesh = _createParticleSystem(
+            positions,
+            colors,
+            GALAXY_CONFIG.SISTER_GALAXY.PARTICLE_SIZE,
+            _createStarTexture(),
+            GALAXY_CONFIG.SISTER_GALAXY.OPACITY,
+            THREE.AdditiveBlending,
+            false // depthWrite
+        );
+        sisterGalaxy.add(sisterGalaxyMesh);
+
         const coreGlow = _createGalacticCoreGlow();
-        coreGlow.scale.set(GALAXY_RADIUS * 0.6, GALAXY_RADIUS * 0.6, 1);
+        coreGlow.scale.set(GALAXY_CONFIG.RADIUS * GALAXY_CONFIG.SISTER_GALAXY.CORE_GLOW_SCALE, GALAXY_CONFIG.RADIUS * GALAXY_CONFIG.SISTER_GALAXY.CORE_GLOW_SCALE, 1);
         sisterGalaxy.add(coreGlow);
-        
-        sisterGalaxy.position.set(-GALAXY_RADIUS * 4, -GALAXY_RADIUS * 2, -GALAXY_RADIUS * 6);
-        sisterGalaxy.rotation.set(Math.PI / 5, Math.PI / 9, Math.PI / 7);
+
+        sisterGalaxy.position.set(GALAXY_CONFIG.RADIUS * GALAXY_CONFIG.SISTER_GALAXY.POSITION.x, GALAXY_CONFIG.RADIUS * GALAXY_CONFIG.SISTER_GALAXY.POSITION.y, GALAXY_CONFIG.RADIUS * GALAXY_CONFIG.SISTER_GALAXY.POSITION.z);
+        sisterGalaxy.rotation.set(GALAXY_CONFIG.SISTER_GALAXY.ROTATION.x, GALAXY_CONFIG.SISTER_GALAXY.ROTATION.y, GALAXY_CONFIG.SISTER_GALAXY.ROTATION.z);
         scene.add(sisterGalaxy);
     }
 
     function _createGalaxy(galaxyData) {
         galaxyGroup = new THREE.Group();
-        
-        const corePositions = [], coreColors = [], diskPositions = [], diskColors = [], haloPositions = [], haloColors = [], decorativePositions = [], decorativeColors = [], decorativeSizes = [], dustPositions = [], clickablePositions = [], clickableColors = [], nebulaPositions = [];
+
+        const corePositions = [], coreColors = [];
+        const diskPositions = [], diskColors = [];
+        const haloPositions = [], haloColors = [];
+        const decorativePositions = [], decorativeColors = [], decorativeSizes = [];
+        const dustPositions = [];
+        const clickablePositions = [], clickableColors = [];
+        const nebulaPositions = [];
+
         const starTexture = _createStarTexture();
         const dustTexture = _createDustTexture();
         const nebulaTexture = _createNebulaTexture();
-        
-        const colorPalette = [
-            new THREE.Color(0xFF8C00), new THREE.Color(0xFF8C00), new THREE.Color(0xFF8C00),
-            new THREE.Color(0xFFDAB9), new THREE.Color(0xDC143C), new THREE.Color(0x87CEEB)
-        ];
-        
+
+        const colorPalette = GALAXY_CONFIG.COLORS.PALETTE;
+
         const armVariations = [];
-        for (let i = 0; i < NUM_ARMS; i++) {
-            armVariations.push({ offset: (Math.random() - 0.5) * 0.5, rotation: ARM_ROTATION * (1 + (Math.random() - 0.5) * 0.1) });
+        for (let i = 0; i < GALAXY_CONFIG.NUM_ARMS; i++) {
+            armVariations.push({
+                offset: (Math.random() - 0.5) * 0.5,
+                rotation: GALAXY_CONFIG.ARM_ROTATION_MULTIPLIER * (1 + (Math.random() - 0.5) * 0.1)
+            });
         }
-        
+
         const generateStarColor = () => colorPalette[Math.floor(Math.random() * colorPalette.length)];
-        
-        for (let i = 0; i < HALO_STAR_COUNT; i++) {
-            const r = Math.pow(Math.random(), 1.5) * GALAXY_RADIUS * 2 + GALAXY_RADIUS;
+
+        // Halo stars
+        for (let i = 0; i < GALAXY_CONFIG.STAR_COUNTS.HALO; i++) {
+            const r = Math.pow(Math.random(), 1.5) * GALAXY_CONFIG.RADIUS * 2 + GALAXY_CONFIG.RADIUS;
             const theta = Math.random() * Math.PI * 2;
             const phi = Math.acos(Math.random() * 2 - 1);
-            haloPositions.push( r * Math.sin(phi) * Math.cos(theta), r * Math.sin(phi) * Math.sin(theta), r * Math.cos(phi) );
+            haloPositions.push(r * Math.sin(phi) * Math.cos(theta), r * Math.sin(phi) * Math.sin(theta), r * Math.cos(phi));
             const starColor = generateStarColor();
             haloColors.push(starColor.r, starColor.g, starColor.b);
         }
 
-        for (let i = 0; i < CORE_STAR_COUNT; i++) {
-            const distance = Math.pow(Math.random(), 2) * GALAXY_CORE_RADIUS;
-            const randomY = _gaussianRandom() * GALAXY_THICKNESS * 2.0;
+        // Core stars
+        for (let i = 0; i < GALAXY_CONFIG.STAR_COUNTS.CORE; i++) {
+            const distance = Math.pow(Math.random(), 2) * GALAXY_CONFIG.CORE_RADIUS;
+            const randomY = _gaussianRandom() * GALAXY_CONFIG.THICKNESS * 2.0;
             const angle = Math.random() * Math.PI * 2;
-            corePositions.push( Math.cos(angle) * distance, randomY, Math.sin(angle) * distance );
+            corePositions.push(Math.cos(angle) * distance, randomY, Math.sin(angle) * distance);
             const color = generateStarColor().multiplyScalar(1.5);
             coreColors.push(color.r, color.g, color.b);
         }
-        
-        for (let i = 0; i < DISK_STAR_COUNT; i++) {
-             const distance = GALAXY_CORE_RADIUS + Math.sqrt(Math.random()) * (GALAXY_RADIUS - GALAXY_CORE_RADIUS);
-             const randomY = _gaussianRandom() * (GALAXY_THICKNESS * 0.5);
-             const angle = Math.random() * Math.PI * 2;
-             diskPositions.push(Math.cos(angle) * distance, randomY, Math.sin(angle) * distance);
-             const starColor = generateStarColor();
-             diskColors.push(starColor.r, starColor.g, starColor.b);
+
+        // Disk stars
+        for (let i = 0; i < GALAXY_CONFIG.STAR_COUNTS.DISK; i++) {
+            const distance = GALAXY_CONFIG.CORE_RADIUS + Math.sqrt(Math.random()) * (GALAXY_CONFIG.RADIUS - GALAXY_CONFIG.CORE_RADIUS);
+            const randomY = _gaussianRandom() * (GALAXY_CONFIG.THICKNESS * 0.5);
+            const angle = Math.random() * Math.PI * 2;
+            diskPositions.push(Math.cos(angle) * distance, randomY, Math.sin(angle) * distance);
+            const starColor = generateStarColor();
+            diskColors.push(starColor.r, starColor.g, starColor.b);
         }
 
-        for (let i = 0; i < DECORATIVE_STAR_COUNT; i++) {
-            const distance = Math.sqrt(Math.random()) * GALAXY_RADIUS;
-            const armIndex = Math.floor(Math.random() * (NUM_ARMS - 0.001));
+        // Decorative stars (spiral arms)
+        for (let i = 0; i < GALAXY_CONFIG.STAR_COUNTS.DECORATIVE; i++) {
+            const distance = Math.sqrt(Math.random()) * GALAXY_CONFIG.RADIUS;
+            const armIndex = Math.floor(Math.random() * (GALAXY_CONFIG.NUM_ARMS - 0.001));
             const armVar = armVariations[armIndex];
-            const armAngle = (armIndex / NUM_ARMS) * 2 * Math.PI + armVar.offset;
-            const rotation = (distance / GALAXY_RADIUS) * armVar.rotation;
+            const armAngle = (armIndex / GALAXY_CONFIG.NUM_ARMS) * 2 * Math.PI + armVar.offset;
+            const rotation = (distance / GALAXY_CONFIG.RADIUS) * armVar.rotation;
             const angle = armAngle + rotation;
-            const spread = 2800 * Math.pow(1 - (distance / GALAXY_RADIUS), 2); // Further widened arms
-            const turbulence = Math.sin(angle * 5 + distance * 0.01) * spread * 0.2;
+            const spread = 2800 * Math.pow(1 - (distance / GALAXY_CONFIG.RADIUS), 2); // Further widened arms
+            const turbulence = Math.sin(angle * 5 + distance * 0.01) * spread * 0.25; // Increased turbulence
             const randomX = _gaussianRandom() * spread;
             const randomZ = _gaussianRandom() * spread;
-            const y_thickness = distance < GALAXY_CORE_RADIUS ? GALAXY_THICKNESS * 2.5 : GALAXY_THICKNESS;
-            const randomY = _gaussianRandom() * y_thickness * (1-Math.pow(distance/GALAXY_RADIUS, 2));
+            const y_thickness = distance < GALAXY_CONFIG.CORE_RADIUS ? GALAXY_CONFIG.THICKNESS * 2.5 : GALAXY_CONFIG.THICKNESS;
+            const randomY = _gaussianRandom() * y_thickness * (1 - Math.pow(distance / GALAXY_CONFIG.RADIUS, 2));
 
-            decorativePositions.push( Math.cos(angle) * distance + randomX + Math.cos(angle) * turbulence, randomY, Math.sin(angle) * distance + randomZ + Math.sin(angle) * turbulence );
+            decorativePositions.push(Math.cos(angle) * distance + randomX + Math.cos(angle) * turbulence, randomY, Math.sin(angle) * distance + randomZ + Math.sin(angle) * turbulence);
             const starColor = generateStarColor();
             decorativeColors.push(starColor.r, starColor.g, starColor.b);
-            const size = (1.0 - Math.pow(distance / GALAXY_RADIUS, 1.5)) * 15 + 5;
+            const size = (1.0 - Math.pow(distance / GALAXY_CONFIG.RADIUS, 1.5)) * GALAXY_CONFIG.STAR_COUNTS.DECORATIVE_STAR_MAX_SIZE + GALAXY_CONFIG.STAR_COUNTS.DECORATIVE_STAR_MIN_SIZE;
             decorativeSizes.push(size);
         }
 
-        for(let i=0; i<NEBULA_CLUSTER_COUNT; i++) {
-            const distance = GALAXY_CORE_RADIUS + Math.random() * (GALAXY_RADIUS - GALAXY_CORE_RADIUS);
-            const armIndex = i % NUM_ARMS;
-            const armAngle = (armIndex / NUM_ARMS) * 2 * Math.PI;
-            const rotation = (distance / GALAXY_RADIUS) * armVariations[armIndex].rotation;
+        // Nebula clusters
+        for (let i = 0; i < GALAXY_CONFIG.NEBULA.CLUSTER_COUNT; i++) {
+            const distance = GALAXY_CONFIG.CORE_RADIUS + Math.random() * (GALAXY_CONFIG.RADIUS - GALAXY_CONFIG.CORE_RADIUS);
+            const armIndex = i % GALAXY_CONFIG.NUM_ARMS;
+            const armAngle = (armIndex / GALAXY_CONFIG.NUM_ARMS) * 2 * Math.PI;
+            const rotation = (distance / GALAXY_CONFIG.RADIUS) * armVariations[armIndex].rotation;
             const angle = armAngle + rotation;
             const clusterCenter = new THREE.Vector3(Math.cos(angle) * distance, 0, Math.sin(angle) * distance);
-            for(let j=0; j<10; j++) {
-                 nebulaPositions.push( clusterCenter.x + _gaussianRandom() * 100, clusterCenter.y + _gaussianRandom() * 20, clusterCenter.z + _gaussianRandom() * 100 );
+            for (let j = 0; j < GALAXY_CONFIG.NEBULA.PARTICLE_COUNT_PER_CLUSTER; j++) {
+                nebulaPositions.push(clusterCenter.x + _gaussianRandom() * 100, clusterCenter.y + _gaussianRandom() * 20, clusterCenter.z + _gaussianRandom() * 100);
             }
         }
-        for (let i = 0; i < DUST_COUNT; i++) {
-            const distance = Math.pow(Math.random(), 0.8) * GALAXY_RADIUS;
-            const y_thickness = GALAXY_THICKNESS * 0.2;
-            const randomY = _gaussianRandom() * y_thickness * (1-Math.pow(distance/GALAXY_RADIUS, 2));
-            const armIndex = Math.floor(Math.random() * (NUM_ARMS - 0.001));
-            const armAngle = (armIndex / NUM_ARMS) * 2 * Math.PI;
-            const rotation = (distance / GALAXY_RADIUS) * armVariations[armIndex].rotation * 0.95;
+
+        // Dust particles
+        for (let i = 0; i < GALAXY_CONFIG.DUST.COUNT; i++) {
+            const distance = Math.pow(Math.random(), 0.8) * GALAXY_CONFIG.RADIUS;
+            const y_thickness = GALAXY_CONFIG.THICKNESS * 0.2;
+            const randomY = _gaussianRandom() * y_thickness * (1 - Math.pow(distance / GALAXY_CONFIG.RADIUS, 2));
+            const armIndex = Math.floor(Math.random() * (GALAXY_CONFIG.NUM_ARMS - 0.001));
+            const armAngle = (armIndex / GALAXY_CONFIG.NUM_ARMS) * 2 * Math.PI;
+            const rotation = (distance / GALAXY_CONFIG.RADIUS) * armVariations[armIndex].rotation * 0.95;
             const angle = armAngle + rotation;
-            const spread = 400 * Math.pow(1 - (distance / GALAXY_RADIUS), 2);
-            dustPositions.push( Math.cos(angle) * distance + _gaussianRandom() * spread, randomY, Math.sin(angle) * distance + _gaussianRandom() * spread );
+            const spread = 400 * Math.pow(1 - (distance / GALAXY_CONFIG.RADIUS), 2);
+            dustPositions.push(Math.cos(angle) * distance + _gaussianRandom() * spread, randomY, Math.sin(angle) * distance + _gaussianRandom() * spread);
         }
+
+        // Clickable solar systems
         interactiveSystemsData = galaxyData.solarSystems || [];
         interactiveSystemsData.forEach((system, i) => {
-            const distance = GALAXY_CORE_RADIUS * 0.8 + Math.pow(Math.random(), 2) * (GALAXY_RADIUS - GALAXY_CORE_RADIUS * 0.8);
-            const armIndex = i % NUM_ARMS;
-            const armAngle = (armIndex / NUM_ARMS) * 2 * Math.PI;
-            const rotation = (distance / GALAXY_RADIUS) * armVariations[armIndex].rotation;
+            const distance = GALAXY_CONFIG.CORE_RADIUS * 0.8 + Math.pow(Math.random(), 2) * (GALAXY_CONFIG.RADIUS - GALAXY_CONFIG.CORE_RADIUS * 0.8);
+            const armIndex = i % GALAXY_CONFIG.NUM_ARMS;
+            const armAngle = (armIndex / GALAXY_CONFIG.NUM_ARMS) * 2 * Math.PI;
+            const rotation = (distance / GALAXY_CONFIG.RADIUS) * armVariations[armIndex].rotation;
             const angle = armAngle + rotation;
-            const position = new THREE.Vector3(Math.cos(angle) * distance + _gaussianRandom() * 50, _gaussianRandom() * (GALAXY_THICKNESS / 3), Math.sin(angle) * distance + _gaussianRandom() * 50);
+            const position = new THREE.Vector3(Math.cos(angle) * distance + _gaussianRandom() * 50, _gaussianRandom() * (GALAXY_CONFIG.THICKNESS / 3), Math.sin(angle) * distance + _gaussianRandom() * 50);
             system.position = position;
             clickablePositions.push(position.x, position.y, position.z);
             const starColor = generateStarColor();
@@ -316,68 +462,124 @@ export const GalaxyRenderer = (() => {
         });
 
         // --- Create and add particle systems ---
-        const haloGeometry = new THREE.BufferGeometry();
-        haloGeometry.setAttribute('position', new THREE.Float32BufferAttribute(haloPositions, 3));
-        haloGeometry.setAttribute('color', new THREE.Float32BufferAttribute(haloColors, 3));
-        const haloMaterial = new THREE.PointsMaterial({ size: 5, map: starTexture, vertexColors: true, sizeAttenuation: true, depthWrite: false, blending: THREE.AdditiveBlending, transparent: true, opacity: 0.25 });
-        haloStarParticles = new THREE.Points(haloGeometry, haloMaterial);
+        haloStarParticles = _createParticleSystem(
+            haloPositions,
+            haloColors,
+            5, // size
+            starTexture,
+            0.25, // opacity
+            THREE.AdditiveBlending,
+            false // depthWrite
+        );
 
-        const coreGeometry = new THREE.BufferGeometry();
-        coreGeometry.setAttribute('position', new THREE.Float32BufferAttribute(corePositions, 3));
-        coreGeometry.setAttribute('color', new THREE.Float32BufferAttribute(coreColors, 3));
-        const coreMaterial = new THREE.PointsMaterial({ size: 5, map: starTexture, vertexColors: true, sizeAttenuation: true, depthWrite: false, blending: THREE.AdditiveBlending, transparent: true, opacity: 0.9 });
-        coreStarParticles = new THREE.Points(coreGeometry, coreMaterial);
+        coreStarParticles = _createParticleSystem(
+            corePositions,
+            coreColors,
+            5, // size
+            starTexture,
+            0.9, // opacity
+            THREE.AdditiveBlending,
+            false // depthWrite
+        );
         coreStarParticles.frustumCulled = false;
-        
-        const diskGeometry = new THREE.BufferGeometry();
-        diskGeometry.setAttribute('position', new THREE.Float32BufferAttribute(diskPositions, 3));
-        diskGeometry.setAttribute('color', new THREE.Float32BufferAttribute(diskColors, 3));
-        const diskMaterial = new THREE.PointsMaterial({ size: 10, map: starTexture, vertexColors: true, sizeAttenuation: true, depthWrite: false, blending: THREE.AdditiveBlending, transparent: true, opacity: 1.0 });
-        diskStarParticles = new THREE.Points(diskGeometry, diskMaterial);
 
+        diskStarParticles = _createParticleSystem(
+            diskPositions,
+            diskColors,
+            10, // size
+            starTexture,
+            1.0, // opacity
+            THREE.AdditiveBlending,
+            false // depthWrite
+        );
+
+        // Custom onBeforeCompile for decorative stars to use 'particleSize' attribute
+        const decorativeOnBeforeCompile = shader => {
+            shader.vertexShader = 'attribute float particleSize;\n' + shader.vertexShader;
+            shader.vertexShader = shader.vertexShader.replace('gl_PointSize = size;', 'gl_PointSize = particleSize;');
+        };
         const decorativeGeometry = new THREE.BufferGeometry();
         decorativeGeometry.setAttribute('position', new THREE.Float32BufferAttribute(decorativePositions, 3));
         decorativeGeometry.setAttribute('color', new THREE.Float32BufferAttribute(decorativeColors, 3));
         decorativeGeometry.setAttribute('particleSize', new THREE.Float32BufferAttribute(decorativeSizes, 1));
-        const decorativeMaterial = new THREE.PointsMaterial({ map: starTexture, vertexColors: true, sizeAttenuation: true, depthWrite: false, blending: THREE.AdditiveBlending, transparent: true });
-        decorativeMaterial.onBeforeCompile = shader => { shader.vertexShader = 'attribute float particleSize;\n' + shader.vertexShader; shader.vertexShader = shader.vertexShader.replace( 'gl_PointSize = size;', 'gl_PointSize = particleSize;' ); };
-        decorativeStarParticles = new THREE.Points(decorativeGeometry, decorativeMaterial);
-        
-        const dustGeometry = new THREE.BufferGeometry();
-        dustGeometry.setAttribute('position', new THREE.Float32BufferAttribute(dustPositions, 3));
-        const dustMaterial = new THREE.PointsMaterial({ size: 150, map: dustTexture, sizeAttenuation: true, depthWrite: false, blending: THREE.NormalBlending, transparent: true, opacity: 0.6 });
-        dustParticles = new THREE.Points(dustGeometry, dustMaterial);
+        decorativeStarParticles = new THREE.Points(
+            decorativeGeometry,
+            new THREE.PointsMaterial({
+                map: starTexture,
+                vertexColors: true,
+                sizeAttenuation: true,
+                depthWrite: false,
+                blending: THREE.AdditiveBlending,
+                transparent: true,
+                onBeforeCompile: decorativeOnBeforeCompile
+            })
+        );
+
+
+        dustParticles = _createParticleSystem(
+            dustPositions,
+            [], // no colors
+            GALAXY_CONFIG.DUST.SIZE,
+            dustTexture,
+            GALAXY_CONFIG.DUST.OPACITY,
+            THREE.NormalBlending,
+            false // depthWrite
+        );
         dustParticles.renderOrder = 1;
 
-        const nebulaGeometry = new THREE.BufferGeometry();
-        nebulaGeometry.setAttribute('position', new THREE.Float32BufferAttribute(nebulaPositions, 3));
-        const nebulaMaterial = new THREE.PointsMaterial({size: 300, map: nebulaTexture, sizeAttenuation: true, depthWrite: false, blending: THREE.AdditiveBlending, transparent: true, opacity: 0.35});
-        nebulaParticles = new THREE.Points(nebulaGeometry, nebulaMaterial);
+        nebulaParticles = _createParticleSystem(
+            nebulaPositions,
+            [], // no colors
+            GALAXY_CONFIG.NEBULA.SIZE,
+            nebulaTexture,
+            GALAXY_CONFIG.NEBULA.OPACITY,
+            THREE.AdditiveBlending,
+            false // depthWrite
+        );
 
-        const clickableGeometry = new THREE.BufferGeometry();
-        clickableGeometry.setAttribute('position', new THREE.Float32BufferAttribute(clickablePositions, 3));
-        clickableGeometry.setAttribute('color', new THREE.Float32BufferAttribute(clickableColors, 3));
-        const clickableMaterial = new THREE.PointsMaterial({ size: 50, map: starTexture, vertexColors: true, sizeAttenuation: true, depthWrite: false, blending: THREE.AdditiveBlending, transparent: true, opacity: 0.95 });
-        clickableSystemParticles = new THREE.Points(clickableGeometry, clickableMaterial);
-        
+        clickableSystemParticles = _createParticleSystem(
+            clickablePositions,
+            clickableColors,
+            GALAXY_CONFIG.STAR_COUNTS.CLICKABLE_SYSTEM_SIZE,
+            starTexture,
+            0.95, // opacity
+            THREE.AdditiveBlending,
+            false // depthWrite
+        );
+
         galaxyGroup.add(haloStarParticles, coreStarParticles, diskStarParticles, decorativeStarParticles, dustParticles, nebulaParticles, clickableSystemParticles, _createGalacticCoreGlow());
         galaxyGroup.rotation.set(0, 0, Math.PI / 12);
         scene.add(galaxyGroup);
     }
-    
+
     function _createDistantStars() {
         const geometry = new THREE.BufferGeometry();
         const positions = [];
-        for (let i = 0; i < BACKGROUND_STAR_COUNT; i++) {
-            positions.push( (Math.random() - 0.5) * 40000, (Math.random() - 0.5) * 40000, (Math.random() - 0.5) * 40000 );
+        // Define a reasonable boundary for background stars
+        const backgroundStarFieldSize = 40000;
+        for (let i = 0; i < GALAXY_CONFIG.STAR_COUNTS.BACKGROUND; i++) {
+            positions.push(
+                (Math.random() - 0.5) * backgroundStarFieldSize,
+                (Math.random() - 0.5) * backgroundStarFieldSize,
+                (Math.random() - 0.5) * backgroundStarFieldSize
+            );
         }
-        geometry.setAttribute('position', new THREE.Float32BufferAttribute(positions, 3));
-        const material = new THREE.PointsMaterial({ size: 15, color: 0xffffff, map: _createStarTexture(), sizeAttenuation: true, depthWrite: false, transparent: true, opacity: 0.5, blending: THREE.AdditiveBlending });
-        backgroundStars = new THREE.Points(geometry, material);
+        backgroundStars = _createParticleSystem(
+            positions,
+            [], // no colors
+            15, // size
+            _createStarTexture(),
+            0.5, // opacity
+            THREE.AdditiveBlending,
+            false, // depthWrite
+            true, // sizeAttenuation
+            false // vertexColors
+        );
         scene.add(backgroundStars);
     }
-    
+
     // --- EVENT HANDLERS & LIFECYCLE ---
+
     function _onCanvasClick(event) {
         if (!onSystemClickCallback || !renderer || !clickableSystemParticles) return;
         const rect = renderer.domElement.getBoundingClientRect();
@@ -386,6 +588,7 @@ export const GalaxyRenderer = (() => {
         raycaster.setFromCamera(mouse, camera);
         const intersects = raycaster.intersectObject(clickableSystemParticles);
         if (intersects.length > 0) {
+            // Sort by distance to ray to pick the closest visible point, not just closest to camera
             intersects.sort((a, b) => a.distanceToRay - b.distanceToRay);
             const systemId = interactiveSystemsData?.[intersects[0]?.index]?.id;
             if (systemId) { onSystemClickCallback(systemId); }
@@ -396,57 +599,76 @@ export const GalaxyRenderer = (() => {
         if (!renderer || !camera) return;
         const canvas = renderer.domElement;
         if (canvas.clientWidth > 0 && canvas.clientHeight > 0) {
-             camera.aspect = canvas.clientWidth / canvas.clientHeight;
-             camera.updateProjectionMatrix();
-             renderer.setSize(canvas.clientWidth, canvas.clientHeight, false);
+            camera.aspect = canvas.clientWidth / canvas.clientHeight;
+            camera.updateProjectionMatrix();
+            renderer.setSize(canvas.clientWidth, canvas.clientHeight, false); // false for updateStyle
         }
     }
 
     function _animate() {
         animationFrameId = requestAnimationFrame(_animate);
         controls.update();
-        const rotationSpeed = 0.00008;
-        if(skybox) skybox.rotation.y += rotationSpeed / 2;
-        if(galaxyGroup) galaxyGroup.rotation.y += rotationSpeed;
-        if(sisterGalaxy) sisterGalaxy.rotation.y += rotationSpeed * 0.5;
+        const rotationSpeed = GALAXY_CONFIG.RENDERER.ROTATION_SPEED;
+        if (skybox) skybox.rotation.y += rotationSpeed / 2;
+        if (galaxyGroup) galaxyGroup.rotation.y += rotationSpeed;
+        if (sisterGalaxy) sisterGalaxy.rotation.y += rotationSpeed * 0.5;
         renderer.render(scene, camera);
     }
 
     function _dispose() {
         if (animationFrameId) cancelAnimationFrame(animationFrameId);
+
+        // Remove all event listeners
         window.removeEventListener('resize', _onResize);
         if (renderer) renderer.domElement.removeEventListener('click', _onCanvasClick);
+
         if (controls) controls.dispose();
-        
-        for(const texture of createdTextures) {
-            texture.dispose();
+
+        // Dispose of all created textures
+        for (const texture of createdTextures) {
+            if (texture) texture.dispose();
         }
         createdTextures = [];
 
-        scene?.traverse(object => {
-            if (object.geometry) object.geometry.dispose();
-            if (object.material) {
-                object.material.dispose();
-            }
-        });
+        // Dispose of all scene objects (geometries and materials)
+        if (scene) {
+            scene.traverse(object => {
+                if (object.isMesh || object.isPoints || object.isLine) {
+                    if (object.geometry) object.geometry.dispose();
+                    if (object.material) {
+                        // Dispose of materials array or single material
+                        if (Array.isArray(object.material)) {
+                            object.material.forEach(m => { if (m) m.dispose(); });
+                        } else {
+                            if (object.material) object.material.dispose();
+                        }
+                    }
+                }
+            });
 
-        distantGalaxies?.children.forEach(child => distantGalaxies.remove(child));
-        scene?.remove(distantGalaxies);
-        scene?.remove(sisterGalaxy);
-        scene?.remove(galaxyGroup);
-        renderer?.dispose();
+            // Remove top-level groups and meshes from scene
+            scene.remove(distantGalaxiesGroup);
+            scene.remove(sisterGalaxy);
+            scene.remove(galaxyGroup);
+            scene.remove(skybox);
+            scene.remove(backgroundStars);
+        }
+
+        if (renderer) renderer.dispose();
+
+        // Reset all module state variables
         scene = camera = renderer = controls = animationFrameId = onSystemClickCallback = null;
         interactiveSystemsData = [];
-        skybox = backgroundStars = decorativeStarParticles = dustParticles = clickableSystemParticles = nebulaParticles = coreStarParticles = diskStarParticles = haloStarParticles = distantGalaxies = galaxyGroup = sisterGalaxy = null;
+        skybox = backgroundStars = decorativeStarParticles = dustParticles = clickableSystemParticles = nebulaParticles = coreStarParticles = diskStarParticles = haloStarParticles = distantGalaxiesGroup = galaxyGroup = sisterGalaxy = null;
     }
 
     return {
         init: (canvas, galaxyData, callback) => {
-            _dispose();
+            _dispose(); // Ensure a clean slate before re-initializing
             onSystemClickCallback = callback;
             _initScene(canvas, galaxyData);
             _animate();
-            setTimeout(_onResize, 100);
+            setTimeout(_onResize, 100); // Trigger a resize event to ensure correct initial sizing
         },
         dispose: _dispose
     };

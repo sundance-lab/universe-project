@@ -231,7 +231,6 @@ export const SolarSystemRenderer = (() => {
 
     // Renamed _animate to update to be called by the global animation loop
     function update(now) {
-        console.log("focusedPlanetMesh:", focusedPlanetMesh, " | enablePan:", _controls.enablePan, " | autoRotate:", _controls.autoRotate); // Add this line for debugging
         if (sunLOD !== null && sunLOD !== undefined) { // Added explicit check for undefined/null
             sunLOD.rotation.y += 0.0001;
             sunLOD.update(_camera);

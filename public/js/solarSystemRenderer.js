@@ -106,7 +106,6 @@ export const SolarSystemRenderer = (() => {
             fragmentShader,
         });
         const mesh = new THREE.Mesh(geometry, material);
-        // FIX: Initialize lastWorldPosition to be used for correct camera tracking.
         mesh.userData = { ...planetData, lastPosition: new THREE.Vector3(), lastWorldPosition: new THREE.Vector3() };
         return mesh;
     }
@@ -221,7 +220,6 @@ export const SolarSystemRenderer = (() => {
 
         planetMeshes.forEach(mesh => {
             const planet = mesh.userData;
-            // FIX: Store the planet's world position *before* it moves for this frame.
             mesh.getWorldPosition(planet.lastWorldPosition);
             
             planet.lastPosition.copy(mesh.position);
@@ -235,6 +233,9 @@ export const SolarSystemRenderer = (() => {
             mesh.material.uniforms.uLightDirection.value.copy(mesh.position).negate().normalize();
         });
         
+        // FIX: Default to smooth (damped) controls
+        controls.enableDamping = true;
+
         if (cameraAnimation) {
             const distanceToTarget = camera.position.distanceTo(cameraAnimation.targetPosition);
             const speed = 0.04;
@@ -260,9 +261,11 @@ export const SolarSystemRenderer = (() => {
                 }
             }
         } else if (focusedPlanetMesh) {
+            // FIX: Disable damping for a rigid, stutter-free follow-cam.
+            controls.enableDamping = false;
+
             const newPlanetPosition = new THREE.Vector3();
             focusedPlanetMesh.getWorldPosition(newPlanetPosition);
-            // FIX: Use the correct lastWorldPosition for an accurate delta calculation.
             const oldPlanetPosition = focusedPlanetMesh.userData.lastWorldPosition;
 
             const delta = new THREE.Vector3().subVectors(newPlanetPosition, oldPlanetPosition);

@@ -19,7 +19,7 @@ export const GalaxyRenderer = (() => {
     const ARM_ROTATION = 4 * Math.PI;
     const DECORATIVE_STAR_COUNT = 50000;
     const CORE_STAR_COUNT = 20000;
-    const DISK_STAR_COUNT = 300000;      // Massively increased to guarantee no black space
+    const DISK_STAR_COUNT = 400000;      // Massively increased to guarantee no black space
     const HALO_STAR_COUNT = 300000;
     const DUST_COUNT = 10000;
     const BACKGROUND_STAR_COUNT = 250000;
@@ -265,7 +265,7 @@ export const GalaxyRenderer = (() => {
             const armAngle = (armIndex / NUM_ARMS) * 2 * Math.PI + armVar.offset;
             const rotation = (distance / GALAXY_RADIUS) * armVar.rotation;
             const angle = armAngle + rotation;
-            const spread = 2200 * Math.pow(1 - (distance / GALAXY_RADIUS), 2);
+            const spread = 2800 * Math.pow(1 - (distance / GALAXY_RADIUS), 2); // Further widened arms
             const turbulence = Math.sin(angle * 5 + distance * 0.01) * spread * 0.2;
             const randomX = _gaussianRandom() * spread;
             const randomZ = _gaussianRandom() * spread;
@@ -332,7 +332,7 @@ export const GalaxyRenderer = (() => {
         const diskGeometry = new THREE.BufferGeometry();
         diskGeometry.setAttribute('position', new THREE.Float32BufferAttribute(diskPositions, 3));
         diskGeometry.setAttribute('color', new THREE.Float32BufferAttribute(diskColors, 3));
-        const diskMaterial = new THREE.PointsMaterial({ size: 8, map: starTexture, vertexColors: true, sizeAttenuation: true, depthWrite: false, blending: THREE.AdditiveBlending, transparent: true, opacity: 1.0 });
+        const diskMaterial = new THREE.PointsMaterial({ size: 10, map: starTexture, vertexColors: true, sizeAttenuation: true, depthWrite: false, blending: THREE.AdditiveBlending, transparent: true, opacity: 1.0 });
         diskStarParticles = new THREE.Points(diskGeometry, diskMaterial);
 
         const decorativeGeometry = new THREE.BufferGeometry();

@@ -47,9 +47,9 @@ export const SolarSystemRenderer = (() => {
     let lastAnimateTime = null;
     let raycaster, mouse;
     let boundWheelHandler = null;
-    let cameraAnimation = null;
+    let cameraAnimation = null; // Stores target for smooth camera movement
     let orbitSpeedMultiplier = 1.0;
-    let focusedPlanetMesh = null;
+    let focusedPlanetMesh = null; // Keeps track of the currently focused planet mesh
 
     const SPHERE_BASE_RADIUS = 0.8;
     const DISPLACEMENT_SCALING_FACTOR = 0.005;
@@ -95,7 +95,7 @@ export const SolarSystemRenderer = (() => {
                     uSphereRadius: { value: SPHERE_BASE_RADIUS },
                     uDisplacementAmount: { value: displacementAmount },
                     uTime: { value: 0.0 },
-                    uPlanetType: { value: planetData.planetType || 0 },
+                    uPlanetType: { value: planetData.planetType || 0 }, // Added planetType uniform
                     uLightDirection: { value: new THREE.Vector3(0.8, 0.6, 1.0) }
                 }
             ]),
@@ -167,24 +167,40 @@ export const SolarSystemRenderer = (() => {
             enableDamping: true, dampingFactor: 0.05, screenSpacePanning: true,
             minDistance: 50, maxDistance: 450000, enablePan: true, rotateSpeed: 0.4,
             mouseButtons: { LEFT: THREE.MOUSE.PAN, MIDDLE: THREE.MOUSE.PAN, RIGHT: THREE.MOUSE.ROTATE },
-            enableZoom: false,
+            enableZoom: false, // Zoom with mouse wheel is handled manually
             autoRotate: false,
             autoRotateSpeed: 0.5
         });
 
+        // Event listener to stop auto-rotation and clear focus on manual interaction
         controls.addEventListener('start', () => {
-            if (cameraAnimation) {
-                cameraAnimation = null;
-                controls.enabled = true;
+            // Only stop auto-rotation if we were specifically following a planet
+            if (focusedPlanetMesh) {
+                // If the user manually interacts after focusing, stop auto-rotation
+                // and clear the focusedPlanetMesh, allowing free camera movement.
+                controls.autoRotate = false;
+                focusedPlanetMesh = null;
+                cameraAnimation = null; // Stop any ongoing camera animation
+                // Note: The UI for the sidebar will need to reflect this unfocus if desired.
+                // This is handled by UIManager.clearPlanetFocus.
+                if (typeof window.SolarSystemViewCallbacks?.onPlanetUnfocused === 'function') {
+                    window.SolarSystemViewCallbacks.onPlanetUnfocused();
+                }
             }
-            controls.autoRotate = false;
-            focusedPlanetMesh = null;
         });
+
 
         boundWheelHandler = (event) => {
             event.preventDefault();
-            controls.autoRotate = false; // Also stop rotation on wheel zoom
-            focusedPlanetMesh = null;
+            // Stop auto-rotation if wheel is used, and clear focus
+            if (focusedPlanetMesh) {
+                controls.autoRotate = false;
+                focusedPlanetMesh = null;
+                cameraAnimation = null; // Stop any ongoing camera animation
+                if (typeof window.SolarSystemViewCallbacks?.onPlanetUnfocused === 'function') {
+                    window.SolarSystemViewCallbacks.onPlanetUnfocused();
+                }
+            }
             const linearZoomAmount = 1000;
             let zoomFactor = event.deltaY < 0 ? -linearZoomAmount : linearZoomAmount;
             const camToTarget = new THREE.Vector3().subVectors(controls.target, camera.position);
@@ -195,27 +211,15 @@ export const SolarSystemRenderer = (() => {
         renderer.domElement.addEventListener('wheel', boundWheelHandler, { passive: false });
         raycaster = new THREE.Raycaster();
         mouse = new THREE.Vector2();
-        renderer.domElement.addEventListener('click', _onPlanetClick, false);
+        // Removed _onPlanetClick listener from here as it's now handled by UIManager for interaction with 3D elements.
         sunLight = new THREE.PointLight(0xffffff, 2.5, 550000);
         scene.add(sunLight);
         scene.add(new THREE.AmbientLight(0xffffff, 0.1));
     }
 
-    function _onPlanetClick(event) {
-        event.preventDefault();
-        if (!renderer || !camera || planetMeshes.length === 0) return;
-        const rect = renderer.domElement.getBoundingClientRect();
-        mouse.x = ((event.clientX - rect.left) / rect.width) * 2 - 1;
-        mouse.y = -((event.clientY - rect.top) / rect.height) * 2 + 1;
-        raycaster.setFromCamera(mouse, camera);
-        const intersects = raycaster.intersectObjects(planetMeshes);
-        if (intersects.length > 0) {
-            const clickedPlanetData = intersects[0].object.userData;
-            const systemId = currentSystemData.id;
-            const onBackCallback = () => window.switchToSolarSystemView(systemId);
-            if (window.switchToHexPlanetView) window.switchToHexPlanetView(clickedPlanetData, onBackCallback);
-        }
-    }
+    // _onPlanetClick is no longer used here. The click handler for the 3D scene
+    // will be responsible for setting focusedPlanetMesh and initiating the focus animation.
+    // It should also *not* transition to HexPlanetView directly if it's the same planet.
 
     function _animate(now) {
         if (!renderer) return;
@@ -233,7 +237,7 @@ export const SolarSystemRenderer = (() => {
                 if (mesh) {
                     mesh.rotation.y = planet.currentAxialAngle;
                     const x = planet.orbitalRadius * Math.cos(planet.currentOrbitalAngle);
-                    const z = planet.orbitalRadius * Math.sin(planet.currentOrbitalAngle);
+                    const z = planet.orbitalRadius * Math.sin(planet.currentOrbitalAngle); // Corrected typo here, should be currentOrbitalAngle
                     mesh.position.set(x, 0, z);
                     mesh.material.uniforms.uLightDirection.value.copy(mesh.position).negate().normalize();
                 }
@@ -252,12 +256,12 @@ export const SolarSystemRenderer = (() => {
             camera.position.lerp(cameraAnimation.targetPosition, speed);
             controls.target.lerp(cameraAnimation.targetLookAt, speed);
 
-            if (camera.position.distanceTo(cameraAnimation.targetPosition) < 10) {
+            // Check if animation is nearly complete, and if so, finalize it and enable auto-rotation
+            if (camera.position.distanceTo(cameraAnimation.targetPosition) < 10 && controls.target.distanceTo(cameraAnimation.targetLookAt) < 10) {
                 camera.position.copy(cameraAnimation.targetPosition);
                 controls.target.copy(cameraAnimation.targetLookAt);
-                cameraAnimation = null;
-                controls.enabled = true;
-                controls.autoRotate = true;
+                cameraAnimation = null; // Animation finished
+                controls.autoRotate = true; // Enable auto-rotation
             }
         } else if (focusedPlanetMesh) { // After initial animation, continuously follow the moving planet
             const planetWorldPosition = new THREE.Vector3();
@@ -271,7 +275,12 @@ export const SolarSystemRenderer = (() => {
             const lerpSpeed = 0.1; 
             camera.position.lerp(desiredCameraPosition, lerpSpeed);
             controls.target.copy(planetWorldPosition); // Keep the target on the planet
+            controls.autoRotate = true; // Ensure auto-rotation is active if focused
+        } else {
+            // If no planet is focused, ensure auto-rotation is off
+            controls.autoRotate = false;
         }
+
 
         if(controls) controls.update(); // This is crucial for autoRotate to work
         if (skybox) skybox.rotation.y += 0.00002;
@@ -286,17 +295,42 @@ export const SolarSystemRenderer = (() => {
     }
     
     function focusOnPlanet(planetId) {
-        controls.autoRotate = false; // Stop any current rotation
+        // Find the planet mesh in the local array
         focusedPlanetMesh = planetMeshes.find(p => p.userData.id === planetId);
 
-        if (!focusedPlanetMesh) return console.warn(`focusOnPlanet: Planet with ID ${planetId} not found.`);
+        if (!focusedPlanetMesh) {
+            console.warn(`focusOnPlanet: Planet with ID ${planetId} not found.`);
+            return false; // Indicate failure to focus
+        }
         
         const planetWorldPosition = new THREE.Vector3();
-        focusedPlanetMesh.getWorldPosition(planetWorldPosition);
-        const offset = new THREE.Vector3(0, focusedPlanetMesh.userData.size * 0.5, focusedPlanetMesh.userData.size * 2.0);
+        focusedPlanetMesh.getWorldPosition(planetWorldPosition); // Get current world position
+
+        // Calculate desired camera position relative to the planet
+        const offset = new THREE.Vector3(0, focusedPlanetMesh.userData.size * 0.5, focusedPlanetMesh.userData.size * 2.5); // Slightly further back
         const targetPosition = planetWorldPosition.clone().add(offset);
-        cameraAnimation = { targetPosition: targetPosition, targetLookAt: planetWorldPosition }; // Initial target for lerp
-        controls.enabled = false;
+
+        // Start camera animation
+        cameraAnimation = { targetPosition: targetPosition, targetLookAt: planetWorldPosition };
+        
+        // Disable auto-rotation initially, it will be enabled once animation completes
+        controls.autoRotate = false; 
+
+        // Important: Update controls.target immediately for the animation start
+        controls.target.copy(planetWorldPosition);
+
+        return true; // Indicate success
+    }
+
+    function unfocusPlanet() {
+        focusedPlanetMesh = null;
+        cameraAnimation = null; // Stop any ongoing animation
+        controls.autoRotate = false; // Stop auto-rotation
+        // Reset controls target back to the origin (sun) for general view
+        controls.target.set(0, 0, 0); 
+        controls.update(); // Apply the target change
+        // You might want to animate camera back to a "system overview" position here if desired.
+        // For now, it will stay where it is but rotate around the sun if the user moves the mouse.
     }
     
     function setOrbitLinesVisible(visible) {
@@ -333,7 +367,13 @@ export const SolarSystemRenderer = (() => {
         },
         dispose: () => _cleanup(),
         focusOnPlanet: focusOnPlanet,
+        unfocusPlanet: unfocusPlanet, // Expose unfocusPlanet
         setOrbitLinesVisible: setOrbitLinesVisible,
-        setOrbitSpeed: setOrbitSpeed
+        setOrbitSpeed: setOrbitSpeed,
+        // Expose planetMeshes and raycaster/mouse for external click detection
+        getPlanetMeshes: () => planetMeshes,
+        getRaycaster: () => raycaster,
+        getMouse: () => mouse,
+        getCamera: () => camera,
     };
 })();

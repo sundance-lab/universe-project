@@ -57,8 +57,8 @@ export const GalaxyRenderer = (() => {
     const GALAXY_RADIUS = 500;
     const NUM_ARMS = 2;
     const BULGE_PARTICLES = 50000;
-    const ARM_STARS_PARTICLES = 150000; 
-    const DISK_STARS_PARTICLES = 200000;
+    const ARM_STARS_PARTICLES = 90000; 
+    const DISK_STARS_PARTICLES = 156000;
     const NEBULA_PARTICLES = 400;
 
     const armProfiles = [
@@ -162,12 +162,12 @@ export const GalaxyRenderer = (() => {
                 const armRotation = arm.angleOffset;
                 const distance = progress * GALAXY_RADIUS * arm.length;
                 
-                // --- MODIFICATION: Significantly increased scatter for a very diffuse, spread-out look ---
-                const noiseFactor = 0.5 + SimplexNoise.noise(progress * 5, armIndex * 5, i / 1000) * 0.1;
-                const clusterRadius = 250 * noiseFactor; 
+                // --- BUG FIX: Toned down noise and scatter to remove the "single star" look ---
+                const noiseFactor = 0.5 + SimplexNoise.noise(progress * 5, armIndex * 5, i / 1000) * 0.5;
+                const clusterRadius = 150 * noiseFactor; 
                 
                 const randomX = (Math.random() - 0.5) * clusterRadius;
-                const randomY = (Math.random() - 0.5) * 40 * noiseFactor; 
+                const randomY = (Math.random() - 0.5) * 20 * noiseFactor; 
                 const randomZ = (Math.random() - 0.5) * clusterRadius;
                 
                 const x = Math.cos(angle + armRotation) * distance + randomX;
@@ -189,7 +189,7 @@ export const GalaxyRenderer = (() => {
             depthWrite: false,
             blending: THREE.AdditiveBlending,
             vertexColors: true,
-            opacity: 0.5, // Reduced arm opacity to blend them into the disk
+            opacity: 0.7, 
             transparent: true
         });
         galaxyGroup.add(new THREE.Points(geometry, material));
@@ -200,13 +200,12 @@ export const GalaxyRenderer = (() => {
         const color = new THREE.Color('#fefbe8');
 
         for (let i = 0; i < DISK_STARS_PARTICLES; i++) {
-            const r = Math.pow(Math.random(), 1.2) * GALAXY_RADIUS * 1.5; // Wider distribution
+            const r = Math.pow(Math.random(), 1.2) * GALAXY_RADIUS * 1.5;
             const theta = Math.random() * Math.PI * 2;
             const y = (Math.random() - 0.5) * 30;
 
-            // --- MODIFICATION: Apply noise to radius to break the circular "stroke" ---
             const noise = SimplexNoise.noise(Math.cos(theta) * 2, Math.sin(theta) * 2, 0);
-            const noisyRadius = r * (1 + noise * 0.3); // Vary radius by up to 30%
+            const noisyRadius = r * (1 + noise * 0.3);
 
             const x = Math.cos(theta) * noisyRadius;
             const z = Math.sin(theta) * noisyRadius;
@@ -266,18 +265,27 @@ export const GalaxyRenderer = (() => {
         galaxyGroup.add(new THREE.Points(geometry, material));
     }
     
+    // --- BUG FIX: Places solar systems within the visual spiral arms ---
     function _createSolarSystemParticles(systems) {
         solarSystemData = systems;
         const geometry = new THREE.BufferGeometry();
         const positions = [], colors = [];
-        const galaxyContentDiameter = window.gameSessionData.universe.diameter || 500;
         const starTexture = _createStarTexture(new THREE.Color(1,1,1), 0, 1);
 
-        systems.forEach((system) => {
-            const scale = (GALAXY_RADIUS * 1.5) / galaxyContentDiameter;
-            const x = (system.x - galaxyContentDiameter / 2) * scale;
-            const z = (system.y - galaxyContentDiameter / 2) * scale;
+        systems.forEach((system, index) => {
+            const armIndex = index % NUM_ARMS;
+            const arm = armProfiles[armIndex];
+            
+            // Use a random progress along the arm to place the system
+            const progress = 0.1 + Math.random() * 0.8; // Avoid placing at the very core or very edge
+            const angle = progress * Math.PI * arm.tightness;
+            const armRotation = arm.angleOffset;
+            const distance = progress * GALAXY_RADIUS * arm.length;
+
+            const x = Math.cos(angle + armRotation) * distance;
             const y = (Math.random() - 0.5) * 10;
+            const z = Math.sin(angle + armRotation) * distance;
+            
             positions.push(x, y, z);
             const sunColor = sunVariations[(system.sunType || 0) % sunVariations.length].baseColor;
             colors.push(sunColor.r, sunColor.g, sunColor.b);

@@ -157,7 +157,6 @@ export const SolarSystemRenderer = (() => {
         _cleanup();
         scene = new THREE.Scene();
         const aspect = container.offsetWidth / container.offsetHeight;
-        // FIX: Reduced near clipping plane to prevent zooming through small planets
         camera = new THREE.PerspectiveCamera(60, aspect, 1, 600000);
         camera.position.set(0, 40000, 20000);
         camera.lookAt(0, 0, 0);
@@ -229,9 +228,9 @@ export const SolarSystemRenderer = (() => {
         });
         
         if (cameraAnimation) {
-            // FIX: Use dynamic speed for a smooth ease-out effect
             const distanceToTarget = camera.position.distanceTo(cameraAnimation.targetPosition);
-            const speed = Math.max(0.01, Math.min(0.05, distanceToTarget * 0.1));
+            // FIX: Faster lerp speed and tighter distance check for a more seamless handoff
+            const speed = 0.08;
 
             if (focusedPlanetMesh) {
                 const currentPlanetWorldPosition = new THREE.Vector3();
@@ -242,7 +241,8 @@ export const SolarSystemRenderer = (() => {
             camera.position.lerp(cameraAnimation.targetPosition, speed);
             controls.target.lerp(cameraAnimation.targetLookAt, speed);
             
-            if (distanceToTarget < 10) {
+            // FIX: Stricter distance check before ending animation
+            if (distanceToTarget < 1) {
                 camera.position.copy(cameraAnimation.targetPosition);
                 controls.target.copy(cameraAnimation.targetLookAt);
                 cameraAnimation = null;
@@ -274,7 +274,6 @@ export const SolarSystemRenderer = (() => {
     }
     
     function focusOnPlanet(planetId) {
-        // FIX: saveState before focusing to allow smooth reset
         controls.saveState();
 
         focusedPlanetMesh = planetMeshes.find(p => p.userData.id === planetId);
@@ -288,9 +287,14 @@ export const SolarSystemRenderer = (() => {
         focusedPlanetMesh.getWorldPosition(planetWorldPosition);
         
         controls.minDistance = focusedPlanetMesh.userData.size * 1.2;
+        // FIX: Disable panning (right-click) when focused
+        controls.enablePan = false;
 
-        // FIX: Reduced Z-offset for a closer orbit
-        const offset = new THREE.Vector3(0, focusedPlanetMesh.userData.size * 0.5, focusedPlanetMesh.userData.size * 2.0);
+        // FIX: Calculate offset from a consistent distance for a predictable orbit
+        const planetToCamera = new THREE.Vector3().subVectors(camera.position, planetWorldPosition);
+        const desiredDistance = focusedPlanetMesh.userData.size * 2.0; // Consistently close orbit
+        const offset = planetToCamera.normalize().multiplyScalar(desiredDistance);
+
         let targetPosition = planetWorldPosition.clone().add(offset);
         
         const direction = new THREE.Vector3().subVectors(planetWorldPosition, camera.position).normalize();
@@ -313,14 +317,14 @@ export const SolarSystemRenderer = (() => {
         focusedPlanetMesh = null;
         cameraAnimation = null;
         controls.autoRotate = false;
+        // FIX: Re-enable panning
+        controls.enablePan = true;
         
-        // FIX: Use controls.reset() for a smooth, non-buggy transition to the saved state
         controls.reset();
 
-        // After calling reset, also restore our custom minDistance
         setTimeout(() => {
             controls.minDistance = 50;
-        }, controls.dampingFactor * 1000); // Wait for transition to finish
+        }, controls.dampingFactor * 1000);
     }
     
     function setOrbitSpeed(multiplier) {

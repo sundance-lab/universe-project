@@ -3,14 +3,11 @@ import * as THREE from 'three';
 import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls.js';
 
 // --- Noise Generation Utility (for realistic dust lanes) ---
-// This is a self-contained 3D Simplex Noise implementation.
 const SimplexNoise = new (function() {
-    // Ported from Stefan Gustavson's Java implementation
     const F3 = 1.0/3.0;
     const G3 = 1.0/6.0;
     const perm = new Uint8Array(512);
     const grad3 = new Float32Array([1,1,0, -1,1,0, 1,-1,0, -1,-1,0, 1,0,1, -1,0,1, 1,0,-1, -1,0,-1, 0,1,1, 0,-1,1, 0,1,-1, 0,-1,-1]);
-
     const seed = Math.random;
     for(let i=0; i<256; i++) perm[i] = i;
     for(let i=0; i<255; i++) {
@@ -20,14 +17,12 @@ const SimplexNoise = new (function() {
         perm[r] = g;
     }
     for(let i=0; i<256; i++) perm[i+256] = perm[i];
-
     this.noise = function(xin, yin, zin) {
         let n0, n1, n2, n3;
         const s = (xin + yin + zin) * F3;
         const i = Math.floor(xin + s), j = Math.floor(yin + s), k = Math.floor(zin + s);
         const t = (i + j + k) * G3;
         const x0 = xin - (i - t), y0 = yin - (j - t), z0 = zin - (k - t);
-        
         let i1, j1, k1, i2, j2, k2; 
         if(x0 >= y0) {
             if(y0 >= z0) { i1=1; j1=0; k1=0; i2=1; j2=1; k2=0; }
@@ -38,29 +33,15 @@ const SimplexNoise = new (function() {
             else if(x0 < z0) { i1=0; j1=1; k1=0; i2=0; j2=1; k2=1; }
             else { i1=0; j1=1; k1=0; i2=1; j2=1; k2=0; }
         }
-
         const x1 = x0 - i1 + G3, y1 = y0 - j1 + G3, z1 = z0 - k1 + G3;
         const x2 = x0 - i2 + 2.0 * G3, y2 = y0 - j2 + 2.0 * G3, z2 = z0 - k2 + 2.0 * G3;
         const x3 = x0 - 1.0 + 3.0 * G3, y3 = y0 - 1.0 + 3.0 * G3, z3 = z0 - 1.0 + 3.0 * G3;
-        
         const ii = i & 255, jj = j & 255, kk = k & 255;
-        const gi0 = perm[ii+perm[jj+perm[kk]]] % 12;
-        const gi1 = perm[ii+i1+perm[jj+j1+perm[kk+k1]]] % 12;
-        const gi2 = perm[ii+i2+perm[jj+j2+perm[kk+k2]]] % 12;
-        const gi3 = perm[ii+1+perm[jj+1+perm[kk+1]]] % 12;
-        
-        let t0 = 0.6 - x0*x0 - y0*y0 - z0*z0;
-        if(t0 < 0) n0 = 0.0; else { t0 *= t0; n0 = t0 * t0 * (grad3[gi0*3] * x0 + grad3[gi0*3+1] * y0 + grad3[gi0*3+2] * z0); }
-
-        let t1 = 0.6 - x1*x1 - y1*y1 - z1*z1;
-        if(t1 < 0) n1 = 0.0; else { t1 *= t1; n1 = t1 * t1 * (grad3[gi1*3] * x1 + grad3[gi1*3+1] * y1 + grad3[gi1*3+2] * z1); }
-
-        let t2 = 0.6 - x2*x2 - y2*y2 - z2*z2;
-        if(t2 < 0) n2 = 0.0; else { t2 *= t2; n2 = t2 * t2 * (grad3[gi2*3] * x2 + grad3[gi2*3+1] * y2 + grad3[gi2*3+2] * z2); }
-
-        let t3 = 0.6 - x3*x3 - y3*y3 - z3*z3;
-        if(t3 < 0) n3 = 0.0; else { t3 *= t3; n3 = t3 * t3 * (grad3[gi3*3] * x3 + grad3[gi3*3+1] * y3 + grad3[gi3*3+2] * z3); }
-
+        const gi0 = perm[ii+perm[jj+perm[kk]]] % 12, gi1 = perm[ii+i1+perm[jj+j1+perm[kk+k1]]] % 12, gi2 = perm[ii+i2+perm[jj+j2+perm[kk+k2]]] % 12, gi3 = perm[ii+1+perm[jj+1+perm[kk+1]]] % 12;
+        let t0 = 0.6 - x0*x0 - y0*y0 - z0*z0; if(t0 < 0) n0 = 0.0; else { t0 *= t0; n0 = t0 * t0 * (grad3[gi0*3] * x0 + grad3[gi0*3+1] * y0 + grad3[gi0*3+2] * z0); }
+        let t1 = 0.6 - x1*x1 - y1*y1 - z1*z1; if(t1 < 0) n1 = 0.0; else { t1 *= t1; n1 = t1 * t1 * (grad3[gi1*3] * x1 + grad3[gi1*3+1] * y1 + grad3[gi1*3+2] * z1); }
+        let t2 = 0.6 - x2*x2 - y2*y2 - z2*z2; if(t2 < 0) n2 = 0.0; else { t2 *= t2; n2 = t2 * t2 * (grad3[gi2*3] * x2 + grad3[gi2*3+1] * y2 + grad3[gi2*3+2] * z2); }
+        let t3 = 0.6 - x3*x3 - y3*y3 - z3*z3; if(t3 < 0) n3 = 0.0; else { t3 *= t3; n3 = t3 * t3 * (grad3[gi3*3] * x3 + grad3[gi3*3+1] * y3 + grad3[gi3*3+2] * z3); }
         return 32.0 * (n0 + n1 + n2 + n3);
     };
 })();
@@ -74,10 +55,10 @@ export const GalaxyRenderer = (() => {
 
     const sunVariations = [ { baseColor: new THREE.Color(0x4A90E2) }, { baseColor: new THREE.Color(0xFF5722) }, { baseColor: new THREE.Color(0xFFA500) }, { baseColor: new THREE.Color(0xE0E0E0) }, { baseColor: new THREE.Color(0xE65100) }];
     const GALAXY_RADIUS = 500;
-    const NUM_ARMS = 2; // Two main arms like the reference
+    const NUM_ARMS = 2;
     const BULGE_PARTICLES = 50000;
     const ARM_STARS_PARTICLES = 300000;
-    const NEBULA_PARTICLES = 500; // Small number of bright nebulae
+    const NEBULA_PARTICLES = 500;
     const DUST_PARTICLES = 150000;
 
     const armProfiles = [
@@ -157,7 +138,8 @@ export const GalaxyRenderer = (() => {
             size: 2.0,
             sizeAttenuation: true,
             color: color,
-            depthWrite: false,
+            // --- BUG FIX: Set depthWrite to true for the core to prevent it disappearing ---
+            depthWrite: true, 
             blending: THREE.AdditiveBlending,
             transparent: true,
             opacity: 0.8
@@ -181,9 +163,12 @@ export const GalaxyRenderer = (() => {
                 const armRotation = arm.angleOffset;
                 const distance = progress * GALAXY_RADIUS * arm.length;
                 
-                const clusterRadius = 40 * (1 - progress * 0.5);
+                // --- VISUAL TWEAK: Use noise to create more organic clumps ---
+                const noiseFactor = 0.5 + SimplexNoise.noise(progress * 10, armIndex, i / 1000) * 0.5;
+                const clusterRadius = 40 * (1 - progress * 0.5) * noiseFactor;
+                
                 const randomX = (Math.random() - 0.5) * clusterRadius;
-                const randomY = (Math.random() - 0.5) * 10 * (1 - progress);
+                const randomY = (Math.random() - 0.5) * 10 * (1 - progress) * noiseFactor;
                 const randomZ = (Math.random() - 0.5) * clusterRadius;
                 
                 const x = Math.cos(angle + armRotation) * distance + randomX;

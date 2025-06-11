@@ -32,6 +32,7 @@ export const GalaxyRenderer = (() => {
         { angleOffset: 5.9, tightness: 7.2, length: 0.98 },
     ];
 
+
     function _createStarTexture() {
         const canvas = document.createElement('canvas');
         const size = 64;
@@ -113,33 +114,36 @@ export const GalaxyRenderer = (() => {
         galaxyGroup.add(bulge);
     }
 
+    // --- BUG FIX: Restructured loop to generate each arm independently ---
     function _createGalaxyArms() {
         const positions = [];
         const colors = [];
         const colorInside = new THREE.Color('#fffacd');
         const colorOutside = new THREE.Color('#add8e6');
+        const particlesPerArm = Math.floor(NUM_ARM_PARTICLES / NUM_ARMS);
 
-        for (let i = 0; i < NUM_ARM_PARTICLES; i++) {
-            const armIndex = i % NUM_ARMS;
+        for (let armIndex = 0; armIndex < NUM_ARMS; armIndex++) {
             const arm = armProfiles[armIndex];
-            
-            const progress = (i / (NUM_ARM_PARTICLES / NUM_ARMS)) * arm.length;
-            const angle = progress * Math.PI * arm.tightness;
-            const armRotation = arm.angleOffset;
-            const distance = Math.pow(progress, 0.8) * GALAXY_RADIUS;
 
-            const randomX = (Math.random() - 0.5) * 15;
-            const randomY = (Math.random() - 0.5) * 15;
-            const randomZ = (Math.random() - 0.5) * 15;
+            for (let i = 0; i < particlesPerArm; i++) {
+                const progress = (i / particlesPerArm) * arm.length;
+                const angle = progress * Math.PI * arm.tightness;
+                const armRotation = arm.angleOffset;
+                const distance = Math.pow(progress, 0.8) * GALAXY_RADIUS;
 
-            const x = Math.cos(angle + armRotation) * distance + randomX;
-            const y = randomY;
-            const z = Math.sin(angle + armRotation) * distance + randomZ;
+                const randomX = (Math.random() - 0.5) * 15;
+                const randomY = (Math.random() - 0.5) * 15;
+                const randomZ = (Math.random() - 0.5) * 15;
 
-            positions.push(x, y, z);
-            const normalizedDistance = distance / GALAXY_RADIUS;
-            const mixedColor = colorInside.clone().lerp(colorOutside, normalizedDistance);
-            colors.push(mixedColor.r, mixedColor.g, mixedColor.b);
+                const x = Math.cos(angle + armRotation) * distance + randomX;
+                const y = randomY;
+                const z = Math.sin(angle + armRotation) * distance + randomZ;
+
+                positions.push(x, y, z);
+                const normalizedDistance = distance / GALAXY_RADIUS;
+                const mixedColor = colorInside.clone().lerp(colorOutside, normalizedDistance);
+                colors.push(mixedColor.r, mixedColor.g, mixedColor.b);
+            }
         }
 
         const geometry = new THREE.BufferGeometry();
@@ -156,28 +160,33 @@ export const GalaxyRenderer = (() => {
         galaxyGroup.add(armParticles);
     }
 
+    // --- BUG FIX: Restructured loop to generate each dust lane independently ---
     function _createDustLanes() {
         const positions = [];
         const dustGeometry = new THREE.BufferGeometry();
-        for (let i = 0; i < NUM_DUST_PARTICLES; i++) {
-            const armIndex = i % NUM_ARMS;
+        const particlesPerLane = Math.floor(NUM_DUST_PARTICLES / NUM_ARMS);
+
+        for (let armIndex = 0; armIndex < NUM_ARMS; armIndex++) {
             const arm = armProfiles[armIndex];
+            const armRotation = arm.angleOffset + 0.15; // Offset dust from star arm
 
-            const armRotation = arm.angleOffset + 0.15;
-            const progress = (i / (NUM_DUST_PARTICLES / NUM_ARMS)) * arm.length;
-            const angle = progress * Math.PI * arm.tightness;
-            const distance = Math.pow(progress, 0.8) * GALAXY_RADIUS;
+            for (let i = 0; i < particlesPerLane; i++) {
+                const progress = (i / particlesPerLane) * arm.length;
+                const angle = progress * Math.PI * arm.tightness;
+                const distance = Math.pow(progress, 0.8) * GALAXY_RADIUS;
 
-            const randomX = (Math.random() - 0.5) * 25; 
-            const randomY = (Math.random() - 0.5) * 20;
-            const randomZ = (Math.random() - 0.5) * 25;
+                const randomX = (Math.random() - 0.5) * 25;
+                const randomY = (Math.random() - 0.5) * 20;
+                const randomZ = (Math.random() - 0.5) * 25;
 
-            const x = Math.cos(angle + armRotation) * distance + randomX;
-            const y = randomY;
-            const z = Math.sin(angle + armRotation) * distance + randomZ;
+                const x = Math.cos(angle + armRotation) * distance + randomX;
+                const y = randomY;
+                const z = Math.sin(angle + armRotation) * distance + randomZ;
 
-            positions.push(x, y, z);
+                positions.push(x, y, z);
+            }
         }
+
         dustGeometry.setAttribute('position', new THREE.Float32BufferAttribute(positions, 3));
         const dustMaterial = new THREE.PointsMaterial({
             size: 40,

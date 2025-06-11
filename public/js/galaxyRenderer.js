@@ -21,7 +21,7 @@ export const GalaxyRenderer = (() => {
     const DUST_COUNT = 15000;
     const BACKGROUND_STAR_COUNT = 50000;
     const NEBULA_CLUSTER_COUNT = 50;
-    const DISTANT_GALAXY_COUNT = 25;
+    const DISTANT_GALAXY_COUNT = 40; // Increased quantity
 
 
     // --- HELPER FUNCTIONS ---
@@ -103,7 +103,16 @@ export const GalaxyRenderer = (() => {
         renderer.setPixelRatio(window.devicePixelRatio);
         
         controls = new OrbitControls(camera, renderer.domElement);
-        Object.assign(controls, { enableDamping: true, dampingFactor: 0.04, minDistance: 100, maxDistance: GALAXY_RADIUS * 4, enablePan: false });
+        Object.assign(controls, { 
+            enableDamping: true, 
+            dampingFactor: 0.04, 
+            minDistance: 100, 
+            maxDistance: GALAXY_RADIUS * 4, 
+            enablePan: false,
+            // Unlock polar angle restrictions
+            minPolarAngle: 0,
+            maxPolarAngle: Math.PI
+        });
         
         raycaster = new THREE.Raycaster();
         mouse = new THREE.Vector2();
@@ -121,8 +130,14 @@ export const GalaxyRenderer = (() => {
     
     function _createGalacticCore() {
         const coreTexture = _createStarTexture('rgba(255, 230, 200, 1)', 0.05);
-        const spriteMaterial = new THREE.SpriteMaterial({ map: coreTexture, blending: THREE.AdditiveBlending, depthWrite: false, depthTest: false });
+        const spriteMaterial = new THREE.SpriteMaterial({
+            map: coreTexture,
+            blending: THREE.AdditiveBlending,
+            depthWrite: false,
+            depthTest: true // Keep depth test enabled to avoid rendering behind things
+        });
         galacticCore = new THREE.Sprite(spriteMaterial);
+        galacticCore.renderOrder = 2; // Render the core on top of the dust
         galacticCore.scale.set(GALAXY_CORE_RADIUS * 2, GALAXY_CORE_RADIUS * 2, 1);
         scene.add(galacticCore);
     }
@@ -131,13 +146,14 @@ export const GalaxyRenderer = (() => {
         distantGalaxies = new THREE.Group();
         const galaxyTexture = new THREE.TextureLoader().load('https://cdn.jsdelivr.net/gh/Sean-Bradley/Three.js-TypeScript-Boilerplate@master/src/assets/images/galaxy.png');
         for (let i = 0; i < DISTANT_GALAXY_COUNT; i++) {
-            const material = new THREE.SpriteMaterial({ map: galaxyTexture, blending: THREE.AdditiveBlending, transparent: true, opacity: 0.1 + Math.random() * 0.2, color: new THREE.Color(Math.random(), Math.random(), Math.random()) });
+            const material = new THREE.SpriteMaterial({ map: galaxyTexture, blending: THREE.AdditiveBlending, transparent: true, opacity: 0.1 + Math.random() * 0.25, color: new THREE.Color(Math.random(), Math.random(), Math.random()) });
             const sprite = new THREE.Sprite(material);
             const distance = GALAXY_RADIUS * 5 + Math.random() * 5000;
             const theta = Math.random() * Math.PI * 2;
             const phi = Math.acos(Math.random() * 2 - 1);
             sprite.position.set( distance * Math.sin(phi) * Math.cos(theta), distance * Math.sin(phi) * Math.sin(theta), distance * Math.cos(phi) );
-            const scale = Math.random() * 200 + 100;
+            // Increased size
+            const scale = Math.random() * 400 + 200;
             sprite.scale.set(scale, scale, 1);
             distantGalaxies.add(sprite);
         }
@@ -168,8 +184,7 @@ export const GalaxyRenderer = (() => {
             const angle = armAngle + rotation;
             const spread = 250 * Math.pow(1 - (distance / GALAXY_RADIUS), 2);
             
-            // Subtle horizontal turbulence, no more vertical wobble
-            const turbulence = Math.sin(angle * 5 + distance * 0.01) * spread * 0.5;
+            const turbulence = Math.sin(angle * 5 + distance * 0.01) * spread * 0.2; // Reduced turbulence
             
             const randomX = _gaussianRandom() * spread;
             const randomZ = _gaussianRandom() * spread;
@@ -180,17 +195,15 @@ export const GalaxyRenderer = (() => {
             
             const distanceRatio = Math.pow(distance / GALAXY_RADIUS, 1.5);
             const starColor = new THREE.Color().lerpColors(coreColor, armColor, distanceRatio);
-            const brightness = 0.5 + Math.pow(1 - distanceRatio, 2) * 0.5; // Brighter towards core
+            const brightness = 0.5 + Math.pow(1 - distanceRatio, 2) * 0.5;
             starColor.multiplyScalar(brightness);
             decorativeColors.push(starColor.r, starColor.g, starColor.b);
             
-            // Make stars smaller on the exterior to fade out
             const size = (1.0 - distanceRatio) * 15 + 5;
             decorativeSizes.push(size);
         }
 
         // --- Other generation logic (Nebulae, Dust, Clickable Systems) ---
-        // (This logic remains largely the same as the previous version)
         for(let i=0; i<NEBULA_CLUSTER_COUNT; i++) {
             const distance = GALAXY_CORE_RADIUS + Math.random() * (GALAXY_RADIUS - GALAXY_CORE_RADIUS);
             const armIndex = i % NUM_ARMS;
@@ -230,22 +243,22 @@ export const GalaxyRenderer = (() => {
         const decorativeGeometry = new THREE.BufferGeometry();
         decorativeGeometry.setAttribute('position', new THREE.Float32BufferAttribute(decorativePositions, 3));
         decorativeGeometry.setAttribute('color', new THREE.Float32BufferAttribute(decorativeColors, 3));
-        decorativeGeometry.setAttribute('size', new THREE.Float32BufferAttribute(decorativeSizes, 1)); // Size attribute
+        decorativeGeometry.setAttribute('size', new THREE.Float32BufferAttribute(decorativeSizes, 1));
         const decorativeShader = new THREE.PointsMaterial({ map: starTexture, vertexColors: true, sizeAttenuation: true, depthWrite: false, blending: THREE.AdditiveBlending, transparent: true });
-        // Enable custom particle sizes in material
         decorativeShader.onBeforeCompile = shader => { shader.vertexShader = 'attribute float size;\n' + shader.vertexShader; shader.vertexShader = shader.vertexShader.replace('gl_PointSize = size;', 'gl_PointSize = size * size;'); };
         decorativeStarParticles = new THREE.Points(decorativeGeometry, decorativeShader);
         scene.add(decorativeStarParticles);
         
         const dustGeometry = new THREE.BufferGeometry();
         dustGeometry.setAttribute('position', new THREE.Float32BufferAttribute(dustPositions, 3));
-        const dustMaterial = new THREE.PointsMaterial({ size: 250, map: dustTexture, sizeAttenuation: true, depthWrite: false, blending: THREE.NormalBlending, transparent: true, opacity: 0.8 });
+        const dustMaterial = new THREE.PointsMaterial({ size: 150, map: dustTexture, sizeAttenuation: true, depthWrite: false, blending: THREE.NormalBlending, transparent: true, opacity: 0.6 });
         dustParticles = new THREE.Points(dustGeometry, dustMaterial);
+        dustParticles.renderOrder = 1; // Render dust before the core
         scene.add(dustParticles);
 
         const nebulaGeometry = new THREE.BufferGeometry();
         nebulaGeometry.setAttribute('position', new THREE.Float32BufferAttribute(nebulaPositions, 3));
-        const nebulaMaterial = new THREE.PointsMaterial({size: 500, map: nebulaTexture, sizeAttenuation: true, depthWrite: false, blending: THREE.AdditiveBlending, transparent: true, opacity: 0.5});
+        const nebulaMaterial = new THREE.PointsMaterial({size: 300, map: nebulaTexture, sizeAttenuation: true, depthWrite: false, blending: THREE.AdditiveBlending, transparent: true, opacity: 0.35});
         nebulaParticles = new THREE.Points(nebulaGeometry, nebulaMaterial);
         scene.add(nebulaParticles);
 
@@ -264,7 +277,6 @@ export const GalaxyRenderer = (() => {
             positions.push( (Math.random() - 0.5) * 30000, (Math.random() - 0.5) * 30000, (Math.random() - 0.5) * 30000 );
         }
         geometry.setAttribute('position', new THREE.Float32BufferAttribute(positions, 3));
-        // Use a star texture to make background stars appear round
         const material = new THREE.PointsMaterial({ size: 10, color: 0xffffff, map: _createStarTexture(), sizeAttenuation: true, depthWrite: false, transparent: true, opacity: 0.4, blending: THREE.AdditiveBlending });
         backgroundStars = new THREE.Points(geometry, material);
         scene.add(backgroundStars);
@@ -313,7 +325,7 @@ export const GalaxyRenderer = (() => {
         if (renderer) renderer.domElement.removeEventListener('click', _onCanvasClick);
         if (controls) controls.dispose();
         scene?.traverse(object => {
-            if(object.isSprite) { scene.remove(object); } // Ensure sprites are removed
+            if(object.isSprite) { scene.remove(object); }
             if (object.geometry) object.geometry.dispose();
             if (object.material) {
                 if(object.material.map) object.material.map.dispose();

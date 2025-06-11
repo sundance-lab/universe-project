@@ -233,37 +233,41 @@ export const SolarSystemRenderer = (() => {
             mesh.material.uniforms.uLightDirection.value.copy(mesh.position).negate().normalize();
         });
         
+        // FIX: Default to smooth (damped) controls
+        controls.enableDamping = true;
+
         if (cameraAnimation) {
+            const distanceToTarget = camera.position.distanceTo(cameraAnimation.targetPosition);
             const speed = 0.04;
 
             if (focusedPlanetMesh) {
-                const newPlanetPosition = new THREE.Vector3();
-                focusedPlanetMesh.getWorldPosition(newPlanetPosition);
-                const oldPlanetPosition = focusedPlanetMesh.userData.lastWorldPosition;
-                const delta = new THREE.Vector3().subVectors(newPlanetPosition, oldPlanetPosition);
-
-                cameraAnimation.targetPosition.add(delta);
-                cameraAnimation.targetLookAt.add(delta);
+                const currentPlanetWorldPosition = new THREE.Vector3();
+                focusedPlanetMesh.getWorldPosition(currentPlanetWorldPosition);
+                cameraAnimation.targetLookAt.copy(currentPlanetWorldPosition);
             }
 
             camera.position.lerp(cameraAnimation.targetPosition, speed);
             controls.target.lerp(cameraAnimation.targetLookAt, speed);
             
-            const distanceToTarget = camera.position.distanceTo(cameraAnimation.targetPosition);
-            if (distanceToTarget < 1.5) {
+            if (distanceToTarget < 1) {
                 camera.position.copy(cameraAnimation.targetPosition);
                 controls.target.copy(cameraAnimation.targetLookAt);
                 cameraAnimation = null;
                 if (focusedPlanetMesh) {
                     controls.autoRotate = true;
                 } else {
+                    controls.minDistance = 50; 
                     controls.reset();
                 }
             }
         } else if (focusedPlanetMesh) {
+            // FIX: Disable damping for a rigid, stutter-free follow-cam.
+            controls.enableDamping = false;
+
             const newPlanetPosition = new THREE.Vector3();
             focusedPlanetMesh.getWorldPosition(newPlanetPosition);
             const oldPlanetPosition = focusedPlanetMesh.userData.lastWorldPosition;
+
             const delta = new THREE.Vector3().subVectors(newPlanetPosition, oldPlanetPosition);
             
             camera.position.add(delta);

@@ -1,6 +1,6 @@
 import { stopSolarSystemAnimation } from './animationController.js';
 import { generateSolarSystemsForGalaxy } from './universeGenerator.js';
-import { SolarSystemRenderer } from './solarSystemRenderer.js';
+import { SolarSystemRenderer } from './solarSystemRenderer.js'; // Ensure this import is correct
 import { HexPlanetViewController } from './hexPlanetViewController.js';
 
 export const UIManager = (() => {
@@ -9,6 +9,7 @@ export const UIManager = (() => {
     let galaxyIconCache = {};
     let linesCtx;
     let currentStarfieldCleanup;
+    let focusedPlanetId = null; // Track the currently focused planet ID
 
     function _getPlanetTypeString(planetType) {
         switch (planetType) {
@@ -41,16 +42,41 @@ export const UIManager = (() => {
             li.title = `Click to focus on Planet ${index + 1}`;
             li.dataset.planetId = planet.id;
 
-            // START: Add the click listener
-            li.addEventListener('click', () => {
-                if (window.activeSolarSystemRenderer && typeof window.activeSolarSystemRenderer.focusOnPlanet === 'function') {
-                    window.activeSolarSystemRenderer.focusOnPlanet(planet.id);
-                }
-            });
-            // END: Add the click listener
+            // Highlight if currently focused
+            if (planet.id === focusedPlanetId) {
+                li.classList.add('active-focus'); // Add a class for styling
+            } else {
+                li.classList.remove('active-focus');
+            }
 
+            // Updated click listener to toggle focus
+            li.addEventListener('click', () => {
+                togglePlanetFocus(planet.id);
+            });
             elements.planetSidebarList.appendChild(li);
         });
+    }
+
+    // New function to toggle planet focus
+    function togglePlanetFocus(planetId) {
+        if (focusedPlanetId === planetId) {
+            // If already focused, unfocus
+            if (window.activeSolarSystemRenderer && typeof window.activeSolarSystemRenderer.unfocusPlanet === 'function') {
+                window.activeSolarSystemRenderer.unfocusPlanet();
+            }
+            focusedPlanetId = null;
+        } else {
+            // If not focused or focusing on a different planet
+            if (window.activeSolarSystemRenderer && typeof window.activeSolarSystemRenderer.focusOnPlanet === 'function') {
+                if (window.activeSolarSystemRenderer.focusOnPlanet(planetId)) {
+                    focusedPlanetId = planetId;
+                }
+            }
+        }
+        // Re-render sidebar to update active state
+        const activeGalaxy = window.gameSessionData.galaxies.find(g => window.gameSessionData.activeSolarSystemId.startsWith(g.id));
+        const solarSystemObject = activeGalaxy?.solarSystems.find(s => s.id === window.gameSessionData.activeSolarSystemId);
+        _renderPlanetSidebar(solarSystemObject?.planets);
     }
 
     function makeTitleEditable(titleTextElement, inputElement, onSaveCallback) {
@@ -225,6 +251,7 @@ export const UIManager = (() => {
             window.activeSolarSystemRenderer.dispose();
             window.activeSolarSystemRenderer = null;
         }
+        focusedPlanetId = null; // Clear focused planet
         window.gameSessionData.activeGalaxyId = null;
         window.gameSessionData.activeSolarSystemId = null;
         callbacks.stopSolarSystemAnimation();
@@ -237,6 +264,7 @@ export const UIManager = (() => {
             window.activeSolarSystemRenderer.dispose();
             window.activeSolarSystemRenderer = null;
         }
+        focusedPlanetId = null; // Clear focused planet
         const galaxy = window.gameSessionData.galaxies.find(g => g.id === galaxyId);
         if (!galaxy) return switchToMainView();
         window.gameSessionData.activeGalaxyId = galaxyId;
@@ -261,6 +289,7 @@ export const UIManager = (() => {
             window.activeSolarSystemRenderer.dispose();
             window.activeSolarSystemRenderer = null;
         }
+        focusedPlanetId = null; // Clear focused planet when changing solar systems
         callbacks.stopSolarSystemAnimation();
         window.gameSessionData.activeSolarSystemId = solarSystemId;
         const activeGalaxy = window.gameSessionData.galaxies.find(g => solarSystemId.startsWith(g.id));
@@ -269,6 +298,7 @@ export const UIManager = (() => {
         if (!solarSystemObject.planets) callbacks.generatePlanetsForSystem(solarSystemObject);
         console.log(`[DEBUG] Rendering system ${solarSystemId} with ${solarSystemObject.planets.length} planets.`);
         _renderPlanetSidebar(solarSystemObject.planets);
+
         const solarSystemDataForRenderer = {
             id: solarSystemObject.id,
             sun: { size: solarSystemObject.sunSizeFactor, type: Math.floor(Math.random() * 5) },
@@ -278,6 +308,19 @@ export const UIManager = (() => {
         SolarSystemRenderer.init(solarSystemDataForRenderer);
         window.activeSolarSystemRenderer = SolarSystemRenderer;
         callbacks.startSolarSystemAnimation();
+
+        // Register callback for when planet focus is manually broken in Three.js scene
+        window.SolarSystemViewCallbacks = {
+            onPlanetUnfocused: () => {
+                focusedPlanetId = null;
+                // Re-render sidebar to clear active state
+                _renderPlanetSidebar(solarSystemObject.planets);
+            }
+        };
+
+        // Add click listener to the solar system content for 3D object interaction
+        elements.solarSystemContent.addEventListener('click', _onSolarSystemCanvasClick);
+
         makeTitleEditable(elements.solarSystemTitleText, elements.solarSystemTitleInput, (newName) => {
             solarSystemObject.customName = newName || null;
             callbacks.saveGameState();
@@ -286,8 +329,43 @@ export const UIManager = (() => {
         });
     }
 
+    // New function to handle clicks on the 3D solar system canvas
+    function _onSolarSystemCanvasClick(event) {
+        if (!window.activeSolarSystemRenderer) return;
+
+        const raycaster = window.activeSolarSystemRenderer.getRaycaster();
+        const mouse = window.activeSolarSystemRenderer.getMouse();
+        const camera = window.activeSolarSystemRenderer.getCamera();
+        const planetMeshes = window.activeSolarSystemRenderer.getPlanetMeshes();
+        
+        if (!raycaster || !mouse || !camera || !planetMeshes || planetMeshes.length === 0) return;
+
+        const rect = elements.solarSystemContent.getBoundingClientRect();
+        mouse.x = ((event.clientX - rect.left) / rect.width) * 2 - 1;
+        mouse.y = -((event.clientY - rect.top) / rect.height) * 2 + 1;
+
+        raycaster.setFromCamera(mouse, camera);
+        const intersects = raycaster.intersectObjects(planetMeshes);
+
+        if (intersects.length > 0) {
+            const clickedPlanetData = intersects[0].object.userData;
+            const systemId = window.gameSessionData.activeSolarSystemId;
+            const onBackCallback = () => window.switchToSolarSystemView(systemId);
+            
+            // If the clicked planet is the currently focused one, do nothing (unfocus only by sidebar click)
+            // Or, if you want to also allow clicking the 3D planet to enter hex view:
+            window.switchToHexPlanetView(clickedPlanetData, onBackCallback);
+            
+        }
+    }
+
+
     function switchToHexPlanetView(planetData, onBackCallback) {
         if (!planetData) return;
+        if (window.activeSolarSystemRenderer) {
+            window.activeSolarSystemRenderer.unfocusPlanet(); // Unfocus if currently focused on a planet
+        }
+        focusedPlanetId = null; // Clear focused planet
         setActiveScreen(elements.hexPlanetScreen);
         callbacks.stopSolarSystemAnimation();
         HexPlanetViewController.activate(planetData, onBackCallback);
@@ -388,6 +466,11 @@ export const UIManager = (() => {
             elements.createPlanetDesignButton.addEventListener('click', callbacks.switchToPlanetDesignerScreen);
             elements.backToMainButton.addEventListener('click', switchToMainView);
             elements.backToGalaxyButton.addEventListener('click', () => {
+                // When going back to galaxy, unfocus any planet
+                if (window.activeSolarSystemRenderer && typeof window.activeSolarSystemRenderer.unfocusPlanet === 'function') {
+                    window.activeSolarSystemRenderer.unfocusPlanet();
+                }
+                focusedPlanetId = null;
                 if (window.gameSessionData.activeGalaxyId) switchToGalaxyDetailView(window.gameSessionData.activeGalaxyId);
                 else switchToMainView();
             });
@@ -402,6 +485,8 @@ export const UIManager = (() => {
             window.addEventListener('mouseup', panMouseUp);
         },
         renderMainScreen: renderMainScreen,
-        setActiveScreen: setActiveScreen, 
+        setActiveScreen: setActiveScreen,
+        // Expose togglePlanetFocus for the sidebar click handler
+        togglePlanetFocus: togglePlanetFocus,
     };
 })();

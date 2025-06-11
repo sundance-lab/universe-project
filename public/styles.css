@@ -192,11 +192,7 @@ body, html {
   width: 100%;
   height: 100%;
   outline: none;
-  cursor: grab;
-}
-
-#galaxy-canvas:active {
-    cursor: grabbing;
+  cursor: pointer; /* Changed from grab to pointer */
 }
 
 .back-button {

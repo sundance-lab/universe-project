@@ -9,7 +9,7 @@ export const GalaxyRenderer = (() => {
     let animationFrameId = null;
     let onSystemClickCallback = null;
     let interactiveSystemsData = [];
-    let createdTextures = []; // FIX: To properly manage texture disposal
+    let createdTextures = [];
 
     // --- PARAMETERS ---
     const GALAXY_RADIUS = 1500;
@@ -30,7 +30,7 @@ export const GalaxyRenderer = (() => {
 
     function _createAndCacheTexture(creationFunction) {
         const texture = creationFunction();
-        createdTextures.push(texture); // FIX: Cache texture for proper disposal
+        createdTextures.push(texture);
         return texture;
     }
 
@@ -43,7 +43,7 @@ export const GalaxyRenderer = (() => {
             const context = canvas.getContext('2d');
             const gradient = context.createRadialGradient(size / 2, size / 2, 0, size / 2, size / 2, size / 2);
             gradient.addColorStop(0, color);
-            gradient.addColorStop(gradientStop, 'rgba(255,220,200,0.8)');
+            gradient.addColorStop(gradientStop, 'rgba(200, 200, 255,0.8)'); // Changed to a neutral purpleish-white
             gradient.addColorStop(1, 'rgba(255,255,255,0)');
             context.fillStyle = gradient;
             context.fillRect(0, 0, size, size);
@@ -59,9 +59,10 @@ export const GalaxyRenderer = (() => {
             canvas.height = size;
             const context = canvas.getContext('2d');
             const gradient = context.createRadialGradient(size/2, size/2, 0, size/2, size/2, size/2);
-            gradient.addColorStop(0, 'rgba(255, 100, 180, 0.3)');
-            gradient.addColorStop(0.4, 'rgba(200, 80, 255, 0.1)');
-            gradient.addColorStop(1, 'rgba(150, 50, 200, 0)');
+            // Changed to a lighter purple nebula
+            gradient.addColorStop(0, 'rgba(148, 120, 255, 0.3)');
+            gradient.addColorStop(0.4, 'rgba(120, 80, 220, 0.1)');
+            gradient.addColorStop(1, 'rgba(120, 80, 220, 0)');
             context.fillStyle = gradient;
             context.fillRect(0,0,size,size);
             return new THREE.CanvasTexture(canvas);
@@ -76,9 +77,10 @@ export const GalaxyRenderer = (() => {
             canvas.height = size;
             const context = canvas.getContext('2d');
             const gradient = context.createRadialGradient(size / 2, size / 2, 0, size / 2, size / 2, size / 2);
-            gradient.addColorStop(0, 'rgba(120, 80, 220, 0.5)');
-            gradient.addColorStop(0.4, 'rgba(50, 80, 200, 0.2)');
-            gradient.addColorStop(1, 'rgba(30, 50, 150, 0)');
+            // Changed to a richer dark blue/purple mix
+            gradient.addColorStop(0, 'rgba(80, 90, 200, 0.5)');
+            gradient.addColorStop(0.4, 'rgba(40, 50, 150, 0.2)');
+            gradient.addColorStop(1, 'rgba(20, 30, 100, 0)');
             context.fillStyle = gradient;
             context.fillRect(0, 0, size, size);
             return new THREE.CanvasTexture(canvas);
@@ -89,7 +91,7 @@ export const GalaxyRenderer = (() => {
         const loader = new THREE.TextureLoader();
         loader.load('https://cdn.jsdelivr.net/gh/jeromeetienne/threex.planets@master/images/galaxy_starfield.png', (texture) => {
             texture.wrapS = texture.wrapT = THREE.RepeatWrapping;
-            createdTextures.push(texture); // FIX: Cache texture for proper disposal
+            createdTextures.push(texture);
             const skyGeometry = new THREE.SphereGeometry(25000, 64, 32);
             const skyMaterial = new THREE.MeshBasicMaterial({ map: texture, side: THREE.BackSide, color: 0x8899bb });
             skybox = new THREE.Mesh(skyGeometry, skyMaterial);
@@ -138,7 +140,7 @@ export const GalaxyRenderer = (() => {
         distantGalaxies = new THREE.Group();
         const loader = new THREE.TextureLoader();
         const galaxyTexture = loader.load('https://cdn.jsdelivr.net/gh/Sean-Bradley/Three.js-TypeScript-Boilerplate@master/src/assets/images/galaxy.png', 
-            (texture) => createdTextures.push(texture) // FIX: Cache texture
+            (texture) => createdTextures.push(texture)
         );
         for (let i = 0; i < DISTANT_GALAXY_COUNT; i++) {
             const material = new THREE.SpriteMaterial({ map: galaxyTexture, blending: THREE.AdditiveBlending, transparent: true, opacity: 0.1 + Math.random() * 0.3, color: new THREE.Color(Math.random(), Math.random(), Math.random()) });
@@ -156,18 +158,21 @@ export const GalaxyRenderer = (() => {
     
     function _createSisterGalaxy() {
         sisterGalaxy = new THREE.Group();
-        const positions = [];
-        const colors = [];
-        const coreColor = new THREE.Color(0xFFE082);
-        const armColor = new THREE.Color(0x82B1FF);
+        const positions = [], colors = [];
         
+        const colorPalette = [
+            new THREE.Color(0x00008B), // Dark Blue
+            new THREE.Color(0x483D8B), // Dark Slate Blue (as dark purple)
+            new THREE.Color(0x9370DB)  // Lighter, "space-esque" purple
+        ];
+
         for (let i = 0; i < 20000; i++) {
             const distance = Math.sqrt(Math.random()) * GALAXY_RADIUS * 0.8;
             const angle = Math.random() * Math.PI * 2;
             const y = _gaussianRandom() * GALAXY_THICKNESS * 0.5;
             positions.push(Math.cos(angle) * distance, y, Math.sin(angle) * distance);
-            const color = new THREE.Color().lerpColors(coreColor, armColor, distance / (GALAXY_RADIUS * 0.8));
-            colors.push(color.r, color.g, color.b);
+            const starColor = colorPalette[Math.floor(Math.random() * colorPalette.length)];
+            colors.push(starColor.r, starColor.g, starColor.b);
         }
         
         const geometry = new THREE.BufferGeometry();
@@ -191,32 +196,40 @@ export const GalaxyRenderer = (() => {
         const dustTexture = _createDustTexture();
         const nebulaTexture = _createNebulaTexture();
         
-        const coreColor = new THREE.Color(0xFFE5B4);
-        const armColor = new THREE.Color(0x9EBBFF);
+        // Define the new color palette
+        const colorPalette = [
+            new THREE.Color(0x00008B), // Dark Blue
+            new THREE.Color(0x483D8B), // Dark Slate Blue (as dark purple)
+            new THREE.Color(0x9370DB)  // Lighter, "space-esque" purple
+        ];
         
         const armVariations = [];
         for (let i = 0; i < NUM_ARMS; i++) {
             armVariations.push({ offset: (Math.random() - 0.5) * 0.5, rotation: ARM_ROTATION * (1 + (Math.random() - 0.5) * 0.1) });
         }
         
+        // Generate core stars with the new palette
         for (let i = 0; i < CORE_STAR_COUNT; i++) {
             const distance = Math.pow(Math.random(), 2) * GALAXY_CORE_RADIUS;
             const randomY = _gaussianRandom() * GALAXY_THICKNESS * 2.0;
             const angle = Math.random() * Math.PI * 2;
             corePositions.push( Math.cos(angle) * distance, randomY, Math.sin(angle) * distance );
-            const color = new THREE.Color(0xFFF8E7).lerp(coreColor, Math.random() * 0.5);
+            const starColor = colorPalette[Math.floor(Math.random() * colorPalette.length)];
+            const color = new THREE.Color(starColor).multiplyScalar(1.5); // Make core stars brighter
             coreColors.push(color.r, color.g, color.b);
         }
         
+        // Generate disk stars with the new palette
         for (let i = 0; i < DISK_STAR_COUNT; i++) {
              const distance = GALAXY_CORE_RADIUS + Math.sqrt(Math.random()) * (GALAXY_RADIUS - GALAXY_CORE_RADIUS);
              const randomY = _gaussianRandom() * (GALAXY_THICKNESS * 0.5);
              const angle = Math.random() * Math.PI * 2;
              diskPositions.push(Math.cos(angle) * distance, randomY, Math.sin(angle) * distance);
-             const color = new THREE.Color().lerpColors(coreColor, armColor, distance / GALAXY_RADIUS);
-             diskColors.push(color.r, color.g, color.b);
+             const starColor = colorPalette[Math.floor(Math.random() * colorPalette.length)];
+             diskColors.push(starColor.r, starColor.g, starColor.b);
         }
 
+        // Generate arm stars with the new palette
         for (let i = 0; i < DECORATIVE_STAR_COUNT; i++) {
             const distance = Math.sqrt(Math.random()) * GALAXY_RADIUS;
             const armIndex = Math.floor(Math.random() * (NUM_ARMS - 0.001));
@@ -232,15 +245,13 @@ export const GalaxyRenderer = (() => {
             const randomY = _gaussianRandom() * y_thickness * (1-Math.pow(distance/GALAXY_RADIUS, 2));
 
             decorativePositions.push( Math.cos(angle) * distance + randomX + Math.cos(angle) * turbulence, randomY, Math.sin(angle) * distance + randomZ + Math.sin(angle) * turbulence );
-            const distanceRatio = Math.pow(distance / GALAXY_RADIUS, 1.5);
-            const starColor = new THREE.Color().lerpColors(coreColor, armColor, distanceRatio);
-            const brightness = 0.5 + Math.pow(1 - distanceRatio, 2) * 0.5;
-            starColor.multiplyScalar(brightness);
+            const starColor = colorPalette[Math.floor(Math.random() * colorPalette.length)];
             decorativeColors.push(starColor.r, starColor.g, starColor.b);
-            const size = (1.0 - distanceRatio) * 15 + 5;
+            const size = (1.0 - Math.pow(distance / GALAXY_RADIUS, 1.5)) * 15 + 5;
             decorativeSizes.push(size);
         }
 
+        // Other generation logic
         for(let i=0; i<NEBULA_CLUSTER_COUNT; i++) {
             const distance = GALAXY_CORE_RADIUS + Math.random() * (GALAXY_RADIUS - GALAXY_CORE_RADIUS);
             const armIndex = i % NUM_ARMS;
@@ -273,8 +284,7 @@ export const GalaxyRenderer = (() => {
             const position = new THREE.Vector3(Math.cos(angle) * distance + _gaussianRandom() * 50, _gaussianRandom() * (GALAXY_THICKNESS / 3), Math.sin(angle) * distance + _gaussianRandom() * 50);
             system.position = position;
             clickablePositions.push(position.x, position.y, position.z);
-            const colorLerp = Math.pow(distance / GALAXY_RADIUS, 1.5);
-            const starColor = new THREE.Color().lerpColors(coreColor, armColor, colorLerp);
+            const starColor = colorPalette[Math.floor(Math.random() * colorPalette.length)];
             clickableColors.push(starColor.r, starColor.g, starColor.b);
         });
 
@@ -374,7 +384,6 @@ export const GalaxyRenderer = (() => {
         if (renderer) renderer.domElement.removeEventListener('click', _onCanvasClick);
         if (controls) controls.dispose();
         
-        // FIX: Dispose textures properly
         for(const texture of createdTextures) {
             texture.dispose();
         }
@@ -383,7 +392,6 @@ export const GalaxyRenderer = (() => {
         scene?.traverse(object => {
             if (object.geometry) object.geometry.dispose();
             if (object.material) {
-                // Do not dispose maps here anymore as they are handled above
                 object.material.dispose();
             }
         });

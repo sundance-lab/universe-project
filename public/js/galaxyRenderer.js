@@ -57,9 +57,8 @@ export const GalaxyRenderer = (() => {
     const GALAXY_RADIUS = 500;
     const NUM_ARMS = 2;
     const BULGE_PARTICLES = 50000;
-    // --- MODIFICATION: Adjusted particle counts as requested ---
-    const ARM_STARS_PARTICLES = 150000;  // Reduced by 50%
-    const DISK_STARS_PARTICLES = 120000;  // Increased by 20%
+    const ARM_STARS_PARTICLES = 150000;
+    const DISK_STARS_PARTICLES = 120000;
     const NEBULA_PARTICLES = 400;
 
     const armProfiles = [
@@ -98,6 +97,8 @@ export const GalaxyRenderer = (() => {
         controls.screenSpacePanning = false;
         controls.minDistance = 20;
         controls.maxDistance = GALAXY_RADIUS * 8;
+        // --- MODIFICATION 1: Disable default zoom to implement custom zoom-to-point ---
+        controls.enableZoom = false;
         
         raycaster = new THREE.Raycaster();
         mouse = new THREE.Vector2();
@@ -116,6 +117,8 @@ export const GalaxyRenderer = (() => {
         scene.add(galaxyGroup);
         
         renderer.domElement.addEventListener('click', _onCanvasClick);
+        // --- MODIFICATION 1: Add custom wheel listener ---
+        renderer.domElement.addEventListener('wheel', _onCanvasWheel, { passive: false });
         window.addEventListener('resize', _onResize);
     }
 
@@ -163,12 +166,12 @@ export const GalaxyRenderer = (() => {
                 const armRotation = arm.angleOffset;
                 const distance = progress * GALAXY_RADIUS * arm.length;
                 
-                // --- MODIFICATION: Increased scatter significantly for a more diffuse look ---
+                // --- MODIFICATION 2: Removed progress term from clusterRadius for consistent width ---
                 const noiseFactor = 0.5 + SimplexNoise.noise(progress * 8, armIndex * 5, i / 1000) * 0.5;
-                const clusterRadius = 150 * (1 - progress * 0.5) * noiseFactor; // Increased base scatter
+                const clusterRadius = 80 * noiseFactor; 
                 
                 const randomX = (Math.random() - 0.5) * clusterRadius;
-                const randomY = (Math.random() - 0.5) * 25 * (1 - progress) * noiseFactor;
+                const randomY = (Math.random() - 0.5) * 25 * noiseFactor;
                 const randomZ = (Math.random() - 0.5) * clusterRadius;
                 
                 const x = Math.cos(angle + armRotation) * distance + randomX;
@@ -190,7 +193,7 @@ export const GalaxyRenderer = (() => {
             depthWrite: false,
             blending: THREE.AdditiveBlending,
             vertexColors: true,
-            opacity: 0.8, // Slightly reduce arm opacity to blend better
+            opacity: 0.8,
             transparent: true
         });
         galaxyGroup.add(new THREE.Points(geometry, material));
@@ -201,16 +204,13 @@ export const GalaxyRenderer = (() => {
         const color = new THREE.Color('#fefbe8');
 
         for (let i = 0; i < DISK_STARS_PARTICLES; i++) {
-            const r = Math.pow(Math.random(), 1.2) * GALAXY_RADIUS * 1.2;
+            // --- MODIFICATION 3: Use power function for smooth falloff, removing noise ---
+            const r = Math.pow(Math.random(), 2.0) * GALAXY_RADIUS * 1.5;
             const theta = Math.random() * Math.PI * 2;
-            const y = (Math.random() - 0.5) * 25;
+            const y = (Math.random() - 0.5) * 30;
 
-            // --- MODIFICATION: Apply noise to radius to break the circular "stroke" ---
-            const noise = SimplexNoise.noise(Math.cos(theta) * 2, Math.sin(theta) * 2, 0);
-            const noisyRadius = r * (1 + noise * 0.2); // Vary radius by up to 20% based on noise
-
-            const x = Math.cos(theta) * noisyRadius;
-            const z = Math.sin(theta) * noisyRadius;
+            const x = Math.cos(theta) * r;
+            const z = Math.sin(theta) * r;
 
             positions.push(x,y,z);
         }
@@ -224,7 +224,7 @@ export const GalaxyRenderer = (() => {
             depthWrite: false,
             blending: THREE.AdditiveBlending,
             transparent: true,
-            opacity: 0.25 
+            opacity: 0.2 
         });
         const disk = new THREE.Points(geometry, material);
         galaxyGroup.add(disk);
@@ -299,17 +299,42 @@ export const GalaxyRenderer = (() => {
         solarSystemParticles = new THREE.Points(geometry, material);
         galaxyGroup.add(solarSystemParticles);
     }
+    
+    // --- MODIFICATION 1: Custom wheel handler for zoom-to-point ---
+    function _onCanvasWheel(event) {
+        event.preventDefault();
+
+        const fov = camera.fov * Math.PI / 180;
+        const fov_y = 2.0 * Math.atan(Math.tan(fov * 0.5) / camera.aspect);
+        const zoom_factor = 1.0 - 0.1 * Math.sign(event.deltaY);
+        
+        const plane = new THREE.Plane();
+        const mouse_point = new THREE.Vector3();
+        
+        plane.setFromNormalAndCoplanarPoint(camera.getWorldDirection(plane.normal), controls.target);
+        raycaster.setFromCamera(mouse, camera);
+        raycaster.ray.intersectPlane(plane, mouse_point);
+
+        const new_dist = mouse_point.distanceTo(camera.position) * zoom_factor;
+        const new_cam_pos = mouse_point.clone().add(camera.getWorldDirection(new THREE.Vector3()).negate().multiplyScalar(new_dist));
+
+        const dist = controls.getDistance() * zoom_factor;
+
+        if (dist > controls.minDistance && dist < controls.maxDistance) {
+            controls.target.copy(mouse_point);
+            camera.position.copy(new_cam_pos);
+        }
+    }
 
     function _onCanvasClick(event) {
         if (!onSystemClickCallback) return;
         const canvas = renderer.domElement;
         const rect = canvas.getBoundingClientRect();
         
-        const gMouse = new THREE.Vector2();
-        gMouse.x = ((event.clientX - rect.left) / canvas.clientWidth) * 2 - 1;
-        gMouse.y = -((event.clientY - rect.top) / canvas.clientHeight) * 2 + 1;
+        mouse.x = ((event.clientX - rect.left) / canvas.clientWidth) * 2 - 1;
+        mouse.y = -((event.clientY - rect.top) / canvas.clientHeight) * 2 + 1;
         
-        raycaster.setFromCamera(gMouse, camera);
+        raycaster.setFromCamera(mouse, camera);
         const intersects = raycaster.intersectObject(solarSystemParticles);
         if (intersects.length > 0) {
             const systemId = solarSystemData?.[intersects[0]?.index]?.id;
@@ -341,7 +366,11 @@ export const GalaxyRenderer = (() => {
     function _dispose() {
         if (animationFrameId) cancelAnimationFrame(animationFrameId);
         window.removeEventListener('resize', _onResize);
-        if (renderer) renderer.domElement.removeEventListener('click', _onCanvasClick);
+        if (renderer) {
+            renderer.domElement.removeEventListener('click', _onCanvasClick);
+            // --- MODIFICATION 1: Remove custom wheel listener on dispose ---
+            renderer.domElement.removeEventListener('wheel', _onCanvasWheel);
+        }
         if (controls) controls.dispose();
         scene?.traverse(object => {
             if (object.geometry) object.geometry.dispose();

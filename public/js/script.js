@@ -67,7 +67,6 @@ document.addEventListener('DOMContentLoaded', () => {
         createPlanetDesignButton: document.getElementById('create-planet-design-btn'),
         planetSidebar: document.getElementById('planet-sidebar'),
         planetSidebarList: document.getElementById('planet-sidebar-list'),
-        // START: Add Dev Controls Elements
         devControlsButton: document.getElementById('dev-controls-btn'),
         devControlsModal: document.getElementById('dev-controls-modal'),
         devNumGalaxiesInput: document.getElementById('dev-num-galaxies'),
@@ -78,14 +77,12 @@ document.addEventListener('DOMContentLoaded', () => {
         devOrbitSpeedValue: document.getElementById('dev-orbit-speed-value'),
         devControlsSaveButton: document.getElementById('dev-controls-save'),
         devControlsCancelButton: document.getElementById('dev-controls-cancel'),
-        // END: Add Dev Controls Elements
     };
     
     // --- FUNCTIONS ---
     window.saveGameState = saveGameState;
     window.generatePlanetInstanceFromBasis = generatePlanetInstanceFromBasis;
 
-    // START: Add Dev Controls Logic
     function loadDevSettings() {
         const defaults = { numGalaxies: 3, minPlanets: 2, maxPlanets: 8, orbitLinesVisible: false, orbitSpeed: 1.0 };
         try {
@@ -131,7 +128,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
     function setupDevControlsListeners() {
         domElements.devControlsButton.addEventListener('click', () => {
-            updateDevControlsUI(); // Ensure UI is up-to-date when opened
+            updateDevControlsUI();
             domElements.devControlsModal.classList.add('visible');
         });
         domElements.devControlsCancelButton.addEventListener('click', () => domElements.devControlsModal.classList.remove('visible'));
@@ -140,14 +137,11 @@ document.addEventListener('DOMContentLoaded', () => {
             domElements.devOrbitSpeedValue.textContent = Number(e.target.value).toFixed(1);
         });
     }
-    // END: Add Dev Controls Logic
 
     function generatePlanetsForSystem(solarSystemObject){
         solarSystemObject.planets = [];
         const numPlanets = Math.floor(Math.random() * (devSettings.maxPlanets - devSettings.minPlanets + 1)) + devSettings.minPlanets;
         
-        console.log(`[DEBUG] Generating ${numPlanets} planets for system ${solarSystemObject.id}.`);
-
         const SUN_ICON_SIZE = 60;
         const MIN_ORBITAL_SEPARATION = 2000;
         const MIN_PLANET_DISTANCE = SUN_ICON_SIZE * 3.0;
@@ -174,7 +168,7 @@ document.addEventListener('DOMContentLoaded', () => {
     
     function initializeGame(isForcedRegeneration = false) {
         console.log("Initializing game...");
-        loadDevSettings(); // Load settings first
+        loadDevSettings();
 
         if (!isForcedRegeneration && loadGameState()) {
             console.log("Loaded existing game state.");
@@ -186,7 +180,7 @@ document.addEventListener('DOMContentLoaded', () => {
         }
         
         UIManager.renderMainScreen();
-        preGenerateAllGalaxyContents(window.gameSessionData, domElements.galaxyViewport, { min: 200, max: 300 }); // Note: SS count is not in dev controls yet
+        preGenerateAllGalaxyContents(window.gameSessionData, domElements.galaxyViewport, { min: 200, max: 300 }); 
         
         window.gameSessionData.isInitialized = true;
         console.log("Game initialization complete.");
@@ -207,14 +201,15 @@ document.addEventListener('DOMContentLoaded', () => {
         },
         generatePlanetsForSystem: generatePlanetsForSystem,
         getCustomizationSettings: () => ({
-            ssCountRange: { min: 200, max: 300 } // Note: Not yet in dev controls
-        })
+            ssCountRange: { min: 200, max: 300 }
+        }),
+        getDevSettings: () => devSettings, // FIX: Expose devSettings for other modules
     };
 
     UIManager.init(domElements, callbacks);
     
     // --- STARTUP ---
     initializeModules();
-    setupDevControlsListeners(); // Set up listeners for the new modal
+    setupDevControlsListeners();
     initializeGame();
 });

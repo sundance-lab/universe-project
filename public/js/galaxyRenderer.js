@@ -57,9 +57,10 @@ export const GalaxyRenderer = (() => {
     const GALAXY_RADIUS = 500;
     const NUM_ARMS = 2;
     const BULGE_PARTICLES = 50000;
-    const ARM_STARS_PARTICLES = 250000;
+    // --- MODIFICATION: Adjusted particle counts as requested ---
+    const ARM_STARS_PARTICLES = 150000;  // Reduced by 50%
+    const DISK_STARS_PARTICLES = 120000;  // Increased by 20%
     const NEBULA_PARTICLES = 400;
-    const DISK_STARS_PARTICLES = 200000; 
 
     const armProfiles = [
         { angleOffset: 0.0, tightness: 4.0, length: 1.0 },
@@ -162,12 +163,12 @@ export const GalaxyRenderer = (() => {
                 const armRotation = arm.angleOffset;
                 const distance = progress * GALAXY_RADIUS * arm.length;
                 
-                // --- MODIFICATION: Increased random scatter for a more diffuse, spread-out look ---
+                // --- MODIFICATION: Increased scatter significantly for a more diffuse look ---
                 const noiseFactor = 0.5 + SimplexNoise.noise(progress * 8, armIndex * 5, i / 1000) * 0.5;
-                const clusterRadius = 120 * (1 - progress * 0.5) * noiseFactor; // Increased base scatter
+                const clusterRadius = 150 * (1 - progress * 0.5) * noiseFactor; // Increased base scatter
                 
                 const randomX = (Math.random() - 0.5) * clusterRadius;
-                const randomY = (Math.random() - 0.5) * 20 * (1 - progress) * noiseFactor; // More vertical scatter
+                const randomY = (Math.random() - 0.5) * 25 * (1 - progress) * noiseFactor;
                 const randomZ = (Math.random() - 0.5) * clusterRadius;
                 
                 const x = Math.cos(angle + armRotation) * distance + randomX;
@@ -184,11 +185,13 @@ export const GalaxyRenderer = (() => {
         geometry.setAttribute('position', new THREE.Float32BufferAttribute(positions, 3));
         geometry.setAttribute('color', new THREE.Float32BufferAttribute(colors, 3));
         const material = new THREE.PointsMaterial({
-            size: 1.2, // Slightly larger particles to compensate for spread
+            size: 1.2,
             sizeAttenuation: true,
             depthWrite: false,
             blending: THREE.AdditiveBlending,
-            vertexColors: true
+            vertexColors: true,
+            opacity: 0.8, // Slightly reduce arm opacity to blend better
+            transparent: true
         });
         galaxyGroup.add(new THREE.Points(geometry, material));
     }
@@ -200,10 +203,14 @@ export const GalaxyRenderer = (() => {
         for (let i = 0; i < DISK_STARS_PARTICLES; i++) {
             const r = Math.pow(Math.random(), 1.2) * GALAXY_RADIUS * 1.2;
             const theta = Math.random() * Math.PI * 2;
-            const y = (Math.random() - 0.5) * 25; // Slightly thicker disk
+            const y = (Math.random() - 0.5) * 25;
 
-            const x = Math.cos(theta) * r;
-            const z = Math.sin(theta) * r;
+            // --- MODIFICATION: Apply noise to radius to break the circular "stroke" ---
+            const noise = SimplexNoise.noise(Math.cos(theta) * 2, Math.sin(theta) * 2, 0);
+            const noisyRadius = r * (1 + noise * 0.2); // Vary radius by up to 20% based on noise
+
+            const x = Math.cos(theta) * noisyRadius;
+            const z = Math.sin(theta) * noisyRadius;
 
             positions.push(x,y,z);
         }
@@ -217,7 +224,7 @@ export const GalaxyRenderer = (() => {
             depthWrite: false,
             blending: THREE.AdditiveBlending,
             transparent: true,
-            opacity: 0.2 // Slightly more visible disk
+            opacity: 0.25 
         });
         const disk = new THREE.Points(geometry, material);
         galaxyGroup.add(disk);
@@ -259,9 +266,6 @@ export const GalaxyRenderer = (() => {
         });
         galaxyGroup.add(new THREE.Points(geometry, material));
     }
-    
-    // --- MODIFICATION: This function is now removed by not being called ---
-    // function _createDustLanes() { ... }
 
     function _createSolarSystemParticles(systems) {
         solarSystemData = systems;

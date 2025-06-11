@@ -174,7 +174,7 @@ const domElements = {
         }
         
         UIManager.renderMainScreen();
-        preGenerateAllGalaxyContents(window.gameSessionData, domElements.galaxyDetailScreen, { min: 3500, max: 5000 });
+        preGenerateAllGalaxyContents(window.gameSessionData, domElements.galaxyDetailScreen, { min: 1500, max:2000 });
         
         window.gameSessionData.isInitialized = true;
         console.log("Game initialization complete.");

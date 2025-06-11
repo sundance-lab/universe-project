@@ -17,10 +17,10 @@ export const GalaxyRenderer = (() => {
     const GALAXY_CORE_RADIUS = 400;
     const NUM_ARMS = 5;
     const ARM_ROTATION = 4.0 * Math.PI;
-    const DECORATIVE_STAR_COUNT = 100000; // Doubled
-    const CORE_STAR_COUNT = 40000;       // Doubled
-    const DISK_STAR_COUNT = 120000;      // Doubled to fill space
-    const HALO_STAR_COUNT = 80000;       // Doubled
+    const DECORATIVE_STAR_COUNT = 50000;  // Reverted
+    const CORE_STAR_COUNT = 20000;       // Reverted
+    const DISK_STAR_COUNT = 120000;      // Kept high to fill space
+    const HALO_STAR_COUNT = 150000;      // Massively Increased for outer stars
     const DUST_COUNT = 15000;
     const BACKGROUND_STAR_COUNT = 250000;
     const NEBULA_CLUSTER_COUNT = 50;
@@ -77,7 +77,6 @@ export const GalaxyRenderer = (() => {
             canvas.height = size;
             const context = canvas.getContext('2d');
             const gradient = context.createRadialGradient(size / 2, size / 2, 0, size / 2, size / 2, size / 2);
-            // Returned to the purple dust color
             gradient.addColorStop(0, 'rgba(120, 80, 220, 0.5)');
             gradient.addColorStop(0.4, 'rgba(80, 40, 180, 0.2)');
             gradient.addColorStop(1, 'rgba(50, 20, 120, 0)');
@@ -172,10 +171,8 @@ export const GalaxyRenderer = (() => {
     function _createSisterGalaxy() {
         sisterGalaxy = new THREE.Group();
         const positions = [], colors = [];
-        const STAR_COUNT = 80000; // Increased star count
-        const RADIUS_X = GALAXY_RADIUS * 0.8;
-        const RADIUS_Y = GALAXY_RADIUS * 0.5; // Asymmetrical cloud shape
-        const RADIUS_Z = GALAXY_RADIUS * 0.9;
+        const STAR_COUNT = 80000;
+        const RADIUS = GALAXY_RADIUS * 0.8;
         
         const colorPalette = [
             new THREE.Color(0xFF8C00), new THREE.Color(0xFF8C00), new THREE.Color(0xFF8C00),
@@ -183,18 +180,20 @@ export const GalaxyRenderer = (() => {
         ];
 
         for (let i = 0; i < STAR_COUNT; i++) {
-            // Completely random point cloud in an ellipsoid for an irregular shape
-            const x = (Math.random() - 0.5) * RADIUS_X * 2;
-            const y = (Math.random() - 0.5) * RADIUS_Y * 2;
-            const z = (Math.random() - 0.5) * RADIUS_Z * 2;
+            // Generate a point in a disk
+            const r = Math.random() * RADIUS;
+            const angle = Math.random() * Math.PI * 2;
+            const y = (Math.random() - 0.5) * GALAXY_THICKNESS * 0.4;
             
-            // Add some random noise clumps
-            const noiseFactor = Math.sin(x * 0.1) * Math.cos(z * 0.1);
-            if (noiseFactor > 0.3) {
-                positions.push(x, y, z);
-                const starColor = colorPalette[Math.floor(Math.random() * colorPalette.length)];
-                colors.push(starColor.r, starColor.g, starColor.b);
-            }
+            const pos = new THREE.Vector3(Math.cos(angle) * r, y, Math.sin(angle) * r);
+            
+            // Add significant noise/displacement for irregularity
+            const displacement = new THREE.Vector3((Math.random() - 0.5), (Math.random() - 0.5), (Math.random() - 0.5)).multiplyScalar(RADIUS * 0.6);
+            pos.add(displacement);
+
+            positions.push(pos.x, pos.y, pos.z);
+            const starColor = colorPalette[Math.floor(Math.random() * colorPalette.length)];
+            colors.push(starColor.r, starColor.g, starColor.b);
         }
         
         const geometry = new THREE.BufferGeometry();
@@ -209,7 +208,7 @@ export const GalaxyRenderer = (() => {
         coreGlow.scale.set(GALAXY_RADIUS * 0.6, GALAXY_RADIUS * 0.6, 1);
         sisterGalaxy.add(coreGlow);
         
-        sisterGalaxy.position.set(-GALAXY_RADIUS * 4, -GALAXY_RADIUS * 2, -GALAXY_RADIUS * 6); // Pushed further away
+        sisterGalaxy.position.set(-GALAXY_RADIUS * 4, -GALAXY_RADIUS * 2, -GALAXY_RADIUS * 6);
         sisterGalaxy.rotation.set(Math.PI / 5, Math.PI / 9, Math.PI / 7);
         scene.add(sisterGalaxy);
     }
@@ -295,7 +294,7 @@ export const GalaxyRenderer = (() => {
         }
         for (let i = 0; i < DUST_COUNT; i++) {
             const distance = Math.pow(Math.random(), 0.8) * GALAXY_RADIUS;
-            const y_thickness = distance < GALAXY_CORE_RADIUS ? GALAXY_THICKNESS * 2.5 : GALAXY_THICKNESS;
+            const y_thickness = GALAXY_THICKNESS * 0.2; // Made dust much thinner
             const randomY = _gaussianRandom() * y_thickness * (1-Math.pow(distance/GALAXY_RADIUS, 2));
             const armIndex = Math.floor(Math.random() * (NUM_ARMS - 0.001));
             const armAngle = (armIndex / NUM_ARMS) * 2 * Math.PI;
@@ -322,7 +321,7 @@ export const GalaxyRenderer = (() => {
         const haloGeometry = new THREE.BufferGeometry();
         haloGeometry.setAttribute('position', new THREE.Float32BufferAttribute(haloPositions, 3));
         haloGeometry.setAttribute('color', new THREE.Float32BufferAttribute(haloColors, 3));
-        const haloMaterial = new THREE.PointsMaterial({ size: 5, map: starTexture, vertexColors: true, sizeAttenuation: true, depthWrite: false, blending: THREE.AdditiveBlending, transparent: true, opacity: 0.15 });
+        const haloMaterial = new THREE.PointsMaterial({ size: 5, map: starTexture, vertexColors: true, sizeAttenuation: true, depthWrite: false, blending: THREE.AdditiveBlending, transparent: true, opacity: 0.25 });
         haloStarParticles = new THREE.Points(haloGeometry, haloMaterial);
 
         const coreGeometry = new THREE.BufferGeometry();
@@ -335,7 +334,7 @@ export const GalaxyRenderer = (() => {
         const diskGeometry = new THREE.BufferGeometry();
         diskGeometry.setAttribute('position', new THREE.Float32BufferAttribute(diskPositions, 3));
         diskGeometry.setAttribute('color', new THREE.Float32BufferAttribute(diskColors, 3));
-        const diskMaterial = new THREE.PointsMaterial({ size: 8, map: starTexture, vertexColors: true, sizeAttenuation: true, depthWrite: false, blending: THREE.AdditiveBlending, transparent: true, opacity: 0.4 });
+        const diskMaterial = new THREE.PointsMaterial({ size: 8, map: starTexture, vertexColors: true, sizeAttenuation: true, depthWrite: false, blending: THREE.AdditiveBlending, transparent: true, opacity: 1.0 }); // Made opaque
         diskStarParticles = new THREE.Points(diskGeometry, diskMaterial);
 
         const decorativeGeometry = new THREE.BufferGeometry();

@@ -179,6 +179,7 @@ export function generateSolarSystemsForGalaxy(galaxy, galaxyViewport, ssCountRan
                 y: position.y,
                 iconSize: SOLAR_SYSTEM_BASE_ICON_SIZE,
                 sunSizeFactor: sunSizeFactor,
+                sunType: Math.floor(Math.random() * 5)
             });
             solarSystemPlacementRects.push({ ...position, width: SOLAR_SYSTEM_BASE_ICON_SIZE, height: SOLAR_SYSTEM_BASE_ICON_SIZE });
         }

@@ -1,3 +1,7 @@
+/*
+File: sundance-lab/universe-project/universe-project-b044ce4d52b6181af39f9a6378ca10b19a7c04d4/public/js/solarSystemRenderer.js
+*/
+
 import * as THREE from 'three';
 import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls.js';
 import { getPlanetShaders } from './shaders.js';
@@ -232,12 +236,15 @@ export const SolarSystemRenderer = (() => {
         if (cameraAnimation) {
             const speed = 0.04;
 
+            // **THE FIX**: If focusing, update the animation's destination every frame.
             if (focusedPlanetMesh) {
                 const newPlanetPosition = new THREE.Vector3();
                 focusedPlanetMesh.getWorldPosition(newPlanetPosition);
                 const oldPlanetPosition = focusedPlanetMesh.userData.lastWorldPosition;
                 const delta = new THREE.Vector3().subVectors(newPlanetPosition, oldPlanetPosition);
 
+                // Move the target destination by the same amount the planet moved.
+                // This ensures the camera animates towards where the planet IS, not where it WAS.
                 cameraAnimation.targetPosition.add(delta);
                 cameraAnimation.targetLookAt.add(delta);
             }

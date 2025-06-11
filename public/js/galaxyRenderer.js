@@ -57,10 +57,9 @@ export const GalaxyRenderer = (() => {
     const GALAXY_RADIUS = 500;
     const NUM_ARMS = 2;
     const BULGE_PARTICLES = 50000;
-    const ARM_STARS_PARTICLES = 300000;
-    const NEBULA_PARTICLES = 500;
-    const DUST_PARTICLES = 150000;
-    const DISK_STARS_PARTICLES = 150000; // Increased for a smoother disk
+    const ARM_STARS_PARTICLES = 250000;
+    const NEBULA_PARTICLES = 400;
+    const DISK_STARS_PARTICLES = 200000; 
 
     const armProfiles = [
         { angleOffset: 0.0, tightness: 4.0, length: 1.0 },
@@ -110,7 +109,6 @@ export const GalaxyRenderer = (() => {
         _createGalacticBulge();
         _createGalaxyArms();
         _createNebulae();
-        _createDustLanes();
         _createSolarSystemParticles(galaxy.solarSystems);
         _createGalacticDisk();
 
@@ -164,11 +162,12 @@ export const GalaxyRenderer = (() => {
                 const armRotation = arm.angleOffset;
                 const distance = progress * GALAXY_RADIUS * arm.length;
                 
-                const noiseFactor = 0.5 + SimplexNoise.noise(progress * 10, armIndex * 5, i / 1000) * 0.5;
-                const clusterRadius = 40 * (1 - progress * 0.5) * noiseFactor;
+                // --- MODIFICATION: Increased random scatter for a more diffuse, spread-out look ---
+                const noiseFactor = 0.5 + SimplexNoise.noise(progress * 8, armIndex * 5, i / 1000) * 0.5;
+                const clusterRadius = 120 * (1 - progress * 0.5) * noiseFactor; // Increased base scatter
                 
                 const randomX = (Math.random() - 0.5) * clusterRadius;
-                const randomY = (Math.random() - 0.5) * 10 * (1 - progress) * noiseFactor;
+                const randomY = (Math.random() - 0.5) * 20 * (1 - progress) * noiseFactor; // More vertical scatter
                 const randomZ = (Math.random() - 0.5) * clusterRadius;
                 
                 const x = Math.cos(angle + armRotation) * distance + randomX;
@@ -185,7 +184,7 @@ export const GalaxyRenderer = (() => {
         geometry.setAttribute('position', new THREE.Float32BufferAttribute(positions, 3));
         geometry.setAttribute('color', new THREE.Float32BufferAttribute(colors, 3));
         const material = new THREE.PointsMaterial({
-            size: 1.0,
+            size: 1.2, // Slightly larger particles to compensate for spread
             sizeAttenuation: true,
             depthWrite: false,
             blending: THREE.AdditiveBlending,
@@ -199,10 +198,9 @@ export const GalaxyRenderer = (() => {
         const color = new THREE.Color('#fefbe8');
 
         for (let i = 0; i < DISK_STARS_PARTICLES; i++) {
-            // --- MODIFICATION: Smoother distribution falloff ---
             const r = Math.pow(Math.random(), 1.2) * GALAXY_RADIUS * 1.2;
             const theta = Math.random() * Math.PI * 2;
-            const y = (Math.random() - 0.5) * 20;
+            const y = (Math.random() - 0.5) * 25; // Slightly thicker disk
 
             const x = Math.cos(theta) * r;
             const z = Math.sin(theta) * r;
@@ -219,8 +217,7 @@ export const GalaxyRenderer = (() => {
             depthWrite: false,
             blending: THREE.AdditiveBlending,
             transparent: true,
-            // --- MODIFICATION: Reduced opacity for a subtler haze ---
-            opacity: 0.1
+            opacity: 0.2 // Slightly more visible disk
         });
         const disk = new THREE.Points(geometry, material);
         galaxyGroup.add(disk);
@@ -262,49 +259,9 @@ export const GalaxyRenderer = (() => {
         });
         galaxyGroup.add(new THREE.Points(geometry, material));
     }
-
-    function _createDustLanes() {
-        const positions = [];
-        const particlesPerArm = Math.floor(DUST_PARTICLES / NUM_ARMS);
-
-        for (let armIndex = 0; armIndex < NUM_ARMS; armIndex++) {
-            const arm = armProfiles[armIndex];
-            for(let i=0; i<particlesPerArm; i++) {
-                const progress = Math.pow(i / particlesPerArm, 0.6);
-                const angle = progress * Math.PI * arm.tightness;
-                const armRotation = arm.angleOffset + 0.1;
-                const distance = progress * GALAXY_RADIUS * arm.length * 1.1;
-
-                const noiseVal = SimplexNoise.noise(
-                    (Math.cos(angle + armRotation) * distance) / 200, 
-                    (Math.sin(angle + armRotation) * distance) / 200, 
-                    i / 1000
-                );
-                
-                const randomX = (Math.random() - 0.5) * 50 * (1 - progress);
-                const randomY = (Math.random() - 0.5) * 15 * (1 - progress);
-                const randomZ = (Math.random() - 0.5) * 50 * (1 - progress);
-                
-                const x = Math.cos(angle + armRotation) * distance + randomX + noiseVal * 30;
-                const y = randomY + noiseVal * 10;
-                const z = Math.sin(angle + armRotation) * distance + randomZ + noiseVal * 30;
-                positions.push(x, y, z);
-            }
-        }
-
-        const geometry = new THREE.BufferGeometry();
-        geometry.setAttribute('position', new THREE.Float32BufferAttribute(positions, 3));
-        const material = new THREE.PointsMaterial({
-            // --- MODIFICATION: Softened dust lanes ---
-            size: 20,
-            color: '#211008', // Dark reddish-brown instead of black
-            sizeAttenuation: true,
-            depthWrite: false,
-            transparent: true,
-            opacity: 0.15 // Further reduced opacity
-        });
-        galaxyGroup.add(new THREE.Points(geometry, material));
-    }
+    
+    // --- MODIFICATION: This function is now removed by not being called ---
+    // function _createDustLanes() { ... }
 
     function _createSolarSystemParticles(systems) {
         solarSystemData = systems;

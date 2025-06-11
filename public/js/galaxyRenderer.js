@@ -9,10 +9,36 @@ export const GalaxyRenderer = (() => {
     let onSystemClickCallback = null;
     let solarSystemData = [];
 
+    // --- NEW: Copied from solarSystemRenderer.js to determine star colors ---
+    const sunVariations = [
+        { baseColor: new THREE.Color(0x4A90E2) }, // Blueish
+        { baseColor: new THREE.Color(0xFF5722) }, // Red-Orange
+        { baseColor: new THREE.Color(0xFFA500) }, // Orange
+        { baseColor: new THREE.Color(0xE0E0E0) }, // White
+        { baseColor: new THREE.Color(0xE65100) }  // Reddish
+    ];
+
     const GALAXY_RADIUS = 500;
     const NUM_DUST_PARTICLES = 50000;
     const NUM_ARM_PARTICLES = 100000;
     const NUM_ARMS = 4;
+
+    // --- NEW: Function to create a glowing star texture ---
+    function _createStarTexture() {
+        const canvas = document.createElement('canvas');
+        const size = 64;
+        canvas.width = size;
+        canvas.height = size;
+        const context = canvas.getContext('2d');
+        const gradient = context.createRadialGradient(size / 2, size / 2, 0, size / 2, size / 2, size / 2);
+        gradient.addColorStop(0, 'rgba(255,255,255,1)');
+        gradient.addColorStop(0.2, 'rgba(255,255,255,0.8)');
+        gradient.addColorStop(0.4, 'rgba(255,255,255,0.2)');
+        gradient.addColorStop(1, 'rgba(255,255,255,0)');
+        context.fillStyle = gradient;
+        context.fillRect(0, 0, size, size);
+        return new THREE.CanvasTexture(canvas);
+    }
 
     function _initScene(canvas, galaxy) {
         // Scene setup
@@ -37,7 +63,7 @@ export const GalaxyRenderer = (() => {
         // Raycasting
         raycaster = new THREE.Raycaster();
         mouse = new THREE.Vector2();
-        raycaster.params.Points.threshold = 5; // Adjust threshold for easier clicking
+        raycaster.params.Points.threshold = 5;
 
         // Lighting
         const ambientLight = new THREE.AmbientLight(0xffffff, 0.2);
@@ -69,17 +95,13 @@ export const GalaxyRenderer = (() => {
             const angle = (i / (NUM_ARM_PARTICLES / NUM_ARMS)) * Math.PI * 4;
             const armRotation = (armIndex / NUM_ARMS) * Math.PI * 2;
             const distance = Math.pow(i / (NUM_ARM_PARTICLES / NUM_ARMS), 0.8) * GALAXY_RADIUS;
-
             const randomX = (Math.random() - 0.5) * 80 * Math.random();
-            const randomY = (Math.random() - 0.5) * 20 * (1- (distance/GALAXY_RADIUS));
+            const randomY = (Math.random() - 0.5) * 20 * (1 - (distance / GALAXY_RADIUS));
             const randomZ = (Math.random() - 0.5) * 80 * Math.random();
-            
             const x = Math.cos(angle + armRotation) * distance + randomX;
             const y = randomY;
             const z = Math.sin(angle + armRotation) * distance + randomZ;
-            
             positions.push(x, y, z);
-
             const mixedColor = colorInside.clone().lerp(colorOutside, distance / GALAXY_RADIUS);
             colors.push(mixedColor.r, mixedColor.g, mixedColor.b);
         }
@@ -87,7 +109,6 @@ export const GalaxyRenderer = (() => {
         const geometry = new THREE.BufferGeometry();
         geometry.setAttribute('position', new THREE.Float32BufferAttribute(positions, 3));
         geometry.setAttribute('color', new THREE.Float32BufferAttribute(colors, 3));
-        
         const material = new THREE.PointsMaterial({
             size: 1.5,
             sizeAttenuation: true,
@@ -95,7 +116,6 @@ export const GalaxyRenderer = (() => {
             blending: THREE.AdditiveBlending,
             vertexColors: true
         });
-
         const armParticles = new THREE.Points(geometry, material);
         galaxyGroup.add(armParticles);
     }
@@ -124,46 +144,52 @@ export const GalaxyRenderer = (() => {
         galaxyGroup.add(dustParticles);
     }
 
+    // --- MODIFIED: This function is completely updated ---
     function _createSolarSystemParticles(systems) {
-        solarSystemData = systems; // Store for raycasting
+        solarSystemData = systems;
         const geometry = new THREE.BufferGeometry();
         const positions = [];
+        const colors = []; // Array for vertex colors
         const galaxyContentDiameter = window.gameSessionData.universe.diameter || 500;
+        const starTexture = _createStarTexture(); // Get the new star texture
 
-        systems.forEach((system, i) => {
-            // Map 2D positions to 3D, scaling down to fit galaxy radius
+        systems.forEach((system) => {
             const scale = (GALAXY_RADIUS * 1.5) / galaxyContentDiameter;
             const x = (system.x - galaxyContentDiameter / 2) * scale;
             const z = (system.y - galaxyContentDiameter / 2) * scale;
             const y = (Math.random() - 0.5) * 10;
             positions.push(x, y, z);
+
+            // Get color based on the stored sunType
+            const sunColor = sunVariations[system.sunType % sunVariations.length].baseColor;
+            colors.push(sunColor.r, sunColor.g, sunColor.b);
         });
 
         geometry.setAttribute('position', new THREE.Float32BufferAttribute(positions, 3));
+        geometry.setAttribute('color', new THREE.Float32BufferAttribute(colors, 3)); // Add color attribute
+
         const material = new THREE.PointsMaterial({
             size: 15,
-            color: '#ffd700',
             sizeAttenuation: true,
-            depthWrite: true,
+            depthWrite: false,
             transparent: true,
-            opacity: 0.9
+            blending: THREE.AdditiveBlending,
+            map: starTexture, // Use the texture
+            vertexColors: true // Enable vertex coloring
         });
 
         solarSystemParticles = new THREE.Points(geometry, material);
-        scene.add(solarSystemParticles);
+        scene.add(solarSystemParticles); // Add directly to scene to avoid rotation with galaxy
     }
     
     function _onCanvasClick(event) {
         if (!onSystemClickCallback) return;
-
         const canvas = renderer.domElement;
         const rect = canvas.getBoundingClientRect();
         mouse.x = ((event.clientX - rect.left) / canvas.clientWidth) * 2 - 1;
         mouse.y = -((event.clientY - rect.top) / canvas.clientHeight) * 2 + 1;
-
         raycaster.setFromCamera(mouse, camera);
         const intersects = raycaster.intersectObject(solarSystemParticles);
-
         if (intersects.length > 0) {
             const intersect = intersects[0];
             const systemIndex = intersect.index;
@@ -179,7 +205,6 @@ export const GalaxyRenderer = (() => {
         const canvas = renderer.domElement;
         const width = canvas.clientWidth;
         const height = canvas.clientHeight;
-
         if (canvas.width !== width || canvas.height !== height) {
             renderer.setSize(width, height, false);
             camera.aspect = width / height;
@@ -197,19 +222,16 @@ export const GalaxyRenderer = (() => {
     function _dispose() {
         if (animationFrameId) cancelAnimationFrame(animationFrameId);
         window.removeEventListener('resize', _onResize);
-        if(renderer) renderer.domElement.removeEventListener('click', _onCanvasClick);
-        if(controls) controls.dispose();
-        
+        if (renderer) renderer.domElement.removeEventListener('click', _onCanvasClick);
+        if (controls) controls.dispose();
         scene?.traverse(object => {
             if (object.geometry) object.geometry.dispose();
             if (object.material) {
-                if(Array.isArray(object.material)) object.material.forEach(m => m.dispose());
+                if (Array.isArray(object.material)) object.material.forEach(m => m.dispose());
                 else object.material.dispose();
             }
         });
-
         renderer?.dispose();
-        
         scene = null; camera = null; renderer = null; controls = null;
         animationFrameId = null; onSystemClickCallback = null;
     }

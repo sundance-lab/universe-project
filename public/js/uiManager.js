@@ -2,18 +2,16 @@
 import { GalaxyRenderer } from './galaxyRenderer.js';
 import { stopSolarSystemAnimation } from './animationController.js';
 import { generateSolarSystemsForGalaxy } from './universeGenerator.js';
-import { SolarSystemRenderer } from './solarSystemRenderer.js'; 
+import { SolarSystemRenderer } from './solarSystemRenderer.js';
 import { HexPlanetViewController } from './hexPlanetViewController.js';
 
 export const UIManager = (() => {
     let elements = {};
     let callbacks = {};
-    let galaxyIconCache = {};
-    let linesCtx;
     let currentStarfieldCleanup;
-    let focusedPlanetId = null; 
+    let focusedPlanetId = null;
     let currentGalaxyRenderer = null;
-    
+
     function _getPlanetTypeString(planetType) {
         switch (planetType) {
             case 1: return 'Volcanic World';
@@ -147,7 +145,6 @@ export const UIManager = (() => {
         const screens = [elements.mainScreen, elements.galaxyDetailScreen, elements.solarSystemScreen, elements.planetDesignerScreen, elements.hexPlanetScreen].filter(s => s);
         screens.forEach(s => s.classList.remove('active', 'panning-active'));
         if (screenToShow) screenToShow.classList.add('active');
-        if (elements.zoomControlsElement) elements.zoomControlsElement.classList.toggle('visible', screenToShow === elements.galaxyDetailScreen);
         if (elements.planetSidebar) elements.planetSidebar.style.display = (screenToShow === elements.solarSystemScreen) ? 'block' : 'none';
         const isOnOverlayScreen = (screenToShow === elements.planetDesignerScreen || screenToShow === elements.hexPlanetScreen);
         if(elements.regenerateUniverseButton) elements.regenerateUniverseButton.style.display = isOnOverlayScreen ? 'none' : 'block';
@@ -193,7 +190,7 @@ export const UIManager = (() => {
         generateStarBackgroundCanvas(elements.mainScreen);
     }
 
-function switchToGalaxyDetailView(galaxyId) {
+    function switchToGalaxyDetailView(galaxyId) {
         // Cleanup any existing renderers
         if (window.activeSolarSystemRenderer) {
             window.activeSolarSystemRenderer.dispose();
@@ -213,6 +210,7 @@ function switchToGalaxyDetailView(galaxyId) {
         callbacks.stopSolarSystemAnimation();
 
         if (!galaxy.layoutGenerated) {
+            // Use galaxyDetailScreen as a proxy for viewport size.
             generateSolarSystemsForGalaxy(galaxy, elements.galaxyDetailScreen, callbacks.getCustomizationSettings().ssCountRange);
         }
 
@@ -240,7 +238,6 @@ function switchToGalaxyDetailView(galaxyId) {
         });
     }
 
-    // FIX: Modified to handle re-focusing when returning from hex view
     function switchToSolarSystemView(solarSystemId, planetToFocusId = null) {
        if (currentGalaxyRenderer) {
             currentGalaxyRenderer.dispose();
@@ -284,7 +281,7 @@ function switchToGalaxyDetailView(galaxyId) {
         makeTitleEditable(elements.solarSystemTitleText, elements.solarSystemTitleInput, (newName) => {
             solarSystemObject.customName = newName || null;
             callbacks.saveGameState();
-            renderGalaxyDetailScreen();
+            // The old renderGalaxyDetailScreen() call is removed as it no longer exists.
             return solarSystemObject.customName || `System ${solarSystemId.split('-').pop()}`;
         });
     }
@@ -310,21 +307,17 @@ function switchToGalaxyDetailView(galaxyId) {
         if (intersects.length > 0) {
             const clickedPlanetData = intersects[0].object.userData;
             const systemId = window.gameSessionData.activeSolarSystemId;
-            // FIX: Pass the planet ID to the callback to re-focus on return
             const onBackCallback = () => switchToSolarSystemView(systemId, clickedPlanetData.id);
             
             switchToHexPlanetView(clickedPlanetData, onBackCallback);
         }
     }
 
-
     function switchToHexPlanetView(planetData, onBackCallback) {
         if (!planetData) return;
         if (window.activeSolarSystemRenderer) {
-            // Don't unfocus here, just remove the click listener
             elements.solarSystemContent.removeEventListener('click', _onSolarSystemCanvasClick);
         }
-        // FIX: Do NOT clear focusedPlanetId here.
         setActiveScreen(elements.hexPlanetScreen);
         callbacks.stopSolarSystemAnimation();
         HexPlanetViewController.activate(planetData, onBackCallback);
@@ -337,31 +330,26 @@ function switchToGalaxyDetailView(galaxyId) {
             window.switchToMainView = switchToMainView;
             window.switchToSolarSystemView = switchToSolarSystemView;
             window.switchToHexPlanetView = switchToHexPlanetView;
+
+            elements.galaxyCanvas = document.getElementById('galaxy-canvas');
+            
             elements.regenerateUniverseButton.addEventListener('click', () => {
                 callbacks.regenerateUniverseState();
-                galaxyIconCache = {};
             });
             elements.createPlanetDesignButton.addEventListener('click', callbacks.switchToPlanetDesignerScreen);
             elements.backToMainButton.addEventListener('click', switchToMainView);
-            elements.galaxyCanvas = document.getElementById('galaxy-canvas');
             elements.backToGalaxyButton.addEventListener('click', () => {
                 if (window.activeSolarSystemRenderer) {
                     window.activeSolarSystemRenderer.unfocusPlanet();
                     elements.solarSystemContent.removeEventListener('click', _onSolarSystemCanvasClick);
                 }
                 focusedPlanetId = null;
-                if (window.gameSessionData.activeGalaxyId) switchToGalaxyDetailView(window.gameSessionData.activeGalaxyId);
-                else switchToMainView();
+                if (window.gameSessionData.activeGalaxyId) {
+                    switchToGalaxyDetailView(window.gameSessionData.activeGalaxyId);
+                } else {
+                    switchToMainView();
+                }
             });
-            elements.zoomInButton.addEventListener('click', () => handleZoom('in'));
-            elements.zoomOutButton.addEventListener('click', () => handleZoom('out'));
-            elements.galaxyViewport.addEventListener('mousedown', startPan);
-            elements.galaxyDetailScreen.addEventListener('wheel', e => {
-                e.preventDefault();
-                handleZoom(e.deltaY < 0 ? 'in' : 'out', e);
-            }, { passive: false });
-            window.addEventListener('mousemove', panMouseMove);
-            window.addEventListener('mouseup', panMouseUp);
         },
         renderMainScreen: renderMainScreen,
         setActiveScreen: setActiveScreen,

@@ -106,7 +106,8 @@ export const SolarSystemRenderer = (() => {
             fragmentShader,
         });
         const mesh = new THREE.Mesh(geometry, material);
-        mesh.userData = { ...planetData, lastPosition: new THREE.Vector3() };
+        // FIX: Initialize lastWorldPosition to be used for correct camera tracking.
+        mesh.userData = { ...planetData, lastPosition: new THREE.Vector3(), lastWorldPosition: new THREE.Vector3() };
         return mesh;
     }
     
@@ -147,10 +148,8 @@ export const SolarSystemRenderer = (() => {
     }
 
     function onControlsStart() {
-        // If a camera animation (focus/unfocus) is running, ignore user input.
         if (cameraAnimation) return;
 
-        // If we are focused and orbiting, user input should stop the auto-rotation.
         if (focusedPlanetMesh) {
             controls.autoRotate = false;
         }
@@ -192,12 +191,10 @@ export const SolarSystemRenderer = (() => {
         boundWheelHandler = (event) => {
             event.preventDefault();
 
-            // If an animation is playing, don't interrupt it, but allow zooming.
             if (!cameraAnimation && focusedPlanetMesh) {
                 controls.autoRotate = false;
             }
 
-            // MODIFICATION: Use linear zoom for more control
             const linearZoomAmount = 1000; 
             let zoomFactor = event.deltaY < 0 ? -linearZoomAmount : linearZoomAmount;
 
@@ -205,7 +202,6 @@ export const SolarSystemRenderer = (() => {
             const dist = camToTarget.length();
             const newDist = THREE.MathUtils.clamp(dist + zoomFactor, controls.minDistance, controls.maxDistance);
             
-            // Apply the new distance
             camera.position.copy(controls.target).addScaledVector(camToTarget.normalize(), -newDist);
         };
         renderer.domElement.addEventListener('wheel', boundWheelHandler, { passive: false });
@@ -225,6 +221,9 @@ export const SolarSystemRenderer = (() => {
 
         planetMeshes.forEach(mesh => {
             const planet = mesh.userData;
+            // FIX: Store the planet's world position *before* it moves for this frame.
+            mesh.getWorldPosition(planet.lastWorldPosition);
+            
             planet.lastPosition.copy(mesh.position);
             planet.currentOrbitalAngle += planet.orbitalSpeed * 0.1 * deltaTime * moduleState.orbitSpeedMultiplier;
             planet.currentAxialAngle += planet.axialSpeed * 2 * deltaTime;
@@ -236,18 +235,13 @@ export const SolarSystemRenderer = (() => {
             mesh.material.uniforms.uLightDirection.value.copy(mesh.position).negate().normalize();
         });
         
-        // FIX: The animation and follow logic are now exclusive to prevent conflicts.
         if (cameraAnimation) {
             const distanceToTarget = camera.position.distanceTo(cameraAnimation.targetPosition);
-            // FIX: Slower animation speed for a smoother feel
             const speed = 0.04;
 
-            // While focusing, update the look-at target to the planet's current position
             if (focusedPlanetMesh) {
                 const currentPlanetWorldPosition = new THREE.Vector3();
                 focusedPlanetMesh.getWorldPosition(currentPlanetWorldPosition);
-                // The animation will still lerp to a fixed point, but it will be LOOKING at the moving planet.
-                // This prevents the camera from looking at an empty spot if the planet moves during animation.
                 cameraAnimation.targetLookAt.copy(currentPlanetWorldPosition);
             }
 
@@ -261,17 +255,15 @@ export const SolarSystemRenderer = (() => {
                 if (focusedPlanetMesh) {
                     controls.autoRotate = true;
                 } else {
-                    // FIX: After unfocusing, reset the controls to their saved state.
-                    // This syncs the controller and prevents the "rubber-band" jump.
                     controls.minDistance = 50; 
                     controls.reset();
                 }
             }
         } else if (focusedPlanetMesh) {
-            // This logic runs only when not animating, to keep the focused camera locked to the planet.
             const newPlanetPosition = new THREE.Vector3();
             focusedPlanetMesh.getWorldPosition(newPlanetPosition);
-            const oldPlanetPosition = focusedPlanetMesh.userData.lastPosition;
+            // FIX: Use the correct lastWorldPosition for an accurate delta calculation.
+            const oldPlanetPosition = focusedPlanetMesh.userData.lastWorldPosition;
 
             const delta = new THREE.Vector3().subVectors(newPlanetPosition, oldPlanetPosition);
             
@@ -301,7 +293,6 @@ export const SolarSystemRenderer = (() => {
             return false;
         }
         
-        // The planet's position is dynamic, so we get it right before starting the animation.
         const planetWorldPosition = new THREE.Vector3();
         focusedPlanetMesh.getWorldPosition(planetWorldPosition);
         
@@ -314,7 +305,6 @@ export const SolarSystemRenderer = (() => {
 
         let targetPosition = planetWorldPosition.clone().add(offset);
         
-        // Simple check to avoid the camera ending up inside the sun
         const direction = new THREE.Vector3().subVectors(planetWorldPosition, camera.position).normalize();
         raycaster.set(camera.position, direction);
         const intersects = raycaster.intersectObjects(sunLOD.children);
@@ -339,7 +329,6 @@ export const SolarSystemRenderer = (() => {
         controls.autoRotate = false;
         controls.enablePan = true;
         
-        // Start the animation to return to the previous state
         cameraAnimation = {
             targetPosition: savedPosition,
             targetLookAt: savedTarget,

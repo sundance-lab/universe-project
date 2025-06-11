@@ -76,9 +76,10 @@ export const GalaxyRenderer = (() => {
             canvas.height = size;
             const context = canvas.getContext('2d');
             const gradient = context.createRadialGradient(size / 2, size / 2, 0, size / 2, size / 2, size / 2);
+            // Changed to a pure purple gradient
             gradient.addColorStop(0, 'rgba(120, 80, 220, 0.5)');
-            gradient.addColorStop(0.4, 'rgba(50, 80, 200, 0.2)');
-            gradient.addColorStop(1, 'rgba(30, 50, 150, 0)');
+            gradient.addColorStop(0.4, 'rgba(80, 40, 180, 0.2)');
+            gradient.addColorStop(1, 'rgba(50, 20, 120, 0)');
             context.fillStyle = gradient;
             context.fillRect(0, 0, size, size);
             return new THREE.CanvasTexture(canvas);
@@ -108,7 +109,6 @@ export const GalaxyRenderer = (() => {
 
     function _initScene(canvas, galaxyData) {
         scene = new THREE.Scene();
-        // REMOVED: scene.fog to make distant objects clearer
         
         camera = new THREE.PerspectiveCamera(60, canvas.offsetWidth / canvas.offsetHeight, 1, 30000);
         camera.position.set(GALAXY_RADIUS, GALAXY_RADIUS * 0.8, GALAXY_RADIUS);
@@ -215,12 +215,13 @@ export const GalaxyRenderer = (() => {
         const dustTexture = _createDustTexture();
         const nebulaTexture = _createNebulaTexture();
         
+        // A new, purely purple/indigo palette
         const colorPalette = [
-            new THREE.Color(0x00008B), // Dark Blue
             new THREE.Color(0x4B0082), // Indigo
             new THREE.Color(0x483D8B), // Dark Slate Blue (Dark Purple)
             new THREE.Color(0x8A2BE2), // Blue Violet (Purple)
-            new THREE.Color(0x9370DB)  // Lighter, "space-esque" purple
+            new THREE.Color(0x9370DB), // Medium Purple
+            new THREE.Color(0xDA70D6)  // Orchid (Lighter Purple/Pink)
         ];
         
         const armVariations = [];
@@ -255,7 +256,7 @@ export const GalaxyRenderer = (() => {
             const armAngle = (armIndex / NUM_ARMS) * 2 * Math.PI + armVar.offset;
             const rotation = (distance / GALAXY_RADIUS) * armVar.rotation;
             const angle = armAngle + rotation;
-            const spread = 2200 * Math.pow(1 - (distance / GALAXY_RADIUS), 2); // Dramatically widened arms
+            const spread = 2200 * Math.pow(1 - (distance / GALAXY_RADIUS), 2);
             const turbulence = Math.sin(angle * 5 + distance * 0.01) * spread * 0.2;
             const randomX = _gaussianRandom() * spread;
             const randomZ = _gaussianRandom() * spread;

@@ -47,8 +47,8 @@ export const SolarSystemRenderer = (() => {
     let lastAnimateTime = null;
     let raycaster, mouse;
     let boundWheelHandler = null;
-    let cameraAnimation = null; // Stores target for smooth camera movement
-    let focusedPlanetMesh = null; // Keeps track of the currently focused planet mesh
+    let cameraAnimation = null;
+    let focusedPlanetMesh = null;
 
     const moduleState = {
         orbitSpeedMultiplier: 1.0
@@ -98,7 +98,7 @@ export const SolarSystemRenderer = (() => {
                     uSphereRadius: { value: SPHERE_BASE_RADIUS },
                     uDisplacementAmount: { value: displacementAmount },
                     uTime: { value: 0.0 },
-                    uPlanetType: { value: planetData.planetType || 0 }, // Added planetType uniform
+                    uPlanetType: { value: planetData.planetType || 0 },
                     uLightDirection: { value: new THREE.Vector3(0.8, 0.6, 1.0) }
                 }
             ]),
@@ -114,7 +114,7 @@ export const SolarSystemRenderer = (() => {
         if (animationFrameId) cancelAnimationFrame(animationFrameId);
         if (renderer?.domElement && boundWheelHandler) renderer.domElement.removeEventListener('wheel', boundWheelHandler);
         if(controls) {
-            controls.removeEventListener('start', onControlsStart); // FIX: Remove named listener
+            controls.removeEventListener('start', onControlsStart);
             controls.dispose();
         }
         if (sunLOD) {
@@ -146,7 +146,6 @@ export const SolarSystemRenderer = (() => {
         renderer = null; scene = null; camera = null; currentSystemData = null;
     }
 
-    // FIX: Named function for event listener
     function onControlsStart() {
         if (focusedPlanetMesh) {
             controls.autoRotate = false;
@@ -179,13 +178,13 @@ export const SolarSystemRenderer = (() => {
         Object.assign(controls, {
             enableDamping: true, dampingFactor: 0.05, screenSpacePanning: true,
             minDistance: 50, maxDistance: 450000, enablePan: true, rotateSpeed: 0.4,
-            mouseButtons: { LEFT: THREE.MOUSE.ROTATE, MIDDLE: THREE.MOUSE.DOLLY, RIGHT: THREE.MOUSE.PAN }, // More standard controls
-            enableZoom: false, // Zoom with mouse wheel is handled manually
+            mouseButtons: { LEFT: THREE.MOUSE.ROTATE, MIDDLE: THREE.MOUSE.DOLLY, RIGHT: THREE.MOUSE.PAN },
+            enableZoom: false,
             autoRotate: false,
             autoRotateSpeed: 0.5
         });
 
-        controls.addEventListener('start', onControlsStart); // FIX: Use named listener
+        controls.addEventListener('start', onControlsStart);
 
         boundWheelHandler = (event) => {
             event.preventDefault();
@@ -193,7 +192,8 @@ export const SolarSystemRenderer = (() => {
                 controls.autoRotate = false;
                 cameraAnimation = null;
             }
-            const linearZoomAmount = 2000; // Increased for a faster feel
+            // FIX: Reduced zoom speed for finer control
+            const linearZoomAmount = 1000; 
             let zoomFactor = event.deltaY < 0 ? -linearZoomAmount : linearZoomAmount;
             const camToTarget = new THREE.Vector3().subVectors(controls.target, camera.position);
             const dist = camToTarget.length();
@@ -217,7 +217,6 @@ export const SolarSystemRenderer = (() => {
 
         if (currentSystemData?.planets) {
             currentSystemData.planets.forEach((planet, index) => {
-                // FIX: Apply orbit speed multiplier to planet's orbital movement
                 planet.currentOrbitalAngle += planet.orbitalSpeed * 0.1 * deltaTime * moduleState.orbitSpeedMultiplier;
                 planet.currentAxialAngle += planet.axialSpeed * 2 * deltaTime;
                 const mesh = planetMeshes[index];
@@ -231,6 +230,7 @@ export const SolarSystemRenderer = (() => {
             });
         }
         
+        // FIX: Improved camera animation and focus-tracking logic
         if (cameraAnimation) {
             const speed = 0.05;
             if (focusedPlanetMesh) {
@@ -246,9 +246,12 @@ export const SolarSystemRenderer = (() => {
                 camera.position.copy(cameraAnimation.targetPosition);
                 controls.target.copy(cameraAnimation.targetLookAt);
                 cameraAnimation = null;
-                controls.autoRotate = true; // Start auto-rotation AFTER animation is complete
+                if (focusedPlanetMesh) {
+                    controls.autoRotate = true; // Seamlessly start orbiting after animation.
+                }
             }
         } else if (focusedPlanetMesh) {
+            // This block ensures the camera tracks the orbiting planet when not animating.
             const planetWorldPosition = new THREE.Vector3();
             focusedPlanetMesh.getWorldPosition(planetWorldPosition);
             if (controls.target.distanceTo(planetWorldPosition) > 0.1) {
@@ -283,7 +286,7 @@ export const SolarSystemRenderer = (() => {
         const targetPosition = planetWorldPosition.clone().add(offset);
         
         cameraAnimation = { targetPosition, targetLookAt: planetWorldPosition.clone() };
-        controls.autoRotate = false; // Stop auto-rotate during animation
+        controls.autoRotate = false;
 
         return true;
     }
@@ -297,7 +300,7 @@ export const SolarSystemRenderer = (() => {
         
         const systemCenter = new THREE.Vector3(0,0,0);
         cameraAnimation = { 
-            targetPosition: new THREE.Vector3(0, 40000, 20000), // Return to wide view
+            targetPosition: new THREE.Vector3(0, 40000, 20000),
             targetLookAt: systemCenter 
         };
     }
@@ -333,7 +336,6 @@ export const SolarSystemRenderer = (() => {
                 scene.add(orbitLine);
             });
 
-            // FIX: Apply initial dev settings
             if(initialDevSettings) {
                 setOrbitLinesVisible(initialDevSettings.orbitLinesVisible);
                 setOrbitSpeed(initialDevSettings.orbitSpeed);
@@ -347,7 +349,6 @@ export const SolarSystemRenderer = (() => {
         unfocusPlanet,
         setOrbitLinesVisible,
         setOrbitSpeed,
-        // FIX: Expose necessary components for UIManager
         getPlanetMeshes: () => planetMeshes,
         getRaycaster: () => raycaster,
         getMouse: () => mouse,

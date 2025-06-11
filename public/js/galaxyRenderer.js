@@ -4,23 +4,24 @@ import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls.js';
 export const GalaxyRenderer = (() => {
     // --- STATE ---
     let scene, camera, renderer, controls, raycaster, mouse;
-    let clickableSystemParticles, decorativeStarParticles, dustParticles, backgroundStars, nebulaParticles;
+    let clickableSystemParticles, decorativeStarParticles, dustParticles, backgroundStars, nebulaParticles, distantGalaxies;
     let galacticCore;
     let skybox;
     let animationFrameId = null;
     let onSystemClickCallback = null;
     let interactiveSystemsData = [];
 
-    // --- PARAMETERS (Adjusted for more realism) ---
+    // --- PARAMETERS ---
     const GALAXY_RADIUS = 1500;
-    const GALAXY_THICKNESS = 90; // Increased for a less skinny galaxy
+    const GALAXY_THICKNESS = 90;
     const GALAXY_CORE_RADIUS = 450;
-    const NUM_ARMS = 5; // Using 5 arms for more complex structure
+    const NUM_ARMS = 5;
     const ARM_ROTATION = 4.0 * Math.PI;
-    const DECORATIVE_STAR_COUNT = 50000; // Increased density
+    const DECORATIVE_STAR_COUNT = 50000;
     const DUST_COUNT = 15000;
-    const BACKGROUND_STAR_COUNT = 50000; // Increased density
+    const BACKGROUND_STAR_COUNT = 50000;
     const NEBULA_CLUSTER_COUNT = 50;
+    const DISTANT_GALAXY_COUNT = 25;
 
 
     // --- HELPER FUNCTIONS ---
@@ -110,6 +111,7 @@ export const GalaxyRenderer = (() => {
 
         _createGalaxy(galaxyData);
         _createDistantStars();
+        _createDistantGalaxies();
         _createSkybox();
         _createGalacticCore();
         
@@ -119,68 +121,76 @@ export const GalaxyRenderer = (() => {
     
     function _createGalacticCore() {
         const coreTexture = _createStarTexture('rgba(255, 230, 200, 1)', 0.05);
-        const spriteMaterial = new THREE.SpriteMaterial({
-            map: coreTexture,
-            blending: THREE.AdditiveBlending,
-            depthWrite: false,
-            depthTest: false
-        });
+        const spriteMaterial = new THREE.SpriteMaterial({ map: coreTexture, blending: THREE.AdditiveBlending, depthWrite: false, depthTest: false });
         galacticCore = new THREE.Sprite(spriteMaterial);
         galacticCore.scale.set(GALAXY_CORE_RADIUS * 2, GALAXY_CORE_RADIUS * 2, 1);
         scene.add(galacticCore);
     }
+    
+    function _createDistantGalaxies() {
+        distantGalaxies = new THREE.Group();
+        const galaxyTexture = new THREE.TextureLoader().load('https://cdn.jsdelivr.net/gh/Sean-Bradley/Three.js-TypeScript-Boilerplate@master/src/assets/images/galaxy.png');
+        for (let i = 0; i < DISTANT_GALAXY_COUNT; i++) {
+            const material = new THREE.SpriteMaterial({ map: galaxyTexture, blending: THREE.AdditiveBlending, transparent: true, opacity: 0.1 + Math.random() * 0.2, color: new THREE.Color(Math.random(), Math.random(), Math.random()) });
+            const sprite = new THREE.Sprite(material);
+            const distance = GALAXY_RADIUS * 5 + Math.random() * 5000;
+            const theta = Math.random() * Math.PI * 2;
+            const phi = Math.acos(Math.random() * 2 - 1);
+            sprite.position.set( distance * Math.sin(phi) * Math.cos(theta), distance * Math.sin(phi) * Math.sin(theta), distance * Math.cos(phi) );
+            const scale = Math.random() * 200 + 100;
+            sprite.scale.set(scale, scale, 1);
+            distantGalaxies.add(sprite);
+        }
+        scene.add(distantGalaxies);
+    }
 
     function _createGalaxy(galaxyData) {
-        const decorativePositions = [], decorativeColors = [], dustPositions = [], clickablePositions = [], clickableColors = [], nebulaPositions = [];
+        const decorativePositions = [], decorativeColors = [], decorativeSizes = [], dustPositions = [], clickablePositions = [], clickableColors = [], nebulaPositions = [];
         const starTexture = _createStarTexture();
         const dustTexture = _createDustTexture();
         const nebulaTexture = _createNebulaTexture();
         
-        const coreColor = new THREE.Color(0xFFE082); // Yellowish core
-        const armColor = new THREE.Color(0x82B1FF);  // Bluish arms
+        const coreColor = new THREE.Color(0xFFE082);
+        const armColor = new THREE.Color(0x82B1FF);
         
         const armVariations = [];
         for (let i = 0; i < NUM_ARMS; i++) {
-            armVariations.push({
-                offset: (Math.random() - 0.5) * 0.5,
-                rotation: ARM_ROTATION * (1 + (Math.random() - 0.5) * 0.1),
-                turbulence: Math.random() * 150
-            });
+            armVariations.push({ offset: (Math.random() - 0.5) * 0.5, rotation: ARM_ROTATION * (1 + (Math.random() - 0.5) * 0.1) });
         }
         
-        // --- 1. Generate decorative stars with color and asymmetry ---
+        // --- Generate decorative stars ---
         for (let i = 0; i < DECORATIVE_STAR_COUNT; i++) {
             const distance = Math.sqrt(Math.random()) * GALAXY_RADIUS;
             const armIndex = Math.floor(Math.random() * (NUM_ARMS - 0.001));
             const armVar = armVariations[armIndex];
-            
             const armAngle = (armIndex / NUM_ARMS) * 2 * Math.PI + armVar.offset;
             const rotation = (distance / GALAXY_RADIUS) * armVar.rotation;
             const angle = armAngle + rotation;
-            
             const spread = 250 * Math.pow(1 - (distance / GALAXY_RADIUS), 2);
+            
+            // Subtle horizontal turbulence, no more vertical wobble
+            const turbulence = Math.sin(angle * 5 + distance * 0.01) * spread * 0.5;
+            
             const randomX = _gaussianRandom() * spread;
             const randomZ = _gaussianRandom() * spread;
-            
             const y_thickness = distance < GALAXY_CORE_RADIUS ? GALAXY_THICKNESS * 2.5 : GALAXY_THICKNESS;
             const randomY = _gaussianRandom() * y_thickness * (1-Math.pow(distance/GALAXY_RADIUS, 2));
-            
-            // Add sporadic waviness to arms
-            const turbulence = Math.sin(angle * 8 + distance * 0.01) * armVar.turbulence * (distance / GALAXY_RADIUS);
 
-            decorativePositions.push(
-                Math.cos(angle) * distance + randomX,
-                randomY + turbulence,
-                Math.sin(angle) * distance + randomZ
-            );
+            decorativePositions.push( Math.cos(angle) * distance + randomX + Math.cos(angle) * turbulence, randomY, Math.sin(angle) * distance + randomZ + Math.sin(angle) * turbulence );
             
-            // Set color based on distance
-            const colorLerp = Math.pow(distance / GALAXY_RADIUS, 1.5);
-            const starColor = new THREE.Color().lerpColors(coreColor, armColor, colorLerp);
+            const distanceRatio = Math.pow(distance / GALAXY_RADIUS, 1.5);
+            const starColor = new THREE.Color().lerpColors(coreColor, armColor, distanceRatio);
+            const brightness = 0.5 + Math.pow(1 - distanceRatio, 2) * 0.5; // Brighter towards core
+            starColor.multiplyScalar(brightness);
             decorativeColors.push(starColor.r, starColor.g, starColor.b);
+            
+            // Make stars smaller on the exterior to fade out
+            const size = (1.0 - distanceRatio) * 15 + 5;
+            decorativeSizes.push(size);
         }
 
-        // --- 2. Generate Nebulae Clusters in the arms ---
+        // --- Other generation logic (Nebulae, Dust, Clickable Systems) ---
+        // (This logic remains largely the same as the previous version)
         for(let i=0; i<NEBULA_CLUSTER_COUNT; i++) {
             const distance = GALAXY_CORE_RADIUS + Math.random() * (GALAXY_RADIUS - GALAXY_CORE_RADIUS);
             const armIndex = i % NUM_ARMS;
@@ -189,15 +199,9 @@ export const GalaxyRenderer = (() => {
             const angle = armAngle + rotation;
             const clusterCenter = new THREE.Vector3(Math.cos(angle) * distance, 0, Math.sin(angle) * distance);
             for(let j=0; j<10; j++) {
-                 nebulaPositions.push(
-                    clusterCenter.x + _gaussianRandom() * 100,
-                    clusterCenter.y + _gaussianRandom() * 20,
-                    clusterCenter.z + _gaussianRandom() * 100
-                 );
+                 nebulaPositions.push( clusterCenter.x + _gaussianRandom() * 100, clusterCenter.y + _gaussianRandom() * 20, clusterCenter.z + _gaussianRandom() * 100 );
             }
         }
-
-        // --- 3. Generate dust lanes ---
         for (let i = 0; i < DUST_COUNT; i++) {
             const distance = Math.pow(Math.random(), 0.8) * GALAXY_RADIUS;
             const armIndex = Math.floor(Math.random() * (NUM_ARMS - 0.001));
@@ -205,14 +209,8 @@ export const GalaxyRenderer = (() => {
             const rotation = (distance / GALAXY_RADIUS) * armVariations[armIndex].rotation * 0.95;
             const angle = armAngle + rotation;
             const spread = 400 * Math.pow(1 - (distance / GALAXY_RADIUS), 2);
-            dustPositions.push(
-                Math.cos(angle) * distance + _gaussianRandom() * spread,
-                _gaussianRandom() * (GALAXY_THICKNESS / 3) * (1 - (distance/GALAXY_RADIUS)),
-                Math.sin(angle) * distance + _gaussianRandom() * spread
-            );
+            dustPositions.push( Math.cos(angle) * distance + _gaussianRandom() * spread, _gaussianRandom() * (GALAXY_THICKNESS / 3) * (1 - (distance/GALAXY_RADIUS)), Math.sin(angle) * distance + _gaussianRandom() * spread );
         }
-
-        // --- 4. Position the actual clickable systems ---
         interactiveSystemsData = galaxyData.solarSystems || [];
         interactiveSystemsData.forEach((system, i) => {
             const distance = GALAXY_CORE_RADIUS * 0.8 + Math.pow(Math.random(), 2) * (GALAXY_RADIUS - GALAXY_CORE_RADIUS * 0.8);
@@ -228,12 +226,15 @@ export const GalaxyRenderer = (() => {
             clickableColors.push(starColor.r, starColor.g, starColor.b);
         });
 
-        // --- 5. Create and add the particle systems to the scene ---
+        // --- Create and add the particle systems to the scene ---
         const decorativeGeometry = new THREE.BufferGeometry();
         decorativeGeometry.setAttribute('position', new THREE.Float32BufferAttribute(decorativePositions, 3));
         decorativeGeometry.setAttribute('color', new THREE.Float32BufferAttribute(decorativeColors, 3));
-        const decorativeMaterial = new THREE.PointsMaterial({ size: 12, map: starTexture, vertexColors: true, sizeAttenuation: true, depthWrite: false, blending: THREE.AdditiveBlending, transparent: true, opacity: 0.6 });
-        decorativeStarParticles = new THREE.Points(decorativeGeometry, decorativeMaterial);
+        decorativeGeometry.setAttribute('size', new THREE.Float32BufferAttribute(decorativeSizes, 1)); // Size attribute
+        const decorativeShader = new THREE.PointsMaterial({ map: starTexture, vertexColors: true, sizeAttenuation: true, depthWrite: false, blending: THREE.AdditiveBlending, transparent: true });
+        // Enable custom particle sizes in material
+        decorativeShader.onBeforeCompile = shader => { shader.vertexShader = 'attribute float size;\n' + shader.vertexShader; shader.vertexShader = shader.vertexShader.replace('gl_PointSize = size;', 'gl_PointSize = size * size;'); };
+        decorativeStarParticles = new THREE.Points(decorativeGeometry, decorativeShader);
         scene.add(decorativeStarParticles);
         
         const dustGeometry = new THREE.BufferGeometry();
@@ -260,10 +261,11 @@ export const GalaxyRenderer = (() => {
         const geometry = new THREE.BufferGeometry();
         const positions = [];
         for (let i = 0; i < BACKGROUND_STAR_COUNT; i++) {
-            positions.push( (Math.random() - 0.5) * 20000, (Math.random() - 0.5) * 20000, (Math.random() - 0.5) * 20000 );
+            positions.push( (Math.random() - 0.5) * 30000, (Math.random() - 0.5) * 30000, (Math.random() - 0.5) * 30000 );
         }
         geometry.setAttribute('position', new THREE.Float32BufferAttribute(positions, 3));
-        const material = new THREE.PointsMaterial({ size: 8, color: 0xffffff, sizeAttenuation: true, depthWrite: false, transparent: true, opacity: 0.3, blending: THREE.AdditiveBlending });
+        // Use a star texture to make background stars appear round
+        const material = new THREE.PointsMaterial({ size: 10, color: 0xffffff, map: _createStarTexture(), sizeAttenuation: true, depthWrite: false, transparent: true, opacity: 0.4, blending: THREE.AdditiveBlending });
         backgroundStars = new THREE.Points(geometry, material);
         scene.add(backgroundStars);
     }
@@ -311,16 +313,19 @@ export const GalaxyRenderer = (() => {
         if (renderer) renderer.domElement.removeEventListener('click', _onCanvasClick);
         if (controls) controls.dispose();
         scene?.traverse(object => {
+            if(object.isSprite) { scene.remove(object); } // Ensure sprites are removed
             if (object.geometry) object.geometry.dispose();
             if (object.material) {
                 if(object.material.map) object.material.map.dispose();
                 object.material.dispose();
             }
         });
+        distantGalaxies?.children.forEach(child => distantGalaxies.remove(child));
+        scene?.remove(distantGalaxies);
         renderer?.dispose();
         scene = camera = renderer = controls = animationFrameId = onSystemClickCallback = null;
         interactiveSystemsData = [];
-        skybox = backgroundStars = decorativeStarParticles = dustParticles = clickableSystemParticles = nebulaParticles = galacticCore = null;
+        skybox = backgroundStars = decorativeStarParticles = dustParticles = clickableSystemParticles = nebulaParticles = galacticCore = distantGalaxies = null;
     }
 
     return {

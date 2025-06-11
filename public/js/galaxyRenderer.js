@@ -4,12 +4,11 @@ import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls.js';
 
 export const GalaxyRenderer = (() => {
     let scene, camera, renderer, controls, raycaster, mouse;
-    let galaxyGroup, solarSystemParticles, dustParticles;
+    let galaxyGroup, solarSystemParticles;
     let animationFrameId = null;
     let onSystemClickCallback = null;
     let solarSystemData = [];
 
-    // --- NEW: Copied from solarSystemRenderer.js to determine star colors ---
     const sunVariations = [
         { baseColor: new THREE.Color(0x4A90E2) }, // Blueish
         { baseColor: new THREE.Color(0xFF5722) }, // Red-Orange
@@ -19,11 +18,11 @@ export const GalaxyRenderer = (() => {
     ];
 
     const GALAXY_RADIUS = 500;
-    const NUM_DUST_PARTICLES = 50000;
+    const NUM_DUST_PARTICLES = 30000;
     const NUM_ARM_PARTICLES = 100000;
     const NUM_ARMS = 4;
+    const BULGE_PARTICLES = 20000;
 
-    // --- NEW: Function to create a glowing star texture ---
     function _createStarTexture() {
         const canvas = document.createElement('canvas');
         const size = 64;
@@ -41,47 +40,73 @@ export const GalaxyRenderer = (() => {
     }
 
     function _initScene(canvas, galaxy) {
-        // Scene setup
         scene = new THREE.Scene();
         const aspect = canvas.offsetWidth / canvas.offsetHeight;
-        camera = new THREE.PerspectiveCamera(75, aspect, 0.1, 5000);
+        camera = new THREE.PerspectiveCamera(75, aspect, 0.1, 10000);
         camera.position.set(0, GALAXY_RADIUS / 2, GALAXY_RADIUS);
 
         renderer = new THREE.WebGLRenderer({ canvas, antialias: true, alpha: true });
         renderer.setSize(canvas.offsetWidth, canvas.offsetHeight);
         renderer.setPixelRatio(window.devicePixelRatio);
 
-        // Controls
         controls = new OrbitControls(camera, renderer.domElement);
         controls.enableDamping = true;
         controls.dampingFactor = 0.05;
         controls.screenSpacePanning = false;
         controls.minDistance = 10;
-        controls.maxDistance = GALAXY_RADIUS * 3;
+        // --- MODIFICATION 2: Increased max zoom out distance ---
+        controls.maxDistance = GALAXY_RADIUS * 8; 
         controls.target.set(0, 0, 0);
 
-        // Raycasting
         raycaster = new THREE.Raycaster();
         mouse = new THREE.Vector2();
         raycaster.params.Points.threshold = 5;
 
-        // Lighting
-        const ambientLight = new THREE.AmbientLight(0xffffff, 0.2);
-        scene.add(ambientLight);
-        const pointLight = new THREE.PointLight(0xffffff, 0.8, 0);
-        pointLight.position.set(0, 0, 0);
-        scene.add(pointLight);
-
         // Create Galaxy
         galaxyGroup = new THREE.Group();
         _createGalaxyArms();
-        _createDust();
+        // --- MODIFICATION 1: Call new functions for realism ---
+        _createGalacticBulge();
+        _createDustLanes();
         _createSolarSystemParticles(galaxy.solarSystems);
         scene.add(galaxyGroup);
 
-        // Event Listeners
         renderer.domElement.addEventListener('click', _onCanvasClick);
         window.addEventListener('resize', _onResize);
+    }
+    
+    // --- MODIFICATION 1: Added a dense central bulge ---
+    function _createGalacticBulge() {
+        const positions = [];
+        const colors = [];
+        const color = new THREE.Color('#ffd085'); // Yellowish color for older stars
+
+        for (let i = 0; i < BULGE_PARTICLES; i++) {
+            const r = Math.random() * GALAXY_RADIUS * 0.2;
+            const theta = Math.random() * Math.PI * 2;
+            const phi = Math.acos(2 * Math.random() - 1);
+
+            // Ellipsoidal distribution to make it look like a bulge
+            const x = r * Math.sin(phi) * Math.cos(theta) * 1.5;
+            const y = r * Math.sin(phi) * Math.sin(theta) * 0.5;
+            const z = r * Math.cos(phi) * 1.5;
+            
+            positions.push(x, y, z);
+            colors.push(color.r, color.g, color.b);
+        }
+
+        const geometry = new THREE.BufferGeometry();
+        geometry.setAttribute('position', new THREE.Float32BufferAttribute(positions, 3));
+        geometry.setAttribute('color', new THREE.Float32BufferAttribute(colors, 3));
+        const material = new THREE.PointsMaterial({
+            size: 2,
+            sizeAttenuation: true,
+            depthWrite: false,
+            blending: THREE.AdditiveBlending,
+            vertexColors: true,
+        });
+        const bulge = new THREE.Points(geometry, material);
+        galaxyGroup.add(bulge);
     }
 
     function _createGalaxyArms() {
@@ -95,9 +120,12 @@ export const GalaxyRenderer = (() => {
             const angle = (i / (NUM_ARM_PARTICLES / NUM_ARMS)) * Math.PI * 4;
             const armRotation = (armIndex / NUM_ARMS) * Math.PI * 2;
             const distance = Math.pow(i / (NUM_ARM_PARTICLES / NUM_ARMS), 0.8) * GALAXY_RADIUS;
-            const randomX = (Math.random() - 0.5) * 80 * Math.random();
-            const randomY = (Math.random() - 0.5) * 20 * (1 - (distance / GALAXY_RADIUS));
-            const randomZ = (Math.random() - 0.5) * 80 * Math.random();
+            
+            // --- MODIFICATION 1: Increased randomness for less perfect arms ---
+            const randomX = (Math.random() - 0.5) * 100 * Math.random();
+            const randomY = (Math.random() - 0.5) * 30 * (1 - (distance / GALAXY_RADIUS));
+            const randomZ = (Math.random() - 0.5) * 100 * Math.random();
+
             const x = Math.cos(angle + armRotation) * distance + randomX;
             const y = randomY;
             const z = Math.sin(angle + armRotation) * distance + randomZ;
@@ -120,38 +148,47 @@ export const GalaxyRenderer = (() => {
         galaxyGroup.add(armParticles);
     }
 
-    function _createDust() {
+    // --- MODIFICATION 1: Replaced _createDust with _createDustLanes ---
+    function _createDustLanes() {
         const positions = [];
         const dustGeometry = new THREE.BufferGeometry();
         for (let i = 0; i < NUM_DUST_PARTICLES; i++) {
-            positions.push(
-                (Math.random() - 0.5) * GALAXY_RADIUS * 2.5,
-                (Math.random() - 0.5) * 50,
-                (Math.random() - 0.5) * GALAXY_RADIUS * 2.5
-            );
+            const armIndex = i % NUM_ARMS;
+            const angle = (i / (NUM_DUST_PARTICLES / NUM_ARMS)) * Math.PI * 4;
+            // Place dust lanes with a slight offset from the star arms
+            const armRotation = (armIndex / NUM_ARMS) * Math.PI * 2 + 0.1;
+            const distance = Math.pow(i / (NUM_DUST_PARTICLES / NUM_ARMS), 0.9) * GALAXY_RADIUS * 0.8;
+            
+            const randomX = (Math.random() - 0.5) * 120 * Math.random();
+            const randomY = (Math.random() - 0.5) * 15;
+            const randomZ = (Math.random() - 0.5) * 120 * Math.random();
+
+            const x = Math.cos(angle + armRotation) * distance + randomX;
+            const y = randomY;
+            const z = Math.sin(angle + armRotation) * distance + randomZ;
+
+            positions.push(x, y, z);
         }
         dustGeometry.setAttribute('position', new THREE.Float32BufferAttribute(positions, 3));
         const dustMaterial = new THREE.PointsMaterial({
-            size: 1,
-            color: '#ffffff',
+            size: 10,
+            color: '#1a0e00', // Dark brownish color
             sizeAttenuation: true,
             depthWrite: false,
             transparent: true,
-            opacity: 0.05,
-            blending: THREE.AdditiveBlending
+            opacity: 0.08,
         });
-        dustParticles = new THREE.Points(dustGeometry, dustMaterial);
+        const dustParticles = new THREE.Points(dustGeometry, dustMaterial);
         galaxyGroup.add(dustParticles);
     }
 
-    // --- MODIFIED: This function is completely updated ---
     function _createSolarSystemParticles(systems) {
         solarSystemData = systems;
         const geometry = new THREE.BufferGeometry();
         const positions = [];
-        const colors = []; // Array for vertex colors
+        const colors = [];
         const galaxyContentDiameter = window.gameSessionData.universe.diameter || 500;
-        const starTexture = _createStarTexture(); // Get the new star texture
+        const starTexture = _createStarTexture();
 
         systems.forEach((system) => {
             const scale = (GALAXY_RADIUS * 1.5) / galaxyContentDiameter;
@@ -159,27 +196,24 @@ export const GalaxyRenderer = (() => {
             const z = (system.y - galaxyContentDiameter / 2) * scale;
             const y = (Math.random() - 0.5) * 10;
             positions.push(x, y, z);
-
-            // Get color based on the stored sunType
             const sunColor = sunVariations[system.sunType % sunVariations.length].baseColor;
             colors.push(sunColor.r, sunColor.g, sunColor.b);
         });
 
         geometry.setAttribute('position', new THREE.Float32BufferAttribute(positions, 3));
-        geometry.setAttribute('color', new THREE.Float32BufferAttribute(colors, 3)); // Add color attribute
-
+        geometry.setAttribute('color', new THREE.Float32BufferAttribute(colors, 3));
         const material = new THREE.PointsMaterial({
             size: 15,
             sizeAttenuation: true,
             depthWrite: false,
             transparent: true,
             blending: THREE.AdditiveBlending,
-            map: starTexture, // Use the texture
-            vertexColors: true // Enable vertex coloring
+            map: starTexture,
+            vertexColors: true
         });
 
         solarSystemParticles = new THREE.Points(geometry, material);
-        scene.add(solarSystemParticles); // Add directly to scene to avoid rotation with galaxy
+        scene.add(solarSystemParticles);
     }
     
     function _onCanvasClick(event) {
@@ -191,12 +225,7 @@ export const GalaxyRenderer = (() => {
         raycaster.setFromCamera(mouse, camera);
         const intersects = raycaster.intersectObject(solarSystemParticles);
         if (intersects.length > 0) {
-            const intersect = intersects[0];
-            const systemIndex = intersect.index;
-            const clickedSystem = solarSystemData[systemIndex];
-            if (clickedSystem) {
-                onSystemClickCallback(clickedSystem.id);
-            }
+            onSystemClickCallback(solarSystemData[intersects[0].index].id);
         }
     }
 
@@ -214,7 +243,7 @@ export const GalaxyRenderer = (() => {
 
     function _animate() {
         animationFrameId = requestAnimationFrame(_animate);
-        galaxyGroup.rotation.y += 0.0005;
+        galaxyGroup.rotation.y += 0.0003;
         controls.update();
         renderer.render(scene, camera);
     }

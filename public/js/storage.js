@@ -1,10 +1,5 @@
 // public/js/storage.js
 
-/**
- * Saves the core game state to localStorage.
- * Note: This function relies on the global window.gameSessionData object.
- * A future refactor could pass the state as a parameter.
- */
 export function saveGameState() {
     try {
         const stateToSave = {
@@ -19,12 +14,6 @@ export function saveGameState() {
     }
 }
 
-/**
- * Loads the core game state from localStorage.
- * Note: This function modifies the global window.gameSessionData object.
- * A future refactor could return the loaded state instead.
- * @returns {boolean} - True if a valid state was loaded, false otherwise.
- */
 export function loadGameState() {
     try {
         const savedStateString = localStorage.getItem('galaxyGameSaveData');

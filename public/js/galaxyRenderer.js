@@ -114,7 +114,6 @@ export const GalaxyRenderer = (() => {
         galaxyGroup.add(bulge);
     }
 
-    // --- BUG FIX: Restructured loop to generate each arm independently ---
     function _createGalaxyArms() {
         const positions = [];
         const colors = [];
@@ -122,10 +121,12 @@ export const GalaxyRenderer = (() => {
         const colorOutside = new THREE.Color('#add8e6');
         const particlesPerArm = Math.floor(NUM_ARM_PARTICLES / NUM_ARMS);
 
+        // ** BUG FIX: Loop through each arm independently to create spirals instead of rings **
         for (let armIndex = 0; armIndex < NUM_ARMS; armIndex++) {
             const arm = armProfiles[armIndex];
 
             for (let i = 0; i < particlesPerArm; i++) {
+                // Calculate progress within the current arm
                 const progress = (i / particlesPerArm) * arm.length;
                 const angle = progress * Math.PI * arm.tightness;
                 const armRotation = arm.angleOffset;
@@ -160,12 +161,12 @@ export const GalaxyRenderer = (() => {
         galaxyGroup.add(armParticles);
     }
 
-    // --- BUG FIX: Restructured loop to generate each dust lane independently ---
     function _createDustLanes() {
         const positions = [];
         const dustGeometry = new THREE.BufferGeometry();
         const particlesPerLane = Math.floor(NUM_DUST_PARTICLES / NUM_ARMS);
 
+        // ** BUG FIX: Loop through each lane independently **
         for (let armIndex = 0; armIndex < NUM_ARMS; armIndex++) {
             const arm = armProfiles[armIndex];
             const armRotation = arm.angleOffset + 0.15; // Offset dust from star arm
@@ -243,7 +244,10 @@ export const GalaxyRenderer = (() => {
         raycaster.setFromCamera(mouse, camera);
         const intersects = raycaster.intersectObject(solarSystemParticles);
         if (intersects.length > 0) {
-            onSystemClickCallback(solarSystemData?.[intersects?.[0]?.index]?.id);
+            const systemId = solarSystemData?.[intersects[0]?.index]?.id;
+            if (systemId) {
+                onSystemClickCallback(systemId);
+            }
         }
     }
 

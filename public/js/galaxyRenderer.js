@@ -60,8 +60,7 @@ export const GalaxyRenderer = (() => {
     const ARM_STARS_PARTICLES = 300000;
     const NEBULA_PARTICLES = 500;
     const DUST_PARTICLES = 150000;
-    // --- NEW: Added constant for the galactic disk stars ---
-    const DISK_STARS_PARTICLES = 100000;
+    const DISK_STARS_PARTICLES = 150000; // Increased for a smoother disk
 
     const armProfiles = [
         { angleOffset: 0.0, tightness: 4.0, length: 1.0 },
@@ -113,7 +112,6 @@ export const GalaxyRenderer = (() => {
         _createNebulae();
         _createDustLanes();
         _createSolarSystemParticles(galaxy.solarSystems);
-        // --- NEW: Call the function to create the background star disk ---
         _createGalacticDisk();
 
         scene.add(galaxyGroup);
@@ -142,7 +140,7 @@ export const GalaxyRenderer = (() => {
             size: 2.0,
             sizeAttenuation: true,
             color: color,
-            depthWrite: true,
+            depthWrite: true, 
             blending: THREE.AdditiveBlending,
             transparent: true,
             opacity: 0.8
@@ -166,13 +164,12 @@ export const GalaxyRenderer = (() => {
                 const armRotation = arm.angleOffset;
                 const distance = progress * GALAXY_RADIUS * arm.length;
                 
-                // --- MODIFICATION: Using noise to make arms clumpy and less rigid ---
-                const noiseVal = SimplexNoise.noise(progress * 15, armIndex * 5, 0);
-                const clusterStrength = 60 * (1 - progress * 0.7);
+                const noiseFactor = 0.5 + SimplexNoise.noise(progress * 10, armIndex * 5, i / 1000) * 0.5;
+                const clusterRadius = 40 * (1 - progress * 0.5) * noiseFactor;
                 
-                const randomX = (Math.random() - 0.5 + noiseVal) * clusterStrength;
-                const randomY = (Math.random() - 0.5) * 15 * (1 - progress);
-                const randomZ = (Math.random() - 0.5) * clusterStrength;
+                const randomX = (Math.random() - 0.5) * clusterRadius;
+                const randomY = (Math.random() - 0.5) * 10 * (1 - progress) * noiseFactor;
+                const randomZ = (Math.random() - 0.5) * clusterRadius;
                 
                 const x = Math.cos(angle + armRotation) * distance + randomX;
                 const y = randomY;
@@ -197,13 +194,13 @@ export const GalaxyRenderer = (() => {
         galaxyGroup.add(new THREE.Points(geometry, material));
     }
     
-    // --- NEW: Function to create background stars between the arms ---
     function _createGalacticDisk() {
         const positions = [];
-        const color = new THREE.Color('#fefbe8'); // Faint yellowish-white
+        const color = new THREE.Color('#fefbe8');
 
         for (let i = 0; i < DISK_STARS_PARTICLES; i++) {
-            const r = Math.pow(Math.random(), 1.5) * GALAXY_RADIUS * 1.2;
+            // --- MODIFICATION: Smoother distribution falloff ---
+            const r = Math.pow(Math.random(), 1.2) * GALAXY_RADIUS * 1.2;
             const theta = Math.random() * Math.PI * 2;
             const y = (Math.random() - 0.5) * 20;
 
@@ -222,7 +219,8 @@ export const GalaxyRenderer = (() => {
             depthWrite: false,
             blending: THREE.AdditiveBlending,
             transparent: true,
-            opacity: 0.15 // Very faint
+            // --- MODIFICATION: Reduced opacity for a subtler haze ---
+            opacity: 0.1
         });
         const disk = new THREE.Points(geometry, material);
         galaxyGroup.add(disk);
@@ -297,12 +295,13 @@ export const GalaxyRenderer = (() => {
         const geometry = new THREE.BufferGeometry();
         geometry.setAttribute('position', new THREE.Float32BufferAttribute(positions, 3));
         const material = new THREE.PointsMaterial({
-            size: 40,
-            color: '#040201',
+            // --- MODIFICATION: Softened dust lanes ---
+            size: 20,
+            color: '#211008', // Dark reddish-brown instead of black
             sizeAttenuation: true,
             depthWrite: false,
             transparent: true,
-            opacity: 0.3
+            opacity: 0.15 // Further reduced opacity
         });
         galaxyGroup.add(new THREE.Points(geometry, material));
     }

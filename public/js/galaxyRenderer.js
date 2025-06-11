@@ -57,8 +57,9 @@ export const GalaxyRenderer = (() => {
     const GALAXY_RADIUS = 500;
     const NUM_ARMS = 2;
     const BULGE_PARTICLES = 50000;
-    const ARM_STARS_PARTICLES = 150000;
-    const DISK_STARS_PARTICLES = 120000;
+    // --- MODIFICATION 4: Adjusted particle counts as requested ---
+    const ARM_STARS_PARTICLES = 90000;   // Reduced by 40% (from 150k)
+    const DISK_STARS_PARTICLES = 156000;  // Increased by 30% (from 120k)
     const NEBULA_PARTICLES = 400;
 
     const armProfiles = [
@@ -97,8 +98,8 @@ export const GalaxyRenderer = (() => {
         controls.screenSpacePanning = false;
         controls.minDistance = 20;
         controls.maxDistance = GALAXY_RADIUS * 8;
-        // --- MODIFICATION 1: Disable default zoom to implement custom zoom-to-point ---
-        controls.enableZoom = false;
+        // --- MODIFICATION 1: Reverted to default zoom behavior ---
+        controls.enableZoom = true;
         
         raycaster = new THREE.Raycaster();
         mouse = new THREE.Vector2();
@@ -117,8 +118,6 @@ export const GalaxyRenderer = (() => {
         scene.add(galaxyGroup);
         
         renderer.domElement.addEventListener('click', _onCanvasClick);
-        // --- MODIFICATION 1: Add custom wheel listener ---
-        renderer.domElement.addEventListener('wheel', _onCanvasWheel, { passive: false });
         window.addEventListener('resize', _onResize);
     }
 
@@ -166,7 +165,6 @@ export const GalaxyRenderer = (() => {
                 const armRotation = arm.angleOffset;
                 const distance = progress * GALAXY_RADIUS * arm.length;
                 
-                // --- MODIFICATION 2: Removed progress term from clusterRadius for consistent width ---
                 const noiseFactor = 0.5 + SimplexNoise.noise(progress * 8, armIndex * 5, i / 1000) * 0.5;
                 const clusterRadius = 80 * noiseFactor; 
                 
@@ -204,8 +202,8 @@ export const GalaxyRenderer = (() => {
         const color = new THREE.Color('#fefbe8');
 
         for (let i = 0; i < DISK_STARS_PARTICLES; i++) {
-            // --- MODIFICATION 3: Use power function for smooth falloff, removing noise ---
-            const r = Math.pow(Math.random(), 2.0) * GALAXY_RADIUS * 1.5;
+            // --- MODIFICATION 2: Increased power for more dramatic falloff ---
+            const r = Math.pow(Math.random(), 3.0) * GALAXY_RADIUS * 1.5;
             const theta = Math.random() * Math.PI * 2;
             const y = (Math.random() - 0.5) * 30;
 
@@ -224,7 +222,7 @@ export const GalaxyRenderer = (() => {
             depthWrite: false,
             blending: THREE.AdditiveBlending,
             transparent: true,
-            opacity: 0.2 
+            opacity: 0.35 // Increased opacity to make the falloff more visible
         });
         const disk = new THREE.Points(geometry, material);
         galaxyGroup.add(disk);
@@ -275,7 +273,8 @@ export const GalaxyRenderer = (() => {
         const starTexture = _createStarTexture(new THREE.Color(1,1,1), 0, 1);
 
         systems.forEach((system) => {
-            const scale = (GALAXY_RADIUS * 1.5) / galaxyContentDiameter;
+            // --- MODIFICATION 3: Reduced scaling factor to keep systems within the core/arms ---
+            const scale = (GALAXY_RADIUS * 1.0) / galaxyContentDiameter;
             const x = (system.x - galaxyContentDiameter / 2) * scale;
             const z = (system.y - galaxyContentDiameter / 2) * scale;
             const y = (Math.random() - 0.5) * 10;
@@ -300,32 +299,6 @@ export const GalaxyRenderer = (() => {
         galaxyGroup.add(solarSystemParticles);
     }
     
-    // --- MODIFICATION 1: Custom wheel handler for zoom-to-point ---
-    function _onCanvasWheel(event) {
-        event.preventDefault();
-
-        const fov = camera.fov * Math.PI / 180;
-        const fov_y = 2.0 * Math.atan(Math.tan(fov * 0.5) / camera.aspect);
-        const zoom_factor = 1.0 - 0.1 * Math.sign(event.deltaY);
-        
-        const plane = new THREE.Plane();
-        const mouse_point = new THREE.Vector3();
-        
-        plane.setFromNormalAndCoplanarPoint(camera.getWorldDirection(plane.normal), controls.target);
-        raycaster.setFromCamera(mouse, camera);
-        raycaster.ray.intersectPlane(plane, mouse_point);
-
-        const new_dist = mouse_point.distanceTo(camera.position) * zoom_factor;
-        const new_cam_pos = mouse_point.clone().add(camera.getWorldDirection(new THREE.Vector3()).negate().multiplyScalar(new_dist));
-
-        const dist = controls.getDistance() * zoom_factor;
-
-        if (dist > controls.minDistance && dist < controls.maxDistance) {
-            controls.target.copy(mouse_point);
-            camera.position.copy(new_cam_pos);
-        }
-    }
-
     function _onCanvasClick(event) {
         if (!onSystemClickCallback) return;
         const canvas = renderer.domElement;
@@ -368,8 +341,6 @@ export const GalaxyRenderer = (() => {
         window.removeEventListener('resize', _onResize);
         if (renderer) {
             renderer.domElement.removeEventListener('click', _onCanvasClick);
-            // --- MODIFICATION 1: Remove custom wheel listener on dispose ---
-            renderer.domElement.removeEventListener('wheel', _onCanvasWheel);
         }
         if (controls) controls.dispose();
         scene?.traverse(object => {

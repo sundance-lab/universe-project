@@ -233,43 +233,48 @@ export const SolarSystemRenderer = (() => {
             mesh.material.uniforms.uLightDirection.value.copy(mesh.position).negate().normalize();
         });
         
-        // FIX: Default to smooth (damped) controls
         controls.enableDamping = true;
 
         if (cameraAnimation) {
-            const distanceToTarget = camera.position.distanceTo(cameraAnimation.targetPosition);
             const speed = 0.04;
 
+            // If focusing, the animation's destination MUST be updated to follow the planet.
             if (focusedPlanetMesh) {
-                const currentPlanetWorldPosition = new THREE.Vector3();
-                focusedPlanetMesh.getWorldPosition(currentPlanetWorldPosition);
-                cameraAnimation.targetLookAt.copy(currentPlanetWorldPosition);
+                const newPlanetPosition = new THREE.Vector3();
+                focusedPlanetMesh.getWorldPosition(newPlanetPosition);
+                const oldPlanetPosition = focusedPlanetMesh.userData.lastWorldPosition;
+                const delta = new THREE.Vector3().subVectors(newPlanetPosition, oldPlanetPosition);
+
+                // Move the animation's target positions by the same amount the planet moved.
+                // This makes the camera animate towards the planet's CURRENT position, not its old one.
+                cameraAnimation.targetPosition.add(delta);
+                cameraAnimation.targetLookAt.add(delta);
             }
 
             camera.position.lerp(cameraAnimation.targetPosition, speed);
             controls.target.lerp(cameraAnimation.targetLookAt, speed);
             
-            if (distanceToTarget < 1) {
+            const distanceToTarget = camera.position.distanceTo(cameraAnimation.targetPosition);
+            if (distanceToTarget < 1.5) { // Using a slightly larger threshold can feel smoother
                 camera.position.copy(cameraAnimation.targetPosition);
                 controls.target.copy(cameraAnimation.targetLookAt);
-                cameraAnimation = null;
+                cameraAnimation = null; // End the animation
                 if (focusedPlanetMesh) {
                     controls.autoRotate = true;
                 } else {
-                    controls.minDistance = 50; 
                     controls.reset();
                 }
             }
         } else if (focusedPlanetMesh) {
-            // FIX: Disable damping for a rigid, stutter-free follow-cam.
+            // When not animating but focused, disable damping for a rigid, stutter-free follow.
             controls.enableDamping = false;
 
             const newPlanetPosition = new THREE.Vector3();
             focusedPlanetMesh.getWorldPosition(newPlanetPosition);
             const oldPlanetPosition = focusedPlanetMesh.userData.lastWorldPosition;
-
             const delta = new THREE.Vector3().subVectors(newPlanetPosition, oldPlanetPosition);
             
+            // Move the camera and its target by the planet's delta.
             camera.position.add(delta);
             controls.target.add(delta);
         }

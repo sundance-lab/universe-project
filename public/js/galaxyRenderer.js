@@ -104,4 +104,303 @@ export const GalaxyRenderer = (() => {
         mouse = new THREE.Vector2();
         raycaster.params.Points.threshold = 5;
         
-        galaxyGroup = new TH
+        galaxyGroup = new THREE.Group();
+        galaxyGroup.rotation.x = -Math.PI / 5; 
+        galaxyGroup.rotation.y = -Math.PI / 8;
+
+        _createGalacticBulge();
+        _createGalaxyArms();
+        _createNebulae();
+        _createDustLanes();
+        _createSolarSystemParticles(galaxy.solarSystems);
+        // --- NEW: Call the function to create the background star disk ---
+        _createGalacticDisk();
+
+        scene.add(galaxyGroup);
+        
+        renderer.domElement.addEventListener('click', _onCanvasClick);
+        window.addEventListener('resize', _onResize);
+    }
+
+    function _createGalacticBulge() {
+        const positions = [];
+        const color = new THREE.Color('#ffdcb1');
+        
+        for (let i = 0; i < BULGE_PARTICLES; i++) {
+            const r = Math.pow(Math.random(), 2.5) * GALAXY_RADIUS * 0.4;
+            const theta = Math.random() * Math.PI * 2;
+            const phi = Math.acos(2 * Math.random() - 1);
+            const x = r * Math.sin(phi) * Math.cos(theta) * 1.2;
+            const y = r * Math.sin(phi) * Math.sin(theta) * 0.6;
+            const z = r * Math.cos(phi) * 1.2;
+            positions.push(x,y,z);
+        }
+        
+        const geometry = new THREE.BufferGeometry();
+        geometry.setAttribute('position', new THREE.Float32BufferAttribute(positions, 3));
+        const material = new THREE.PointsMaterial({
+            size: 2.0,
+            sizeAttenuation: true,
+            color: color,
+            depthWrite: true,
+            blending: THREE.AdditiveBlending,
+            transparent: true,
+            opacity: 0.8
+        });
+        const bulge = new THREE.Points(geometry, material);
+        galaxyGroup.add(bulge);
+    }
+    
+    function _createGalaxyArms() {
+        const positions = [];
+        const colors = [];
+        const colorBlue = new THREE.Color('#a3d5ff');
+        const colorWhite = new THREE.Color('#ffffff');
+
+        const particlesPerArm = Math.floor(ARM_STARS_PARTICLES / NUM_ARMS);
+        for (let armIndex = 0; armIndex < NUM_ARMS; armIndex++) {
+            const arm = armProfiles[armIndex];
+            for (let i = 0; i < particlesPerArm; i++) {
+                const progress = Math.pow(i / particlesPerArm, 0.8);
+                const angle = progress * Math.PI * arm.tightness;
+                const armRotation = arm.angleOffset;
+                const distance = progress * GALAXY_RADIUS * arm.length;
+                
+                // --- MODIFICATION: Using noise to make arms clumpy and less rigid ---
+                const noiseVal = SimplexNoise.noise(progress * 15, armIndex * 5, 0);
+                const clusterStrength = 60 * (1 - progress * 0.7);
+                
+                const randomX = (Math.random() - 0.5 + noiseVal) * clusterStrength;
+                const randomY = (Math.random() - 0.5) * 15 * (1 - progress);
+                const randomZ = (Math.random() - 0.5) * clusterStrength;
+                
+                const x = Math.cos(angle + armRotation) * distance + randomX;
+                const y = randomY;
+                const z = Math.sin(angle + armRotation) * distance + randomZ;
+                positions.push(x, y, z);
+
+                const finalColor = colorWhite.clone().lerp(colorBlue, Math.random() * 0.5 + 0.5);
+                colors.push(finalColor.r, finalColor.g, finalColor.b);
+            }
+        }
+        
+        const geometry = new THREE.BufferGeometry();
+        geometry.setAttribute('position', new THREE.Float32BufferAttribute(positions, 3));
+        geometry.setAttribute('color', new THREE.Float32BufferAttribute(colors, 3));
+        const material = new THREE.PointsMaterial({
+            size: 1.0,
+            sizeAttenuation: true,
+            depthWrite: false,
+            blending: THREE.AdditiveBlending,
+            vertexColors: true
+        });
+        galaxyGroup.add(new THREE.Points(geometry, material));
+    }
+    
+    // --- NEW: Function to create background stars between the arms ---
+    function _createGalacticDisk() {
+        const positions = [];
+        const color = new THREE.Color('#fefbe8'); // Faint yellowish-white
+
+        for (let i = 0; i < DISK_STARS_PARTICLES; i++) {
+            const r = Math.pow(Math.random(), 1.5) * GALAXY_RADIUS * 1.2;
+            const theta = Math.random() * Math.PI * 2;
+            const y = (Math.random() - 0.5) * 20;
+
+            const x = Math.cos(theta) * r;
+            const z = Math.sin(theta) * r;
+
+            positions.push(x,y,z);
+        }
+
+        const geometry = new THREE.BufferGeometry();
+        geometry.setAttribute('position', new THREE.Float32BufferAttribute(positions, 3));
+        const material = new THREE.PointsMaterial({
+            size: 0.8,
+            sizeAttenuation: true,
+            color: color,
+            depthWrite: false,
+            blending: THREE.AdditiveBlending,
+            transparent: true,
+            opacity: 0.15 // Very faint
+        });
+        const disk = new THREE.Points(geometry, material);
+        galaxyGroup.add(disk);
+    }
+
+    function _createNebulae() {
+        const positions = [];
+        const color = new THREE.Color('#ff4488');
+        const particlesPerArm = Math.floor(NEBULA_PARTICLES / NUM_ARMS);
+
+        for (let armIndex = 0; armIndex < NUM_ARMS; armIndex++) {
+            const arm = armProfiles[armIndex];
+            for (let i = 0; i < particlesPerArm; i++) {
+                const progress = Math.random() * 0.8 + 0.1;
+                const angle = progress * Math.PI * arm.tightness;
+                const armRotation = arm.angleOffset;
+                const distance = progress * GALAXY_RADIUS * arm.length;
+                
+                const randomX = (Math.random() - 0.5) * 60;
+                const randomY = (Math.random() - 0.5) * 10;
+                const randomZ = (Math.random() - 0.5) * 60;
+                
+                const x = Math.cos(angle + armRotation) * distance + randomX;
+                const y = randomY;
+                const z = Math.sin(angle + armRotation) * distance + randomZ;
+                positions.push(x,y,z);
+            }
+        }
+        const geometry = new THREE.BufferGeometry();
+        geometry.setAttribute('position', new THREE.Float32BufferAttribute(positions, 3));
+        const material = new THREE.PointsMaterial({
+            size: 50,
+            map: _createStarTexture(color, 0.3, 0.8),
+            color: color,
+            sizeAttenuation: true,
+            depthWrite: false,
+            transparent: true,
+            blending: THREE.AdditiveBlending
+        });
+        galaxyGroup.add(new THREE.Points(geometry, material));
+    }
+
+    function _createDustLanes() {
+        const positions = [];
+        const particlesPerArm = Math.floor(DUST_PARTICLES / NUM_ARMS);
+
+        for (let armIndex = 0; armIndex < NUM_ARMS; armIndex++) {
+            const arm = armProfiles[armIndex];
+            for(let i=0; i<particlesPerArm; i++) {
+                const progress = Math.pow(i / particlesPerArm, 0.6);
+                const angle = progress * Math.PI * arm.tightness;
+                const armRotation = arm.angleOffset + 0.1;
+                const distance = progress * GALAXY_RADIUS * arm.length * 1.1;
+
+                const noiseVal = SimplexNoise.noise(
+                    (Math.cos(angle + armRotation) * distance) / 200, 
+                    (Math.sin(angle + armRotation) * distance) / 200, 
+                    i / 1000
+                );
+                
+                const randomX = (Math.random() - 0.5) * 50 * (1 - progress);
+                const randomY = (Math.random() - 0.5) * 15 * (1 - progress);
+                const randomZ = (Math.random() - 0.5) * 50 * (1 - progress);
+                
+                const x = Math.cos(angle + armRotation) * distance + randomX + noiseVal * 30;
+                const y = randomY + noiseVal * 10;
+                const z = Math.sin(angle + armRotation) * distance + randomZ + noiseVal * 30;
+                positions.push(x, y, z);
+            }
+        }
+
+        const geometry = new THREE.BufferGeometry();
+        geometry.setAttribute('position', new THREE.Float32BufferAttribute(positions, 3));
+        const material = new THREE.PointsMaterial({
+            size: 40,
+            color: '#040201',
+            sizeAttenuation: true,
+            depthWrite: false,
+            transparent: true,
+            opacity: 0.3
+        });
+        galaxyGroup.add(new THREE.Points(geometry, material));
+    }
+
+    function _createSolarSystemParticles(systems) {
+        solarSystemData = systems;
+        const geometry = new THREE.BufferGeometry();
+        const positions = [], colors = [];
+        const galaxyContentDiameter = window.gameSessionData.universe.diameter || 500;
+        const starTexture = _createStarTexture(new THREE.Color(1,1,1), 0, 1);
+
+        systems.forEach((system) => {
+            const scale = (GALAXY_RADIUS * 1.5) / galaxyContentDiameter;
+            const x = (system.x - galaxyContentDiameter / 2) * scale;
+            const z = (system.y - galaxyContentDiameter / 2) * scale;
+            const y = (Math.random() - 0.5) * 10;
+            positions.push(x, y, z);
+            const sunColor = sunVariations[(system.sunType || 0) % sunVariations.length].baseColor;
+            colors.push(sunColor.r, sunColor.g, sunColor.b);
+        });
+
+        geometry.setAttribute('position', new THREE.Float32BufferAttribute(positions, 3));
+        geometry.setAttribute('color', new THREE.Float32BufferAttribute(colors, 3));
+        const material = new THREE.PointsMaterial({
+            size: 20,
+            sizeAttenuation: true,
+            depthWrite: false,
+            transparent: true,
+            blending: THREE.AdditiveBlending,
+            map: starTexture,
+            vertexColors: true
+        });
+
+        solarSystemParticles = new THREE.Points(geometry, material);
+        galaxyGroup.add(solarSystemParticles);
+    }
+
+    function _onCanvasClick(event) {
+        if (!onSystemClickCallback) return;
+        const canvas = renderer.domElement;
+        const rect = canvas.getBoundingClientRect();
+        
+        const gMouse = new THREE.Vector2();
+        gMouse.x = ((event.clientX - rect.left) / canvas.clientWidth) * 2 - 1;
+        gMouse.y = -((event.clientY - rect.top) / canvas.clientHeight) * 2 + 1;
+        
+        raycaster.setFromCamera(gMouse, camera);
+        const intersects = raycaster.intersectObject(solarSystemParticles);
+        if (intersects.length > 0) {
+            const systemId = solarSystemData?.[intersects[0]?.index]?.id;
+            if (systemId) {
+                onSystemClickCallback(systemId);
+            }
+        }
+    }
+
+    function _onResize() {
+        if (!renderer) return;
+        const canvas = renderer.domElement;
+        const width = canvas.clientWidth;
+        const height = canvas.clientHeight;
+        if (canvas.width !== width || canvas.height !== height) {
+            renderer.setSize(width, height, false);
+            camera.aspect = width / height;
+            camera.updateProjectionMatrix();
+        }
+    }
+
+    function _animate() {
+        animationFrameId = requestAnimationFrame(_animate);
+        galaxyGroup.rotation.y += 0.0001;
+        controls.update();
+        renderer.render(scene, camera);
+    }
+
+    function _dispose() {
+        if (animationFrameId) cancelAnimationFrame(animationFrameId);
+        window.removeEventListener('resize', _onResize);
+        if (renderer) renderer.domElement.removeEventListener('click', _onCanvasClick);
+        if (controls) controls.dispose();
+        scene?.traverse(object => {
+            if (object.geometry) object.geometry.dispose();
+            if (object.material) {
+                if(Array.isArray(object.material)) object.material.forEach(m => m.dispose());
+                else object.material.dispose();
+            }
+        });
+        renderer?.dispose();
+        scene = null; camera = null; renderer = null; controls = null;
+        animationFrameId = null; onSystemClickCallback = null;
+    }
+
+    return {
+        init: (canvas, galaxy, callback) => {
+            onSystemClickCallback = callback;
+            _initScene(canvas, galaxy);
+            _animate();
+        },
+        dispose: _dispose
+    };
+})();

@@ -14,13 +14,13 @@ export const GalaxyRenderer = (() => {
     // --- PARAMETERS ---
     const GALAXY_RADIUS = 1500;
     const GALAXY_THICKNESS = 100;
-    const GALAXY_CORE_RADIUS = 400;
+    const GALAXY_CORE_RADIUS = 200;
     const NUM_ARMS = 5;
-    const ARM_ROTATION = 4.0 * Math.PI;
+    const ARM_ROTATION = Math.PI;
     const DECORATIVE_STAR_COUNT = 50000;  // Reverted
     const CORE_STAR_COUNT = 20000;       // Reverted
     const DISK_STAR_COUNT = 120000;      // Kept high to fill space
-    const HALO_STAR_COUNT = 150000;      // Massively Increased for outer stars
+    const HALO_STAR_COUNT = 300000;      // Massively Increased for outer stars
     const DUST_COUNT = 15000;
     const BACKGROUND_STAR_COUNT = 250000;
     const NEBULA_CLUSTER_COUNT = 50;

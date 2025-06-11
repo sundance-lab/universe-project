@@ -108,7 +108,7 @@ export const GalaxyRenderer = (() => {
 
     function _initScene(canvas, galaxyData) {
         scene = new THREE.Scene();
-        scene.fog = new THREE.FogExp2(0x000000, 0.00025);
+        // REMOVED: scene.fog to make distant objects clearer
         
         camera = new THREE.PerspectiveCamera(60, canvas.offsetWidth / canvas.offsetHeight, 1, 30000);
         camera.position.set(GALAXY_RADIUS, GALAXY_RADIUS * 0.8, GALAXY_RADIUS);
@@ -135,7 +135,7 @@ export const GalaxyRenderer = (() => {
     }
     
     function _createGalacticCoreGlow() {
-        const coreTexture = _createStarTexture('rgba(255, 240, 220, 1)', 0.1); // Brighter texture
+        const coreTexture = _createStarTexture('rgba(255, 240, 220, 1)', 0.1);
         const spriteMaterial = new THREE.SpriteMaterial({
             map: coreTexture,
             blending: THREE.AdditiveBlending,
@@ -144,7 +144,7 @@ export const GalaxyRenderer = (() => {
         });
         const glow = new THREE.Sprite(spriteMaterial);
         glow.renderOrder = 3;
-        glow.scale.set(GALAXY_CORE_RADIUS * 3, GALAXY_CORE_RADIUS * 3, 1); // Increased scale
+        glow.scale.set(GALAXY_CORE_RADIUS * 2.5, GALAXY_CORE_RADIUS * 2.5, 1);
         return glow;
     }
     
@@ -171,24 +171,21 @@ export const GalaxyRenderer = (() => {
     function _createSisterGalaxy() {
         sisterGalaxy = new THREE.Group();
         const positions = [], colors = [];
-        const RADIUS = GALAXY_RADIUS * 0.7;
-        const THICKNESS = GALAXY_THICKNESS * 2;
-        const STAR_COUNT = 60000; // Tens of thousands of stars
+        const STAR_COUNT = 60000;
         
-        const colorPalette = [ new THREE.Color(0x00008B), new THREE.Color(0x483D8B), new THREE.Color(0x9370DB) ];
+        const colorPalette = [
+            new THREE.Color(0x4B0082), // Indigo
+            new THREE.Color(0x483D8B), // Dark Slate Blue
+            new THREE.Color(0x8A2BE2), // Blue Violet
+            new THREE.Color(0x9370DB)  // Medium Purple
+        ];
 
         for (let i = 0; i < STAR_COUNT; i++) {
-            // Irregular, ellipsoidal shape
-            const r = Math.random() * RADIUS;
+            const r = Math.random() * GALAXY_RADIUS * 0.7;
             const theta = Math.random() * Math.PI * 2;
             const phi = Math.acos(Math.random() * 2 - 1);
 
-            positions.push(
-                r * Math.sin(phi) * Math.cos(theta),
-                r * Math.sin(phi) * Math.sin(theta) * 0.6, // Flattened ellipsoid
-                r * Math.cos(phi)
-            );
-            
+            positions.push( r * Math.sin(phi) * Math.cos(theta), r * Math.sin(phi) * Math.sin(theta) * 0.6, r * Math.cos(phi) );
             const starColor = colorPalette[Math.floor(Math.random() * colorPalette.length)];
             colors.push(starColor.r, starColor.g, starColor.b);
         }
@@ -196,17 +193,16 @@ export const GalaxyRenderer = (() => {
         const geometry = new THREE.BufferGeometry();
         geometry.setAttribute('position', new THREE.Float32BufferAttribute(positions, 3));
         geometry.setAttribute('color', new THREE.Float32BufferAttribute(colors, 3));
-        const material = new THREE.PointsMaterial({ size: 15, vertexColors: true, map: _createStarTexture(), blending: THREE.AdditiveBlending, transparent: true, opacity: 0.9, depthWrite: false }); // Brighter
+        const material = new THREE.PointsMaterial({ size: 15, vertexColors: true, map: _createStarTexture(), blending: THREE.AdditiveBlending, transparent: true, opacity: 0.9, depthWrite: false });
         
         const mesh = new THREE.Points(geometry, material);
         sisterGalaxy.add(mesh);
         
-        // Add a glowing core to the sister galaxy
         const coreGlow = _createGalacticCoreGlow();
-        coreGlow.scale.set(RADIUS * 0.8, RADIUS * 0.8, 1);
+        coreGlow.scale.set(GALAXY_RADIUS * 0.8, GALAXY_RADIUS * 0.8, 1);
         sisterGalaxy.add(coreGlow);
         
-        sisterGalaxy.position.set(-GALAXY_RADIUS * 3, -GALAXY_RADIUS * 1.5, -GALAXY_RADIUS * 4); // Further away
+        sisterGalaxy.position.set(-GALAXY_RADIUS * 3, -GALAXY_RADIUS * 1.5, -GALAXY_RADIUS * 4);
         sisterGalaxy.rotation.set(Math.PI / 5, 0, Math.PI / 7);
         scene.add(sisterGalaxy);
     }
@@ -219,23 +215,20 @@ export const GalaxyRenderer = (() => {
         const dustTexture = _createDustTexture();
         const nebulaTexture = _createNebulaTexture();
         
-        const colorPalette = [ new THREE.Color(0x00008B), new THREE.Color(0x483D8B), new THREE.Color(0x9370DB) ];
+        const colorPalette = [
+            new THREE.Color(0x00008B), // Dark Blue
+            new THREE.Color(0x4B0082), // Indigo
+            new THREE.Color(0x483D8B), // Dark Slate Blue (Dark Purple)
+            new THREE.Color(0x8A2BE2), // Blue Violet (Purple)
+            new THREE.Color(0x9370DB)  // Lighter, "space-esque" purple
+        ];
         
         const armVariations = [];
         for (let i = 0; i < NUM_ARMS; i++) {
             armVariations.push({ offset: (Math.random() - 0.5) * 0.5, rotation: ARM_ROTATION * (1 + (Math.random() - 0.5) * 0.1) });
         }
         
-        const generateStarColor = () => {
-            const darkBlue = new THREE.Color(0x00008B);
-            const lightBlue = new THREE.Color(0x87CEEB);
-            const darkPurple = new THREE.Color(0x483D8B);
-            const lightPurple = new THREE.Color(0x9370DB);
-            const themeLerp = Math.random();
-            const color1 = new THREE.Color().lerpColors(darkBlue, lightBlue, Math.random());
-            const color2 = new THREE.Color().lerpColors(darkPurple, lightPurple, Math.random());
-            return color1.lerp(color2, themeLerp);
-        };
+        const generateStarColor = () => colorPalette[Math.floor(Math.random() * colorPalette.length)];
 
         for (let i = 0; i < CORE_STAR_COUNT; i++) {
             const distance = Math.pow(Math.random(), 2) * GALAXY_CORE_RADIUS;
@@ -262,7 +255,7 @@ export const GalaxyRenderer = (() => {
             const armAngle = (armIndex / NUM_ARMS) * 2 * Math.PI + armVar.offset;
             const rotation = (distance / GALAXY_RADIUS) * armVar.rotation;
             const angle = armAngle + rotation;
-            const spread = 1200 * Math.pow(1 - (distance / GALAXY_RADIUS), 2); // Tripled arm width
+            const spread = 2200 * Math.pow(1 - (distance / GALAXY_RADIUS), 2); // Dramatically widened arms
             const turbulence = Math.sin(angle * 5 + distance * 0.01) * spread * 0.2;
             const randomX = _gaussianRandom() * spread;
             const randomZ = _gaussianRandom() * spread;

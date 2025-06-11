@@ -21,13 +21,8 @@
                 <span id="galaxy-detail-title-text" class="editable-title-text">Galaxy</span>
                 <input type="text" id="galaxy-detail-title-input" class="editable-title-input">
             </div>
-            <div id="galaxy-viewport">
-                <div id="galaxy-zoom-content">
-                    <canvas id="solar-system-lines-canvas"></canvas>
-                </div>
-            </div>
-            <button class="back-button" id="back-to-main">&larr; Universe</button>
-        </div>
+            <canvas id="galaxy-canvas"></canvas>
+
 
 <div id="solar-system-screen" class="screen">
 
@@ -118,7 +113,6 @@
 </div>
   
 <div class="controls-overlay">
-        <div id="zoom-controls"><button id="zoom-out-btn">-</button><button id="zoom-in-btn">+</button></div>
         <button id="regenerate-universe-btn" class="control-button">Generate New Universe</button>
         <button id="create-planet-design-btn" class="control-button">Create Planet Designs</button>
         <button id="dev-controls-btn" class="control-button">Developer Controls</button> </div>

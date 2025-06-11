@@ -21,7 +21,7 @@ export const GalaxyRenderer = (() => {
     const CORE_STAR_COUNT = 20000;       // Reverted
     const DISK_STAR_COUNT = 120000;      // Kept high to fill space
     const HALO_STAR_COUNT = 300000;      // Massively Increased for outer stars
-    const DUST_COUNT = 15000;
+    const DUST_COUNT = 10000;
     const BACKGROUND_STAR_COUNT = 250000;
     const NEBULA_CLUSTER_COUNT = 50;
     const DISTANT_GALAXY_COUNT = 150;

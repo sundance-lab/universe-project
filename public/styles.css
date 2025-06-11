@@ -724,3 +724,11 @@ body, html {
 .modal-content .input-row span {
     color: #bdc3c7;
 }
+
+/* In styles.css */
+.planet-sidebar-item.active-focus {
+  background-color: #5a7d9b; /* Highlight color */
+  font-weight: bold;
+  border-left: 3px solid #2ecc71; /* Accent */
+  padding-left: 5px; /* Adjust padding due to border */
+}

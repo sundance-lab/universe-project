@@ -5,42 +5,32 @@ import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls.js';
 // --- Noise Generation Utility (for realistic dust lanes) ---
 // This is a self-contained 3D Simplex Noise implementation.
 const SimplexNoise = new (function() {
-    const perm = new Uint8Array(512);
-    const grad3 = new Float32Array([1,1,0, -1,1,0, 1,-1,0, -1,-1,0, 1,0,1, -1,0,1, 1,0,-1, -1,0,-1, 0,1,1, 0,-1,1, 0,1,-1, 0,-1,-1]);
-    
-    // Skewing and unskewing factors
+    // Ported from Stefan Gustavson's Java implementation
     const F3 = 1.0/3.0;
     const G3 = 1.0/6.0;
+    const perm = new Uint8Array(512);
+    const grad3 = new Float32Array([1,1,0, -1,1,0, 1,-1,0, -1,-1,0, 1,0,1, -1,0,1, 1,0,-1, -1,0,-1, 0,1,1, 0,-1,1, 0,1,-1, 0,-1,-1]);
 
-    // Seed the permutation table
     const seed = Math.random;
     for(let i=0; i<256; i++) perm[i] = i;
     for(let i=0; i<255; i++) {
         const r = i + ~~(seed() * (256-i));
-        const-g = perm[i];
+        const g = perm[i]; // ** FIX: Corrected variable name **
         perm[i] = perm[r];
         perm[r] = g;
     }
-    // Duplicate the permutation table to avoid buffer overflows
     for(let i=0; i<256; i++) perm[i+256] = perm[i];
-    
+
     this.noise = function(xin, yin, zin) {
-        let n0, n1, n2, n3; // Noise contributions from the four corners
-        // Skew the input space to determine which simplex cell we're in
+        let n0, n1, n2, n3;
         const s = (xin + yin + zin) * F3;
-        const i = Math.floor(xin + s);
-        const j = Math.floor(yin + s);
-        const k = Math.floor(zin + s);
+        const i = Math.floor(xin + s), j = Math.floor(yin + s), k = Math.floor(zin + s);
         const t = (i + j + k) * G3;
-        const x0 = xin - (i - t); // Unskewed grid points
-        const y0 = yin - (j - t);
-        const z0 = zin - (k - t);
+        const x0 = xin - (i - t), y0 = yin - (j - t), z0 = zin - (k - t);
         
-        // For the 3D case, the simplex shape is a tetrahedron.
-        // Determine which simplex we are in.
         let i1, j1, k1, i2, j2, k2; 
         if(x0 >= y0) {
-            if(y0 >= z0) { i1=1; j1=0; k1=0; i2=1; j2=1; k1=0; }
+            if(y0 >= z0) { i1=1; j1=0; k1=0; i2=1; j2=1; k2=0; }
             else if(x0 >= z0) { i1=1; j1=0; k1=0; i2=1; j2=0; k2=1; }
             else { i1=0; j1=0; k1=1; i2=1; j2=0; k2=1; }
         } else {
@@ -49,42 +39,28 @@ const SimplexNoise = new (function() {
             else { i1=0; j1=1; k1=0; i2=1; j2=1; k2=0; }
         }
 
-        const x1 = x0 - i1 + G3;
-        const y1 = y0 - j1 + G3;
-        const z1 = z0 - k1 + G3;
-        const x2 = x0 - i2 + 2.0 * G3;
-        const y2 = y0 - j2 + 2.0 * G3;
-        const z2 = z0 - k2 + 2.0 * G3;
-        const x3 = x0 - 1.0 + 3.0 * G3;
-        const y3 = y0 - 1.0 + 3.0 * G3;
-        const z3 = z0 - 1.0 + 3.0 * G3;
+        const x1 = x0 - i1 + G3, y1 = y0 - j1 + G3, z1 = z0 - k1 + G3;
+        const x2 = x0 - i2 + 2.0 * G3, y2 = y0 - j2 + 2.0 * G3, z2 = z0 - k2 + 2.0 * G3;
+        const x3 = x0 - 1.0 + 3.0 * G3, y3 = y0 - 1.0 + 3.0 * G3, z3 = z0 - 1.0 + 3.0 * G3;
         
-        // Work out the hashed gradient indices of the four simplex corners
         const ii = i & 255, jj = j & 255, kk = k & 255;
         const gi0 = perm[ii+perm[jj+perm[kk]]] % 12;
         const gi1 = perm[ii+i1+perm[jj+j1+perm[kk+k1]]] % 12;
         const gi2 = perm[ii+i2+perm[jj+j2+perm[kk+k2]]] % 12;
         const gi3 = perm[ii+1+perm[jj+1+perm[kk+1]]] % 12;
         
-        // Calculate the contribution from the four corners
         let t0 = 0.6 - x0*x0 - y0*y0 - z0*z0;
-        if(t0 < 0) n0 = 0.0;
-        else { t0 *= t0; n0 = t0 * t0 * (grad3[gi0*3] * x0 + grad3[gi0*3+1] * y0 + grad3[gi0*3+2] * z0); }
+        if(t0 < 0) n0 = 0.0; else { t0 *= t0; n0 = t0 * t0 * (grad3[gi0*3] * x0 + grad3[gi0*3+1] * y0 + grad3[gi0*3+2] * z0); }
 
         let t1 = 0.6 - x1*x1 - y1*y1 - z1*z1;
-        if(t1 < 0) n1 = 0.0;
-        else { t1 *= t1; n1 = t1 * t1 * (grad3[gi1*3] * x1 + grad3[gi1*3+1] * y1 + grad3[gi1*3+2] * z1); }
+        if(t1 < 0) n1 = 0.0; else { t1 *= t1; n1 = t1 * t1 * (grad3[gi1*3] * x1 + grad3[gi1*3+1] * y1 + grad3[gi1*3+2] * z1); }
 
         let t2 = 0.6 - x2*x2 - y2*y2 - z2*z2;
-        if(t2 < 0) n2 = 0.0;
-        else { t2 *= t2; n2 = t2 * t2 * (grad3[gi2*3] * x2 + grad3[gi2*3+1] * y2 + grad3[gi2*3+2] * z2); }
+        if(t2 < 0) n2 = 0.0; else { t2 *= t2; n2 = t2 * t2 * (grad3[gi2*3] * x2 + grad3[gi2*3+1] * y2 + grad3[gi2*3+2] * z2); }
 
         let t3 = 0.6 - x3*x3 - y3*y3 - z3*z3;
-        if(t3 < 0) n3 = 0.0;
-        else { t3 *= t3; n3 = t3 * t3 * (grad3[gi3*3] * x3 + grad3[gi3*3+1] * y3 + grad3[gi3*3+2] * z3); }
+        if(t3 < 0) n3 = 0.0; else { t3 *= t3; n3 = t3 * t3 * (grad3[gi3*3] * x3 + grad3[gi3*3+1] * y3 + grad3[gi3*3+2] * z3); }
 
-        // Add contributions from each corner to get the final noise value.
-        // The result is scaled to stay just inside [-1,1]
         return 32.0 * (n0 + n1 + n2 + n3);
     };
 })();
@@ -98,10 +74,10 @@ export const GalaxyRenderer = (() => {
 
     const sunVariations = [ { baseColor: new THREE.Color(0x4A90E2) }, { baseColor: new THREE.Color(0xFF5722) }, { baseColor: new THREE.Color(0xFFA500) }, { baseColor: new THREE.Color(0xE0E0E0) }, { baseColor: new THREE.Color(0xE65100) }];
     const GALAXY_RADIUS = 500;
-    const NUM_ARMS = 2; // Two main arms like the reference
+    const NUM_ARMS = 2;
     const BULGE_PARTICLES = 50000;
     const ARM_STARS_PARTICLES = 300000;
-    const NEBULA_PARTICLES = 500; // Small number of bright nebulae
+    const NEBULA_PARTICLES = 500;
     const DUST_PARTICLES = 150000;
 
     const armProfiles = [
@@ -116,8 +92,8 @@ export const GalaxyRenderer = (() => {
         canvas.height = size;
         const context = canvas.getContext('2d');
         const gradient = context.createRadialGradient(size / 2, size / 2, 0, size / 2, size / 2, size / 2);
-        gradient.addColorStop(0, `rgba(${color.r*255}, ${color.g*255}, ${color.b*255}, 1)`);
-        gradient.addColorStop(innerRadius, `rgba(${color.r*255}, ${color.g*255}, ${color.b*255}, 0.8)`);
+        gradient.addColorStop(innerRadius, `rgba(${color.r*255}, ${color.g*255}, ${color.b*255}, 1)`);
+        gradient.addColorStop((innerRadius + outerRadius) / 2, `rgba(${color.r*255}, ${color.g*255}, ${color.b*255}, 0.5)`);
         gradient.addColorStop(outerRadius, `rgba(${color.r*255}, ${color.g*255}, ${color.b*255}, 0)`);
         context.fillStyle = gradient;
         context.fillRect(0, 0, size, size);
@@ -146,7 +122,6 @@ export const GalaxyRenderer = (() => {
         raycaster.params.Points.threshold = 5;
         
         galaxyGroup = new THREE.Group();
-        // --- View angle similar to reference ---
         galaxyGroup.rotation.x = -Math.PI / 5; 
         galaxyGroup.rotation.y = -Math.PI / 8;
 
@@ -194,8 +169,8 @@ export const GalaxyRenderer = (() => {
     function _createGalaxyArms() {
         const positions = [];
         const colors = [];
-        const colorBlue = new THREE.Color('#a3d5ff'); // Young blue stars
-        const colorWhite = new THREE.Color('#ffffff'); // White stars
+        const colorBlue = new THREE.Color('#a3d5ff');
+        const colorWhite = new THREE.Color('#ffffff');
 
         const particlesPerArm = Math.floor(ARM_STARS_PARTICLES / NUM_ARMS);
         for (let armIndex = 0; armIndex < NUM_ARMS; armIndex++) {
@@ -206,7 +181,6 @@ export const GalaxyRenderer = (() => {
                 const armRotation = arm.angleOffset;
                 const distance = progress * GALAXY_RADIUS * arm.length;
                 
-                // Cluster particles
                 const clusterRadius = 40 * (1 - progress * 0.5);
                 const randomX = (Math.random() - 0.5) * clusterRadius;
                 const randomY = (Math.random() - 0.5) * 10 * (1 - progress);
@@ -235,16 +209,15 @@ export const GalaxyRenderer = (() => {
         galaxyGroup.add(new THREE.Points(geometry, material));
     }
     
-    // --- NEW: Function for pink H II regions ---
     function _createNebulae() {
         const positions = [];
-        const color = new THREE.Color('#ff4488'); // Bright pink/red
+        const color = new THREE.Color('#ff4488');
         const particlesPerArm = Math.floor(NEBULA_PARTICLES / NUM_ARMS);
 
         for (let armIndex = 0; armIndex < NUM_ARMS; armIndex++) {
             const arm = armProfiles[armIndex];
             for (let i = 0; i < particlesPerArm; i++) {
-                const progress = Math.random() * 0.8 + 0.1; // Place them along the main arm, not at core or edge
+                const progress = Math.random() * 0.8 + 0.1;
                 const angle = progress * Math.PI * arm.tightness;
                 const armRotation = arm.angleOffset;
                 const distance = progress * GALAXY_RADIUS * arm.length;
@@ -273,7 +246,6 @@ export const GalaxyRenderer = (() => {
         galaxyGroup.add(new THREE.Points(geometry, material));
     }
 
-    // --- Reworked for more complex, noisy dust lanes ---
     function _createDustLanes() {
         const positions = [];
         const particlesPerArm = Math.floor(DUST_PARTICLES / NUM_ARMS);
@@ -283,7 +255,7 @@ export const GalaxyRenderer = (() => {
             for(let i=0; i<particlesPerArm; i++) {
                 const progress = Math.pow(i / particlesPerArm, 0.6);
                 const angle = progress * Math.PI * arm.tightness;
-                const armRotation = arm.angleOffset + 0.1; // Offset from star arm
+                const armRotation = arm.angleOffset + 0.1;
                 const distance = progress * GALAXY_RADIUS * arm.length * 1.1;
 
                 const noiseVal = SimplexNoise.noise(
@@ -321,7 +293,7 @@ export const GalaxyRenderer = (() => {
         const geometry = new THREE.BufferGeometry();
         const positions = [], colors = [];
         const galaxyContentDiameter = window.gameSessionData.universe.diameter || 500;
-        const starTexture = _createStarTexture(new THREE.Color(1,1,1));
+        const starTexture = _createStarTexture(new THREE.Color(1,1,1), 0, 1);
 
         systems.forEach((system) => {
             const scale = (GALAXY_RADIUS * 1.5) / galaxyContentDiameter;
@@ -354,8 +326,7 @@ export const GalaxyRenderer = (() => {
         const canvas = renderer.domElement;
         const rect = canvas.getBoundingClientRect();
         
-        // --- Transform mouse coords to rotated galaxy plane ---
-        const-gMouse = new THREE.Vector2();
+        const gMouse = new THREE.Vector2(); // ** FIX: Corrected variable name **
         gMouse.x = ((event.clientX - rect.left) / canvas.clientWidth) * 2 - 1;
         gMouse.y = -((event.clientY - rect.top) / canvas.clientHeight) * 2 + 1;
         

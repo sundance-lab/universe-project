@@ -105,53 +105,6 @@ body {
   background-color: #000;
 }
 
-#galaxy-viewport {
-  position: relative; /* For #galaxy-zoom-content */
-  border-radius: 50%; /* Assuming the viewable galaxy area is circular */
-  overflow: hidden;  /* Critical for zoom/pan effect */
-  background-color: #100520; /* Consistent with universe */
-  cursor: default;    /* Indicates pannable */
-}
-
-#galaxy-viewport.dragging {
-  cursor: default;
-}
-
-#galaxy-zoom-content {
-  width: 100%; /* Matches viewport initially */
-  height: 100%;
-  position: absolute;
-  top: 0;
-  left: 0;
-  transform-origin: center center; /* Zoom/pan around center */
-  /* transition for transform applied by JS */
-}
-
-#solar-system-lines-canvas { /* For galaxy connections */
-  position: absolute;
-  top: 0;
-  left: 0;
-  width: 100%; /* Covers the zoom content area */
-  height: 100%;
-  pointer-events: none; /* Doesn't interfere with clicks on solar systems */
-  z-index: 1; /* Above background, below solar system icons */
-}
-
-.solar-system-icon {
-  position: absolute;
-  border-radius: 50%;
-  background-color: #ffd700; /* Default sun-like color */
-  cursor: pointer;
-  z-index: 2; /* Above connection lines */
-  box-shadow: 0 0 5px #ffd700;
-  transition: transform 0.1s ease-out, box-shadow 0.2s ease-out;
-}
-
-.solar-system-icon:hover {
-  transform: scale(1.1);
-  box-shadow: 0 0 10px #fff;
-}
-
 #solar-system-screen {
   cursor: default;
   display: flex;
@@ -232,35 +185,18 @@ body, html {
   pointer-events: all; /* Children of overlay are interactive */
 }
 
-#zoom-controls {
-  position: fixed; /* Relative to viewport */
-  bottom: 15px;
-  right: 15px;
-  display: none; /* Shown by JS by adding .visible class */
-  gap: 8px;
-  z-index: 201; /* Above general overlay elements if any, below other modals */
+#galaxy-canvas {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  outline: none;
+  cursor: grab;
 }
 
-#zoom-controls.visible {
-  display: flex;
-}
-
-#zoom-controls button {
-  width: 36px;
-  height: 36px;
-  font-size: 1.3em;
-  font-weight: 700;
-  background-color: rgba(44, 44, 44, .8);
-  color: #fff;
-  border: 1px solid #4f4f4f;
-  border-radius: 50%;
-  cursor: pointer;
-  line-height: 34px; /* Helps vertically center text if button is fixed height */
-  padding: 0; /* Remove default padding */
-}
-
-#zoom-controls button:hover {
-  background-color: rgba(79, 79, 79, .9);
+#galaxy-canvas:active {
+    cursor: grabbing;
 }
 
 .back-button {

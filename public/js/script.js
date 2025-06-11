@@ -42,15 +42,12 @@ document.addEventListener('DOMContentLoaded', () => {
     };
 
     // --- DOM ELEMENT REFERENCES ---
-    const domElements = {
+const domElements = {
         mainScreen: document.getElementById('main-screen'),
         galaxyDetailScreen: document.getElementById('galaxy-detail-screen'),
         solarSystemScreen: document.getElementById('solar-system-screen'),
         hexPlanetScreen: document.getElementById('hex-planet-screen'),
         universeCircle: document.getElementById('universe-circle'),
-        galaxyViewport: document.getElementById('galaxy-viewport'),
-        galaxyZoomContent: document.getElementById('galaxy-zoom-content'),
-        solarSystemLinesCanvasEl: document.getElementById('solar-system-lines-canvas'),
         solarSystemContent: document.getElementById('solar-system-content'),
         planetDesignerScreen: document.getElementById('planet-designer-screen'),
         mainScreenTitleText: document.getElementById('main-screen-title-text'),
@@ -60,9 +57,6 @@ document.addEventListener('DOMContentLoaded', () => {
         solarSystemTitleInput: document.getElementById('solar-system-title-input'),
         backToMainButton: document.getElementById('back-to-main'),
         backToGalaxyButton: document.getElementById('back-to-galaxy'),
-        zoomControlsElement: document.getElementById('zoom-controls'),
-        zoomInButton: document.getElementById('zoom-in-btn'),
-        zoomOutButton: document.getElementById('zoom-out-btn'),
         regenerateUniverseButton: document.getElementById('regenerate-universe-btn'),
         createPlanetDesignButton: document.getElementById('create-planet-design-btn'),
         planetSidebar: document.getElementById('planet-sidebar'),

@@ -65,7 +65,7 @@ document.addEventListener('DOMContentLoaded', () => {
         undefined,
         (err) => {
             console.error("Failed to load global skybox texture:", err);
-            scene.background = new THREE.Color(0x000000); // Fallback to black if texture fails
+            scene.background = new THREE.Color(0xFF0000); // Fallback to black if texture fails
         }
     );
 

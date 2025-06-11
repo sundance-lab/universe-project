@@ -180,7 +180,7 @@ document.addEventListener('DOMContentLoaded', () => {
         }
         
         UIManager.renderMainScreen();
-        preGenerateAllGalaxyContents(window.gameSessionData, domElements.galaxyViewport, { min: 200, max: 300 }); 
+        preGenerateAllGalaxyContents(window.gameSessionData, domElements.galaxyDetailScreen, { min: 200, max: 300 });
         
         window.gameSessionData.isInitialized = true;
         console.log("Game initialization complete.");

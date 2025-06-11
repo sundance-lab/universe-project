@@ -206,7 +206,7 @@ export const SolarSystemRenderer = (() => {
             const newDist = THREE.MathUtils.clamp(dist + zoomFactor, controls.minDistance, controls.maxDistance);
             
             // Apply the new distance
-            camera.position.copy(controls.target).addScaledVector(camToTarge.normalize(), -newDist);
+            camera.position.copy(controls.target).addScaledVector(camToTarget.normalize(), -newDist);
         };
         renderer.domElement.addEventListener('wheel', boundWheelHandler, { passive: false });
         raycaster = new THREE.Raycaster();

@@ -53,7 +53,6 @@ export const UIManager = (() => {
         });
     }
 
-    // FIX: Updated focus logic
     function togglePlanetFocus(planetId) {
         const renderer = window.activeSolarSystemRenderer;
         if (!renderer) return;
@@ -280,21 +279,20 @@ export const UIManager = (() => {
         });
     }
 
-    function switchToSolarSystemView(solarSystemId) {
+    // FIX: Modified to handle re-focusing when returning from hex view
+    function switchToSolarSystemView(solarSystemId, planetToFocusId = null) {
         if (window.activeSolarSystemRenderer) {
             elements.solarSystemContent.removeEventListener('click', _onSolarSystemCanvasClick);
             window.activeSolarSystemRenderer.dispose();
             window.activeSolarSystemRenderer = null;
         }
-        focusedPlanetId = null;
+        
         callbacks.stopSolarSystemAnimation();
         window.gameSessionData.activeSolarSystemId = solarSystemId;
         const activeGalaxy = window.gameSessionData.galaxies.find(g => solarSystemId.startsWith(g.id));
         const solarSystemObject = activeGalaxy?.solarSystems.find(s => s.id === solarSystemId);
         if (!solarSystemObject) return switchToMainView();
         if (!solarSystemObject.planets) callbacks.generatePlanetsForSystem(solarSystemObject);
-
-        _renderPlanetSidebar(solarSystemObject.planets);
 
         const solarSystemDataForRenderer = {
             id: solarSystemObject.id,
@@ -303,13 +301,20 @@ export const UIManager = (() => {
         };
         setActiveScreen(elements.solarSystemScreen);
         
-        // FIX: Pass dev settings to renderer
         const devSettings = callbacks.getDevSettings();
         SolarSystemRenderer.init(solarSystemDataForRenderer, devSettings);
         window.activeSolarSystemRenderer = SolarSystemRenderer;
         
-        // FIX: Add click listener for 3D view
         elements.solarSystemContent.addEventListener('click', _onSolarSystemCanvasClick);
+        
+        if (planetToFocusId) {
+            if (window.activeSolarSystemRenderer.focusOnPlanet(planetToFocusId)) {
+                focusedPlanetId = planetToFocusId;
+            }
+        } else {
+            focusedPlanetId = null;
+        }
+        _renderPlanetSidebar(solarSystemObject.planets);
 
         makeTitleEditable(elements.solarSystemTitleText, elements.solarSystemTitleInput, (newName) => {
             solarSystemObject.customName = newName || null;
@@ -319,7 +324,6 @@ export const UIManager = (() => {
         });
     }
 
-    // FIX: New function to handle 3D clicks
     function _onSolarSystemCanvasClick(event) {
         const renderer = window.activeSolarSystemRenderer;
         if (!renderer) return;
@@ -341,7 +345,8 @@ export const UIManager = (() => {
         if (intersects.length > 0) {
             const clickedPlanetData = intersects[0].object.userData;
             const systemId = window.gameSessionData.activeSolarSystemId;
-            const onBackCallback = () => switchToSolarSystemView(systemId);
+            // FIX: Pass the planet ID to the callback to re-focus on return
+            const onBackCallback = () => switchToSolarSystemView(systemId, clickedPlanetData.id);
             
             switchToHexPlanetView(clickedPlanetData, onBackCallback);
         }
@@ -351,10 +356,10 @@ export const UIManager = (() => {
     function switchToHexPlanetView(planetData, onBackCallback) {
         if (!planetData) return;
         if (window.activeSolarSystemRenderer) {
-            window.activeSolarSystemRenderer.unfocusPlanet();
+            // Don't unfocus here, just remove the click listener
             elements.solarSystemContent.removeEventListener('click', _onSolarSystemCanvasClick);
         }
-        focusedPlanetId = null;
+        // FIX: Do NOT clear focusedPlanetId here.
         setActiveScreen(elements.hexPlanetScreen);
         callbacks.stopSolarSystemAnimation();
         HexPlanetViewController.activate(planetData, onBackCallback);
@@ -414,7 +419,7 @@ export const UIManager = (() => {
         p.startX = event.clientX;
         p.startY = event.clientY;
         p.initialPanX = galaxy.currentPanX || 0;
-        p.initialPanY = galaxy.currentPanY || 0; // Corrected typo here
+        p.initialPanY = galaxy.currentPanY || 0;
         elements.galaxyViewport.classList.add('dragging');
         elements.galaxyZoomContent.style.transition = 'none';
         event.preventDefault();

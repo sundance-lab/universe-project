@@ -100,7 +100,7 @@ export const UIManager = (() => {
         inputElement.onkeydown = (e) => {
             if (e.key === 'Enter') inputElement.blur();
             else if (e.key === 'Escape') {
-                inputElement.value = titleTextElement.textContent;
+                inputElement.value = titleTextElement.textContent; // Corrected from `input.value` to `inputElement.value`
                 inputElement.blur();
             }
         };
@@ -248,6 +248,10 @@ export const UIManager = (() => {
     
     function switchToMainView() {
         if (window.activeSolarSystemRenderer) {
+            // Remove previous click listener before disposing
+            if (elements.solarSystemContent) {
+                elements.solarSystemContent.removeEventListener('click', _onSolarSystemCanvasClick);
+            }
             window.activeSolarSystemRenderer.dispose();
             window.activeSolarSystemRenderer = null;
         }
@@ -261,6 +265,10 @@ export const UIManager = (() => {
 
     function switchToGalaxyDetailView(galaxyId) {
         if (window.activeSolarSystemRenderer) {
+            // Remove previous click listener before disposing
+            if (elements.solarSystemContent) {
+                elements.solarSystemContent.removeEventListener('click', _onSolarSystemCanvasClick);
+            }
             window.activeSolarSystemRenderer.dispose();
             window.activeSolarSystemRenderer = null;
         }
@@ -286,7 +294,7 @@ export const UIManager = (() => {
 
     function switchToSolarSystemView(solarSystemId) {
         if (window.activeSolarSystemRenderer) {
-            // Remove previous click listener if it exists before disposing
+            // Ensure previous click listener is removed before disposing renderer for a new one
             if (elements.solarSystemContent) {
                 elements.solarSystemContent.removeEventListener('click', _onSolarSystemCanvasClick);
             }
@@ -311,7 +319,7 @@ export const UIManager = (() => {
         setActiveScreen(elements.solarSystemScreen);
         SolarSystemRenderer.init(solarSystemDataForRenderer);
         window.activeSolarSystemRenderer = SolarSystemRenderer;
-        callbacks.startSolarSystemAnimation();
+        callbacks.startSolarSystemAnimation(); // This function does nothing, but kept for compatibility.
 
         // Add click listener to the solar system content for 3D object interaction
         elements.solarSystemContent.addEventListener('click', _onSolarSystemCanvasClick);
@@ -358,6 +366,10 @@ export const UIManager = (() => {
         if (!planetData) return;
         if (window.activeSolarSystemRenderer) {
             window.activeSolarSystemRenderer.unfocusPlanet(); // Unfocus if currently focused on a planet
+             // Remove the 3D canvas click listener when leaving solar system view
+            if (elements.solarSystemContent) {
+                elements.solarSystemContent.removeEventListener('click', _onSolarSystemCanvasClick);
+            }
         }
         focusedPlanetId = null; // Clear focused planet
         setActiveScreen(elements.hexPlanetScreen);
@@ -465,6 +477,10 @@ export const UIManager = (() => {
                     window.activeSolarSystemRenderer.unfocusPlanet();
                 }
                 focusedPlanetId = null; // Clear focused planet
+                // Remove the 3D canvas click listener when leaving solar system view
+                if (elements.solarSystemContent) {
+                    elements.solarSystemContent.removeEventListener('click', _onSolarSystemCanvasClick);
+                }
                 if (window.gameSessionData.activeGalaxyId) switchToGalaxyDetailView(window.gameSessionData.activeGalaxyId);
                 else switchToMainView();
             });

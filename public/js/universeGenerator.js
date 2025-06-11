@@ -332,7 +332,7 @@ export async function preGenerateAllGalaxyContents(gameSessionData, galaxyViewpo
 export function regenerateCurrentUniverseState(callbacks, elementsToClear) {
     if (confirm("This will erase your current universe and generate a new one. Are you sure?")) {
         if (window.activeSolarSystemRenderer) {
-            window.activeSolarSystemRenderer.dispose();
+            window.activeSolarSystemRenderer.clear(); 
             window.activeSolarSystemRenderer = null;
         }
 
@@ -356,7 +356,6 @@ export function regenerateCurrentUniverseState(callbacks, elementsToClear) {
         }
         if (elementsToClear.solarSystemContent) elementsToClear.solarSystemContent.innerHTML = '';
 
-        callbacks.stopSolarSystemAnimation();
-        callbacks.initializeGame(true); // isForcedRegeneration = true
+        callbacks.initializeGame(true); 
     }
 }

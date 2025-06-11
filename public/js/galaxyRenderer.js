@@ -163,7 +163,7 @@ export const GalaxyRenderer = (() => {
                 const distance = progress * GALAXY_RADIUS * arm.length;
                 
                 // --- MODIFICATION: Significantly increased scatter for a very diffuse, spread-out look ---
-                const noiseFactor = 0.5 + SimplexNoise.noise(progress * 5, armIndex * 5, i / 1000) * 0.5;
+                const noiseFactor = 0.5 + SimplexNoise.noise(progress * 5, armIndex * 5, i / 1000) * 0.1;
                 const clusterRadius = 250 * noiseFactor; 
                 
                 const randomX = (Math.random() - 0.5) * clusterRadius;

@@ -134,7 +134,7 @@ varying float vRiverValue;
 
 vec3 calculateLighting(vec3 surfaceColor, vec3 normalVec, vec3 viewDir) {
  vec3 lightColor = vec3(1.0, 1.0, 0.95);
- float ambientStrength = 0.25;
+ float ambientStrength = 0.5;
  float diffuseStrength = 0.7;
  float specularStrength = 0.3;
  float shininess = 16.0;

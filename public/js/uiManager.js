@@ -276,7 +276,6 @@ export const UIManager = (() => {
 
         window.gameSessionData.activeGalaxyId = null;
         window.gameSessionData.activeSolarSystemId = null;
-        // Removed: callbacks.stopSolarSystemAnimation(); // This is a no-op now
         setActiveScreen(elements.mainScreen);
         generateStarBackgroundCanvas(elements.mainScreen);
     }
@@ -298,7 +297,6 @@ export const UIManager = (() => {
         const galaxyNumDisplay = galaxy.id.split('-').pop();
         if (elements.backToGalaxyButton) elements.backToGalaxyButton.textContent = galaxy.customName ? `← ${galaxy.customName}` : `← Galaxy ${galaxyNumDisplay}`;
         window.gameSessionData.activeSolarSystemId = null;
-        // Removed: callbacks.stopSolarSystemAnimation(); // This is a no-op now
         if (!galaxy.layoutGenerated) generateSolarSystemsForGalaxy(galaxy, elements.galaxyViewport, callbacks.getCustomizationSettings().ssCountRange);
         setActiveScreen(elements.galaxyDetailScreen);
         generateStarBackgroundCanvas(elements.galaxyDetailScreen);
@@ -357,7 +355,6 @@ export const UIManager = (() => {
         }
 
         setActiveScreen(elements.hexPlanetScreen);
-        // Removed: callbacks.stopSolarSystemAnimation(); // This is a no-op now
 
         // Load hex planet objects into the global scene
         HexPlanetViewController.activate(planetData, onBackCallback, _globalScene, _globalCamera, _globalControls, _globalRenderer); // Changed .load to .activate

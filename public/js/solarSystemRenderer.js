@@ -147,10 +147,8 @@ export const SolarSystemRenderer = (() => {
     }
 
     function onControlsStart() {
-        // If a camera animation (focus/unfocus) is running, ignore user input.
         if (cameraAnimation) return;
 
-        // If we are focused and orbiting, user input should stop the auto-rotation.
         if (focusedPlanetMesh) {
             controls.autoRotate = false;
         }
@@ -192,12 +190,10 @@ export const SolarSystemRenderer = (() => {
         boundWheelHandler = (event) => {
             event.preventDefault();
 
-            // If an animation is playing, don't interrupt it, but allow zooming.
             if (!cameraAnimation && focusedPlanetMesh) {
                 controls.autoRotate = false;
             }
 
-            // MODIFICATION: Use linear zoom for more control
             const linearZoomAmount = 1000; 
             let zoomFactor = event.deltaY < 0 ? -linearZoomAmount : linearZoomAmount;
 
@@ -205,7 +201,6 @@ export const SolarSystemRenderer = (() => {
             const dist = camToTarget.length();
             const newDist = THREE.MathUtils.clamp(dist + zoomFactor, controls.minDistance, controls.maxDistance);
             
-            // Apply the new distance
             camera.position.copy(controls.target).addScaledVector(camToTarget.normalize(), -newDist);
         };
         renderer.domElement.addEventListener('wheel', boundWheelHandler, { passive: false });
@@ -238,35 +233,40 @@ export const SolarSystemRenderer = (() => {
         
         if (cameraAnimation) {
             const distanceToTarget = camera.position.distanceTo(cameraAnimation.targetPosition);
-            // MODIFICATION: Faster lerp speed for a smoother feel
-            const speed = 0.08;
+            const speed = 0.05; // FIX: Slower, smoother camera movement
 
+            // If we are animating into a focus, the target itself is moving.
             if (focusedPlanetMesh) {
-                const currentPlanetWorldPosition = new THREE.Vector3();
-                focusedPlanetMesh.getWorldPosition(currentPlanetWorldPosition);
-                cameraAnimation.targetLookAt.copy(currentPlanetWorldPosition);
+                const newPlanetPosition = new THREE.Vector3();
+                focusedPlanetMesh.getWorldPosition(newPlanetPosition);
+                const oldPlanetPosition = focusedPlanetMesh.userData.lastPosition;
+                const delta = new THREE.Vector3().subVectors(newPlanetPosition, oldPlanetPosition);
+
+                // Move the animation's destination along with the planet
+                cameraAnimation.targetPosition.add(delta);
+                cameraAnimation.targetLookAt.add(delta);
             }
 
+            // Animate towards the (possibly updated) destination
             camera.position.lerp(cameraAnimation.targetPosition, speed);
             controls.target.lerp(cameraAnimation.targetLookAt, speed);
-            
-            // MODIFICATION: Stricter distance check to prevent the "jump"
-            if (distanceToTarget < 1) {
+
+            // Check for end of animation
+            if (distanceToTarget < 0.1) { // FIX: Stricter threshold to prevent jump
                 camera.position.copy(cameraAnimation.targetPosition);
                 controls.target.copy(cameraAnimation.targetLookAt);
                 cameraAnimation = null;
                 if (focusedPlanetMesh) {
-                    controls.autoRotate = true;
-                } else {
-                    // This block runs after unfocusing is complete
-                    controls.minDistance = 50; 
+                    controls.autoRotate = true; // Start orbiting
+                } else { // After unfocusing
+                    controls.minDistance = 50;
                 }
             }
         } else if (focusedPlanetMesh) {
+            // This logic runs when we are *already* focused and just orbiting.
             const newPlanetPosition = new THREE.Vector3();
             focusedPlanetMesh.getWorldPosition(newPlanetPosition);
             const oldPlanetPosition = focusedPlanetMesh.userData.lastPosition;
-
             const delta = new THREE.Vector3().subVectors(newPlanetPosition, oldPlanetPosition);
             
             camera.position.add(delta);
@@ -324,7 +324,6 @@ export const SolarSystemRenderer = (() => {
     function unfocusPlanet() {
         if (!focusedPlanetMesh && !cameraAnimation) return;
 
-        // MODIFICATION: Animate back to the saved position instead of teleporting
         const savedPosition = controls.position0.clone();
         const savedTarget = controls.target0.clone();
         
@@ -332,7 +331,6 @@ export const SolarSystemRenderer = (() => {
         controls.autoRotate = false;
         controls.enablePan = true;
         
-        // Start the animation to return to the previous state
         cameraAnimation = {
             targetPosition: savedPosition,
             targetLookAt: savedTarget,

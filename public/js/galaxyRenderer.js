@@ -17,10 +17,10 @@ export const GalaxyRenderer = (() => {
     const GALAXY_CORE_RADIUS = 200;
     const NUM_ARMS = 5;
     const ARM_ROTATION = 4 * Math.PI;
-    const DECORATIVE_STAR_COUNT = 50000;  // Reverted
-    const CORE_STAR_COUNT = 20000;       // Reverted
-    const DISK_STAR_COUNT = 120000;      // Kept high to fill space
-    const HALO_STAR_COUNT = 300000;      // Massively Increased for outer stars
+    const DECORATIVE_STAR_COUNT = 50000;
+    const CORE_STAR_COUNT = 20000;
+    const DISK_STAR_COUNT = 300000;      // Massively increased to guarantee no black space
+    const HALO_STAR_COUNT = 300000;
     const DUST_COUNT = 10000;
     const BACKGROUND_STAR_COUNT = 250000;
     const NEBULA_CLUSTER_COUNT = 50;
@@ -180,14 +180,12 @@ export const GalaxyRenderer = (() => {
         ];
 
         for (let i = 0; i < STAR_COUNT; i++) {
-            // Generate a point in a disk
             const r = Math.random() * RADIUS;
             const angle = Math.random() * Math.PI * 2;
             const y = (Math.random() - 0.5) * GALAXY_THICKNESS * 0.4;
             
             const pos = new THREE.Vector3(Math.cos(angle) * r, y, Math.sin(angle) * r);
             
-            // Add significant noise/displacement for irregularity
             const displacement = new THREE.Vector3((Math.random() - 0.5), (Math.random() - 0.5), (Math.random() - 0.5)).multiplyScalar(RADIUS * 0.6);
             pos.add(displacement);
 
@@ -294,7 +292,7 @@ export const GalaxyRenderer = (() => {
         }
         for (let i = 0; i < DUST_COUNT; i++) {
             const distance = Math.pow(Math.random(), 0.8) * GALAXY_RADIUS;
-            const y_thickness = GALAXY_THICKNESS * 0.2; // Made dust much thinner
+            const y_thickness = GALAXY_THICKNESS * 0.2;
             const randomY = _gaussianRandom() * y_thickness * (1-Math.pow(distance/GALAXY_RADIUS, 2));
             const armIndex = Math.floor(Math.random() * (NUM_ARMS - 0.001));
             const armAngle = (armIndex / NUM_ARMS) * 2 * Math.PI;
@@ -334,7 +332,7 @@ export const GalaxyRenderer = (() => {
         const diskGeometry = new THREE.BufferGeometry();
         diskGeometry.setAttribute('position', new THREE.Float32BufferAttribute(diskPositions, 3));
         diskGeometry.setAttribute('color', new THREE.Float32BufferAttribute(diskColors, 3));
-        const diskMaterial = new THREE.PointsMaterial({ size: 8, map: starTexture, vertexColors: true, sizeAttenuation: true, depthWrite: false, blending: THREE.AdditiveBlending, transparent: true, opacity: 1.0 }); // Made opaque
+        const diskMaterial = new THREE.PointsMaterial({ size: 8, map: starTexture, vertexColors: true, sizeAttenuation: true, depthWrite: false, blending: THREE.AdditiveBlending, transparent: true, opacity: 1.0 });
         diskStarParticles = new THREE.Points(diskGeometry, diskMaterial);
 
         const decorativeGeometry = new THREE.BufferGeometry();

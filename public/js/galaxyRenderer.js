@@ -15,7 +15,7 @@ const SimplexNoise = new (function() {
     for(let i=0; i<256; i++) perm[i] = i;
     for(let i=0; i<255; i++) {
         const r = i + ~~(seed() * (256-i));
-        const g = perm[i]; // ** FIX: Corrected variable name **
+        const g = perm[i];
         perm[i] = perm[r];
         perm[r] = g;
     }
@@ -74,10 +74,10 @@ export const GalaxyRenderer = (() => {
 
     const sunVariations = [ { baseColor: new THREE.Color(0x4A90E2) }, { baseColor: new THREE.Color(0xFF5722) }, { baseColor: new THREE.Color(0xFFA500) }, { baseColor: new THREE.Color(0xE0E0E0) }, { baseColor: new THREE.Color(0xE65100) }];
     const GALAXY_RADIUS = 500;
-    const NUM_ARMS = 2;
+    const NUM_ARMS = 2; // Two main arms like the reference
     const BULGE_PARTICLES = 50000;
     const ARM_STARS_PARTICLES = 300000;
-    const NEBULA_PARTICLES = 500;
+    const NEBULA_PARTICLES = 500; // Small number of bright nebulae
     const DUST_PARTICLES = 150000;
 
     const armProfiles = [
@@ -326,7 +326,7 @@ export const GalaxyRenderer = (() => {
         const canvas = renderer.domElement;
         const rect = canvas.getBoundingClientRect();
         
-        const gMouse = new THREE.Vector2(); // ** FIX: Corrected variable name **
+        const gMouse = new THREE.Vector2();
         gMouse.x = ((event.clientX - rect.left) / canvas.clientWidth) * 2 - 1;
         gMouse.y = -((event.clientY - rect.top) / canvas.clientHeight) * 2 + 1;
         

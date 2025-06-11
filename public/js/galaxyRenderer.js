@@ -16,7 +16,7 @@ export const GalaxyRenderer = (() => {
     const GALAXY_THICKNESS = 100;
     const GALAXY_CORE_RADIUS = 200;
     const NUM_ARMS = 5;
-    const ARM_ROTATION = Math.PI;
+    const ARM_ROTATION = 8 * Math.PI;
     const DECORATIVE_STAR_COUNT = 50000;  // Reverted
     const CORE_STAR_COUNT = 20000;       // Reverted
     const DISK_STAR_COUNT = 120000;      // Kept high to fill space

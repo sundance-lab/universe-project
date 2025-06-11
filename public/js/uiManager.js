@@ -1,4 +1,4 @@
-// uiManager.js
+// public/js/uiManager.js
 import { GalaxyRenderer } from './galaxyRenderer.js';
 import { stopSolarSystemAnimation } from './animationController.js';
 import { generateSolarSystemsForGalaxy } from './universeGenerator.js';
@@ -191,7 +191,6 @@ export const UIManager = (() => {
     }
 
     function switchToGalaxyDetailView(galaxyId) {
-        // Cleanup any existing renderers
         if (window.activeSolarSystemRenderer) {
             window.activeSolarSystemRenderer.dispose();
             window.activeSolarSystemRenderer = null;
@@ -210,18 +209,15 @@ export const UIManager = (() => {
         callbacks.stopSolarSystemAnimation();
 
         if (!galaxy.layoutGenerated) {
-            // Use galaxyDetailScreen as a proxy for viewport size.
             generateSolarSystemsForGalaxy(galaxy, elements.galaxyDetailScreen, callbacks.getCustomizationSettings().ssCountRange);
         }
 
         setActiveScreen(elements.galaxyDetailScreen);
         
         const onSystemClick = (solarSystemId) => {
-            // This callback is passed to the renderer to handle clicks
             switchToSolarSystemView(solarSystemId);
         };
         
-        // Initialize the new 3D renderer
         currentGalaxyRenderer = GalaxyRenderer;
         currentGalaxyRenderer.init(elements.galaxyCanvas, galaxy, onSystemClick);
         
@@ -232,7 +228,6 @@ export const UIManager = (() => {
         makeTitleEditable(elements.galaxyDetailTitleText, elements.galaxyDetailTitleInput, (newName) => {
             galaxy.customName = newName || null;
             callbacks.saveGameState();
-            // We need to re-render the main screen to update galaxy icon titles
             renderMainScreen(); 
             return galaxy.customName || `Galaxy ${galaxyNumDisplay}`;
         });
@@ -281,7 +276,6 @@ export const UIManager = (() => {
         makeTitleEditable(elements.solarSystemTitleText, elements.solarSystemTitleInput, (newName) => {
             solarSystemObject.customName = newName || null;
             callbacks.saveGameState();
-            // The old renderGalaxyDetailScreen() call is removed as it no longer exists.
             return solarSystemObject.customName || `System ${solarSystemId.split('-').pop()}`;
         });
     }

@@ -1,3 +1,4 @@
+// public/js/galaxyRenderer.js
 import * as THREE from 'three';
 import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls.js';
 
@@ -112,6 +113,8 @@ export const GalaxyRenderer = (() => {
 
     function _createAndCacheTexture(creationFunction) {
         const texture = creationFunction();
+        // Add this line to explicitly set flipY to false for all created CanvasTextures
+        texture.flipY = false;
         createdTextures.push(texture);
         return texture;
     }
@@ -331,7 +334,12 @@ export const GalaxyRenderer = (() => {
 
             const pos = new THREE.Vector3(Math.cos(angle) * r, y, Math.sin(angle) * r);
 
-            const displacement = new THREE.Vector3((Math.random() - 0.5), (Math.random() - 0.5), (Math.random() - 0.5)).multiplyScalar(GALAXY_CONFIG.RADIUS * GALAXY_CONFIG.SISTER_GALAXY.DISPLACEMENT_MULTIPLIER);
+            // MODIFICATION START
+            const randomVector = new THREE.Vector3((Math.random() - 0.5), (Math.random() - 0.5), (Math.random() - 0.5));
+            const displacementAmount = GALAXY_CONFIG.RADIUS * GALAXY_CONFIG.SISTER_GALAXY.DISPLACEMENT_MULTIPLIER;
+            const displacement = randomVector.multiplyScalar(displacementAmount);
+            // MODIFICATION END
+
             pos.add(displacement);
 
             positions.push(pos.x, pos.y, pos.z);

@@ -1,4 +1,5 @@
 // public/js/uiManager.js
+import * as THREE from 'three'; // NEW: Add this import statement
 import { GalaxyRenderer } from './galaxyRenderer.js';
 import { stopSolarSystemAnimation } from './animationController.js';
 import { generateSolarSystemsForGalaxy } from './universeGenerator.js';
@@ -159,11 +160,11 @@ export const UIManager = (() => {
     }
 
     function setActiveScreen(screenToShow) {
-        const screens = [elements.mainScreen, elements.galaxyDetailScreen, elements.solarSystemScreen, elements.planetDesignerScreen, elements.hexPlanetScreen, galaxyCustomizationModal].filter(s => s); // NEW: Add galaxyCustomizationModal
-        screens.forEach(s => s.classList.remove('active', 'panning-active', 'visible')); // NEW: Remove 'visible' for modal
+        const screens = [elements.mainScreen, elements.galaxyDetailScreen, elements.solarSystemScreen, elements.planetDesignerScreen, elements.hexPlanetScreen, galaxyCustomizationModal].filter(s => s);
+        screens.forEach(s => s.classList.remove('active', 'panning-active', 'visible'));
         if (screenToShow) screenToShow.classList.add('active');
         if (elements.planetSidebar) elements.planetSidebar.style.display = (screenToShow === elements.solarSystemScreen) ? 'block' : 'none';
-        const isOnOverlayScreen = (screenToShow === elements.planetDesignerScreen || screenToShow === elements.hexPlanetScreen || screenToShow === galaxyCustomizationModal); // NEW: Include galaxyCustomizationModal
+        const isOnOverlayScreen = (screenToShow === elements.planetDesignerScreen || screenToShow === elements.hexPlanetScreen || screenToShow === galaxyCustomizationModal);
         if(elements.regenerateUniverseButton) elements.regenerateUniverseButton.style.display = isOnOverlayScreen ? 'none' : 'block';
         if(elements.createPlanetDesignButton) elements.createPlanetDesignButton.style.display = isOnOverlayScreen ? 'none' : 'block';
         if(elements.devControlsButton) elements.devControlsButton.style.display = isOnOverlayScreen ? 'none' : 'block';
@@ -243,10 +244,10 @@ export const UIManager = (() => {
         currentGalaxyRenderer = GalaxyRenderer;
         // Apply the galaxy's specific configuration before initializing
         if (galaxyConfig) {
-            currentGalaxyRenderer.updateConfig(galaxyConfig); // This will also trigger re-init inside
+            currentGalaxyRenderer.updateConfig(galaxyConfig);
         } else {
             // If no custom config for this galaxy, ensure renderer uses its default/last applied global config
-            currentGalaxyRenderer.updateConfig(currentGalaxyRenderer.getCurrentConfig()); // Re-apply current global config
+            currentGalaxyRenderer.updateConfig(currentGalaxyRenderer.getCurrentConfig());
         }
         // The init call can stay simple now as updateConfig handles the heavy lifting of re-creating the scene
         currentGalaxyRenderer.init(elements.galaxyCanvas, galaxy, onSystemClick);
@@ -444,12 +445,13 @@ export const UIManager = (() => {
         if (color instanceof THREE.Color) {
             return `#${_toHex(color.r)}${_toHex(color.g)}${_toHex(color.b)}`;
         }
-        // Assuming rgba(r,g,b,a) string if not THREE.Color
-        const parts = color.match(/\d+/g);
+        // Assuming rgba(r,g,b,a) string if not THREE.Color, or a hex string directly.
+        // Attempt to parse if it's an rgba string, otherwise return as is assuming it's already hex or valid.
+        const parts = String(color).match(/\d+/g);
         if (parts && parts.length >= 3) {
             return `#${_toHex(parseInt(parts[0]) / 255)}${_toHex(parseInt(parts[1]) / 255)}${_toHex(parseInt(parts[2]) / 255)}`;
         }
-        return color; // Return as is if format is not recognized
+        return color; // Return as is if format is not recognized or already hex
     }
 
     function _populateGalaxyCustomizationUI(config) {

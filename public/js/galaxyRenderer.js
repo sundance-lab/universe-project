@@ -11,7 +11,7 @@ export const GalaxyRenderer = (() => {
     let onSystemClickCallback = null;
     let interactiveSystemsData = [];
     let createdTextures = [];
-    let _currentGalaxyData = null; // NEW: Store current galaxy data for re-initialization
+    let _currentGalaxyData = null; // NEW: Store current galaxy data for re_initialization
 
     // --- CONFIGURATION PARAMETERS ---
     // Export GALAXY_CONFIG so it can be accessed and modified externally
@@ -104,7 +104,11 @@ export const GalaxyRenderer = (() => {
         },
         PATH_TO_ASSETS: {
             SKYBOX_TEXTURE: 'https://cdn.jsdelivr.net/gh/jeromeetienne/threex.planets@master/images/galaxy_starfield.png',
-            DISTANT_GALAXY_TEXTURE: 'https://cdn.jsdelivr.net/gh/Sean-Bradley/Three.js-TypeScript-Boilerplate@master/src/assets/images/galaxy.png',
+            DISTANT_GALAXY_TEXTURE: 'https://cdn.jsdelivr.net/gh/Sean-Bradley/Three.js-TypeScript-Boilerplate@master/src/assets/images/galaxy.png', // Old URL
+            // NEW: Updated to a more stable placeholder. Consider replacing with your own reliable image.
+            // Example: A public domain galaxy image from NASA (search for specific stable URL if needed)
+            // For now, a generic placeholder that might be more reliable for testing:
+            DISTANT_GALAXY_TEXTURE: 'https://upload.wikimedia.org/wikipedia/commons/thumb/c/c5/M101_hires_STScI-2006-10a-full_tif.jpg/1200px-M101_hires_STScI-2006-10a-full_tif.jpg',
         }
     };
 

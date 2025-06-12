@@ -24,6 +24,7 @@
     <canvas id="galaxy-canvas"></canvas>
     
     <button class="back-button" id="back-to-main">&larr; Universe</button>
+    <button class="customize-galaxy-button" id="customize-galaxy-btn">Customize Galaxy</button>
 
 </div>
 
@@ -156,6 +157,148 @@
         <div class="modal-actions">
             <button id="dev-controls-cancel" class="modal-button-cancel">Close</button>
             <button id="dev-controls-save" class="modal-button-apply">Save & Apply</button>
+        </div>
+    </div>
+</div>
+
+<div id="galaxy-customization-modal" class="modal-overlay">
+    <div class="modal-content">
+        <h2>Customize Galaxy Generation</h2>
+
+        <div class="control-group">
+            <h3>General Shape</h3>
+            <label for="galaxy-radius">Radius:</label>
+            <input type="number" id="galaxy-radius" class="galaxy-control" min="100" max="5000" step="100">
+            <label for="galaxy-thickness">Thickness:</label>
+            <input type="number" id="galaxy-thickness" class="galaxy-control" min="10" max="500" step="10">
+            <label for="galaxy-core-radius">Core Radius:</label>
+            <input type="number" id="galaxy-core-radius" class="galaxy-control" min="50" max="1000" step="50">
+            <label for="galaxy-num-arms">Number of Arms:</label>
+            <input type="number" id="galaxy-num-arms" class="galaxy-control" min="1" max="10" step="1">
+            <label for="galaxy-arm-rotation-multiplier">Arm Rotation Multiplier:</label>
+            <input type="number" id="galaxy-arm-rotation-multiplier" class="galaxy-control" min="0.1" max="10.0" step="0.1">
+        </div>
+
+        <div class="control-group">
+            <h3>Star Distribution</h3>
+            <label for="galaxy-stars-decorative">Decorative Stars:</label>
+            <input type="number" id="galaxy-stars-decorative" class="galaxy-control" min="10000" max="100000" step="1000">
+            <label for="galaxy-stars-core">Core Stars:</label>
+            <input type="number" id="galaxy-stars-core" class="galaxy-control" min="5000" max="50000" step="500">
+            <label for="galaxy-stars-disk">Disk Stars:</label>
+            <input type="number" id="galaxy-stars-disk" class="galaxy-control" min="100000" max="1000000" step="10000">
+            <label for="galaxy-stars-halo">Halo Stars:</label>
+            <input type="number" id="galaxy-stars-halo" class="galaxy-control" min="50000" max="500000" step="5000">
+            <label for="galaxy-decorative-star-max-size">Decorative Star Max Size:</label>
+            <input type="number" id="galaxy-decorative-star-max-size" class="galaxy-control" min="1" max="50" step="1">
+            <label for="galaxy-decorative-star-min-size">Decorative Star Min Size:</label>
+            <input type="number" id="galaxy-decorative-star-min-size" class="galaxy-control" min="1" max="20" step="1">
+        </div>
+
+        <div class="control-group">
+            <h3>Environmental Elements (Dust & Nebulae)</h3>
+            <label for="galaxy-dust-count">Dust Count:</label>
+            <input type="number" id="galaxy-dust-count" class="galaxy-control" min="1000" max="50000" step="500">
+            <label for="galaxy-dust-size">Dust Size:</label>
+            <input type="number" id="galaxy-dust-size" class="galaxy-control" min="10" max="500" step="10">
+            <label for="galaxy-dust-opacity">Dust Opacity:</label>
+            <input type="range" id="galaxy-dust-opacity" class="galaxy-control" min="0.0" max="1.0" step="0.05">
+
+            <label for="galaxy-nebula-cluster-count">Nebula Cluster Count:</label>
+            <input type="number" id="galaxy-nebula-cluster-count" class="galaxy-control" min="10" max="200" step="10">
+            <label for="galaxy-nebula-particle-count-per-cluster">Nebula Particles Per Cluster:</label>
+            <input type="number" id="galaxy-nebula-particle-count-per-cluster" class="galaxy-control" min="5" max="50" step="1">
+            <label for="galaxy-nebula-size">Nebula Size:</label>
+            <input type="number" id="galaxy-nebula-size" class="galaxy-control" min="50" max="1000" step="50">
+            <label for="galaxy-nebula-opacity">Nebula Opacity:</label>
+            <input type="range" id="galaxy-nebula-opacity" class="galaxy-control" min="0.0" max="1.0" step="0.05">
+        </div>
+
+        <div class="control-group">
+            <h3>Distant Objects</h3>
+            <h4>Distant Galaxies</h4>
+            <label for="galaxy-distant-galaxies-count">Count:</label>
+            <input type="number" id="galaxy-distant-galaxies-count" class="galaxy-control" min="10" max="500" step="10">
+            <label for="galaxy-distant-galaxies-min-scale">Min Scale:</label>
+            <input type="number" id="galaxy-distant-galaxies-min-scale" class="galaxy-control" min="10" max="1000" step="10">
+            <label for="galaxy-distant-galaxies-max-scale">Max Scale:</label>
+            <input type="number" id="galaxy-distant-galaxies-max-scale" class="galaxy-control" min="100" max="2000" step="10">
+            <label for="galaxy-distant-galaxies-min-opacity">Min Opacity:</label>
+            <input type="range" id="galaxy-distant-galaxies-min-opacity" class="galaxy-control" min="0.0" max="1.0" step="0.05">
+            <label for="galaxy-distant-galaxies-max-opacity">Max Opacity:</label>
+            <input type="range" id="galaxy-distant-galaxies-max-opacity" class="galaxy-control" min="0.0" max="1.0" step="0.05">
+            <label for="galaxy-distant-galaxies-min-distance-multiplier">Min Distance Multiplier (x GALAXY_RADIUS):</label>
+            <input type="number" id="galaxy-distant-galaxies-min-distance-multiplier" class="galaxy-control" min="1" max="20" step="1">
+            <label for="galaxy-distant-galaxies-max-distance-addition">Max Distance Addition:</label>
+            <input type="number" id="galaxy-distant-galaxies-max-distance-addition" class="galaxy-control" min="1000" max="20000" step="500">
+
+            <h4>Sister Galaxy</h4>
+            <label for="galaxy-sister-star-count">Star Count:</label>
+            <input type="number" id="galaxy-sister-star-count" class="galaxy-control" min="10000" max="200000" step="1000">
+            <label for="galaxy-sister-radius-multiplier">Radius Multiplier (x GALAXY_RADIUS):</label>
+            <input type="number" id="galaxy-sister-radius-multiplier" class="galaxy-control" min="0.1" max="2.0" step="0.05">
+            <label for="galaxy-sister-thickness-multiplier">Thickness Multiplier (x THICKNESS):</label>
+            <input type="number" id="galaxy-sister-thickness-multiplier" class="galaxy-control" min="0.1" max="2.0" step="0.05">
+            <label for="galaxy-sister-displacement-multiplier">Displacement Multiplier:</label>
+            <input type="number" id="galaxy-sister-displacement-multiplier" class="galaxy-control" min="0.0" max="1.0" step="0.05">
+            <label for="galaxy-sister-particle-size">Particle Size:</label>
+            <input type="number" id="galaxy-sister-particle-size" class="galaxy-control" min="1" max="50" step="1">
+            <label for="galaxy-sister-opacity">Opacity:</label>
+            <input type="range" id="galaxy-sister-opacity" class="galaxy-control" min="0.0" max="1.0" step="0.05">
+            </div>
+
+        <div class="control-group">
+            <h3>Rendering & Camera</h3>
+            <label for="galaxy-camera-fov">Camera FOV:</label>
+            <input type="number" id="galaxy-camera-fov" class="galaxy-control" min="30" max="120" step="1">
+            <label for="galaxy-camera-near">Camera Near Plane:</label>
+            <input type="number" id="galaxy-camera-near" class="galaxy-control" min="0.1" max="100" step="0.1">
+            <label for="galaxy-camera-far">Camera Far Plane:</label>
+            <input type="number" id="galaxy-camera-far" class="galaxy-control" min="10000" max="100000" step="1000">
+            <label for="galaxy-controls-damping-factor">Controls Damping Factor:</label>
+            <input type="range" id="galaxy-controls-damping-factor" class="galaxy-control" min="0.01" max="0.2" step="0.01">
+            <label for="galaxy-controls-min-distance">Controls Min Distance:</label>
+            <input type="number" id="galaxy-controls-min-distance" class="galaxy-control" min="10" max="500" step="10">
+            <label for="galaxy-controls-max-distance-multiplier">Controls Max Distance Multiplier (x GALAXY_RADIUS):</label>
+            <input type="number" id="galaxy-controls-max-distance-multiplier" class="galaxy-control" min="1" max="10" step="0.1">
+            <label for="galaxy-rotation-speed">Overall Galaxy Rotation Speed:</label>
+            <input type="range" id="galaxy-rotation-speed" class="galaxy-control" min="0.00001" max="0.001" step="0.00001">
+        </div>
+
+        <div class="control-group">
+            <h3>Colors</h3>
+            <label for="galaxy-color-star-texture-color">Star Texture Color:</label>
+            <input type="color" id="galaxy-color-star-texture-color" class="galaxy-control">
+            <label for="galaxy-color-core-glow-color">Core Glow Color:</label>
+            <input type="color" id="galaxy-color-core-glow-color" class="galaxy-control">
+            <label for="galaxy-color-dust-color-stop-0">Dust Color Stop 0:</label>
+            <input type="color" id="galaxy-color-dust-color-stop-0" class="galaxy-control">
+            <label for="galaxy-color-dust-color-stop-04">Dust Color Stop 0.4:</label>
+            <input type="color" id="galaxy-color-dust-color-stop-04" class="galaxy-control">
+            <label for="galaxy-color-nebula-color-stop-0">Nebula Color Stop 0:</label>
+            <input type="color" id="galaxy-color-nebula-color-stop-0" class="galaxy-control">
+            <label for="galaxy-color-nebula-color-stop-04">Nebula Color Stop 0.4:</label>
+            <input type="color" id="galaxy-color-nebula-color-stop-04" class="galaxy-control">
+            <label for="galaxy-color-background-star-color">Background Star Color:</label>
+            <input type="color" id="galaxy-color-background-star-color" class="galaxy-control">
+            <label for="galaxy-color-skybox-color">Skybox Color:</label>
+            <input type="color" id="galaxy-color-skybox-color" class="galaxy-control">
+
+            <button id="galaxy-randomize-palette-btn" class="modal-button-apply">Randomize Star Palette</button>
+        </div>
+
+        <div class="modal-actions">
+            <button id="galaxy-randomize-all-btn" class="modal-button-apply">Randomize All</button>
+            <button id="galaxy-save-design-btn" class="modal-button-apply">Save Design</button>
+            <button id="galaxy-load-design-btn" class="modal-button-apply">Load Design</button>
+            <button id="galaxy-cancel-btn" class="modal-button-cancel">Cancel</button>
+            <button id="galaxy-apply-btn" class="modal-button-apply">Apply</button>
+        </div>
+
+        <div class="saved-designs-list">
+            <h4>Saved Galaxy Designs:</h4>
+            <ul id="saved-galaxy-designs-ul">
+            </ul>
         </div>
     </div>
 </div>

@@ -1,5 +1,5 @@
 // public/js/uiManager.js
-import * as THREE from 'three'; // NEW: Add this import statement
+import * as THREE from 'three';
 import { GalaxyRenderer } from './galaxyRenderer.js';
 import { stopSolarSystemAnimation } from './animationController.js';
 import { generateSolarSystemsForGalaxy } from './universeGenerator.js';
@@ -350,88 +350,148 @@ export const UIManager = (() => {
 
     // NEW: Galaxy Customization Functions
     function _getGalaxyElements() {
+        // Log all element retrievals
+        console.log("Attempting to get galaxy customization elements...");
         galaxyCustomizationModal = document.getElementById('galaxy-customization-modal');
+        console.log("galaxyCustomizationModal:", galaxyCustomizationModal);
         galaxyCustomizeBtn = document.getElementById('customize-galaxy-btn');
+        console.log("galaxyCustomizeBtn:", galaxyCustomizeBtn);
 
         galaxyRadiusInput = document.getElementById('galaxy-radius');
+        console.log("galaxyRadiusInput:", galaxyRadiusInput);
         galaxyThicknessInput = document.getElementById('galaxy-thickness');
+        console.log("galaxyThicknessInput:", galaxyThicknessInput);
         galaxyCoreRadiusInput = document.getElementById('galaxy-core-radius');
+        console.log("galaxyCoreRadiusInput:", galaxyCoreRadiusInput);
         galaxyNumArmsInput = document.getElementById('galaxy-num-arms');
+        console.log("galaxyNumArmsInput:", galaxyNumArmsInput);
         galaxyArmRotationMultiplierInput = document.getElementById('galaxy-arm-rotation-multiplier');
+        console.log("galaxyArmRotationMultiplierInput:", galaxyArmRotationMultiplierInput);
 
         galaxyStarsDecorativeInput = document.getElementById('galaxy-stars-decorative');
+        console.log("galaxyStarsDecorativeInput:", galaxyStarsDecorativeInput);
         galaxyStarsCoreInput = document.getElementById('galaxy-stars-core');
+        console.log("galaxyStarsCoreInput:", galaxyStarsCoreInput);
         galaxyStarsDiskInput = document.getElementById('galaxy-stars-disk');
+        console.log("galaxyStarsDiskInput:", galaxyStarsDiskInput);
         galaxyStarsHaloInput = document.getElementById('galaxy-stars-halo');
+        console.log("galaxyStarsHaloInput:", galaxyStarsHaloInput);
         galaxyDecorativeStarMaxSizeInput = document.getElementById('galaxy-decorative-star-max-size');
+        console.log("galaxyDecorativeStarMaxSizeInput:", galaxyDecorativeStarMaxSizeInput);
         galaxyDecorativeStarMinSizeInput = document.getElementById('galaxy-decorative-star-min-size');
+        console.log("galaxyDecorativeStarMinSizeInput:", galaxyDecorativeStarMinSizeInput);
 
         galaxyDustCountInput = document.getElementById('galaxy-dust-count');
+        console.log("galaxyDustCountInput:", galaxyDustCountInput);
         galaxyDustSizeInput = document.getElementById('galaxy-dust-size');
+        console.log("galaxyDustSizeInput:", galaxyDustSizeInput);
         galaxyDustOpacityInput = document.getElementById('galaxy-dust-opacity');
+        console.log("galaxyDustOpacityInput:", galaxyDustOpacityInput);
 
         galaxyNebulaClusterCountInput = document.getElementById('galaxy-nebula-cluster-count');
+        console.log("galaxyNebulaClusterCountInput:", galaxyNebulaClusterCountInput);
         galaxyNebulaParticleCountPerClusterInput = document.getElementById('galaxy-nebula-particle-count-per-cluster');
+        console.log("galaxyNebulaParticleCountPerClusterInput:", galaxyNebulaParticleCountPerClusterInput);
         galaxyNebulaSizeInput = document.getElementById('galaxy-nebula-size');
+        console.log("galaxyNebulaSizeInput:", galaxyNebulaSizeInput);
         galaxyNebulaOpacityInput = document.getElementById('galaxy-nebula-opacity');
+        console.log("galaxyNebulaOpacityInput:", galaxyNebulaOpacityInput);
 
         galaxyDistantGalaxiesCountInput = document.getElementById('galaxy-distant-galaxies-count');
+        console.log("galaxyDistantGalaxiesCountInput:", galaxyDistantGalaxiesCountInput);
         galaxyDistantGalaxiesMinScaleInput = document.getElementById('galaxy-distant-galaxies-min-scale');
+        console.log("galaxyDistantGalaxiesMinScaleInput:", galaxyDistantGalaxiesMinScaleInput);
         galaxyDistantGalaxiesMaxScaleInput = document.getElementById('galaxy-distant-galaxies-max-scale');
+        console.log("galaxyDistantGalaxiesMaxScaleInput:", galaxyDistantGalaxiesMaxScaleInput);
         galaxyDistantGalaxiesMinOpacityInput = document.getElementById('galaxy-distant-galaxies-min-opacity');
+        console.log("galaxyDistantGalaxiesMinOpacityInput:", galaxyDistantGalaxiesMinOpacityInput);
         galaxyDistantGalaxiesMaxOpacityInput = document.getElementById('galaxy-distant-galaxies-max-opacity');
+        console.log("galaxyDistantGalaxiesMaxOpacityInput:", galaxyDistantGalaxiesMaxOpacityInput);
         galaxyDistantGalaxiesMinDistanceMultiplierInput = document.getElementById('galaxy-distant-galaxies-min-distance-multiplier');
+        console.log("galaxyDistantGalaxiesMinDistanceMultiplierInput:", galaxyDistantGalaxiesMinDistanceMultiplierInput);
         galaxyDistantGalaxiesMaxDistanceAdditionInput = document.getElementById('galaxy-distant-galaxies-max-distance-addition');
+        console.log("galaxyDistantGalaxiesMaxDistanceAdditionInput:", galaxyDistantGalaxiesMaxDistanceAdditionInput);
 
         galaxySisterStarCountInput = document.getElementById('galaxy-sister-star-count');
+        console.log("galaxySisterStarCountInput:", galaxySisterStarCountInput);
         galaxySisterRadiusMultiplierInput = document.getElementById('galaxy-sister-radius-multiplier');
+        console.log("galaxySisterRadiusMultiplierInput:", galaxySisterRadiusMultiplierInput);
         galaxySisterThicknessMultiplierInput = document.getElementById('galaxy-sister-thickness-multiplier');
+        console.log("galaxySisterThicknessMultiplierInput:", galaxySisterThicknessMultiplierInput);
         galaxySisterDisplacementMultiplierInput = document.getElementById('galaxy-sister-displacement-multiplier');
+        console.log("galaxySisterDisplacementMultiplierInput:", galaxySisterDisplacementMultiplierInput);
         galaxySisterParticleSizeInput = document.getElementById('galaxy-sister-particle-size');
+        console.log("galaxySisterParticleSizeInput:", galaxySisterParticleSizeInput);
         galaxySisterOpacityInput = document.getElementById('galaxy-sister-opacity');
+        console.log("galaxySisterOpacityInput:", galaxySisterOpacityInput);
 
         galaxyCameraFovInput = document.getElementById('galaxy-camera-fov');
+        console.log("galaxyCameraFovInput:", galaxyCameraFovInput);
         galaxyCameraNearInput = document.getElementById('galaxy-camera-near');
+        console.log("galaxyCameraNearInput:", galaxyCameraNearInput);
         galaxyCameraFarInput = document.getElementById('galaxy-camera-far');
+        console.log("galaxyCameraFarInput:", galaxyCameraFarInput);
         galaxyControlsDampingFactorInput = document.getElementById('galaxy-controls-damping-factor');
+        console.log("galaxyControlsDampingFactorInput:", galaxyControlsDampingFactorInput);
         galaxyControlsMinDistanceInput = document.getElementById('galaxy-controls-min-distance');
+        console.log("galaxyControlsMinDistanceInput:", galaxyControlsMinDistanceInput);
         galaxyControlsMaxDistanceMultiplierInput = document.getElementById('galaxy-controls-max-distance-multiplier');
+        console.log("galaxyControlsMaxDistanceMultiplierInput:", galaxyControlsMaxDistanceMultiplierInput);
         galaxyRotationSpeedInput = document.getElementById('galaxy-rotation-speed');
+        console.log("galaxyRotationSpeedInput:", galaxyRotationSpeedInput);
 
         galaxyColorStarTextureColorInput = document.getElementById('galaxy-color-star-texture-color');
+        console.log("galaxyColorStarTextureColorInput:", galaxyColorStarTextureColorInput);
         galaxyColorCoreGlowColorInput = document.getElementById('galaxy-color-core-glow-color');
+        console.log("galaxyColorCoreGlowColorInput:", galaxyColorCoreGlowColorInput);
         galaxyColorDustColorStop0Input = document.getElementById('galaxy-color-dust-color-stop-0');
+        console.log("galaxyColorDustColorStop0Input:", galaxyColorDustColorStop0Input);
         galaxyColorDustColorStop04Input = document.getElementById('galaxy-color-dust-color-stop-04');
+        console.log("galaxyColorDustColorStop04Input:", galaxyColorDustColorStop04Input);
         galaxyColorNebulaColorStop0Input = document.getElementById('galaxy-color-nebula-color-stop-0');
+        console.log("galaxyColorNebulaColorStop0Input:", galaxyColorNebulaColorStop0Input);
         galaxyColorNebulaColorStop04Input = document.getElementById('galaxy-color-nebula-color-stop-04');
+        console.log("galaxyColorNebulaColorStop04Input:", galaxyColorNebulaColorStop04Input);
         galaxyColorBackgroundStarColorInput = document.getElementById('galaxy-color-background-star-color');
+        console.log("galaxyColorBackgroundStarColorInput:", galaxyColorBackgroundStarColorInput);
         galaxyColorSkyboxColorInput = document.getElementById('galaxy-color-skybox-color');
+        console.log("galaxyColorSkyboxColorInput:", galaxyColorSkyboxColorInput);
         
         galaxyRandomizePaletteBtn = document.getElementById('galaxy-randomize-palette-btn');
+        console.log("galaxyRandomizePaletteBtn:", galaxyRandomizePaletteBtn);
         galaxyRandomizeAllBtn = document.getElementById('galaxy-randomize-all-btn');
+        console.log("galaxyRandomizeAllBtn:", galaxyRandomizeAllBtn);
         galaxySaveDesignBtn = document.getElementById('galaxy-save-design-btn');
+        console.log("galaxySaveDesignBtn:", galaxySaveDesignBtn);
         galaxyLoadDesignBtn = document.getElementById('galaxy-load-design-btn');
+        console.log("galaxyLoadDesignBtn:", galaxyLoadDesignBtn);
         galaxyCancelBtn = document.getElementById('galaxy-cancel-btn');
+        console.log("galaxyCancelBtn:", galaxyCancelBtn);
         galaxyApplyBtn = document.getElementById('galaxy-apply-btn');
+        console.log("galaxyApplyBtn:", galaxyApplyBtn);
         savedGalaxyDesignsUl = document.getElementById('saved-galaxy-designs-ul');
+        console.log("savedGalaxyDesignsUl:", savedGalaxyDesignsUl);
+        console.log("Finished getting galaxy customization elements.");
     }
 
     function _showGalaxyCustomizationModal() {
-        if (!galaxyCustomizationModal) _getGalaxyElements();
+        console.log("Showing galaxy customization modal.");
+        if (!galaxyCustomizationModal) _getGalaxyElements(); // Ensure elements are cached
         setActiveScreen(galaxyCustomizationModal);
         _populateGalaxyCustomizationUI(GalaxyRenderer.getCurrentConfig());
         _populateSavedGalaxyDesignsList();
+        console.log("Galaxy customization modal should be visible and populated.");
     }
 
     function _hideGalaxyCustomizationModal() {
+        console.log("Hiding galaxy customization modal.");
         galaxyCustomizationModal.classList.remove('visible');
         if (window.gameSessionData.activeGalaxyId) {
-            // Re-activate galaxy detail screen if a galaxy is active
             setActiveScreen(elements.galaxyDetailScreen);
         } else {
-            // Fallback to main screen if no galaxy is active (shouldn't happen from this modal directly)
             switchToMainView();
         }
+        console.log("Galaxy customization modal hidden.");
     }
     
     // Helper to convert THREE.Color to hex string
@@ -445,8 +505,6 @@ export const UIManager = (() => {
         if (color instanceof THREE.Color) {
             return `#${_toHex(color.r)}${_toHex(color.g)}${_toHex(color.b)}`;
         }
-        // Assuming rgba(r,g,b,a) string if not THREE.Color, or a hex string directly.
-        // Attempt to parse if it's an rgba string, otherwise return as is assuming it's already hex or valid.
         const parts = String(color).match(/\d+/g);
         if (parts && parts.length >= 3) {
             return `#${_toHex(parseInt(parts[0]) / 255)}${_toHex(parseInt(parts[1]) / 255)}${_toHex(parseInt(parts[2]) / 255)}`;
@@ -455,69 +513,87 @@ export const UIManager = (() => {
     }
 
     function _populateGalaxyCustomizationUI(config) {
-        if (!config) return;
+        console.log("Attempting to populate galaxy customization UI with config:", config);
+        try {
+            if (!config) {
+                console.warn("_populateGalaxyCustomizationUI received null or undefined config.");
+                return;
+            }
 
-        // General Shape
-        galaxyRadiusInput.value = config.RADIUS;
-        galaxyThicknessInput.value = config.THICKNESS;
-        galaxyCoreRadiusInput.value = config.CORE_RADIUS;
-        galaxyNumArmsInput.value = config.NUM_ARMS;
-        galaxyArmRotationMultiplierInput.value = config.ARM_ROTATION_MULTIPLIER.toFixed(2);
+            // General Shape
+            console.log("Populating General Shape inputs...");
+            if (galaxyRadiusInput) galaxyRadiusInput.value = config.RADIUS; else console.warn("galaxyRadiusInput not found.");
+            if (galaxyThicknessInput) galaxyThicknessInput.value = config.THICKNESS; else console.warn("galaxyThicknessInput not found.");
+            if (galaxyCoreRadiusInput) galaxyCoreRadiusInput.value = config.CORE_RADIUS; else console.warn("galaxyCoreRadiusInput not found.");
+            if (galaxyNumArmsInput) galaxyNumArmsInput.value = config.NUM_ARMS; else console.warn("galaxyNumArmsInput not found.");
+            if (galaxyArmRotationMultiplierInput) galaxyArmRotationMultiplierInput.value = config.ARM_ROTATION_MULTIPLIER.toFixed(2); else console.warn("galaxyArmRotationMultiplierInput not found.");
 
-        // Star Counts
-        galaxyStarsDecorativeInput.value = config.STAR_COUNTS.DECORATIVE;
-        galaxyStarsCoreInput.value = config.STAR_COUNTS.CORE;
-        galaxyStarsDiskInput.value = config.STAR_COUNTS.DISK;
-        galaxyStarsHaloInput.value = config.STAR_COUNTS.HALO;
-        galaxyDecorativeStarMaxSizeInput.value = config.STAR_COUNTS.DECORATIVE_STAR_MAX_SIZE;
-        galaxyDecorativeStarMinSizeInput.value = config.STAR_COUNTS.DECORATIVE_STAR_MIN_SIZE;
+            // Star Counts
+            console.log("Populating Star Counts inputs...");
+            if (galaxyStarsDecorativeInput) galaxyStarsDecorativeInput.value = config.STAR_COUNTS.DECORATIVE; else console.warn("galaxyStarsDecorativeInput not found.");
+            if (galaxyStarsCoreInput) galaxyStarsCoreInput.value = config.STAR_COUNTS.CORE; else console.warn("galaxyStarsCoreInput not found.");
+            if (galaxyStarsDiskInput) galaxyStarsDiskInput.value = config.STAR_COUNTS.DISK; else console.warn("galaxyStarsDiskInput not found.");
+            if (galaxyStarsHaloInput) galaxyStarsHaloInput.value = config.STAR_COUNTS.HALO; else console.warn("galaxyStarsHaloInput not found.");
+            if (galaxyDecorativeStarMaxSizeInput) galaxyDecorativeStarMaxSizeInput.value = config.STAR_COUNTS.DECORATIVE_STAR_MAX_SIZE; else console.warn("galaxyDecorativeStarMaxSizeInput not found.");
+            if (galaxyDecorativeStarMinSizeInput) galaxyDecorativeStarMinSizeInput.value = config.STAR_COUNTS.DECORATIVE_STAR_MIN_SIZE; else console.warn("galaxyDecorativeStarMinSizeInput not found.");
 
-        // Dust
-        galaxyDustCountInput.value = config.DUST.COUNT;
-        galaxyDustSizeInput.value = config.DUST.SIZE;
-        galaxyDustOpacityInput.value = config.DUST.OPACITY;
+            // Dust
+            console.log("Populating Dust inputs...");
+            if (galaxyDustCountInput) galaxyDustCountInput.value = config.DUST.COUNT; else console.warn("galaxyDustCountInput not found.");
+            if (galaxyDustSizeInput) galaxyDustSizeInput.value = config.DUST.SIZE; else console.warn("galaxyDustSizeInput not found.");
+            if (galaxyDustOpacityInput) galaxyDustOpacityInput.value = config.DUST.OPACITY; else console.warn("galaxyDustOpacityInput not found.");
 
-        // Nebula
-        galaxyNebulaClusterCountInput.value = config.NEBULA.CLUSTER_COUNT;
-        galaxyNebulaParticleCountPerClusterInput.value = config.NEBULA.PARTICLE_COUNT_PER_CLUSTER;
-        galaxyNebulaSizeInput.value = config.NEBULA.SIZE;
-        galaxyNebulaOpacityInput.value = config.NEBULA.OPACITY;
+            // Nebula
+            console.log("Populating Nebula inputs...");
+            if (galaxyNebulaClusterCountInput) galaxyNebulaClusterCountInput.value = config.NEBULA.CLUSTER_COUNT; else console.warn("galaxyNebulaClusterCountInput not found.");
+            if (galaxyNebulaParticleCountPerClusterInput) galaxyNebulaParticleCountPerClusterInput.value = config.NEBULA.PARTICLE_COUNT_PER_CLUSTER; else console.warn("galaxyNebulaParticleCountPerClusterInput not found.");
+            if (galaxyNebulaSizeInput) galaxyNebulaSizeInput.value = config.NEBULA.SIZE; else console.warn("galaxyNebulaSizeInput not found.");
+            if (galaxyNebulaOpacityInput) galaxyNebulaOpacityInput.value = config.NEBULA.OPACITY; else console.warn("galaxyNebulaOpacityInput not found.");
 
-        // Distant Galaxies
-        galaxyDistantGalaxiesCountInput.value = config.DISTANT_GALAXIES.COUNT;
-        galaxyDistantGalaxiesMinScaleInput.value = config.DISTANT_GALAXIES.MIN_SCALE;
-        galaxyDistantGalaxiesMaxScaleInput.value = config.DISTANT_GALAXIES.MAX_SCALE;
-        galaxyDistantGalaxiesMinOpacityInput.value = config.DISTANT_GALAXIES.MIN_OPACITY;
-        galaxyDistantGalaxiesMaxOpacityInput.value = config.DISTANT_GALAXIES.MAX_OPACITY;
-        galaxyDistantGalaxiesMinDistanceMultiplierInput.value = config.DISTANT_GALAXIES.MIN_DISTANCE_MULTIPLIER;
-        galaxyDistantGalaxiesMaxDistanceAdditionInput.value = config.DISTANT_GALAXIES.MAX_DISTANCE_ADDITION;
+            // Distant Galaxies
+            console.log("Populating Distant Galaxies inputs...");
+            if (galaxyDistantGalaxiesCountInput) galaxyDistantGalaxiesCountInput.value = config.DISTANT_GALAXIES.COUNT; else console.warn("galaxyDistantGalaxiesCountInput not found.");
+            if (galaxyDistantGalaxiesMinScaleInput) galaxyDistantGalaxiesMinScaleInput.value = config.DISTANT_GALAXIES.MIN_SCALE; else console.warn("galaxyDistantGalaxiesMinScaleInput not found.");
+            if (galaxyDistantGalaxiesMaxScaleInput) galaxyDistantGalaxiesMaxScaleInput.value = config.DISTANT_GALAXIES.MAX_SCALE; else console.warn("galaxyDistantGalaxiesMaxScaleInput not found.");
+            if (galaxyDistantGalaxiesMinOpacityInput) galaxyDistantGalaxiesMinOpacityInput.value = config.DISTANT_GALAXIES.MIN_OPACITY; else console.warn("galaxyDistantGalaxiesMinOpacityInput not found.");
+            if (galaxyDistantGalaxiesMaxOpacityInput) galaxyDistantGalaxiesMaxOpacityInput.value = config.DISTANT_GALAXIES.MAX_OPACITY; else console.warn("galaxyDistantGalaxiesMaxOpacityInput not found.");
+            if (galaxyDistantGalaxiesMinDistanceMultiplierInput) galaxyDistantGalaxiesMinDistanceMultiplierInput.value = config.DISTANT_GALAXIES.MIN_DISTANCE_MULTIPLIER; else console.warn("galaxyDistantGalaxiesMinDistanceMultiplierInput not found.");
+            if (galaxyDistantGalaxiesMaxDistanceAdditionInput) galaxyDistantGalaxiesMaxDistanceAdditionInput.value = config.DISTANT_GALAXIES.MAX_DISTANCE_ADDITION; else console.warn("galaxyDistantGalaxiesMaxDistanceAdditionInput not found.");
 
-        // Sister Galaxy
-        galaxySisterStarCountInput.value = config.SISTER_GALAXY.STAR_COUNT;
-        galaxySisterRadiusMultiplierInput.value = config.SISTER_GALAXY.RADIUS_MULTIPLIER;
-        galaxySisterThicknessMultiplierInput.value = config.SISTER_GALAXY.THICKNESS_MULTIPLIER;
-        galaxySisterDisplacementMultiplierInput.value = config.SISTER_GALAXY.DISPLACEMENT_MULTIPLIER;
-        galaxySisterParticleSizeInput.value = config.SISTER_GALAXY.PARTICLE_SIZE;
-        galaxySisterOpacityInput.value = config.SISTER_GALAXY.OPACITY;
+            // Sister Galaxy
+            console.log("Populating Sister Galaxy inputs...");
+            if (galaxySisterStarCountInput) galaxySisterStarCountInput.value = config.SISTER_GALAXY.STAR_COUNT; else console.warn("galaxySisterStarCountInput not found.");
+            if (galaxySisterRadiusMultiplierInput) galaxySisterRadiusMultiplierInput.value = config.SISTER_GALAXY.RADIUS_MULTIPLIER; else console.warn("galaxySisterRadiusMultiplierInput not found.");
+            if (galaxySisterThicknessMultiplierInput) galaxySisterThicknessMultiplierInput.value = config.SISTER_GALAXY.THICKNESS_MULTIPLIER; else console.warn("galaxySisterThicknessMultiplierInput not found.");
+            if (galaxySisterDisplacementMultiplierInput) galaxySisterDisplacementMultiplierInput.value = config.SISTER_GALAXY.DISPLACEMENT_MULTIPLIER; else console.warn("galaxySisterDisplacementMultiplierInput not found.");
+            if (galaxySisterParticleSizeInput) galaxySisterParticleSizeInput.value = config.SISTER_GALAXY.PARTICLE_SIZE; else console.warn("galaxySisterParticleSizeInput not found.");
+            if (galaxySisterOpacityInput) galaxySisterOpacityInput.value = config.SISTER_GALAXY.OPACITY; else console.warn("galaxySisterOpacityInput not found.");
 
-        // Renderer
-        galaxyCameraFovInput.value = config.RENDERER.CAMERA_FOV;
-        galaxyCameraNearInput.value = config.RENDERER.CAMERA_NEAR;
-        galaxyCameraFarInput.value = config.RENDERER.CAMERA_FAR;
-        galaxyControlsDampingFactorInput.value = config.RENDERER.CONTROLS_DAMPING_FACTOR;
-        galaxyControlsMinDistanceInput.value = config.RENDERER.CONTROLS_MIN_DISTANCE;
-        galaxyControlsMaxDistanceMultiplierInput.value = config.RENDERER.CONTROLS_MAX_DISTANCE_MULTIPLIER;
-        galaxyRotationSpeedInput.value = config.RENDERER.ROTATION_SPEED;
+            // Renderer
+            console.log("Populating Renderer inputs...");
+            if (galaxyCameraFovInput) galaxyCameraFovInput.value = config.RENDERER.CAMERA_FOV; else console.warn("galaxyCameraFovInput not found.");
+            if (galaxyCameraNearInput) galaxyCameraNearInput.value = config.RENDERER.CAMERA_NEAR; else console.warn("galaxyCameraNearInput not found.");
+            if (galaxyCameraFarInput) galaxyCameraFarInput.value = config.RENDERER.CAMERA_FAR; else console.warn("galaxyCameraFarInput not found.");
+            if (galaxyControlsDampingFactorInput) galaxyControlsDampingFactorInput.value = config.RENDERER.CONTROLS_DAMPING_FACTOR; else console.warn("galaxyControlsDampingFactorInput not found.");
+            if (galaxyControlsMinDistanceInput) galaxyControlsMinDistanceInput.value = config.RENDERER.CONTROLS_MIN_DISTANCE; else console.warn("galaxyControlsMinDistanceInput not found.");
+            if (galaxyControlsMaxDistanceMultiplierInput) galaxyControlsMaxDistanceMultiplierInput.value = config.RENDERER.CONTROLS_MAX_DISTANCE_MULTIPLIER; else console.warn("galaxyControlsMaxDistanceMultiplierInput not found.");
+            if (galaxyRotationSpeedInput) galaxyRotationSpeedInput.value = config.RENDERER.ROTATION_SPEED; else console.warn("galaxyRotationSpeedInput not found.");
 
-        // Colors
-        galaxyColorStarTextureColorInput.value = _rgbToHex(config.COLORS.STAR_TEXTURE_COLOR);
-        galaxyColorCoreGlowColorInput.value = _rgbToHex(config.COLORS.CORE_GLOW_COLOR);
-        galaxyColorDustColorStop0Input.value = _rgbToHex(config.COLORS.DUST_COLOR_STOP_0);
-        galaxyColorDustColorStop04Input.value = _rgbToHex(config.COLORS.DUST_COLOR_STOP_04);
-        galaxyColorNebulaColorStop0Input.value = _rgbToHex(config.COLORS.NEBULA_COLOR_STOP_0);
-        galaxyColorNebulaColorStop04Input.value = _rgbToHex(config.COLORS.NEBULA_COLOR_STOP_04);
-        galaxyColorBackgroundStarColorInput.value = _rgbToHex(new THREE.Color(config.COLORS.BACKGROUND_STAR_COLOR));
-        galaxyColorSkyboxColorInput.value = _rgbToHex(new THREE.Color(config.COLORS.SKYBOX_COLOR));
+            // Colors
+            console.log("Populating Colors inputs...");
+            if (galaxyColorStarTextureColorInput) galaxyColorStarTextureColorInput.value = _rgbToHex(config.COLORS.STAR_TEXTURE_COLOR); else console.warn("galaxyColorStarTextureColorInput not found.");
+            if (galaxyColorCoreGlowColorInput) galaxyColorCoreGlowColorInput.value = _rgbToHex(config.COLORS.CORE_GLOW_COLOR); else console.warn("galaxyColorCoreGlowColorInput not found.");
+            if (galaxyColorDustColorStop0Input) galaxyColorDustColorStop0Input.value = _rgbToHex(config.COLORS.DUST_COLOR_STOP_0); else console.warn("galaxyColorDustColorStop0Input not found.");
+            if (galaxyColorDustColorStop04Input) galaxyColorDustColorStop04Input.value = _rgbToHex(config.COLORS.DUST_COLOR_STOP_04); else console.warn("galaxyColorDustColorStop04Input not found.");
+            if (galaxyColorNebulaColorStop0Input) galaxyColorNebulaColorStop0Input.value = _rgbToHex(config.COLORS.NEBULA_COLOR_STOP_0); else console.warn("galaxyColorNebulaColorStop0Input not found.");
+            if (galaxyColorNebulaColorStop04Input) galaxyColorNebulaColorStop04Input.value = _rgbToHex(config.COLORS.NEBULA_COLOR_STOP_04); else console.warn("galaxyColorNebulaColorStop04Input not found.");
+            if (galaxyColorBackgroundStarColorInput) galaxyColorBackgroundStarColorInput.value = _rgbToHex(new THREE.Color(config.COLORS.BACKGROUND_STAR_COLOR)); else console.warn("galaxyColorBackgroundStarColorInput not found.");
+            if (galaxyColorSkyboxColorInput) galaxyColorSkyboxColorInput.value = _rgbToHex(new THREE.Color(config.COLORS.SKYBOX_COLOR)); else console.warn("galaxyColorSkyboxColorInput not found.");
+
+            console.log("Galaxy customization UI populated successfully.");
+        } catch (error) {
+            console.error("Error populating galaxy customization UI:", error);
+        }
     }
 
     function _getGalaxyConfigFromUI() {
@@ -586,6 +662,7 @@ export const UIManager = (() => {
     }
 
     function _applyGalaxySettings() {
+        console.log("Applying galaxy settings...");
         const newConfig = _getGalaxyConfigFromUI();
         const activeGalaxy = window.gameSessionData.galaxies.find(g => g.id === window.gameSessionData.activeGalaxyId);
         if (activeGalaxy) {
@@ -596,9 +673,11 @@ export const UIManager = (() => {
         
         GalaxyRenderer.updateConfig(newConfig); // Apply config to renderer
         _hideGalaxyCustomizationModal();
+        console.log("Galaxy settings applied and modal hidden.");
     }
 
     function _randomizeAllGalaxySettings() {
+        console.log("Randomizing all galaxy settings...");
         const randomConfig = {
             RADIUS: Math.floor(Math.random() * (3000 - 1000 + 1)) + 1000,
             THICKNESS: Math.floor(Math.random() * (200 - 50 + 1)) + 50,
@@ -665,9 +744,11 @@ export const UIManager = (() => {
         // Apply random values to UI and then apply to galaxy
         _populateGalaxyCustomizationUI(randomConfig);
         _applyGalaxySettings();
+        console.log("Randomization complete.");
     }
 
     function _randomizeGalaxyPalette() {
+        console.log("Randomizing galaxy color palette...");
         const newPalette = [];
         for (let i = 0; i < 10; i++) { // Generate 10 random colors for the palette
             newPalette.push(new THREE.Color(Math.random(), Math.random(), Math.random()));
@@ -676,6 +757,7 @@ export const UIManager = (() => {
         currentConfig.COLORS.PALETTE = newPalette;
         GalaxyRenderer.updateConfig(currentConfig); // Apply new palette to renderer
         // No UI update needed for palette directly as it's not exposed as individual inputs
+        console.log("Galaxy color palette randomized.");
     }
 
     function _generateUUID() {
@@ -687,6 +769,7 @@ export const UIManager = (() => {
       }
 
     function _saveGalaxyDesign() {
+        console.log("Attempting to save galaxy design...");
         const designName = prompt("Enter a name for this galaxy design:", "My Custom Galaxy");
         if (!designName) {
             console.log("Galaxy design save cancelled.");
@@ -716,16 +799,20 @@ export const UIManager = (() => {
     }
 
     function _loadGalaxyDesign(designId) {
+        console.log("Attempting to load galaxy design:", designId);
         const designToLoad = window.gameSessionData?.customGalaxyDesigns?.find(d => d.designId === designId);
         if (designToLoad) {
             _populateGalaxyCustomizationUI(designToLoad.config); // Update UI inputs
             GalaxyRenderer.updateConfig(designToLoad.config); // Apply config to renderer
             console.log(`Galaxy design '${designToLoad.designName}' loaded.`);
             // No need to hide modal, user might want to tweak further
+        } else {
+            console.warn(`Design with ID '${designId}' not found.`);
         }
     }
 
     function _deleteGalaxyDesign(designId) {
+        console.log("Attempting to delete galaxy design:", designId);
         if (!window.gameSessionData?.customGalaxyDesigns) return;
 
         const designIndex = window.gameSessionData.customGalaxyDesigns.findIndex(d => d.designId === designId);
@@ -745,7 +832,11 @@ export const UIManager = (() => {
     }
 
     function _populateSavedGalaxyDesignsList() {
-        if (!savedGalaxyDesignsUl) return;
+        console.log("Populating saved galaxy designs list.");
+        if (!savedGalaxyDesignsUl) {
+            console.warn("savedGalaxyDesignsUl not found.");
+            return;
+        }
         
         savedGalaxyDesignsUl.innerHTML = '';
 
@@ -786,6 +877,7 @@ export const UIManager = (() => {
             
             savedGalaxyDesignsUl.appendChild(li);
         });
+        console.log("Saved galaxy designs list populated.");
     }
 
 
@@ -818,7 +910,7 @@ export const UIManager = (() => {
             });
 
             // NEW: Initialize galaxy customization elements and listeners
-            _getGalaxyElements();
+            _getGalaxyElements(); // Cache elements
             galaxyCustomizeBtn?.addEventListener('click', _showGalaxyCustomizationModal);
             
             // Event Handlers for Galaxy Customization

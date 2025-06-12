@@ -12,7 +12,7 @@ export const GalaxyRenderer = (() => {
     let onSystemClickCallback = null;
     let interactiveSystemsData = [];
     let createdTextures = [];
-    let _currentGalaxyData = null; // NEW: Store current galaxy data for re_initialization
+    let _currentGalaxyData = null; // NEW: Store current galaxy data for re_initialization 
 
     // --- CONFIGURATION PARAMETERS ---
     // Export GALAXY_CONFIG so it can be accessed and modified externally

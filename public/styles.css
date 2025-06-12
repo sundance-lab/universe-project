@@ -458,6 +458,11 @@ body, html {
   background-color: #2c3e50; padding: 25px;
   border-radius: 8px; box-shadow: 0 5px 15px rgba(0, 0, 0, 0.5);
   min-width: 380px; max-width: 90%;
+  /* NEW: Ensure modal content takes full height and stacks children vertically */
+  height: 90vh; /* Set a specific height, max-height from flex parent */
+  display: flex;
+  flex-direction: column;
+  overflow-y: auto; /* Allow scrolling if content overflows */
 }
 
 .modal-content h2 { margin-top: 0; margin-bottom: 20px; color: #ecf0f1; }
@@ -665,7 +670,7 @@ body, html {
   padding-left: 5px; /* Adjust padding due to border */
 }
 
-/* NEW: Style for Customize Galaxy button */
+/* Style for Customize Galaxy button */
 .customize-galaxy-button {
   position: fixed;
   bottom: 15px;

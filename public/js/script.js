@@ -38,6 +38,7 @@ document.addEventListener('DOMContentLoaded', () => {
         activeSolarSystemId: null,
         isInitialized: false,
         customPlanetDesigns: [],
+        customGalaxyDesigns: [], // NEW: Initialize custom galaxy designs array
         panning: { isActive: false }
     };
 
@@ -71,6 +72,9 @@ const domElements = {
         devOrbitSpeedValue: document.getElementById('dev-orbit-speed-value'),
         devControlsSaveButton: document.getElementById('dev-controls-save'),
         devControlsCancelButton: document.getElementById('dev-controls-cancel'),
+        // NEW: Add galaxy customization elements to domElements
+        galaxyCustomizationModal: document.getElementById('galaxy-customization-modal'),
+        customizeGalaxyBtn: document.getElementById('customize-galaxy-btn'),
     };
     
     // --- FUNCTIONS ---

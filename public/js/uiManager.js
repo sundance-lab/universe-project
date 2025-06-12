@@ -1,8 +1,3 @@
-It looks like the galaxy customization modal is not appearing because the `visible` class, which sets its `display` property to `flex`, is not being added when the modal is supposed to be shown.
-
-To fix this, I'll modify the `public/js/uiManager.js` file. I will add `galaxyCustomizationModal.classList.add('visible');` to the `_showGalaxyCustomizationModal` function.
-
-```javascript
 // public/js/uiManager.js
 import * as THREE from 'three';
 import { GalaxyRenderer } from './galaxyRenderer.js';

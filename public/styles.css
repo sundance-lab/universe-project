@@ -664,3 +664,28 @@ body, html {
   border-left: 3px solid #2ecc71; /* Accent */
   padding-left: 5px; /* Adjust padding due to border */
 }
+
+/* NEW: Style for Customize Galaxy button */
+.customize-galaxy-button {
+  position: fixed;
+  bottom: 15px;
+  right: 15px;
+  padding: 10px 20px;
+  font-size: 1.1em;
+  font-weight: 700;
+  cursor: pointer;
+  background-color: #3498db; /* A blue color */
+  color: #fff;
+  border: 2px solid #2980b9;
+  border-radius: 8px;
+  transition: background-color .2s, transform .1s;
+  z-index: 201;
+}
+
+.customize-galaxy-button:hover {
+  background-color: #2980b9;
+}
+
+.customize-galaxy-button:active {
+  transform: scale(.95);
+}

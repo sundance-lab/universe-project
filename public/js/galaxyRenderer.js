@@ -11,9 +11,11 @@ export const GalaxyRenderer = (() => {
     let onSystemClickCallback = null;
     let interactiveSystemsData = [];
     let createdTextures = [];
+    let _currentGalaxyData = null; // NEW: Store current galaxy data for re-initialization
 
     // --- CONFIGURATION PARAMETERS ---
-    const GALAXY_CONFIG = {
+    // Export GALAXY_CONFIG so it can be accessed and modified externally
+    let GALAXY_CONFIG = {
         RADIUS: 1800, // Slightly increased for a grander scale
         THICKNESS: 100,
         CORE_RADIUS: 250, // Slightly larger core
@@ -172,7 +174,7 @@ export const GalaxyRenderer = (() => {
             texture.wrapS = texture.wrapT = THREE.RepeatWrapping;
             createdTextures.push(texture);
             const skyGeometry = new THREE.SphereGeometry(GALAXY_CONFIG.RENDERER.CAMERA_FAR / 1.2, 64, 32); // Scaled relative to far clip
-            const skyMaterial = new THREE.MeshBasicMaterial({ map: texture, side: THREE.BackSide, color: GALAXY_CONFIG.COLORS.SKYBOX_COLOR });
+            const skyMaterial = new THREE.MeshBasicMaterial({ map: texture, side: THREE.BackSide, color: new THREE.Color(GALAXY_CONFIG.COLORS.SKYBOX_COLOR) }); // NEW: Use THREE.Color
             skybox = new THREE.Mesh(skyGeometry, skyMaterial);
             scene.add(skybox);
         } catch (error) {
@@ -615,6 +617,23 @@ export const GalaxyRenderer = (() => {
         renderer.render(scene, camera);
     }
 
+    // Utility to deep merge objects
+    function _deepMerge(target, source) {
+        for (const key in source) {
+            if (source.hasOwnProperty(key)) {
+                if (typeof source[key] === 'object' && source[key] !== null && !Array.isArray(source[key])) {
+                    if (!target[key] || typeof target[key] !== 'object') {
+                        target[key] = {};
+                    }
+                    _deepMerge(target[key], source[key]);
+                } else {
+                    target[key] = source[key];
+                }
+            }
+        }
+        return target;
+    }
+
     function _dispose() {
         if (animationFrameId) cancelAnimationFrame(animationFrameId);
 
@@ -647,11 +666,11 @@ export const GalaxyRenderer = (() => {
             });
 
             // Remove top-level groups and meshes from scene
-            scene.remove(distantGalaxiesGroup);
-            scene.remove(sisterGalaxy);
-            scene.remove(galaxyGroup);
-            scene.remove(skybox);
-            scene.remove(backgroundStars);
+            if (distantGalaxiesGroup) scene.remove(distantGalaxiesGroup); // Check before removing
+            if (sisterGalaxy) scene.remove(sisterGalaxy);
+            if (galaxyGroup) scene.remove(galaxyGroup);
+            if (skybox) scene.remove(skybox);
+            if (backgroundStars) scene.remove(backgroundStars);
         }
 
         if (renderer) renderer.dispose();
@@ -666,10 +685,33 @@ export const GalaxyRenderer = (() => {
         init: (canvas, galaxyData, callback) => {
             _dispose(); // Ensure a clean slate before re-initializing
             onSystemClickCallback = callback;
+            _currentGalaxyData = galaxyData; // NEW: Store galaxy data
             _initScene(canvas, galaxyData);
             _animate();
             setTimeout(_onResize, 100); // Trigger a resize event to ensure correct initial sizing
         },
-        dispose: _dispose
+        dispose: _dispose,
+        updateConfig: (newConfig) => { // NEW: Public method to update config and re-render
+            _deepMerge(GALAXY_CONFIG, newConfig);
+            if (scene && _currentGalaxyData) { // Only re-init if scene was already initialized
+                _dispose();
+                // Pass canvas from existing renderer, assuming it's still attached to DOM.
+                // If not, a re-render will happen when switching to the galaxy detail screen again.
+                // This is a robust way to handle applying new settings without losing context.
+                const currentCanvas = renderer ? renderer.domElement : document.getElementById('galaxy-canvas');
+                if (currentCanvas) {
+                    _initScene(currentCanvas, _currentGalaxyData);
+                    _animate();
+                    setTimeout(_onResize, 100);
+                } else {
+                    console.warn("GalaxyRenderer: Attempted to update config without an active canvas. Renderer will re-initialize when galaxy detail screen is re-entered.");
+                }
+            } else {
+                // If not yet initialized, config will be used on first init.
+                // If _currentGalaxyData is null, it means init hasn't been called yet.
+                console.log("GalaxyRenderer: Config updated before first initialization or after dispose without new init. Changes will apply on next init.");
+            }
+        },
+        getCurrentConfig: () => _deepMerge({}, GALAXY_CONFIG) // NEW: Public method to get current config (deep copy)
     };
 })();

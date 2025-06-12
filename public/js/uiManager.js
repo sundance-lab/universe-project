@@ -1,3 +1,8 @@
+It looks like the galaxy customization modal is not appearing because the `visible` class, which sets its `display` property to `flex`, is not being added when the modal is supposed to be shown.
+
+To fix this, I'll modify the `public/js/uiManager.js` file. I will add `galaxyCustomizationModal.classList.add('visible');` to the `_showGalaxyCustomizationModal` function.
+
+```javascript
 // public/js/uiManager.js
 import * as THREE from 'three';
 import { GalaxyRenderer } from './galaxyRenderer.js';
@@ -478,6 +483,7 @@ export const UIManager = (() => {
         console.log("Showing galaxy customization modal.");
         if (!galaxyCustomizationModal) _getGalaxyElements(); // Ensure elements are cached
         setActiveScreen(galaxyCustomizationModal);
+        galaxyCustomizationModal.classList.add('visible'); // Add this line
         _populateGalaxyCustomizationUI(GalaxyRenderer.getCurrentConfig());
         _populateSavedGalaxyDesignsList();
         console.log("Galaxy customization modal should be visible and populated.");

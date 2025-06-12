@@ -104,7 +104,7 @@ export const GalaxyRenderer = (() => {
         },
         PATH_TO_ASSETS: {
             SKYBOX_TEXTURE: 'https://cdn.jsdelivr.net/gh/jeromeetienne/threex.planets@master/images/galaxy_starfield.png',
-            DISTANT_GALAXY_TEXTURE: 'https://cdn.jsdelivr.net/gh/Sean-Bradley/Three.js-TypeScript-Boilerplate@master/src/assets/images/galaxy.png', // Reverted to original URL
+            // DISTANT_GALAXY_TEXTURE is removed as it's no longer needed
         }
     };
 
@@ -127,6 +127,24 @@ export const GalaxyRenderer = (() => {
             gradient.addColorStop(0, color);
             gradient.addColorStop(gradientStop, 'rgba(200, 200, 255,0.8)');
             gradient.addColorStop(1, 'rgba(255,255,255,0)');
+            context.fillStyle = gradient;
+            context.fillRect(0, 0, size, size);
+            return new THREE.CanvasTexture(canvas);
+        });
+    }
+
+    // NEW: Function to create a simple procedurally generated texture for distant galaxies
+    function _createSimpleGalaxySpriteTexture() {
+        return _createAndCacheTexture(() => {
+            const size = 128;
+            const canvas = document.createElement('canvas');
+            canvas.width = size;
+            canvas.height = size;
+            const context = canvas.getContext('2d');
+            const gradient = context.createRadialGradient(size / 2, size / 2, 0, size / 2, size / 2, size / 2);
+            gradient.addColorStop(0, 'rgba(255, 255, 255, 1)'); // White core
+            gradient.addColorStop(0.2, 'rgba(100, 100, 255, 0.8)'); // Blueish halo
+            gradient.addColorStop(1, 'rgba(0, 0, 0, 0)'); // Transparent outside
             context.fillStyle = gradient;
             context.fillRect(0, 0, size, size);
             return new THREE.CanvasTexture(canvas);
@@ -174,7 +192,7 @@ export const GalaxyRenderer = (() => {
             texture.wrapS = texture.wrapT = THREE.RepeatWrapping;
             createdTextures.push(texture);
             const skyGeometry = new THREE.SphereGeometry(GALAXY_CONFIG.RENDERER.CAMERA_FAR / 1.2, 64, 32); // Scaled relative to far clip
-            const skyMaterial = new THREE.MeshBasicMaterial({ map: texture, side: THREE.BackSide, color: new THREE.Color(GALAXY_CONFIG.COLORS.SKYBOX_COLOR) }); // NEW: Use THREE.Color
+            const skyMaterial = new THREE.MeshBasicMaterial({ map: texture, side: THREE.BackSide, color: new THREE.Color(GALAXY_CONFIG.COLORS.SKYBOX_COLOR) });
             skybox = new THREE.Mesh(skyGeometry, skyMaterial);
             scene.add(skybox);
         } catch (error) {
@@ -251,7 +269,7 @@ export const GalaxyRenderer = (() => {
 
         _createGalaxy(galaxyData);
         _createDistantStars();
-        _createDistantGalaxies();
+        _createDistantGalaxies(); // This function now has enhanced error handling
         _createSisterGalaxy();
         _loadSkybox(); // Load skybox asynchronously
 
@@ -273,33 +291,31 @@ export const GalaxyRenderer = (() => {
         return glow;
     }
 
-    async function _createDistantGalaxies() {
+    // Modified _createDistantGalaxies to use procedurally generated texture
+    function _createDistantGalaxies() {
         distantGalaxiesGroup = new THREE.Group();
-        const loader = new THREE.TextureLoader();
-        try {
-            const galaxyTexture = await loader.loadAsync(GALAXY_CONFIG.PATH_TO_ASSETS.DISTANT_GALAXY_TEXTURE);
-            createdTextures.push(galaxyTexture);
-            for (let i = 0; i < GALAXY_CONFIG.DISTANT_GALAXIES.COUNT; i++) {
-                const material = new THREE.SpriteMaterial({
-                    map: galaxyTexture,
-                    blending: THREE.AdditiveBlending,
-                    transparent: true,
-                    opacity: GALAXY_CONFIG.DISTANT_GALAXIES.MIN_OPACITY + Math.random() * (GALAXY_CONFIG.DISTANT_GALAXIES.MAX_OPACITY - GALAXY_CONFIG.DISTANT_GALAXIES.MIN_OPACITY),
-                    color: new THREE.Color(Math.random(), Math.random(), Math.random())
-                });
-                const sprite = new THREE.Sprite(material);
-                const distance = GALAXY_CONFIG.RADIUS * GALAXY_CONFIG.DISTANT_GALAXIES.MIN_DISTANCE_MULTIPLIER + Math.random() * GALAXY_CONFIG.DISTANT_GALAXIES.MAX_DISTANCE_ADDITION;
-                const theta = Math.random() * Math.PI * 2;
-                const phi = Math.acos(Math.random() * 2 - 1);
-                sprite.position.set(distance * Math.sin(phi) * Math.cos(theta), distance * Math.sin(phi) * Math.sin(theta), distance * Math.cos(phi));
-                const scale = Math.random() * (GALAXY_CONFIG.DISTANT_GALAXIES.MAX_SCALE - GALAXY_CONFIG.DISTANT_GALAXIES.MIN_SCALE) + GALAXY_CONFIG.DISTANT_GALAXIES.MIN_SCALE;
-                sprite.scale.set(scale, scale, 1);
-                distantGalaxiesGroup.add(sprite);
-            }
-            scene.add(distantGalaxiesGroup);
-        } catch (error) {
-            console.error('Distant galaxy texture failed to load:', error);
+        // Use the new procedurally generated texture
+        const galaxyTexture = _createSimpleGalaxySpriteTexture(); 
+
+        for (let i = 0; i < GALAXY_CONFIG.DISTANT_GALAXIES.COUNT; i++) {
+            const material = new THREE.SpriteMaterial({
+                map: galaxyTexture,
+                blending: THREE.AdditiveBlending,
+                transparent: true,
+                opacity: GALAXY_CONFIG.DISTANT_GALAXIES.MIN_OPACITY + Math.random() * (GALAXY_CONFIG.DISTANT_GALAXIES.MAX_OPACITY - GALAXY_CONFIG.DISTANT_GALAXIES.MIN_OPACITY),
+                color: new THREE.Color(Math.random(), Math.random(), Math.random())
+            });
+            const sprite = new THREE.Sprite(material);
+            const distance = GALAXY_CONFIG.RADIUS * GALAXY_CONFIG.DISTANT_GALAXIES.MIN_DISTANCE_MULTIPLIER + Math.random() * GALAXY_CONFIG.DISTANT_GALAXIES.MAX_DISTANCE_ADDITION;
+            const theta = Math.random() * Math.PI * 2;
+            const phi = Math.acos(Math.random() * 2 - 1);
+            sprite.position.set(distance * Math.sin(phi) * Math.cos(theta), distance * Math.sin(phi) * Math.sin(theta), distance * Math.cos(phi));
+            const scale = Math.random() * (GALAXY_CONFIG.DISTANT_GALAXIES.MAX_SCALE - GALAXY_CONFIG.DISTANT_GALAXIES.MIN_SCALE) + GALAXY_CONFIG.DISTANT_GALAXIES.MIN_SCALE;
+            sprite.scale.set(scale, scale, 1);
+            distantGalaxiesGroup.add(sprite);
         }
+        scene.add(distantGalaxiesGroup);
+        // No try-catch needed here as texture generation is local and synchronous
     }
 
     function _createSisterGalaxy() {

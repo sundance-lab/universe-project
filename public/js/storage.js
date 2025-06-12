@@ -5,7 +5,8 @@ export function saveGameState() {
         const stateToSave = {
             universeDiameter: window.gameSessionData.universe.diameter,
             galaxies: window.gameSessionData.galaxies,
-            customPlanetDesigns: window.gameSessionData.customPlanetDesigns
+            customPlanetDesigns: window.gameSessionData.customPlanetDesigns,
+            customGalaxyDesigns: window.gameSessionData.customGalaxyDesigns // NEW: Save custom galaxy designs
         };
         localStorage.setItem('galaxyGameSaveData', JSON.stringify(stateToSave));
         console.log("Game state saved.");
@@ -29,6 +30,11 @@ export function loadGameState() {
                     gal.currentPanY = gal.currentPanY || 0;
                     gal.customName = gal.customName || null;
                     gal.generationParams = gal.generationParams || { densityFactor: 0.8 + Math.random() * 0.4 };
+                    // NEW: Ensure galaxyConfig is initialized if missing
+                    if (!gal.generationParams.galaxyConfig) {
+                        // This will be set to a default by GalaxyRenderer if needed, or by a loaded custom design
+                        gal.generationParams.galaxyConfig = null; 
+                    }
                     gal.solarSystems = gal.solarSystems || [];
                     gal.solarSystems.forEach(ss => {
                         ss.customName = ss.customName || null;
@@ -63,7 +69,10 @@ export function loadGameState() {
                     delete migratedDesign.oceanHeightRange;
                     return migratedDesign;
                 });
-                console.log("[DEBUG] Total templates loaded:", window.gameSessionData.customPlanetDesigns.length);
+                // NEW: Load custom galaxy designs
+                window.gameSessionData.customGalaxyDesigns = loadedState.customGalaxyDesigns || [];
+                console.log("[DEBUG] Total planet templates loaded:", window.gameSessionData.customPlanetDesigns.length);
+                console.log("[DEBUG] Total galaxy templates loaded:", window.gameSessionData.customGalaxyDesigns.length);
                 console.log("Game state loaded successfully.");
                 return true;
             }

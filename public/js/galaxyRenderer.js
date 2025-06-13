@@ -71,7 +71,7 @@ export const GalaxyRenderer = (() => {
             CONTROLS_MIN_DISTANCE: 100,
             CONTROLS_MAX_DISTANCE_MULTIPLIER: 4, 
             RAYCASTER_THRESHOLD: 20,
-            ROTATION_SPEED: 0.05, 
+            ROTATION_SPEED: 0.005, 
         },
         COLORS: {
             STAR_TEXTURE_COLOR: 'rgba(224,140,62,1)',

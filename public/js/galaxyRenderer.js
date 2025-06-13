@@ -426,7 +426,7 @@ function _createSimpleGalaxySpriteTexture() {
             const randomY = _gaussianRandom() * GALAXY_CONFIG.THICKNESS * 2.0;
             const angle = Math.random() * Math.PI * 2;
             corePositions.push(Math.cos(angle) * distance, randomY, Math.sin(angle) * distance);
-            const color = generateStarColor().clone().multiplyScalar(1.5);
+            const color = generateStarColor().multiplyScalar(1.5);
             coreColors.push(color.r, color.g, color.b);
         }
 

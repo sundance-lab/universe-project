@@ -220,11 +220,7 @@ export const PlanetDesigner = (() => {
   }
 
   function _saveCustomPlanetDesign() {
-    const designName = prompt("Enter a name for this planet design:", "My Planet");
-    if (!designName) {
-      console.log("Planet design save cancelled.");
-      return;
-    }
+    const designName = `My Planet ${window.gameSessionData.customPlanetDesigns.length + 1}`;
 
     if (!window.gameSessionData.customPlanetDesigns) {
       window.gameSessionData.customPlanetDesigns = [];
@@ -385,9 +381,7 @@ function _handleExploreButtonClick(fromSolarSystem = false) {
         if (targetButton.classList.contains('design-item-load')) {
             _loadAndPreviewDesign(id);
         } else if (targetButton.classList.contains('design-item-delete')) {
-            if (confirm("Are you sure you want to delete this planet design?")) {
-                _deleteCustomPlanetDesign(id);
-            }
+            _deleteCustomPlanetDesign(id);
         }
     };
    boundResizeHandler = _onDesignerResize.bind(this);

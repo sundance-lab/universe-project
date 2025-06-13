@@ -7,7 +7,7 @@ export const GalaxyRenderer = (() => {
     let scene, camera, renderer, controls, raycaster, mouse;
     let clickableSystemParticles, decorativeStarParticles, dustParticles, backgroundStars, nebulaParticles;
     let coreStarParticles, diskStarParticles, haloStarParticles;
-    let skybox, galaxyGroup, sisterGalaxy, distantGalaxiesGroup; // Renamed to distantGalaxiesGroup for clarity
+    let skybox, galaxyGroup, sisterGalaxy, distantGalaxiesGroup;
     let animationFrameId = null;
     let onSystemClickCallback = null;
     let interactiveSystemsData = [];
@@ -71,7 +71,7 @@ export const GalaxyRenderer = (() => {
             CONTROLS_MIN_DISTANCE: 100,
             CONTROLS_MAX_DISTANCE_MULTIPLIER: 4, 
             RAYCASTER_THRESHOLD: 20,
-            ROTATION_SPEED: 0.00005, 
+            ROTATION_SPEED: 0.000045, 
         },
         COLORS: {
             STAR_TEXTURE_COLOR: 'rgba(224,140,62,1)',
@@ -126,6 +126,34 @@ export const GalaxyRenderer = (() => {
             gradient.addColorStop(1, 'rgba(255,255,255,0)');
             context.fillStyle = gradient;
             context.fillRect(0, 0, size, size);
+            return new THREE.CanvasTexture(canvas);
+        });
+    }
+
+    function _createClickableSystemTexture() {
+        return _createAndCacheTexture(() => {
+            const size = 128;
+            const canvas = document.createElement('canvas');
+            canvas.width = size;
+            canvas.height = size;
+            const context = canvas.getContext('2d');
+            const center = size / 2;
+
+            // Draw the yellow circle first
+            context.beginPath();
+            context.arc(center, center, center - 8, 0, 2 * Math.PI, false);
+            context.strokeStyle = 'rgba(255, 255, 0, 0.7)';
+            context.lineWidth = 10;
+            context.stroke();
+
+            // Then draw the star particle on top
+            const gradient = context.createRadialGradient(center, center, 0, center, center, center / 2);
+            gradient.addColorStop(0, 'rgba(255, 255, 255, 1)');
+            gradient.addColorStop(0.4, 'rgba(220, 220, 255, 0.9)');
+            gradient.addColorStop(1, 'rgba(255, 255, 255, 0)');
+            context.fillStyle = gradient;
+            context.fill();
+            
             return new THREE.CanvasTexture(canvas);
         });
     }
@@ -367,7 +395,6 @@ export const GalaxyRenderer = (() => {
         const clickablePositions = [], clickableColors = [];
         const nebulaPositions = [];
 
-        const starTexture = _createStarTexture();
         const dustTexture = _createDustTexture();
         const nebulaTexture = _createNebulaTexture();
 
@@ -469,10 +496,10 @@ export const GalaxyRenderer = (() => {
             clickableColors.push(starColor.r, starColor.g, starColor.b);
         });
 
-        haloStarParticles = _createParticleSystem( haloPositions, haloColors, 5, starTexture, 0.25, THREE.AdditiveBlending, false );
-        coreStarParticles = _createParticleSystem( corePositions, coreColors, 5, starTexture, 0.9, THREE.AdditiveBlending, false );
+        haloStarParticles = _createParticleSystem( haloPositions, haloColors, 5, _createStarTexture(), 0.25, THREE.AdditiveBlending, false );
+        coreStarParticles = _createParticleSystem( corePositions, coreColors, 5, _createStarTexture(), 0.9, THREE.AdditiveBlending, false );
         coreStarParticles.frustumCulled = false;
-        diskStarParticles = _createParticleSystem( diskPositions, diskColors, 10, starTexture, 1.0, THREE.AdditiveBlending, false );
+        diskStarParticles = _createParticleSystem( diskPositions, diskColors, 10, _createStarTexture(), 1.0, THREE.AdditiveBlending, false );
 
         const decorativeOnBeforeCompile = shader => {
             shader.vertexShader = 'attribute float particleSize;\n' + shader.vertexShader;
@@ -485,7 +512,7 @@ export const GalaxyRenderer = (() => {
         decorativeStarParticles = new THREE.Points(
             decorativeGeometry,
             new THREE.PointsMaterial({
-                map: starTexture,
+                map: _createStarTexture(),
                 vertexColors: true,
                 sizeAttenuation: true,
                 depthWrite: false,
@@ -498,10 +525,10 @@ export const GalaxyRenderer = (() => {
         dustParticles = _createParticleSystem( dustPositions, [], GALAXY_CONFIG.DUST.SIZE, dustTexture, GALAXY_CONFIG.DUST.OPACITY, THREE.NormalBlending, false );
         dustParticles.renderOrder = 1;
         nebulaParticles = _createParticleSystem( nebulaPositions, [], GALAXY_CONFIG.NEBULA.SIZE, nebulaTexture, GALAXY_CONFIG.NEBULA.OPACITY, THREE.AdditiveBlending, false );
-        clickableSystemParticles = _createParticleSystem( clickablePositions, clickableColors, GALAXY_CONFIG.STAR_COUNTS.CLICKABLE_SYSTEM_SIZE, starTexture, 0.95, THREE.AdditiveBlending, false );
+        clickableSystemParticles = _createParticleSystem( clickablePositions, clickableColors, GALAXY_CONFIG.STAR_COUNTS.CLICKABLE_SYSTEM_SIZE, _createClickableSystemTexture(), 0.95, THREE.AdditiveBlending, false );
 
         galaxyGroup.add(haloStarParticles, coreStarParticles, diskStarParticles, decorativeStarParticles, dustParticles, nebulaParticles, clickableSystemParticles, _createGalacticCoreGlow());
-        galaxyGroup.rotation.set(0, 0, Math.PI / 2);
+        galaxyGroup.rotation.set(0, 0, Math.PI / 12);
         scene.add(galaxyGroup);
     }
 

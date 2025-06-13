@@ -770,12 +770,7 @@ export const UIManager = (() => {
       }
 
     function _saveGalaxyDesign() {
-        console.log("Attempting to save galaxy design...");
-        const designName = prompt("Enter a name for this galaxy design:", "My Custom Galaxy");
-        if (!designName) {
-            console.log("Galaxy design save cancelled.");
-            return;
-        }
+        const designName = `Custom Galaxy ${window.gameSessionData.customGalaxyDesigns.length + 1}`;
 
         if (!window.gameSessionData.customGalaxyDesigns) {
             window.gameSessionData.customGalaxyDesigns = [];
@@ -784,7 +779,7 @@ export const UIManager = (() => {
         const newDesign = {
             designId: _generateUUID(),
             designName: designName,
-            config: GalaxyRenderer.getCurrentConfig() // Save the current active config
+            config: GalaxyRenderer.getCurrentConfig()
         };
 
         window.gameSessionData.customGalaxyDesigns.push(newDesign);
@@ -935,9 +930,7 @@ export const UIManager = (() => {
                 if (targetButton.classList.contains('design-item-load')) {
                     _loadGalaxyDesign(id);
                 } else if (targetButton.classList.contains('design-item-delete')) {
-                    if (confirm("Are you sure you want to delete this galaxy design?")) {
-                        _deleteGalaxyDesign(id);
-                    }
+                    _deleteGalaxyDesign(id);
                 }
             };
 

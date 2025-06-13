@@ -12,6 +12,8 @@ export const PlanetDesigner = (() => {
   designerSaveBtn, designerCancelBtn, designerRiverBasinInput, designerRiverBasinValue,
   designerForestDensityInput, designerForestDensityValue, designerRandomizeBtn, boundResizeHandler, designerExploreBtn;
 
+  let onBackCallback = null;
+
   // --- NEW: Event handler references for cleanup ---
   let handleControlChangeRef, randomizeDesignerPlanetRef, handleExploreButtonClickRef, 
       saveCustomPlanetDesignRef, cancelDesignerRef, savedDesignsClickHandlerRef;
@@ -399,8 +401,9 @@ function _handleExploreButtonClick(fromSolarSystem = false) {
    window.addEventListener('resize', boundResizeHandler);
   },
 
-  activate: () => {
+  activate: (onBack) => {
    console.log("PlanetDesigner.activate called.");
+   onBackCallback = onBack;
    _populateDesignerInputsFromBasis();
    _populateSavedDesignsList(); 
     
@@ -415,12 +418,13 @@ function _handleExploreButtonClick(fromSolarSystem = false) {
     console.log("PlanetDesigner.deactivate called.");
     _stopAndCleanupDesignerThreeJSView();
 
-    if (window.gameSessionData.activeSolarSystemId && window.switchToSolarSystemView) {
-        window.switchToSolarSystemView(window.gameSessionData.activeSolarSystemId);
-    } else if (window.gameSessionData.activeGalaxyId && window.switchToGalaxyDetailView) {
-        window.switchToGalaxyDetailView(window.gameSessionData.activeGalaxyId);
+    if (typeof onBackCallback === 'function') {
+        onBackCallback();
     } else {
-        console.error("Could not determine which screen to go back to.");
+        console.error("No onBack callback provided to PlanetDesigner, returning to galaxy view as a fallback.");
+        if (window.gameSessionData.activeGalaxyId && window.switchToGalaxyDetailView) {
+            window.switchToGalaxyDetailView(window.gameSessionData.activeGalaxyId);
+        }
     }
   },
   

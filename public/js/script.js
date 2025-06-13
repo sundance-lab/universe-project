@@ -45,7 +45,7 @@ document.addEventListener('DOMContentLoaded', () => {
     };
 
     // --- DOM ELEMENT REFERENCES ---
-const domElements = {
+    const domElements = {
         galaxyDetailScreen: document.getElementById('galaxy-detail-screen'),
         solarSystemScreen: document.getElementById('solar-system-screen'),
         hexPlanetScreen: document.getElementById('hex-planet-screen'),
@@ -56,22 +56,23 @@ const domElements = {
         solarSystemTitleText: document.getElementById('solar-system-title-text'),
         solarSystemTitleInput: document.getElementById('solar-system-title-input'),
         backToGalaxyButton: document.getElementById('back-to-galaxy'),
-        regenerateUniverseButton: document.getElementById('regenerate-universe-btn'),
-        createPlanetDesignButton: document.getElementById('create-planet-design-btn'),
         planetSidebar: document.getElementById('planet-sidebar'),
         planetSidebarList: document.getElementById('planet-sidebar-list'),
-        devControlsButton: document.getElementById('dev-controls-btn'),
-        devControlsModal: document.getElementById('dev-controls-modal'),
+        galaxyCustomizationModal: document.getElementById('galaxy-customization-modal'),
+        
+        // Dev Panel Elements
+        devPanelButton: document.getElementById('dev-panel-btn'),
+        devPanelModal: document.getElementById('dev-panel-modal'),
+        panelRegenerateUniverseButton: document.getElementById('panel-regenerate-universe-btn'),
+        panelOpenPlanetDesignerButton: document.getElementById('panel-open-planet-designer-btn'),
+        panelOpenGalaxyCustomizerButton: document.getElementById('panel-open-galaxy-customizer-btn'),
         devMinPlanetsInput: document.getElementById('dev-min-planets'),
         devMaxPlanetsInput: document.getElementById('dev-max-planets'),
         devOrbitLinesVisibleInput: document.getElementById('dev-orbit-lines-visible'),
         devOrbitSpeedInput: document.getElementById('dev-orbit-speed'),
         devOrbitSpeedValue: document.getElementById('dev-orbit-speed-value'),
-        devControlsSaveButton: document.getElementById('dev-controls-save'),
-        devControlsCancelButton: document.getElementById('dev-controls-cancel'),
-        // NEW: Add galaxy customization elements to domElements
-        galaxyCustomizationModal: document.getElementById('galaxy-customization-modal'),
-        customizeGalaxyBtn: document.getElementById('customize-galaxy-btn'),
+        devPanelSaveButton: document.getElementById('dev-panel-save'),
+        devPanelCancelButton: document.getElementById('dev-panel-cancel'),
     };
     
     // --- FUNCTIONS ---
@@ -106,7 +107,7 @@ const domElements = {
         };
         localStorage.setItem(DEV_SETTINGS_KEY, JSON.stringify(devSettings));
         
-        domElements.devControlsModal.classList.remove('visible');
+        domElements.devPanelModal.classList.remove('visible');
 
         if (needsRegen) {
             callbacks.regenerateUniverseState();
@@ -131,20 +132,37 @@ const domElements = {
         }
     }
 
-    function setupDevControlsListeners() {
-        domElements.devControlsButton.addEventListener('click', () => {
+    function setupDevPanelListeners() {
+        domElements.devPanelButton.addEventListener('click', () => {
             updateDevControlsUI();
-            // Store settings before user can change them
             oldDevSettingsForRegenCheck = {
                 minPlanets: devSettings.minPlanets,
                 maxPlanets: devSettings.maxPlanets,
             };
-            domElements.devControlsModal.classList.add('visible');
+            domElements.devPanelModal.classList.add('visible');
         });
-        domElements.devControlsCancelButton.addEventListener('click', () => domElements.devControlsModal.classList.remove('visible'));
-        domElements.devControlsSaveButton.addEventListener('click', saveDevSettings);
+
+        domElements.devPanelCancelButton.addEventListener('click', () => domElements.devPanelModal.classList.remove('visible'));
+        domElements.devPanelSaveButton.addEventListener('click', saveDevSettings);
+        
         domElements.devOrbitSpeedInput.addEventListener('input', (e) => {
             domElements.devOrbitSpeedValue.textContent = Number(e.target.value).toFixed(1);
+        });
+
+        // Listeners for action buttons inside the panel
+        domElements.panelRegenerateUniverseButton.addEventListener('click', () => {
+            domElements.devPanelModal.classList.remove('visible');
+            callbacks.regenerateUniverseState();
+        });
+
+        domElements.panelOpenPlanetDesignerButton.addEventListener('click', () => {
+            domElements.devPanelModal.classList.remove('visible');
+            callbacks.switchToPlanetDesignerScreen();
+        });
+
+        domElements.panelOpenGalaxyCustomizerButton.addEventListener('click', () => {
+            domElements.devPanelModal.classList.remove('visible');
+            callbacks.showGalaxyCustomizationModal();
         });
     }
 
@@ -235,17 +253,22 @@ const domElements = {
                 console.error("switchToPlanetDesignerScreen: PlanetDesigner module or activate function not found.");
             }
         },
+        showGalaxyCustomizationModal: () => {
+            if (UIManager.showGalaxyCustomizationModal) {
+                UIManager.showGalaxyCustomizationModal();
+            }
+        },
         generatePlanetsForSystem: generatePlanetsForSystem,
         getCustomizationSettings: () => ({
             ssCountRange: { min: 200, max: 300 }
         }),
-        getDevSettings: () => devSettings, // FIX: Expose devSettings for other modules
+        getDevSettings: () => devSettings,
     };
 
     UIManager.init(domElements, callbacks);
     
     // --- STARTUP ---
     initializeModules();
-    setupDevControlsListeners();
+    setupDevPanelListeners();
     initializeGame();
 });

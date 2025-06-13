@@ -331,6 +331,7 @@ export const SolarSystemRenderer = (() => {
         container.appendChild(renderer.domElement);
         controls = new OrbitControls(camera, renderer.domElement);
         Object.assign(controls, {
+            enabled: true,
             enableDamping: true, dampingFactor: 0.05, screenSpacePanning: true,
             minDistance: 50, maxDistance: 450000, enablePan: true, rotateSpeed: 0.4,
             mouseButtons: { LEFT: THREE.MOUSE.ROTATE, MIDDLE: THREE.MOUSE.DOLLY, RIGHT: THREE.MOUSE.PAN },
@@ -406,16 +407,14 @@ export const SolarSystemRenderer = (() => {
                 camera.position.copy(cameraAnimation.targetPosition);
                 controls.target.copy(cameraAnimation.targetLookAt);
                 cameraAnimation = null;
+                controls.enabled = true;
                 if (focusedPlanetMesh) {
                     controls.autoRotate = true;
                 } else {
                     controls.minDistance = 50; 
-                    controls.reset();
                 }
             }
         } else if (focusedPlanetMesh) {
-            controls.enableDamping = false;
-
             const newPlanetPosition = new THREE.Vector3();
             focusedPlanetMesh.getWorldPosition(newPlanetPosition);
             const oldPlanetPosition = focusedPlanetMesh.userData.lastWorldPosition;
@@ -440,6 +439,7 @@ export const SolarSystemRenderer = (() => {
     
     function focusOnPlanet(planetId) {
         controls.saveState();
+        controls.enabled = false;
 
         focusedPlanetMesh = planetMeshes.find(p => p.userData.id === planetId);
 
@@ -476,6 +476,7 @@ export const SolarSystemRenderer = (() => {
 
     function unfocusPlanet() {
         if (!focusedPlanetMesh && !cameraAnimation) return;
+        controls.enabled = false;
 
         const savedPosition = controls.position0.clone();
         const savedTarget = controls.target0.clone();

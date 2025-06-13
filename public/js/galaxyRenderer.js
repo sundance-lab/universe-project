@@ -7,7 +7,7 @@ export const GalaxyRenderer = (() => {
     let scene, camera, renderer, controls, raycaster, mouse;
     let clickableSystemParticles, dustParticles, backgroundStars, nebulaParticles;
     let coreStarParticles, haloStarParticles;
-    let diskStarLOD, decorativeStarLOD; // <-- Changed to LOD
+    let diskStarLOD, decorativeStarLOD;
     let skybox, galaxyGroup, sisterGalaxy, distantGalaxiesGroup;
     let animationFrameId = null;
     let onSystemClickCallback = null;
@@ -23,7 +23,6 @@ export const GalaxyRenderer = (() => {
         NUM_ARMS: 2,
         ARM_ROTATION_MULTIPLIER: 13, 
         STAR_COUNTS: {
-            // LOD Levels defined in code, but we can keep base values
             DECORATIVE: 100000, 
             CORE: 100000,
             DISK: 1000000, 
@@ -390,7 +389,6 @@ function _createSimpleGalaxySpriteTexture() {
 
     function _createGalaxy(galaxyData) {
         galaxyGroup = new THREE.Group();
-        galaxyGroup.add(new THREE.LOD()); // Add a dummy LOD for the update loop to find.
 
         const corePositions = [], coreColors = [];
         const haloPositions = [], haloColors = [];
@@ -402,7 +400,6 @@ function _createSimpleGalaxySpriteTexture() {
         const nebulaTexture = _createNebulaTexture();
 
         const colorPalette = GALAXY_CONFIG.COLORS.PALETTE;
-        const generateStarColor = () => colorPalette[Math.floor(Math.random() * colorPalette.length)];
 
         const armVariations = [];
         for (let i = 0; i < GALAXY_CONFIG.NUM_ARMS; i++) {
@@ -412,12 +409,14 @@ function _createSimpleGalaxySpriteTexture() {
             });
         }
 
-        // --- Create LOD for Disk Stars ---
+        const generateStarColor = () => colorPalette[Math.floor(Math.random() * colorPalette.length)];
+
+        // --- Create LOD for Disk Stars (Filler) ---
         diskStarLOD = new THREE.LOD();
         const diskLODLevels = [
-            { distance: 0, count: 2500000, size: 12 },
-            { distance: 2000, count: 1000000, size: 10 },
-            { distance: 4000, count: 250000, size: 8 }
+            { distance: 0,    count: 2000000, size: 4, opacity: 0.7 },
+            { distance: 2000, count: 500000,  size: 5, opacity: 0.8 },
+            { distance: 4000, count: 250000,  size: 8, opacity: 1.0 } // Closest to original look
         ];
 
         diskLODLevels.forEach(level => {
@@ -430,15 +429,16 @@ function _createSimpleGalaxySpriteTexture() {
                 const starColor = generateStarColor();
                 colors.push(starColor.r, starColor.g, starColor.b);
             }
-            const particles = _createParticleSystem(positions, colors, level.size, _createStarTexture(), 1.0, THREE.AdditiveBlending, false);
+            const particles = _createParticleSystem(positions, colors, level.size, _createStarTexture(), level.opacity, THREE.AdditiveBlending, false);
             diskStarLOD.addLevel(particles, level.distance);
         });
-
-        // --- Create LOD for Decorative Stars ---
+        
+        // --- Create LOD for Decorative Stars (Arms) ---
         decorativeStarLOD = new THREE.LOD();
         const decorativeLODLevels = [
-            { distance: 0, count: 200000, minSize: 2, maxSize: 15 },
-            { distance: 2500, count: 50000, minSize: 2, maxSize: 10 }
+            { distance: 0,    count: 750000, minSize: 1, maxSize: 5 },
+            { distance: 2500, count: 250000, minSize: 2, maxSize: 8 },
+            { distance: 4500, count: GALAXY_CONFIG.STAR_COUNTS.DECORATIVE, minSize: GALAXY_CONFIG.STAR_COUNTS.DECORATIVE_STAR_MIN_SIZE, maxSize: GALAXY_CONFIG.STAR_COUNTS.DECORATIVE_STAR_MAX_SIZE } // Original Look
         ];
 
         decorativeLODLevels.forEach(level => {
@@ -449,11 +449,7 @@ function _createSimpleGalaxySpriteTexture() {
                 const armVar = armVariations[armIndex];
                 const armAngle = (armIndex / GALAXY_CONFIG.NUM_ARMS) * 2 * Math.PI + armVar.offset;
                 const rotation = (distance / GALAXY_CONFIG.RADIUS) * armVar.rotation;
-                
-                // This is the "bug" that creates a pleasant warping effect on the arms
-                const bugWarp = Math.pow(distance / GALAXY_CONFIG.RADIUS, 2) * 2.5;
-                const angle = armAngle + rotation + bugWarp;
-
+                const angle = armAngle + rotation;
                 const spread = 2800 * Math.pow(1 - (distance / GALAXY_CONFIG.RADIUS), 2);
                 const turbulence = Math.sin(angle * 5 + distance * 0.01) * spread * 0.25;
                 const randomX = _gaussianRandom() * spread;
@@ -490,7 +486,8 @@ function _createSimpleGalaxySpriteTexture() {
             const theta = Math.random() * Math.PI * 2;
             const phi = Math.acos(Math.random() * 2 - 1);
             haloPositions.push(r * Math.sin(phi) * Math.cos(theta), r * Math.sin(phi) * Math.sin(theta), r * Math.cos(phi));
-            haloColors.push(...generateStarColor().toArray());
+            const starColor = generateStarColor();
+            haloColors.push(starColor.r, starColor.g, starColor.b);
         }
 
         for (let i = 0; i < GALAXY_CONFIG.STAR_COUNTS.CORE; i++) {
@@ -498,7 +495,8 @@ function _createSimpleGalaxySpriteTexture() {
             const randomY = _gaussianRandom() * GALAXY_CONFIG.THICKNESS * 2.0;
             const angle = Math.random() * Math.PI * 2;
             corePositions.push(Math.cos(angle) * distance, randomY, Math.sin(angle) * distance);
-            coreColors.push(...generateStarColor().multiplyScalar(1.5).toArray());
+            const color = generateStarColor().multiplyScalar(1.5);
+            coreColors.push(color.r, color.g, color.b);
         }
 
         for (let i = 0; i < GALAXY_CONFIG.NEBULA.CLUSTER_COUNT; i++) {
@@ -531,15 +529,12 @@ function _createSimpleGalaxySpriteTexture() {
             const armIndex = i % GALAXY_CONFIG.NUM_ARMS;
             const armAngle = (armIndex / GALAXY_CONFIG.NUM_ARMS) * 2 * Math.PI;
             const rotation = (distance / GALAXY_CONFIG.RADIUS) * armVariations[armIndex].rotation;
-
-            // Applying the same "bug" to the clickable systems so they align with the warped arms
-            const bugWarp = Math.pow(distance / GALAXY_CONFIG.RADIUS, 2) * 2.5;
-            const angle = armAngle + rotation + bugWarp;
-
+            const angle = armAngle + rotation;
             const position = new THREE.Vector3(Math.cos(angle) * distance + _gaussianRandom() * 50, _gaussianRandom() * (GALAXY_CONFIG.THICKNESS / 3), Math.sin(angle) * distance + _gaussianRandom() * 50);
             system.position = position;
             clickablePositions.push(position.x, position.y, position.z);
-            clickableColors.push(...generateStarColor().toArray());
+            const starColor = generateStarColor();
+            clickableColors.push(starColor.r, starColor.g, starColor.b);
         });
 
         haloStarParticles = _createParticleSystem( haloPositions, haloColors, 5, _createStarTexture(), 0.25, THREE.AdditiveBlending, false );
@@ -554,7 +549,7 @@ function _createSimpleGalaxySpriteTexture() {
         galaxyGroup.add(haloStarParticles, coreStarParticles, dustParticles, nebulaParticles, clickableSystemParticles, _createGalacticCoreGlow());
         galaxyGroup.add(diskStarLOD);
         galaxyGroup.add(decorativeStarLOD);
-
+        
         galaxyGroup.rotation.set(0, 0, Math.PI / 12);
         scene.add(galaxyGroup);
     }
@@ -603,7 +598,7 @@ function _createSimpleGalaxySpriteTexture() {
     function _animate() {
         animationFrameId = requestAnimationFrame(_animate);
         controls.update();
-
+        
         // Update all LOD objects in the scene
         scene.traverse(obj => {
             if (obj.isLOD) {

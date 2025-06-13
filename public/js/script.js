@@ -1,5 +1,4 @@
 // public/js/script.js
-import { startSolarSystemAnimation, stopSolarSystemAnimation } from './animationController.js';
 import { PlanetDesigner } from './planetDesigner.js';
 import { saveGameState, loadGameState } from './storage.js';
 import { 
@@ -232,10 +231,8 @@ document.addEventListener('DOMContentLoaded', () => {
     
     const callbacks = {
         saveGameState: saveGameState,
-        startSolarSystemAnimation: startSolarSystemAnimation,
-        stopSolarSystemAnimation: stopSolarSystemAnimation,
         regenerateUniverseState: () => regenerateCurrentUniverseState(
-            { stopSolarSystemAnimation, initializeGame },
+            { initializeGame },
             domElements
         ),
         switchToPlanetDesignerScreen: () => {

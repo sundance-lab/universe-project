@@ -567,7 +567,7 @@ body, html {
   top: 50%;
   right: 20px;
   transform: translateY(-50%);
-  width: 220px;
+  width: 147px;
   background-color: rgba(15, 25, 40, 0.85);
   border: 1px solid #4a6a8a;
   border-radius: 8px;
@@ -595,6 +595,7 @@ body, html {
   max-height: 40vh; /* Prevents list from being too long */
   overflow-y: auto;
 }
+
 
 /* Style for individual planet items in the list */
 .planet-sidebar-item {

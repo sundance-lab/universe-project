@@ -876,6 +876,7 @@ export const UIManager = (() => {
             elements = domElements;
             callbacks = appCallbacks;
             window.switchToMainView = switchToMainView;
+            window.switchToGalaxyDetailView = switchToGalaxyDetailView;
             window.switchToSolarSystemView = switchToSolarSystemView;
             window.switchToHexPlanetView = switchToHexPlanetView;
 

@@ -177,8 +177,8 @@ export const SolarSystemRenderer = (() => {
     }
 
     function _createDistantStars() {
-        const starCount = 40000;
-        const starFieldSize = 100000;
+        const starCount = 60000;
+        const starFieldSize = 900000;
         const positions = [];
         const colors = [];
         const sizes = [];
@@ -240,7 +240,7 @@ export const SolarSystemRenderer = (() => {
                 color: new THREE.Color(Math.random(), Math.random(), Math.random())
             });
             const sprite = new THREE.Sprite(material);
-            const distance = 300000 + Math.random() * 250000;
+            const distance = 250000 + Math.random() * 200000;
             const theta = Math.random() * Math.PI * 2;
             const phi = Math.acos(Math.random() * 2 - 1);
             sprite.position.set(distance * Math.sin(phi) * Math.cos(theta), distance * Math.sin(phi) * Math.sin(theta), distance * Math.cos(phi));
@@ -317,7 +317,7 @@ export const SolarSystemRenderer = (() => {
         _cleanup();
         scene = new THREE.Scene();
         const aspect = container.offsetWidth / container.offsetHeight;
-        camera = new THREE.PerspectiveCamera(60, aspect, 1, 600000);
+        camera = new THREE.PerspectiveCamera(60, aspect, 1, 1000000);
         camera.position.set(0, 40000, 20000);
         camera.lookAt(0, 0, 0);
         

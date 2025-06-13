@@ -37,9 +37,37 @@ function _createSunMaterial(variation, finalSize, lodLevel) {
     });
 }
 
+
+// --- Background Helpers (Copied from Galaxy Renderer for consistency) ---
+let createdTextures = [];
+function _createAndCacheTexture(creationFunction) {
+    const texture = creationFunction();
+    texture.flipY = false;
+    createdTextures.push(texture);
+    return texture;
+}
+
+function _createSimpleGalaxySpriteTexture() {
+    return _createAndCacheTexture(() => {
+        const size = 128;
+        const canvas = document.createElement('canvas');
+        canvas.width = size;
+        canvas.height = size;
+        const context = canvas.getContext('2d');
+        const gradient = context.createRadialGradient(size / 2, size / 2, 0, size / 2, size / 2, size / 2);
+        gradient.addColorStop(0, 'rgba(255, 255, 255, 1)');
+        gradient.addColorStop(0.2, 'rgba(100, 100, 255, 0.8)');
+        gradient.addColorStop(1, 'rgba(0, 0, 0, 0)');
+        context.fillStyle = gradient;
+        context.fillRect(0, 0, size, size);
+        return new THREE.CanvasTexture(canvas);
+    });
+}
+
+
 export const SolarSystemRenderer = (() => {
     let scene, camera, renderer, controls;
-    let sunLOD, sunLight, skybox;
+    let sunLOD, sunLight, skybox, distantGalaxiesGroup;
     let planetMeshes = [];
     let orbitLines = [];
     let currentSystemData = null;
@@ -109,6 +137,34 @@ export const SolarSystemRenderer = (() => {
         mesh.userData = { ...planetData, lastPosition: new THREE.Vector3(), lastWorldPosition: new THREE.Vector3() };
         return mesh;
     }
+
+    function _createDistantGalaxies() {
+        distantGalaxiesGroup = new THREE.Group();
+        const galaxyTexture = _createSimpleGalaxySpriteTexture();
+        const config = {
+            COUNT: 50, MIN_SCALE: 200, MAX_SCALE: 400,
+            MIN_OPACITY: 0.1, MAX_OPACITY: 0.2,
+        };
+
+        for (let i = 0; i < config.COUNT; i++) {
+            const material = new THREE.SpriteMaterial({
+                map: galaxyTexture,
+                blending: THREE.AdditiveBlending,
+                transparent: true,
+                opacity: config.MIN_OPACITY + Math.random() * (config.MAX_OPACITY - config.MIN_OPACITY),
+                color: new THREE.Color(Math.random(), Math.random(), Math.random())
+            });
+            const sprite = new THREE.Sprite(material);
+            const distance = 200000 + Math.random() * 200000;
+            const theta = Math.random() * Math.PI * 2;
+            const phi = Math.acos(Math.random() * 2 - 1);
+            sprite.position.set(distance * Math.sin(phi) * Math.cos(theta), distance * Math.sin(phi) * Math.sin(theta), distance * Math.cos(phi));
+            const scale = Math.random() * (config.MAX_SCALE - config.MIN_SCALE) + config.MIN_SCALE;
+            sprite.scale.set(scale, scale, 1);
+            distantGalaxiesGroup.add(sprite);
+        }
+        scene.add(distantGalaxiesGroup);
+    }
     
     function _cleanup() {
         if (animationFrameId) cancelAnimationFrame(animationFrameId);
@@ -127,6 +183,14 @@ export const SolarSystemRenderer = (() => {
             });
             scene.remove(sunLOD);
         }
+        if (distantGalaxiesGroup) {
+            distantGalaxiesGroup.traverse(object => {
+                 if (object.isSprite) {
+                    if (object.material) object.material.dispose();
+                }
+            });
+            scene.remove(distantGalaxiesGroup);
+        }
         planetMeshes.forEach(mesh => {
             if (mesh.geometry) mesh.geometry.dispose();
             if (mesh.material) mesh.material.dispose();
@@ -141,9 +205,14 @@ export const SolarSystemRenderer = (() => {
             renderer.dispose();
             renderer.domElement.remove();
         }
+        for (const texture of createdTextures) {
+            if (texture) texture.dispose();
+        }
+        createdTextures = [];
+
         animationFrameId = null; boundWheelHandler = null; controls = null; sunLOD = null;
         planetMeshes = []; orbitLines = []; skybox = null; lastAnimateTime = null;
-        renderer = null; scene = null; camera = null; currentSystemData = null;
+        renderer = null; scene = null; camera = null; currentSystemData = null; distantGalaxiesGroup = null;
     }
 
     function onControlsStart() {
@@ -171,7 +240,7 @@ export const SolarSystemRenderer = (() => {
             undefined,
             (err) => { console.error("Failed to load skybox texture:", err); scene.background = new THREE.Color(0x000000); }
         );
-        renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
+        renderer = new THREE.WebGLRenderer({ antialias: true, alpha: false });
         renderer.setPixelRatio(window.devicePixelRatio);
         renderer.setSize(container.offsetWidth, container.offsetHeight);
         container.appendChild(renderer.domElement);
@@ -209,6 +278,7 @@ export const SolarSystemRenderer = (() => {
         sunLight = new THREE.PointLight(0xffffff, 2.5, 550000);
         scene.add(sunLight);
         scene.add(new THREE.AmbientLight(0xffffff, 0.1));
+        _createDistantGalaxies();
     }
 
     function _animate(now) {
@@ -233,7 +303,6 @@ export const SolarSystemRenderer = (() => {
             mesh.material.uniforms.uLightDirection.value.copy(mesh.position).negate().normalize();
         });
         
-        // FIX: Default to smooth (damped) controls
         controls.enableDamping = true;
 
         if (cameraAnimation) {
@@ -261,7 +330,6 @@ export const SolarSystemRenderer = (() => {
                 }
             }
         } else if (focusedPlanetMesh) {
-            // FIX: Disable damping for a rigid, stutter-free follow-cam.
             controls.enableDamping = false;
 
             const newPlanetPosition = new THREE.Vector3();

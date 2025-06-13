@@ -18,8 +18,8 @@ export const GalaxyRenderer = (() => {
     // --- CONFIGURATION PARAMETERS ---
     let GALAXY_CONFIG = {
         RADIUS: 1800, 
-        THICKNESS: 200,
-        CORE_RADIUS: 200, 
+        THICKNESS: 100,
+        CORE_RADIUS: 50, 
         NUM_ARMS: 2,
         ARM_ROTATION_MULTIPLIER: 13, 
         STAR_COUNTS: {

@@ -416,7 +416,7 @@ function _createSimpleGalaxySpriteTexture() {
         const diskLODLevels = [
             { distance: 0,    count: 2000000, size: 4, opacity: 0.7 },
             { distance: 2000, count: 500000,  size: 5, opacity: 0.8 },
-            { distance: 4000, count: 250000,  size: 8, opacity: 1.0 } // Closest to original look
+            { distance: 4000, count: 250,  size: 8, opacity: 1.0 } // Closest to original look
         ];
 
         diskLODLevels.forEach(level => {

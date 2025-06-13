@@ -18,30 +18,30 @@ export const GalaxyRenderer = (() => {
     // Export GALAXY_CONFIG so it can be accessed and modified externally
     let GALAXY_CONFIG = {
         RADIUS: 1800, // Slightly increased for a grander scale
-        THICKNESS: 100,
-        CORE_RADIUS: 250, // Slightly larger core
-        NUM_ARMS: 5,
-        ARM_ROTATION_MULTIPLIER: 4.2 * Math.PI, // Slightly tighter arms
+        THICKNESS: 200,
+        CORE_RADIUS: 200, // Slightly larger core
+        NUM_ARMS: 2,
+        ARM_ROTATION_MULTIPLIER: 13, // Slightly tighter arms
         STAR_COUNTS: {
-            DECORATIVE: 70000, // More decorative stars for richer arms
-            CORE: 25000,
-            DISK: 500000, // Massively increased to guarantee no black space
-            HALO: 300000,
+            DECORATIVE: 100000, // More decorative stars for richer arms
+            CORE: 100000,
+            DISK: 1000000, // Massively increased to guarantee no black space
+            HALO: 25000,
             BACKGROUND: 250000,
             CLICKABLE_SYSTEM_SIZE: 50, // Size for interactive system particles
-            DECORATIVE_STAR_MAX_SIZE: 15,
-            DECORATIVE_STAR_MIN_SIZE: 5,
+            DECORATIVE_STAR_MAX_SIZE: 10,
+            DECORATIVE_STAR_MIN_SIZE: 2,
         },
         DUST: {
-            COUNT: 15000, // More dust particles
-            SIZE: 150,
+            COUNT: 500, // More dust particles
+            SIZE: 25,
             OPACITY: 0.7, // Slightly more opaque
         },
         NEBULA: {
-            CLUSTER_COUNT: 60, // More nebula clusters
-            PARTICLE_COUNT_PER_CLUSTER: 12, // More particles per cluster
-            SIZE: 350, // Larger nebulae
-            OPACITY: 0.4, // Slightly more opaque
+            CLUSTER_COUNT: 1500, // More nebula clusters
+            PARTICLE_COUNT_PER_CLUSTER: 15, // More particles per cluster
+            SIZE: 50, // Larger nebulae
+            OPACITY: 0.42, // Slightly more opaque
         },
         DISTANT_GALAXIES: {
             COUNT: 150,
@@ -64,7 +64,7 @@ export const GalaxyRenderer = (() => {
             ROTATION: { x: Math.PI / 6, y: Math.PI / 10, z: Math.PI / 8 },
         },
         RENDERER: {
-            CAMERA_FOV: 60,
+            CAMERA_FOV: 120,
             CAMERA_NEAR: 1,
             CAMERA_FAR: 40000, // Increased far clipping plane
             CAMERA_POSITION_MULTIPLIERS: { x: 1.2, y: 1.0, z: 1.2 }, // Slightly different starting position
@@ -72,23 +72,23 @@ export const GalaxyRenderer = (() => {
             CONTROLS_MIN_DISTANCE: 100,
             CONTROLS_MAX_DISTANCE_MULTIPLIER: 4, // Multiplier for GALAXY_RADIUS
             RAYCASTER_THRESHOLD: 20,
-            ROTATION_SPEED: 0.0001, // Slightly faster overall rotation
+            ROTATION_SPEED: 0.00005, // Slightly faster overall rotation
         },
         COLORS: {
-            STAR_TEXTURE_COLOR: 'rgba(255,255,255,1)',
+            STAR_TEXTURE_COLOR: 'rgba(224,140,62,1)',
             STAR_TEXTURE_GRADIENT_STOP: 0.2,
-            CORE_GLOW_COLOR: 'rgba(255, 200, 150, 1)',
+            CORE_GLOW_COLOR: 'rgba(212, 175, 55, 1)',
             CORE_GLOW_GRADIENT_STOP: 0.05,
             // Realistic dust colors (darker, brownish-red)
-            DUST_COLOR_STOP_0: 'rgba(80, 50, 20, 0.5)',
-            DUST_COLOR_STOP_04: 'rgba(60, 40, 10, 0.2)',
+            DUST_COLOR_STOP_0: 'rgba(8, 13, 78, 1)',
+            DUST_COLOR_STOP_04: 'rgba(25, 19, 103, 1)',
             DUST_COLOR_STOP_1: 'rgba(30, 20, 5, 0)',
             // Vibrant nebula colors (blue, purple, orange)
-            NEBULA_COLOR_STOP_0: 'rgba(50, 150, 255, 0.3)', // Blue
-            NEBULA_COLOR_STOP_04: 'rgba(150, 50, 255, 0.1)', // Purple
+            NEBULA_COLOR_STOP_0: 'rgba(71, 74, 77, 1)', // Blue
+            NEBULA_COLOR_STOP_04: 'rgba(150, 50, 255, 1)', // Purple
             NEBULA_COLOR_STOP_1: 'rgba(255, 100, 50, 0)', // Orange
-            BACKGROUND_STAR_COLOR: 0xffffff,
-            SKYBOX_COLOR: 0x8899bb,
+            BACKGROUND_STAR_COLOR: 0x000000,
+            SKYBOX_COLOR: 0x000000,
             // Expanded star color palette for more variety
             PALETTE: [
                 new THREE.Color(0xFF8C00), // Darker orange
@@ -263,7 +263,8 @@ export const GalaxyRenderer = (() => {
             maxDistance: GALAXY_CONFIG.RADIUS * GALAXY_CONFIG.RENDERER.CONTROLS_MAX_DISTANCE_MULTIPLIER,
             enablePan: false,
             minPolarAngle: 0,
-            maxPolarAngle: Math.PI
+            maxPolarAngle: Math.PI,
+            rotateSpeed: 0.5
         });
 
         raycaster = new THREE.Raycaster();

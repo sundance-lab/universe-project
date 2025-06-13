@@ -170,44 +170,6 @@ export const UIManager = (() => {
         if(elements.devControlsButton) elements.devControlsButton.style.display = isOnOverlayScreen ? 'none' : 'block';
     }
 
-    function renderMainScreen() {
-        if (elements.mainScreenTitleText) elements.mainScreenTitleText.textContent = "Universe";
-        if (!elements.universeCircle) return;
-        elements.universeCircle.innerHTML = '';
-        window.gameSessionData.galaxies.forEach(galaxy => {
-            const GALAXY_ICON_SIZE = 60;
-            const galaxyNumDisplay = galaxy.id.split('-').pop();
-            const galaxyElement = document.createElement('div');
-            galaxyElement.className = 'galaxy-icon';
-            galaxyElement.style.width = `${GALAXY_ICON_SIZE}px`;
-            galaxyElement.style.height = `${GALAXY_ICON_SIZE}px`;
-            galaxyElement.style.left = `${galaxy.x}px`;
-            galaxyElement.style.top = `${galaxy.y}px`;
-            galaxyElement.title = galaxy.customName || `Galaxy ${galaxyNumDisplay}`;
-            galaxyElement.dataset.galaxyId = galaxy.id;
-            galaxyElement.addEventListener('click', () => switchToGalaxyDetailView(galaxy.id));
-            elements.universeCircle.appendChild(galaxyElement);
-        });
-    }
-    
-    function switchToMainView() {
-        if (window.activeSolarSystemRenderer) {
-            elements.solarSystemContent.removeEventListener('click', _onSolarSystemCanvasClick);
-            window.activeSolarSystemRenderer.dispose();
-            window.activeSolarSystemRenderer = null;
-        }
-        if (currentGalaxyRenderer) {
-            currentGalaxyRenderer.dispose();
-            currentGalaxyRenderer = null;
-        }
-        focusedPlanetId = null;
-        window.gameSessionData.activeGalaxyId = null;
-        window.gameSessionData.activeSolarSystemId = null;
-        callbacks.stopSolarSystemAnimation();
-        setActiveScreen(elements.mainScreen);
-        generateStarBackgroundCanvas(elements.mainScreen);
-    }
-
     function switchToGalaxyDetailView(galaxyId) {
         if (window.activeSolarSystemRenderer) {
             window.activeSolarSystemRenderer.dispose();
@@ -220,7 +182,10 @@ export const UIManager = (() => {
         focusedPlanetId = null;
 
         const galaxy = window.gameSessionData.galaxies.find(g => g.id === galaxyId);
-        if (!galaxy) return switchToMainView();
+        if (!galaxy) {
+            console.error("Could not find galaxy to switch to. This should not happen.");
+            return;
+        }
 
         window.gameSessionData.activeGalaxyId = galaxyId;
         window.gameSessionData.activeSolarSystemId = null;
@@ -253,7 +218,6 @@ export const UIManager = (() => {
         makeTitleEditable(elements.galaxyDetailTitleText, elements.galaxyDetailTitleInput, (newName) => {
             galaxy.customName = newName || null;
             callbacks.saveGameState();
-            renderMainScreen(); 
             return galaxy.customName || `Galaxy ${galaxyNumDisplay}`;
         });
     }
@@ -273,7 +237,7 @@ export const UIManager = (() => {
         window.gameSessionData.activeSolarSystemId = solarSystemId;
         const activeGalaxy = window.gameSessionData.galaxies.find(g => solarSystemId.startsWith(g.id));
         const solarSystemObject = activeGalaxy?.solarSystems.find(s => s.id === solarSystemId);
-        if (!solarSystemObject) return switchToMainView();
+        if (!solarSystemObject) return switchToGalaxyDetailView(window.gameSessionData.activeGalaxyId);
         if (!solarSystemObject.planets) callbacks.generatePlanetsForSystem(solarSystemObject);
 
         const solarSystemDataForRenderer = {
@@ -484,7 +448,8 @@ export const UIManager = (() => {
         if (window.gameSessionData.activeGalaxyId) {
             setActiveScreen(elements.galaxyDetailScreen);
         } else {
-            switchToMainView();
+            // Fallback if something went wrong, though we should always have an active galaxy.
+            callbacks.regenerateUniverseState();
         }
         console.log("Galaxy customization modal hidden.");
     }
@@ -875,7 +840,6 @@ export const UIManager = (() => {
         init: (domElements, appCallbacks) => {
             elements = domElements;
             callbacks = appCallbacks;
-            window.switchToMainView = switchToMainView;
             window.switchToGalaxyDetailView = switchToGalaxyDetailView;
             window.switchToSolarSystemView = switchToSolarSystemView;
             window.switchToHexPlanetView = switchToHexPlanetView;
@@ -886,7 +850,6 @@ export const UIManager = (() => {
                 callbacks.regenerateUniverseState();
             });
             elements.createPlanetDesignButton.addEventListener('click', callbacks.switchToPlanetDesignerScreen);
-            elements.backToMainButton.addEventListener('click', switchToMainView);
             elements.backToGalaxyButton.addEventListener('click', () => {
                 if (window.activeSolarSystemRenderer) {
                     window.activeSolarSystemRenderer.unfocusPlanet();
@@ -895,8 +858,6 @@ export const UIManager = (() => {
                 focusedPlanetId = null;
                 if (window.gameSessionData.activeGalaxyId) {
                     switchToGalaxyDetailView(window.gameSessionData.activeGalaxyId);
-                } else {
-                    switchToMainView();
                 }
             });
 
@@ -945,7 +906,6 @@ export const UIManager = (() => {
                 });
             });
         },
-        renderMainScreen: renderMainScreen,
         setActiveScreen: setActiveScreen,
     };
 })();

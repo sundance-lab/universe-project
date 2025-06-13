@@ -15,7 +15,7 @@ export const GalaxyRenderer = (() => {
     let _currentGalaxyData = null; 
 
     // --- CONFIGURATION PARAMETERS ---
-    let GALAXY_CONFIG = {
+    const _defaultGalaxyConfig = {
         RADIUS: 1800, 
         THICKNESS: 200,
         CORE_RADIUS: 200, 
@@ -103,6 +103,7 @@ export const GalaxyRenderer = (() => {
             SKYBOX_TEXTURE: 'https://cdn.jsdelivr.net/gh/jeromeetienne/threex.planets@master/images/galaxy_starfield.png',
         }
     };
+    let GALAXY_CONFIG = JSON.parse(JSON.stringify(_defaultGalaxyConfig));
 
     // --- HELPER FUNCTIONS ---
 
@@ -652,6 +653,9 @@ function _createSimpleGalaxySpriteTexture() {
             setTimeout(_onResize, 100); 
         },
         dispose: _dispose,
+        resetConfig: () => {
+            GALAXY_CONFIG = JSON.parse(JSON.stringify(_defaultGalaxyConfig));
+        },
         updateConfig: (newConfig) => {
             _deepMerge(GALAXY_CONFIG, newConfig);
             if (scene && _currentGalaxyData) {

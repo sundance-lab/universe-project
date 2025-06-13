@@ -47,6 +47,23 @@ function _createAndCacheTexture(creationFunction) {
     return texture;
 }
 
+function _createStarTexture() {
+    return _createAndCacheTexture(() => {
+        const size = 128;
+        const canvas = document.createElement('canvas');
+        canvas.width = size;
+        canvas.height = size;
+        const context = canvas.getContext('2d');
+        const gradient = context.createRadialGradient(size / 2, size / 2, 0, size / 2, size / 2, size / 2);
+        gradient.addColorStop(0, 'rgba(255, 255, 255, 1)');
+        gradient.addColorStop(0.2, 'rgba(200, 200, 255, 0.8)');
+        gradient.addColorStop(1, 'rgba(255, 255, 255, 0)');
+        context.fillStyle = gradient;
+        context.fillRect(0, 0, size, size);
+        return new THREE.CanvasTexture(canvas);
+    });
+}
+
 function _createSimpleGalaxySpriteTexture() {
     return _createAndCacheTexture(() => {
         const size = 128;
@@ -67,7 +84,7 @@ function _createSimpleGalaxySpriteTexture() {
 
 export const SolarSystemRenderer = (() => {
     let scene, camera, renderer, controls;
-    let sunLOD, sunLight, skybox, distantGalaxiesGroup;
+    let sunLOD, sunLight, backgroundStars, distantGalaxiesGroup;
     let planetMeshes = [];
     let orbitLines = [];
     let currentSystemData = null;
@@ -138,12 +155,48 @@ export const SolarSystemRenderer = (() => {
         return mesh;
     }
 
+    function _createParticleSystem(positions, colors, size, texture, opacity, blending, depthWrite, sizeAttenuation = true, vertexColors = true) {
+        const geometry = new THREE.BufferGeometry();
+        geometry.setAttribute('position', new THREE.Float32BufferAttribute(positions, 3));
+        if (vertexColors && colors.length > 0) {
+            geometry.setAttribute('color', new THREE.Float32BufferAttribute(colors, 3));
+        }
+
+        const materialParams = {
+            size: size,
+            map: texture,
+            sizeAttenuation: sizeAttenuation,
+            depthWrite: depthWrite,
+            blending: blending,
+            transparent: true,
+            opacity: opacity,
+        };
+        if (vertexColors && colors.length > 0) materialParams.vertexColors = true;
+        const material = new THREE.PointsMaterial(materialParams);
+        return new THREE.Points(geometry, material);
+    }
+
+    function _createDistantStars() {
+        const geometry = new THREE.BufferGeometry();
+        const positions = [];
+        const backgroundStarFieldSize = 500000;
+        for (let i = 0; i < 20000; i++) {
+            positions.push(
+                (Math.random() - 0.5) * backgroundStarFieldSize,
+                (Math.random() - 0.5) * backgroundStarFieldSize,
+                (Math.random() - 0.5) * backgroundStarFieldSize
+            );
+        }
+        backgroundStars = _createParticleSystem( positions, [], 100, _createStarTexture(), 0.7, THREE.AdditiveBlending, false, true, false );
+        scene.add(backgroundStars);
+    }
+
     function _createDistantGalaxies() {
         distantGalaxiesGroup = new THREE.Group();
         const galaxyTexture = _createSimpleGalaxySpriteTexture();
         const config = {
-            COUNT: 50, MIN_SCALE: 200, MAX_SCALE: 400,
-            MIN_OPACITY: 0.1, MAX_OPACITY: 0.2,
+            COUNT: 150, MIN_SCALE: 800, MAX_SCALE: 1500,
+            MIN_OPACITY: 0.1, MAX_OPACITY: 0.3,
         };
 
         for (let i = 0; i < config.COUNT; i++) {
@@ -155,7 +208,7 @@ export const SolarSystemRenderer = (() => {
                 color: new THREE.Color(Math.random(), Math.random(), Math.random())
             });
             const sprite = new THREE.Sprite(material);
-            const distance = 200000 + Math.random() * 200000;
+            const distance = 300000 + Math.random() * 250000;
             const theta = Math.random() * Math.PI * 2;
             const phi = Math.acos(Math.random() * 2 - 1);
             sprite.position.set(distance * Math.sin(phi) * Math.cos(theta), distance * Math.sin(phi) * Math.sin(theta), distance * Math.cos(phi));
@@ -182,6 +235,11 @@ export const SolarSystemRenderer = (() => {
                 }
             });
             scene.remove(sunLOD);
+        }
+        if (backgroundStars) {
+            if (backgroundStars.geometry) backgroundStars.geometry.dispose();
+            if (backgroundStars.material) backgroundStars.material.dispose();
+            scene.remove(backgroundStars);
         }
         if (distantGalaxiesGroup) {
             distantGalaxiesGroup.traverse(object => {
@@ -211,7 +269,7 @@ export const SolarSystemRenderer = (() => {
         createdTextures = [];
 
         animationFrameId = null; boundWheelHandler = null; controls = null; sunLOD = null;
-        planetMeshes = []; orbitLines = []; skybox = null; lastAnimateTime = null;
+        planetMeshes = []; orbitLines = []; backgroundStars = null; lastAnimateTime = null;
         renderer = null; scene = null; camera = null; currentSystemData = null; distantGalaxiesGroup = null;
     }
 
@@ -230,16 +288,11 @@ export const SolarSystemRenderer = (() => {
         camera = new THREE.PerspectiveCamera(60, aspect, 1, 600000);
         camera.position.set(0, 40000, 20000);
         camera.lookAt(0, 0, 0);
-        new THREE.TextureLoader().load('https://cdn.jsdelivr.net/gh/jeromeetienne/threex.planets@master/images/galaxy_starfield.png',
-            (texture) => {
-                const skySphere = new THREE.SphereGeometry(500000, 60, 40);
-                const skyMaterial = new THREE.MeshBasicMaterial({ map: texture, side: THREE.BackSide });
-                skybox = new THREE.Mesh(skySphere, skyMaterial);
-                scene.add(skybox);
-            },
-            undefined,
-            (err) => { console.error("Failed to load skybox texture:", err); scene.background = new THREE.Color(0x000000); }
-        );
+        
+        scene.background = new THREE.Color(0x000000);
+        _createDistantStars();
+        _createDistantGalaxies();
+
         renderer = new THREE.WebGLRenderer({ antialias: true, alpha: false });
         renderer.setPixelRatio(window.devicePixelRatio);
         renderer.setSize(container.offsetWidth, container.offsetHeight);
@@ -278,7 +331,6 @@ export const SolarSystemRenderer = (() => {
         sunLight = new THREE.PointLight(0xffffff, 2.5, 550000);
         scene.add(sunLight);
         scene.add(new THREE.AmbientLight(0xffffff, 0.1));
-        _createDistantGalaxies();
     }
 
     function _animate(now) {
@@ -343,7 +395,7 @@ export const SolarSystemRenderer = (() => {
         }
         
         controls.update();
-        if (skybox) skybox.rotation.y += 0.00002;
+        if (distantGalaxiesGroup) distantGalaxiesGroup.rotation.y += 0.00005;
         if (sunLOD) {
             sunLOD.rotation.y += 0.0001;
             sunLOD.update(camera);

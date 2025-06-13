@@ -41,7 +41,7 @@ export const GalaxyRenderer = (() => {
             CLUSTER_COUNT: 1500, // More nebula clusters
             PARTICLE_COUNT_PER_CLUSTER: 15, // More particles per cluster
             SIZE: 50, // Larger nebulae
-            OPACITY: 0.42, // Slightly more opaque
+            OPACITY: 0.1, // Slightly more opaque
         },
         DISTANT_GALAXIES: {
             COUNT: 150,

@@ -501,7 +501,7 @@ export const GalaxyRenderer = (() => {
         clickableSystemParticles = _createParticleSystem( clickablePositions, clickableColors, GALAXY_CONFIG.STAR_COUNTS.CLICKABLE_SYSTEM_SIZE, starTexture, 0.95, THREE.AdditiveBlending, false );
 
         galaxyGroup.add(haloStarParticles, coreStarParticles, diskStarParticles, decorativeStarParticles, dustParticles, nebulaParticles, clickableSystemParticles, _createGalacticCoreGlow());
-        galaxyGroup.rotation.set(0, 0, Math.PI / 12);
+        galaxyGroup.rotation.set(0, 0, Math.PI / 2);
         scene.add(galaxyGroup);
     }
 

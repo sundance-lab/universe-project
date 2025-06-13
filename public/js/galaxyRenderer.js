@@ -15,7 +15,7 @@ export const GalaxyRenderer = (() => {
     let _currentGalaxyData = null; 
 
     // --- CONFIGURATION PARAMETERS ---
-    const _defaultGalaxyConfig = {
+    let GALAXY_CONFIG = {
         RADIUS: 1800, 
         THICKNESS: 200,
         CORE_RADIUS: 200, 
@@ -103,7 +103,8 @@ export const GalaxyRenderer = (() => {
             SKYBOX_TEXTURE: 'https://cdn.jsdelivr.net/gh/jeromeetienne/threex.planets@master/images/galaxy_starfield.png',
         }
     };
-    let GALAXY_CONFIG = JSON.parse(JSON.stringify(_defaultGalaxyConfig));
+    const _defaultGalaxyConfig = JSON.parse(JSON.stringify(GALAXY_CONFIG));
+    GALAXY_CONFIG.COLORS.PALETTE = GALAXY_CONFIG.COLORS.PALETTE.map(c => new THREE.Color(c.r, c.g, c.b));
 
     // --- HELPER FUNCTIONS ---
 
@@ -425,7 +426,7 @@ function _createSimpleGalaxySpriteTexture() {
             const randomY = _gaussianRandom() * GALAXY_CONFIG.THICKNESS * 2.0;
             const angle = Math.random() * Math.PI * 2;
             corePositions.push(Math.cos(angle) * distance, randomY, Math.sin(angle) * distance);
-            const color = generateStarColor().multiplyScalar(1.5);
+            const color = generateStarColor().clone().multiplyScalar(1.5);
             coreColors.push(color.r, color.g, color.b);
         }
 
@@ -655,9 +656,10 @@ function _createSimpleGalaxySpriteTexture() {
         dispose: _dispose,
         resetConfig: () => {
             GALAXY_CONFIG = JSON.parse(JSON.stringify(_defaultGalaxyConfig));
+            GALAXY_CONFIG.COLORS.PALETTE = GALAXY_CONFIG.COLORS.PALETTE.map(c => new THREE.Color(c.r, c.g, c.b));
         },
         updateConfig: (newConfig) => {
-            _deepMerge(GALAXY_CONFIG, newConfig);
+            _deepMerge(GALAALAXY_CONFIG, newConfig);
             if (scene && _currentGalaxyData) {
                 const currentContainer = renderer ? renderer.domElement.parentNode : document.getElementById('galaxy-canvas-container');
                 _dispose();

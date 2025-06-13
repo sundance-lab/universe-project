@@ -6,7 +6,9 @@ export function saveGameState() {
             universeDiameter: window.gameSessionData.universe.diameter,
             galaxies: window.gameSessionData.galaxies,
             customPlanetDesigns: window.gameSessionData.customPlanetDesigns,
-            customGalaxyDesigns: window.gameSessionData.customGalaxyDesigns // NEW: Save custom galaxy designs
+            customGalaxyDesigns: window.gameSessionData.customGalaxyDesigns, // NEW: Save custom galaxy designs
+            activeGalaxyId: window.gameSessionData.activeGalaxyId,
+            activeSolarSystemId: window.gameSessionData.activeSolarSystemId
         };
         localStorage.setItem('galaxyGameSaveData', JSON.stringify(stateToSave));
         console.log("Game state saved.");
@@ -23,6 +25,8 @@ export function loadGameState() {
             if (loadedState && typeof loadedState.universeDiameter === 'number' && Array.isArray(loadedState.galaxies)) {
                 window.gameSessionData.universe.diameter = loadedState.universeDiameter;
                 window.gameSessionData.galaxies = loadedState.galaxies;
+                window.gameSessionData.activeGalaxyId = loadedState.activeGalaxyId || null;
+                window.gameSessionData.activeSolarSystemId = loadedState.activeSolarSystemId || null;
 
                 window.gameSessionData.galaxies.forEach(gal => {
                     gal.currentZoom = gal.currentZoom || 1.0;

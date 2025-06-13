@@ -227,24 +227,15 @@ body, html {
   width: 180px; /* Fixed width */
   transition: background-color 0.2s ease, box-shadow 0.2s ease, transform 0.1s ease;
   box-shadow: 0 4px 8px rgba(0, 0, 0, 0.4);
+  top: 15px; left: 15px; z-index: 301;
+  background-color: #4a6a8a; border: 1.1px solid #3b5a7a;
 }
 
 .control-button:hover {
   transform: translateY(-2px); /* Nice little hover effect */
   box-shadow: 0 6px 12px rgba(0, 0, 0, 0.6);
+  background-color: #5a7d9b;
 }
-
-#regenerate-universe-btn {
-  top: 15px; left: 15px; z-index: 301; /* Higher z-index for critical controls */
-  background-color: #c0392b; border: 1.1px solid #a93226; /* Specific styling */
-}
-#regenerate-universe-btn:hover { background-color: #e74c3c; }
-
-#create-planet-design-btn {
-  top: 117px; left: 15px; z-index: 301;
-  background-color: #2b7a9f; border: 1.1px solid #226688;
-}
-#create-planet-design-btn:hover { background-color: #348bb9; }
 
 /* MODIFICATION: Removed .planet-visual-panel and all related styles */
 
@@ -640,7 +631,14 @@ body, html {
 /* Styling for control groups inside modals */
 .modal-content .control-group {
     margin-bottom: 20px;
+    border-bottom: 1px solid #34495e;
+    padding-bottom: 20px;
 }
+.modal-content .control-group:last-of-type {
+    border-bottom: none;
+    padding-bottom: 0;
+}
+
 
 .modal-content .control-group label {
     display: block;
@@ -690,4 +688,27 @@ body, html {
 
 .customize-galaxy-button:active {
   transform: scale(.95);
+}
+
+.panel-actions-container {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.panel-action-btn {
+  padding: 12px;
+  font-size: 1em;
+  font-weight: bold;
+  border: 1px solid #7f8c8d;
+  background-color: #34495e;
+  color: #ecf0f1;
+  border-radius: 5px;
+  cursor: pointer;
+  text-align: center;
+  transition: background-color 0.2s;
+}
+
+.panel-action-btn:hover {
+  background-color: #4a6a8a;
 }

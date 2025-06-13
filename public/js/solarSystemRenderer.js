@@ -507,8 +507,11 @@ export const SolarSystemRenderer = (() => {
             container.innerHTML = '';
             _setupScene(container);
             currentSystemData = solarSystemData;
+            
             sunLOD = _createSun(solarSystemData.sun);
+            sunLOD.visible = false;
             scene.add(sunLOD);
+
             solarSystemData.planets.forEach(planet => {
                 const planetMesh = _createPlanetMesh(planet);
                 planetMeshes.push(planetMesh);
@@ -528,6 +531,10 @@ export const SolarSystemRenderer = (() => {
 
             lastAnimateTime = performance.now();
             _animate(lastAnimateTime);
+
+            setTimeout(() => {
+                if (sunLOD) sunLOD.visible = true;
+            }, 50);
         },
         dispose: () => _cleanup(),
         focusOnPlanet,

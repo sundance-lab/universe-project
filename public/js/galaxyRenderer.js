@@ -605,7 +605,10 @@ export const GalaxyRenderer = (() => {
             if (backgroundStars) scene.remove(backgroundStars);
         }
 
-        if (renderer) renderer.dispose();
+        if (renderer) {
+            renderer.forceContextLoss();
+            renderer.dispose();
+        }
 
         scene = camera = renderer = controls = animationFrameId = onSystemClickCallback = null;
         interactiveSystemsData = [];

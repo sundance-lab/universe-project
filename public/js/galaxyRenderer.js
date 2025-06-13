@@ -27,7 +27,7 @@ export const GalaxyRenderer = (() => {
             CORE: 100,
             DISK: 500, 
             HALO: 100,
-            BACKGROUND: 250000,
+            BACKGROUND: 2500,
             CLICKABLE_SYSTEM_SIZE: 50, 
             DECORATIVE_STAR_MAX_SIZE: 10,
             DECORATIVE_STAR_MIN_SIZE: 2,

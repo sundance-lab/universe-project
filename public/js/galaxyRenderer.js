@@ -7,7 +7,7 @@ export const GalaxyRenderer = (() => {
     let scene, camera, renderer, controls, raycaster, mouse;
     let clickableSystemParticles, dustParticles, backgroundStars, nebulaParticles;
     let coreStarParticles, haloStarParticles;
-    let diskStarLOD, decorativeStarLOD; // <-- Changed to LOD objects
+    let diskStarLOD, decorativeStarLOD; // MODIFIED: Changed to LOD objects
     let skybox, galaxyGroup, sisterGalaxy, distantGalaxiesGroup;
     let animationFrameId = null;
     let onSystemClickCallback = null;
@@ -236,7 +236,7 @@ export const GalaxyRenderer = (() => {
     function _createParticleSystem(positions, colors, size, texture, opacity, blending, depthWrite, sizeAttenuation = true, vertexColors = true, onBeforeCompile = null) {
         const geometry = new THREE.BufferGeometry();
         geometry.setAttribute('position', new THREE.Float32BufferAttribute(positions, 3));
-        if (colors && colors.length > 0) {
+        if (vertexColors && colors.length > 0) {
             geometry.setAttribute('color', new THREE.Float32BufferAttribute(colors, 3));
         }
 
@@ -250,7 +250,7 @@ export const GalaxyRenderer = (() => {
             opacity: opacity,
         };
 
-        if (colors && colors.length > 0) {
+        if (vertexColors && colors.length > 0) {
             materialParams.vertexColors = true;
         }
 
@@ -413,9 +413,9 @@ export const GalaxyRenderer = (() => {
         // --- Create LOD for Disk Stars (Filler) ---
         diskStarLOD = new THREE.LOD();
         const diskLODLevels = [
-            { distance: 4000, count: 250000, size: 8, opacity: 1.0 }, // Far away (original look)
-            { distance: 2000, count: 1000000, size: 5, opacity: 0.8 }, // Medium
-            { distance: 0,    count: 3000000, size: 4, opacity: 0.7 }  // Close up (high detail)
+            { distance: 4500, count: GALAXY_CONFIG.STAR_COUNTS.DISK, size: 10, opacity: 1.0 }, // Far away (original look)
+            { distance: 2500, count: 2000000, size: 8, opacity: 0.8 }, // Medium
+            { distance: 0,    count: 4000000, size: 5, opacity: 0.7 }  // Close up (high detail)
         ];
 
         diskLODLevels.forEach(level => {
@@ -436,11 +436,11 @@ export const GalaxyRenderer = (() => {
         decorativeStarLOD = new THREE.LOD();
         const decorativeLODLevels = [
              // Far away (original look)
-            { distance: 4500, count: GALAXY_CONFIG.STAR_COUNTS.DECORATIVE, minSize: GALAXY_CONFIG.STAR_COUNTS.DECORATIVE_STAR_MIN_SIZE, maxSize: GALAXY_CONFIG.STAR_COUNTS.DECORATIVE_STAR_MAX_SIZE },
+            { distance: 5000, count: GALAXY_CONFIG.STAR_COUNTS.DECORATIVE, minSize: GALAXY_CONFIG.STAR_COUNTS.DECORATIVE_STAR_MIN_SIZE, maxSize: GALAXY_CONFIG.STAR_COUNTS.DECORATIVE_STAR_MAX_SIZE },
             // Medium
-            { distance: 2500, count: 250000, minSize: 2, maxSize: 8 },
+            { distance: 2800, count: 250000, minSize: 2, maxSize: 8 },
             // Close up (high detail)
-            { distance: 0,    count: 750000, minSize: 1, maxSize: 5 }
+            { distance: 0,    count: 750000, minSize: 1, maxSize: 6 }
         ];
 
         decorativeLODLevels.forEach(level => {
@@ -601,6 +601,7 @@ export const GalaxyRenderer = (() => {
         animationFrameId = requestAnimationFrame(_animate);
         controls.update();
         
+        // MODIFIED: Update all LOD objects in the scene
         scene.traverse(obj => {
             if (obj.isLOD) {
                 obj.update(camera);
@@ -671,7 +672,8 @@ export const GalaxyRenderer = (() => {
         scene = camera = renderer = controls = animationFrameId = onSystemClickCallback = null;
         interactiveSystemsData = [];
         skybox = backgroundStars = dustParticles = clickableSystemParticles = nebulaParticles = coreStarParticles = haloStarParticles = distantGalaxiesGroup = galaxyGroup = sisterGalaxy = null;
-        diskStarLOD = decorativeStarLOD = null;
+        // MODIFIED: Clear LOD variables on dispose
+        diskStarLOD = decorativeStarLOD = null; 
     }
 
     return {

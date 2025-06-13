@@ -46,19 +46,15 @@ document.addEventListener('DOMContentLoaded', () => {
 
     // --- DOM ELEMENT REFERENCES ---
 const domElements = {
-        mainScreen: document.getElementById('main-screen'),
         galaxyDetailScreen: document.getElementById('galaxy-detail-screen'),
         solarSystemScreen: document.getElementById('solar-system-screen'),
         hexPlanetScreen: document.getElementById('hex-planet-screen'),
-        universeCircle: document.getElementById('universe-circle'),
         solarSystemContent: document.getElementById('solar-system-content'),
         planetDesignerScreen: document.getElementById('planet-designer-screen'),
-        mainScreenTitleText: document.getElementById('main-screen-title-text'),
         galaxyDetailTitleText: document.getElementById('galaxy-detail-title-text'),
         galaxyDetailTitleInput: document.getElementById('galaxy-detail-title-input'),
         solarSystemTitleText: document.getElementById('solar-system-title-text'),
         solarSystemTitleInput: document.getElementById('solar-system-title-input'),
-        backToMainButton: document.getElementById('back-to-main'),
         backToGalaxyButton: document.getElementById('back-to-galaxy'),
         regenerateUniverseButton: document.getElementById('regenerate-universe-btn'),
         createPlanetDesignButton: document.getElementById('create-planet-design-btn'),
@@ -66,7 +62,6 @@ const domElements = {
         planetSidebarList: document.getElementById('planet-sidebar-list'),
         devControlsButton: document.getElementById('dev-controls-btn'),
         devControlsModal: document.getElementById('dev-controls-modal'),
-        devNumGalaxiesInput: document.getElementById('dev-num-galaxies'),
         devMinPlanetsInput: document.getElementById('dev-min-planets'),
         devMaxPlanetsInput: document.getElementById('dev-max-planets'),
         devOrbitLinesVisibleInput: document.getElementById('dev-orbit-lines-visible'),
@@ -84,7 +79,7 @@ const domElements = {
     window.generatePlanetInstanceFromBasis = generatePlanetInstanceFromBasis;
 
     function loadDevSettings() {
-        const defaults = { numGalaxies: 3, minPlanets: 2, maxPlanets: 8, orbitLinesVisible: false, orbitSpeed: 9.0 };
+        const defaults = { minPlanets: 2, maxPlanets: 8, orbitLinesVisible: false, orbitSpeed: 9.0 };
         try {
             const storedSettings = localStorage.getItem(DEV_SETTINGS_KEY);
             devSettings = storedSettings ? { ...defaults, ...JSON.parse(storedSettings) } : defaults;
@@ -97,16 +92,13 @@ const domElements = {
     }
 
     function saveDevSettings() {
-        const newNumGalaxies = parseInt(domElements.devNumGalaxiesInput.value, 10);
         const newMinPlanets = parseInt(domElements.devMinPlanetsInput.value, 10);
         const newMaxPlanets = parseInt(domElements.devMaxPlanetsInput.value, 10);
 
-        const needsRegen = newNumGalaxies !== oldDevSettingsForRegenCheck.numGalaxies ||
-                           newMinPlanets !== oldDevSettingsForRegenCheck.minPlanets ||
+        const needsRegen = newMinPlanets !== oldDevSettingsForRegenCheck.minPlanets ||
                            newMaxPlanets !== oldDevSettingsForRegenCheck.maxPlanets;
 
         devSettings = {
-            numGalaxies: newNumGalaxies,
             minPlanets: newMinPlanets,
             maxPlanets: newMaxPlanets,
             orbitLinesVisible: domElements.devOrbitLinesVisibleInput.checked,
@@ -125,7 +117,6 @@ const domElements = {
     }
 
     function updateDevControlsUI() {
-        domElements.devNumGalaxiesInput.value = devSettings.numGalaxies;
         domElements.devMinPlanetsInput.value = devSettings.minPlanets;
         domElements.devMaxPlanetsInput.value = devSettings.maxPlanets;
         domElements.devOrbitLinesVisibleInput.checked = devSettings.orbitLinesVisible;
@@ -145,7 +136,6 @@ const domElements = {
             updateDevControlsUI();
             // Store settings before user can change them
             oldDevSettingsForRegenCheck = {
-                numGalaxies: devSettings.numGalaxies,
                 minPlanets: devSettings.minPlanets,
                 maxPlanets: devSettings.maxPlanets,
             };
@@ -194,33 +184,28 @@ const domElements = {
 
         if (!isForcedRegeneration && loadGameState()) {
             console.log("Loaded existing game state.");
-            generateUniverseLayout(domElements.universeCircle, window.gameSessionData, { universeBg: '#100520' });
-            // If we loaded a game, there might be an active galaxy.
+            generateUniverseLayout(null, window.gameSessionData, { universeBg: '#100520' });
             galaxyToLoadId = window.gameSessionData.activeGalaxyId;
         } else {
             if (!isForcedRegeneration) console.log("No valid save found. Generating new universe.");
-            generateUniverseLayout(domElements.universeCircle, window.gameSessionData, { universeBg: '#100520' });
-            generateGalaxies(window.gameSessionData, domElements.universeCircle, devSettings.numGalaxies);
+            generateUniverseLayout(null, window.gameSessionData, { universeBg: '#100520' });
+            generateGalaxies(window.gameSessionData);
         }
         
         preGenerateAllGalaxyContents(window.gameSessionData, domElements.galaxyDetailScreen, { min: 80, max: 120 });
         
-        // If we don't have a galaxy to load from the save, or it's a new game, pick the first one.
         if (!galaxyToLoadId && window.gameSessionData.galaxies.length > 0) {
             galaxyToLoadId = window.gameSessionData.galaxies[0].id;
         }
 
         if (galaxyToLoadId) {
-            // Use the globally exposed function to switch views.
-            // A timeout can prevent race conditions or allow other initial setup to complete.
             setTimeout(() => {
                 if(window.switchToGalaxyDetailView){
                     window.switchToGalaxyDetailView(galaxyToLoadId)
                 }
             }, 0);
         } else {
-            // Fallback: If for some reason there are no galaxies, show the main screen.
-            UIManager.renderMainScreen();
+            console.error("No galaxy found to load. Cannot start game.");
         }
         
         window.gameSessionData.isInitialized = true;

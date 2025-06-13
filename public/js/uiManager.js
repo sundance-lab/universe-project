@@ -1,7 +1,6 @@
 // public/js/uiManager.js
 import * as THREE from 'three';
 import { GalaxyRenderer } from './galaxyRenderer.js';
-import { stopSolarSystemAnimation } from './animationController.js';
 import { generateSolarSystemsForGalaxy } from './universeGenerator.js';
 import { SolarSystemRenderer } from './solarSystemRenderer.js';
 import { HexPlanetViewController } from './hexPlanetViewController.js';
@@ -191,7 +190,6 @@ export const UIManager = (() => {
 
         window.gameSessionData.activeGalaxyId = galaxyId;
         window.gameSessionData.activeSolarSystemId = null;
-        callbacks.stopSolarSystemAnimation();
 
         if (!galaxy.layoutGenerated) {
             generateSolarSystemsForGalaxy(galaxy, elements.galaxyDetailScreen, callbacks.getCustomizationSettings().ssCountRange);
@@ -235,7 +233,6 @@ export const UIManager = (() => {
             window.activeSolarSystemRenderer = null;
         }
         
-        callbacks.stopSolarSystemAnimation();
         window.gameSessionData.activeSolarSystemId = solarSystemId;
         const activeGalaxy = window.gameSessionData.galaxies.find(g => solarSystemId.startsWith(g.id));
         const solarSystemObject = activeGalaxy?.solarSystems.find(s => s.id === solarSystemId);
@@ -304,7 +301,6 @@ export const UIManager = (() => {
             elements.solarSystemContent.removeEventListener('click', _onSolarSystemCanvasClick);
         }
         setActiveScreen(elements.hexPlanetScreen);
-        callbacks.stopSolarSystemAnimation();
         HexPlanetViewController.activate(planetData, onBackCallback);
     }
 

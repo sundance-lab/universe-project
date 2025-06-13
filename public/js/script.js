@@ -1,3 +1,4 @@
+// public/js/script.js
 import { startSolarSystemAnimation, stopSolarSystemAnimation } from './animationController.js';
 import { PlanetDesigner } from './planetDesigner.js';
 import { saveGameState, loadGameState } from './storage.js';
@@ -30,6 +31,7 @@ document.addEventListener('DOMContentLoaded', () => {
     
     const DEV_SETTINGS_KEY = 'universeDevSettings';
     let devSettings = {};
+    let oldDevSettingsForRegenCheck = {};
 
     window.gameSessionData = {
         universe: { diameter: null },
@@ -95,17 +97,31 @@ const domElements = {
     }
 
     function saveDevSettings() {
+        const newNumGalaxies = parseInt(domElements.devNumGalaxiesInput.value, 10);
+        const newMinPlanets = parseInt(domElements.devMinPlanetsInput.value, 10);
+        const newMaxPlanets = parseInt(domElements.devMaxPlanetsInput.value, 10);
+
+        const needsRegen = newNumGalaxies !== oldDevSettingsForRegenCheck.numGalaxies ||
+                           newMinPlanets !== oldDevSettingsForRegenCheck.minPlanets ||
+                           newMaxPlanets !== oldDevSettingsForRegenCheck.maxPlanets;
+
         devSettings = {
-            numGalaxies: parseInt(domElements.devNumGalaxiesInput.value, 10),
-            minPlanets: parseInt(domElements.devMinPlanetsInput.value, 10),
-            maxPlanets: parseInt(domElements.devMaxPlanetsInput.value, 10),
+            numGalaxies: newNumGalaxies,
+            minPlanets: newMinPlanets,
+            maxPlanets: newMaxPlanets,
             orbitLinesVisible: domElements.devOrbitLinesVisibleInput.checked,
             orbitSpeed: parseFloat(domElements.devOrbitSpeedInput.value)
         };
         localStorage.setItem(DEV_SETTINGS_KEY, JSON.stringify(devSettings));
-        applyDynamicDevSettings();
+        
         domElements.devControlsModal.classList.remove('visible');
-        alert("Settings saved. Some settings require a new universe generation to take effect.");
+
+        if (needsRegen) {
+            callbacks.regenerateUniverseState();
+        } else {
+            applyDynamicDevSettings();
+            alert("Settings saved. Dynamic settings have been applied.");
+        }
     }
 
     function updateDevControlsUI() {
@@ -127,6 +143,12 @@ const domElements = {
     function setupDevControlsListeners() {
         domElements.devControlsButton.addEventListener('click', () => {
             updateDevControlsUI();
+            // Store settings before user can change them
+            oldDevSettingsForRegenCheck = {
+                numGalaxies: devSettings.numGalaxies,
+                minPlanets: devSettings.minPlanets,
+                maxPlanets: devSettings.maxPlanets,
+            };
             domElements.devControlsModal.classList.add('visible');
         });
         domElements.devControlsCancelButton.addEventListener('click', () => domElements.devControlsModal.classList.remove('visible'));

@@ -221,9 +221,19 @@ const domElements = {
             domElements
         ),
         switchToPlanetDesignerScreen: () => {
+            let onBack;
+            if (window.gameSessionData.activeSolarSystemId) {
+                onBack = () => window.switchToSolarSystemView(window.gameSessionData.activeSolarSystemId);
+            } else {
+                onBack = () => window.switchToGalaxyDetailView(window.gameSessionData.activeGalaxyId);
+            }
+
             UIManager.setActiveScreen(domElements.planetDesignerScreen);
-            if (window.PlanetDesigner?.activate) window.PlanetDesigner.activate();
-            else console.error("switchToPlanetDesignerScreen: PlanetDesigner module or activate function not found.");
+            if (window.PlanetDesigner?.activate) {
+                window.PlanetDesigner.activate(onBack);
+            } else {
+                console.error("switchToPlanetDesignerScreen: PlanetDesigner module or activate function not found.");
+            }
         },
         generatePlanetsForSystem: generatePlanetsForSystem,
         getCustomizationSettings: () => ({

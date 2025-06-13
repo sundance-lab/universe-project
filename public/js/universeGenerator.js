@@ -345,6 +345,5 @@ export function regenerateCurrentUniverseState(callbacks, elementsToClear) {
     }
     if (elementsToClear.solarSystemContent) elementsToClear.solarSystemContent.innerHTML = '';
 
-    callbacks.stopSolarSystemAnimation();
     callbacks.initializeGame(true); // isForcedRegeneration = true
 }

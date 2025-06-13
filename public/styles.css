@@ -110,10 +110,7 @@ body {
   display: flex;
   flex-direction: column;
   align-items: center;
-  background: radial-gradient(circle at center,
-    rgba(0, 0, 0, 0.95) 0%,
-    rgba(0, 0, 0, 0.98) 50%,
-    rgba(0, 0, 0, 1) 100%);
+  background-color: #000;
 }
 
 #solar-system-screen.dragging {

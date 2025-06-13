@@ -411,12 +411,16 @@ function _handleExploreButtonClick(fromSolarSystem = false) {
    });
   },
 
-deactivate: () => {
+  deactivate: () => {
     console.log("PlanetDesigner.deactivate called.");
     _stopAndCleanupDesignerThreeJSView();
 
-    if (window.switchToMainView) {
-      window.switchToMainView();
+    if (window.gameSessionData.activeSolarSystemId && window.switchToSolarSystemView) {
+        window.switchToSolarSystemView(window.gameSessionData.activeSolarSystemId);
+    } else if (window.gameSessionData.activeGalaxyId && window.switchToGalaxyDetailView) {
+        window.switchToGalaxyDetailView(window.gameSessionData.activeGalaxyId);
+    } else {
+        console.error("Could not determine which screen to go back to.");
     }
   },
   

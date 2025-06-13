@@ -23,10 +23,10 @@ export const GalaxyRenderer = (() => {
         NUM_ARMS: 2,
         ARM_ROTATION_MULTIPLIER: 13, 
         STAR_COUNTS: {
-            DECORATIVE: 100000, 
-            CORE: 100000,
+            DECORATIVE: 1000, 
+            CORE: 1000,
             DISK: 10000, 
-            HALO: 25000,
+            HALO: 250,
             BACKGROUND: 250000,
             CLICKABLE_SYSTEM_SIZE: 50, 
             DECORATIVE_STAR_MAX_SIZE: 10,

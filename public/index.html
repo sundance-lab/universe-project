@@ -17,8 +17,6 @@
     </div>
     <div id="galaxy-canvas-container" style="position: absolute; top: 0; left: 0; width: 100%; height: 100%;"></div>
     
-    <button class="customize-galaxy-button" id="customize-galaxy-btn">Customize Galaxy</button>
-
 </div>
 
 
@@ -111,17 +109,26 @@
 </div>
   
 <div class="controls-overlay">
-        <button id="regenerate-universe-btn" class="control-button">Generate New Universe</button>
-        <button id="create-planet-design-btn" class="control-button">Create Planet Designs</button>
-        <button id="dev-controls-btn" class="control-button">Developer Controls</button> </div>
+    <button id="dev-panel-btn" class="control-button">Dev Panel</button>
+</div>
 
-<div id="dev-controls-modal" class="modal-overlay">
+<div id="dev-panel-modal" class="modal-overlay">
     <div class="modal-content">
-        <h2>Developer Controls</h2>
+        <h2>Dev Panel</h2>
 
         <div class="control-group">
-            <label>Planets per System (new universe required):</label>
+            <h3>Actions</h3>
+            <div class="panel-actions-container">
+              <button id="panel-regenerate-universe-btn" class="panel-action-btn">Generate New Universe</button>
+              <button id="panel-open-planet-designer-btn" class="panel-action-btn">Create Planet Designs</button>
+              <button id="panel-open-galaxy-customizer-btn" class="panel-action-btn">Customize Galaxy</button>
+            </div>
+        </div>
+
+        <div class="control-group">
+            <label><strong>Universe Settings</strong> (Requires New Universe)</label>
             <div class="input-row">
+                <label for="dev-min-planets">Planets per System:</label>
                 <input type="number" id="dev-min-planets" min="1" max="20" placeholder="Min">
                 <span>to</span>
                 <input type="number" id="dev-max-planets" min="1" max="20" placeholder="Max">
@@ -129,22 +136,20 @@
         </div>
 
         <div class="control-group">
+            <label><strong>View Settings</strong> (Applied Dynamically)</label>
             <label for="dev-orbit-speed">Planet Orbit Speed Multiplier:</label>
             <div class="input-row">
                 <input type="range" id="dev-orbit-speed" min="0" max="10" step="0.1" value="1.0" style="flex-grow: 1;">
                 <span id="dev-orbit-speed-value" style="min-width: 30px; text-align: right;">1.0</span>
             </div>
-        </div>
-        
-        <div class="control-group">
-            <label class="checkbox-label">
+             <label class="checkbox-label">
                 <input type="checkbox" id="dev-orbit-lines-visible"> Show Orbit Lines
             </label>
         </div>
 
         <div class="modal-actions">
-            <button id="dev-controls-cancel" class="modal-button-cancel">Close</button>
-            <button id="dev-controls-save" class="modal-button-apply">Save & Apply</button>
+            <button id="dev-panel-cancel" class="modal-button-cancel">Close</button>
+            <button id="dev-panel-save" class="modal-button-apply">Save Settings</button>
         </div>
     </div>
 </div>

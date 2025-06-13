@@ -102,39 +102,28 @@ export function generateUniverseLayout(universeCircle, gameSessionData, fixedCol
     }
 }
 
-export function generateGalaxies(gameSessionData, universeCircle, numGalaxies) {
-    if (!gameSessionData.universe.diameter || !universeCircle) {
-        console.warn("generateGalaxies: Universe diameter not set or circle element not found.");
+export function generateGalaxies(gameSessionData) {
+    if (!gameSessionData.universe.diameter) {
+        console.warn("generateGalaxies: Universe diameter not set.");
         return;
     }
 
     gameSessionData.galaxies = [];
-    const universeRadius = gameSessionData.universe.diameter / 2;
-    const existingGalaxyRects = [];
+    const galaxyId = `galaxy-1`;
 
-    for (let i = 0; i < numGalaxies; i++) {
-        const galaxyId = `galaxy-${i + 1}`;
-        const position = getNonOverlappingPositionInCircle(universeRadius, GALAXY_ICON_SIZE, existingGalaxyRects);
-
-        if (position && typeof position.x === 'number' && typeof position.y === 'number') {
-            gameSessionData.galaxies.push({
-                id: galaxyId,
-                x: position.x,
-                y: position.y,
-                customName: null,
-                solarSystems: [],
-                lineConnections: [],
-                layoutGenerated: false,
-                currentZoom: 1.0,
-                currentPanX: 0,
-                currentPanY: 0,
-                generationParams: { densityFactor: 0.8 + Math.random() * 0.4 }
-            });
-            existingGalaxyRects.push({ x: position.x, y: position.y, width: GALAXY_ICON_SIZE, height: GALAXY_ICON_SIZE });
-        } else {
-            console.warn(`generateGalaxies: Could not place galaxy ${galaxyId}. Max attempts reached or invalid placement.`);
-        }
-    }
+    gameSessionData.galaxies.push({
+        id: galaxyId,
+        x: 0, // Position is irrelevant now
+        y: 0,
+        customName: "The Galaxy",
+        solarSystems: [],
+        lineConnections: [],
+        layoutGenerated: false,
+        currentZoom: 1.0,
+        currentPanX: 0,
+        currentPanY: 0,
+        generationParams: { densityFactor: 1.0 }
+    });
 }
 
 export function generateSolarSystemsForGalaxy(galaxy, galaxyViewport, ssCountRange) {

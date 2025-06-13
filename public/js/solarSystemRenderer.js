@@ -177,17 +177,49 @@ export const SolarSystemRenderer = (() => {
     }
 
     function _createDistantStars() {
-        const geometry = new THREE.BufferGeometry();
+        const starCount = 40000;
+        const starFieldSize = 100000;
         const positions = [];
-        const backgroundStarFieldSize = 500000;
-        for (let i = 0; i < 20000; i++) {
+        const colors = [];
+        const sizes = [];
+        const colorPalette = [
+            new THREE.Color(0xFF8C00), new THREE.Color(0xFFDAB9),
+            new THREE.Color(0x87CEEB), new THREE.Color(0xFFFFFF)
+        ];
+
+        for (let i = 0; i < starCount; i++) {
             positions.push(
-                (Math.random() - 0.5) * backgroundStarFieldSize,
-                (Math.random() - 0.5) * backgroundStarFieldSize,
-                (Math.random() - 0.5) * backgroundStarFieldSize
+                (Math.random() - 0.5) * starFieldSize,
+                (Math.random() - 0.5) * starFieldSize,
+                (Math.random() - 0.5) * starFieldSize
             );
+            const starColor = colorPalette[Math.floor(Math.random() * colorPalette.length)];
+            colors.push(starColor.r, starColor.g, starColor.b);
+            sizes.push(15 + Math.random() * 85);
         }
-        backgroundStars = _createParticleSystem( positions, [], 100, _createStarTexture(), 0.7, THREE.AdditiveBlending, false, true, false );
+
+        const geometry = new THREE.BufferGeometry();
+        geometry.setAttribute('position', new THREE.Float32BufferAttribute(positions, 3));
+        geometry.setAttribute('color', new THREE.Float32BufferAttribute(colors, 3));
+        geometry.setAttribute('particleSize', new THREE.Float32BufferAttribute(sizes, 1));
+
+        const onBeforeCompile = shader => {
+            shader.vertexShader = 'attribute float particleSize;\n' + shader.vertexShader;
+            shader.vertexShader = shader.vertexShader.replace('gl_PointSize = size;', 'gl_PointSize = particleSize;');
+        };
+
+        const material = new THREE.PointsMaterial({
+            map: _createStarTexture(),
+            vertexColors: true,
+            sizeAttenuation: true,
+            depthWrite: false,
+            blending: THREE.AdditiveBlending,
+            transparent: true,
+            opacity: 0.85,
+            onBeforeCompile: onBeforeCompile
+        });
+
+        backgroundStars = new THREE.Points(geometry, material);
         scene.add(backgroundStars);
     }
 
@@ -196,7 +228,7 @@ export const SolarSystemRenderer = (() => {
         const galaxyTexture = _createSimpleGalaxySpriteTexture();
         const config = {
             COUNT: 150, MIN_SCALE: 800, MAX_SCALE: 1500,
-            MIN_OPACITY: 0.1, MAX_OPACITY: 0.3,
+            MIN_OPACITY: 0.2, MAX_OPACITY: 0.5,
         };
 
         for (let i = 0; i < config.COUNT; i++) {
@@ -328,7 +360,7 @@ export const SolarSystemRenderer = (() => {
         renderer.domElement.addEventListener('wheel', boundWheelHandler, { passive: false });
         raycaster = new THREE.Raycaster();
         mouse = new THREE.Vector2();
-        sunLight = new THREE.PointLight(0xffffff, 2.5, 550000);
+        sunLight = new THREE.PointLight(0xffffff, 1.8, 550000);
         scene.add(sunLight);
         scene.add(new THREE.AmbientLight(0xffffff, 0.1));
     }

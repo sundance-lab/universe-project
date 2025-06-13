@@ -449,7 +449,11 @@ function _createSimpleGalaxySpriteTexture() {
                 const armVar = armVariations[armIndex];
                 const armAngle = (armIndex / GALAXY_CONFIG.NUM_ARMS) * 2 * Math.PI + armVar.offset;
                 const rotation = (distance / GALAXY_CONFIG.RADIUS) * armVar.rotation;
-                const angle = armAngle + rotation;
+                
+                // This is the "bug" that creates a pleasant warping effect on the arms
+                const bugWarp = Math.pow(distance / GALAXY_CONFIG.RADIUS, 2) * 2.5;
+                const angle = armAngle + rotation + bugWarp;
+
                 const spread = 2800 * Math.pow(1 - (distance / GALAXY_CONFIG.RADIUS), 2);
                 const turbulence = Math.sin(angle * 5 + distance * 0.01) * spread * 0.25;
                 const randomX = _gaussianRandom() * spread;
@@ -527,7 +531,11 @@ function _createSimpleGalaxySpriteTexture() {
             const armIndex = i % GALAXY_CONFIG.NUM_ARMS;
             const armAngle = (armIndex / GALAXY_CONFIG.NUM_ARMS) * 2 * Math.PI;
             const rotation = (distance / GALAXY_CONFIG.RADIUS) * armVariations[armIndex].rotation;
-            const angle = armAngle + rotation;
+
+            // Applying the same "bug" to the clickable systems so they align with the warped arms
+            const bugWarp = Math.pow(distance / GALAXY_CONFIG.RADIUS, 2) * 2.5;
+            const angle = armAngle + rotation + bugWarp;
+
             const position = new THREE.Vector3(Math.cos(angle) * distance + _gaussianRandom() * 50, _gaussianRandom() * (GALAXY_CONFIG.THICKNESS / 3), Math.sin(angle) * distance + _gaussianRandom() * 50);
             system.position = position;
             clickablePositions.push(position.x, position.y, position.z);

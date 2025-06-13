@@ -250,7 +250,7 @@ export const UIManager = (() => {
             currentGalaxyRenderer.updateConfig(currentGalaxyRenderer.getCurrentConfig());
         }
         // The init call can stay simple now as updateConfig handles the heavy lifting of re-creating the scene
-        currentGalaxyRenderer.init(elements.galaxyCanvas, galaxy, onSystemClick);
+        currentGalaxyRenderer.init(elements.galaxyCanvasContainer, galaxy, onSystemClick);
         
         const galaxyNumDisplay = galaxy.id.split('-').pop();
         if (elements.galaxyDetailTitleText) {
@@ -890,7 +890,7 @@ export const UIManager = (() => {
             window.switchToSolarSystemView = switchToSolarSystemView;
             window.switchToHexPlanetView = switchToHexPlanetView;
 
-            elements.galaxyCanvas = document.getElementById('galaxy-canvas');
+            elements.galaxyCanvasContainer = document.getElementById('galaxy-canvas-container');
             
             elements.regenerateUniverseButton.addEventListener('click', () => {
                 callbacks.regenerateUniverseState();

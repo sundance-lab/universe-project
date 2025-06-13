@@ -158,32 +158,22 @@ export const GalaxyRenderer = (() => {
         });
     }
 
-    function _createSimpleGalaxySpriteTexture() {
-        return _createAndCacheTexture(() => {
-            const size = 128;
-            const canvas = document.createElement('canvas');
-            canvas.width = size;
-            canvas.height = size;
-            const context = canvas.getContext('2d');
-            const gradient = context.createRadialGradient(size / 2, size / 2, 0, size / 2, size / 2, size / 2);
-            gradient.addColorStop(0, 'rgba(255, 255, 255, 1)');
-            gradient.addColorStop(0.2, 'rgba(100, 100, 255, 0.8)');
-            gradient.addColorStop(1, 'rgba(0, 0, 0, 0)');
-            context.fillStyle = gradient;
-            context.fillRect(0, 0, size, size);
-            return new THREE.CanvasTexture(canvas);
-            const decorativeStarParticles = new THREE.Points(
-                decorativeGeometry,
-                new THREE.PointsMaterial({
-                    map: _createStarTexture(),
-                    vertexColors: true,
-                    sizeAttenuation: true,
-                    depthWrite: false,
-                    blending: THREE.AdditiveBlending,
-                    transparent: true,
-                    onBeforeCompile: decorativeOnBeforeCompile
-                })
-            );
+function _createSimpleGalaxySpriteTexture() {
+    return _createAndCacheTexture(() => {
+        const size = 128;
+        const canvas = document.createElement('canvas');
+        canvas.width = size;
+        canvas.height = size;
+        const context = canvas.getContext('2d');
+        const gradient = context.createRadialGradient(size / 2, size / 2, 0, size / 2, size / 2, size / 2);
+        gradient.addColorStop(0, 'rgba(255, 255, 255, 1)');
+        gradient.addColorStop(0.2, 'rgba(100, 100, 255, 0.8)');
+        gradient.addColorStop(1, 'rgba(0, 0, 0, 0)');
+        context.fillStyle = gradient;
+        context.fillRect(0, 0, size, size);
+        return new THREE.CanvasTexture(canvas);
+    });
+}
 
     function _createNebulaTexture() {
         return _createAndCacheTexture(() => {

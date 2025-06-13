@@ -9,21 +9,14 @@
 </head>
 <body>
     <div class="screen-container">
-        <div id="main-screen" class="screen active">
-            <div id="main-screen-title-container" class="editable-title-container">
-                <span id="main-screen-title-text" class="editable-title-text">Universe</span>
-            </div>
-            <div id="universe-circle"></div>
-        </div>
       
-<div id="galaxy-detail-screen" class="screen">
+<div id="galaxy-detail-screen" class="screen active">
     <div id="galaxy-detail-title-container" class="editable-title-container">
         <span id="galaxy-detail-title-text" class="editable-title-text">Galaxy</span>
         <input type="text" id="galaxy-detail-title-input" class="editable-title-input">
     </div>
     <div id="galaxy-canvas-container" style="position: absolute; top: 0; left: 0; width: 100%; height: 100%;"></div>
     
-    <button class="back-button" id="back-to-main">&larr; Universe</button>
     <button class="customize-galaxy-button" id="customize-galaxy-btn">Customize Galaxy</button>
 
 </div>
@@ -125,11 +118,6 @@
 <div id="dev-controls-modal" class="modal-overlay">
     <div class="modal-content">
         <h2>Developer Controls</h2>
-
-        <div class="control-group">
-            <label for="dev-num-galaxies">Galaxies per Universe (new universe required):</label>
-            <input type="number" id="dev-num-galaxies" min="1" max="20" step="1">
-        </div>
 
         <div class="control-group">
             <label>Planets per System (new universe required):</label>

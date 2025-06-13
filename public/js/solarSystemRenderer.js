@@ -507,10 +507,13 @@ export const SolarSystemRenderer = (() => {
             container.innerHTML = '';
             _setupScene(container);
             currentSystemData = solarSystemData;
-            
+
             sunLOD = _createSun(solarSystemData.sun);
-            sunLOD.visible = false;
             scene.add(sunLOD);
+            
+            // Set sun mesh and its light to be initially off to prevent flash
+            sunLOD.visible = false;
+            if (sunLight) sunLight.intensity = 0.0;
 
             solarSystemData.planets.forEach(planet => {
                 const planetMesh = _createPlanetMesh(planet);
@@ -531,9 +534,11 @@ export const SolarSystemRenderer = (() => {
 
             lastAnimateTime = performance.now();
             _animate(lastAnimateTime);
-
+            
+            // After a brief delay, make the sun and its light visible.
             setTimeout(() => {
                 if (sunLOD) sunLOD.visible = true;
+                if (sunLight) sunLight.intensity = 1.8;
             }, 50);
         },
         dispose: () => _cleanup(),

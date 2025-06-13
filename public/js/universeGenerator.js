@@ -331,33 +331,31 @@ export async function preGenerateAllGalaxyContents(gameSessionData, galaxyViewpo
 }
 
 export function regenerateCurrentUniverseState(callbacks, elementsToClear) {
-    if (confirm("This will erase your current universe and generate a new one. Are you sure?")) {
-        if (window.activeSolarSystemRenderer) {
-            window.activeSolarSystemRenderer.dispose();
-            window.activeSolarSystemRenderer = null;
-        }
-
-        const existingCustomPlanetDesigns = [...(window.gameSessionData.customPlanetDesigns || [])];
-
-        // Reset state
-        window.gameSessionData.universe = { diameter: null };
-        window.gameSessionData.galaxies = [];
-        window.gameSessionData.activeGalaxyId = null;
-        window.gameSessionData.activeSolarSystemId = null;
-        window.gameSessionData.solarSystemView = { zoomLevel: 1.0, currentPanX: 0, currentPanY: 0, planets: [], systemId: null };
-        window.gameSessionData.isInitialized = false;
-        window.gameSessionData.customPlanetDesigns = existingCustomPlanetDesigns;
-
-        // Clear UI
-        if (elementsToClear.universeCircle) elementsToClear.universeCircle.innerHTML = '';
-        if (elementsToClear.galaxyZoomContent) {
-            const linesCanvas = elementsToClear.galaxyZoomContent.querySelector('#solar-system-lines-canvas');
-            elementsToClear.galaxyZoomContent.innerHTML = '';
-            if (linesCanvas) elementsToClear.galaxyZoomContent.appendChild(linesCanvas);
-        }
-        if (elementsToClear.solarSystemContent) elementsToClear.solarSystemContent.innerHTML = '';
-
-        callbacks.stopSolarSystemAnimation();
-        callbacks.initializeGame(true); // isForcedRegeneration = true
+    if (window.activeSolarSystemRenderer) {
+        window.activeSolarSystemRenderer.dispose();
+        window.activeSolarSystemRenderer = null;
     }
+
+    const existingCustomPlanetDesigns = [...(window.gameSessionData.customPlanetDesigns || [])];
+
+    // Reset state
+    window.gameSessionData.universe = { diameter: null };
+    window.gameSessionData.galaxies = [];
+    window.gameSessionData.activeGalaxyId = null;
+    window.gameSessionData.activeSolarSystemId = null;
+    window.gameSessionData.solarSystemView = { zoomLevel: 1.0, currentPanX: 0, currentPanY: 0, planets: [], systemId: null };
+    window.gameSessionData.isInitialized = false;
+    window.gameSessionData.customPlanetDesigns = existingCustomPlanetDesigns;
+
+    // Clear UI
+    if (elementsToClear.universeCircle) elementsToClear.universeCircle.innerHTML = '';
+    if (elementsToClear.galaxyZoomContent) {
+        const linesCanvas = elementsToClear.galaxyZoomContent.querySelector('#solar-system-lines-canvas');
+        elementsToClear.galaxyZoomContent.innerHTML = '';
+        if (linesCanvas) elementsToClear.galaxyZoomContent.appendChild(linesCanvas);
+    }
+    if (elementsToClear.solarSystemContent) elementsToClear.solarSystemContent.innerHTML = '';
+
+    callbacks.stopSolarSystemAnimation();
+    callbacks.initializeGame(true); // isForcedRegeneration = true
 }

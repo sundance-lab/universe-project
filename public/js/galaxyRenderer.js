@@ -139,20 +139,20 @@ export const GalaxyRenderer = (() => {
             const context = canvas.getContext('2d');
             const center = size / 2;
 
-            // Draw the yellow circle first
-            context.beginPath();
-            context.arc(center, center, center - 8, 0, 2 * Math.PI, false);
-            context.strokeStyle = 'rgba(255, 255, 0, 0.7)';
-            context.lineWidth = 10;
-            context.stroke();
-
-            // Then draw the star particle on top
-            const gradient = context.createRadialGradient(center, center, 0, center, center, center / 2);
+            // 1. Draw the star particle in the middle first.
+            const gradient = context.createRadialGradient(center, center, 0, center, center, center / 1.5);
             gradient.addColorStop(0, 'rgba(255, 255, 255, 1)');
-            gradient.addColorStop(0.4, 'rgba(220, 220, 255, 0.9)');
+            gradient.addColorStop(0.3, 'rgba(220, 220, 255, 0.9)');
             gradient.addColorStop(1, 'rgba(255, 255, 255, 0)');
             context.fillStyle = gradient;
-            context.fill();
+            context.fillRect(0, 0, size, size);
+
+            // 2. Draw the yellow circle on top, making it visible.
+            context.beginPath();
+            context.arc(center, center, center / 2.5, 0, 2 * Math.PI, false);
+            context.strokeStyle = 'yellow';
+            context.lineWidth = 6;
+            context.stroke();
             
             return new THREE.CanvasTexture(canvas);
         });
@@ -172,8 +172,18 @@ export const GalaxyRenderer = (() => {
             context.fillStyle = gradient;
             context.fillRect(0, 0, size, size);
             return new THREE.CanvasTexture(canvas);
-        });
-    }
+            const decorativeStarParticles = new THREE.Points(
+                decorativeGeometry,
+                new THREE.PointsMaterial({
+                    map: _createStarTexture(),
+                    vertexColors: true,
+                    sizeAttenuation: true,
+                    depthWrite: false,
+                    blending: THREE.AdditiveBlending,
+                    transparent: true,
+                    onBeforeCompile: decorativeOnBeforeCompile
+                })
+            );
 
     function _createNebulaTexture() {
         return _createAndCacheTexture(() => {

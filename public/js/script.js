@@ -190,17 +190,38 @@ const domElements = {
         console.log("Initializing game...");
         loadDevSettings();
 
+        let galaxyToLoadId = null;
+
         if (!isForcedRegeneration && loadGameState()) {
             console.log("Loaded existing game state.");
             generateUniverseLayout(domElements.universeCircle, window.gameSessionData, { universeBg: '#100520' });
+            // If we loaded a game, there might be an active galaxy.
+            galaxyToLoadId = window.gameSessionData.activeGalaxyId;
         } else {
             if (!isForcedRegeneration) console.log("No valid save found. Generating new universe.");
             generateUniverseLayout(domElements.universeCircle, window.gameSessionData, { universeBg: '#100520' });
             generateGalaxies(window.gameSessionData, domElements.universeCircle, devSettings.numGalaxies);
         }
         
-        UIManager.renderMainScreen();
         preGenerateAllGalaxyContents(window.gameSessionData, domElements.galaxyDetailScreen, { min: 80, max: 120 });
+        
+        // If we don't have a galaxy to load from the save, or it's a new game, pick the first one.
+        if (!galaxyToLoadId && window.gameSessionData.galaxies.length > 0) {
+            galaxyToLoadId = window.gameSessionData.galaxies[0].id;
+        }
+
+        if (galaxyToLoadId) {
+            // Use the globally exposed function to switch views.
+            // A timeout can prevent race conditions or allow other initial setup to complete.
+            setTimeout(() => {
+                if(window.switchToGalaxyDetailView){
+                    window.switchToGalaxyDetailView(galaxyToLoadId)
+                }
+            }, 0);
+        } else {
+            // Fallback: If for some reason there are no galaxies, show the main screen.
+            UIManager.renderMainScreen();
+        }
         
         window.gameSessionData.isInitialized = true;
         console.log("Game initialization complete.");

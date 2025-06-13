@@ -84,7 +84,7 @@ const domElements = {
     window.generatePlanetInstanceFromBasis = generatePlanetInstanceFromBasis;
 
     function loadDevSettings() {
-        const defaults = { numGalaxies: 3, minPlanets: 2, maxPlanets: 8, orbitLinesVisible: false, orbitSpeed: 1.0 };
+        const defaults = { numGalaxies: 3, minPlanets: 2, maxPlanets: 8, orbitLinesVisible: false, orbitSpeed: 9.0 };
         try {
             const storedSettings = localStorage.getItem(DEV_SETTINGS_KEY);
             devSettings = storedSettings ? { ...defaults, ...JSON.parse(storedSettings) } : defaults;

@@ -27,7 +27,7 @@ export const GalaxyRenderer = (() => {
             CORE: 100,
             DISK: 500, 
             HALO: 100,
-            BACKGROUND: 2500,
+            BACKGROUND: 250000,
             CLICKABLE_SYSTEM_SIZE: 50, 
             DECORATIVE_STAR_MAX_SIZE: 10,
             DECORATIVE_STAR_MIN_SIZE: 2,
@@ -38,7 +38,7 @@ export const GalaxyRenderer = (() => {
             OPACITY: 0.7, 
         },
         NEBULA: {
-            CLUSTER_COUNT: 1500, 
+            CLUSTER_COUNT: 150, 
             PARTICLE_COUNT_PER_CLUSTER: 15, 
             SIZE: 50, 
             OPACITY: 0.1, 

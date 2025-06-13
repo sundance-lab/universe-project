@@ -236,20 +236,14 @@ export const UIManager = (() => {
             switchToSolarSystemView(solarSystemId);
         };
 
-        // NEW: Pass custom generation parameters to GalaxyRenderer if they exist
-        // If galaxy.generationParams.galaxyConfig is null, it means no custom config is saved for it,
-        // so GalaxyRenderer will default to its internal GALAXY_CONFIG.
-        const galaxyConfig = galaxy.generationParams?.galaxyConfig; 
-        
         currentGalaxyRenderer = GalaxyRenderer;
-        // Apply the galaxy's specific configuration before initializing
+        currentGalaxyRenderer.resetConfig(); // Reset to defaults first
+        
+        const galaxyConfig = galaxy.generationParams?.galaxyConfig;
         if (galaxyConfig) {
-            currentGalaxyRenderer.updateConfig(galaxyConfig);
-        } else {
-            // If no custom config for this galaxy, ensure renderer uses its default/last applied global config
-            currentGalaxyRenderer.updateConfig(currentGalaxyRenderer.getCurrentConfig());
+            currentGalaxyRenderer.updateConfig(galaxyConfig); // Then apply custom config if it exists
         }
-        // The init call can stay simple now as updateConfig handles the heavy lifting of re-creating the scene
+        
         currentGalaxyRenderer.init(elements.galaxyCanvasContainer, galaxy, onSystemClick);
         
         const galaxyNumDisplay = galaxy.id.split('-').pop();

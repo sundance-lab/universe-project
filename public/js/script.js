@@ -22,7 +22,6 @@ function initializeModules() {
 
 document.addEventListener('DOMContentLoaded', () => {
 
-    // --- GLOBAL CONFIG ---
     window.DEFAULT_MIN_TERRAIN_HEIGHT = 0.0;
     window.DEFAULT_MAX_TERRAIN_HEIGHT = 10.0;
     window.DEFAULT_OCEAN_HEIGHT_LEVEL = 2.0;
@@ -32,7 +31,6 @@ document.addEventListener('DOMContentLoaded', () => {
     let devSettings = {};
     let oldDevSettingsForRegenCheck = {};
 
-    // --- DOM ELEMENT REFERENCES ---
     const domElements = {
         mainScreen: document.getElementById('main-screen'),
         galaxyDetailScreen: document.getElementById('galaxy-detail-screen'),
@@ -138,7 +136,6 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     }
 
-    // --- CHANGE 1: Define the function that will be called by the UIManager ---
     function showDevPanel() {
         updateDevControlsUI();
         oldDevSettingsForRegenCheck = {
@@ -148,10 +145,7 @@ document.addEventListener('DOMContentLoaded', () => {
         domElements.devPanelModal.classList.add('visible');
     }
 
-    // --- CHANGE 2: Remove the redundant listener from this function ---
     function setupDevPanelListeners() {
-        // The main devPanelButton click is now handled by UIManager.
-        // We leave the other listeners here.
         domElements.devPanelCancelButton.addEventListener('click', () => domElements.devPanelModal.classList.remove('visible'));
         domElements.devPanelSaveButton.addEventListener('click', saveDevSettings);
         
@@ -239,7 +233,6 @@ document.addEventListener('DOMContentLoaded', () => {
         console.log("Game initialization complete.");
     }
     
-    // --- CHANGE 3: Add the showDevPanel function to the callbacks object ---
     const callbacks = {
         saveGameState: () => GameStateManager.saveGameState(),
         regenerateUniverseState: () => regenerateCurrentUniverseState(
@@ -268,7 +261,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 UIManager.showGalaxyCustomizationModal();
             }
         },
-        showDevPanel: showDevPanel, // This is the new line
+        showDevPanel: showDevPanel,
         generatePlanetsForSystem: generatePlanetsForSystem,
         getCustomizationSettings: () => ({
             ssCountRange: { min: 200, max: 300 }

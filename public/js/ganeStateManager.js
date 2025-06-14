@@ -1,3 +1,5 @@
+// public/js/gameStateManager.js
+
 /**
  * GameStateManager: A singleton class to manage the entire game state.
  * It handles loading, saving, and modifying the state, replacing the
@@ -19,23 +21,22 @@ class GameStateManager {
             isInitialized: false,
             customPlanetDesigns: [],
             customGalaxyDesigns: [],
-            panning: { isActive: false }
         };
 
         GameStateManager.instance = this;
     }
 
     // --- Getters to safely access state ---
-    
+
     getState() { return this._state; }
     getGalaxies() { return this._state.galaxies; }
     getCustomPlanetDesigns() { return this._state.customPlanetDesigns; }
     getCustomGalaxyDesigns() { return this._state.customGalaxyDesigns; }
-    
+
     getActiveGalaxy() {
         return this._state.galaxies.find(g => g.id === this._state.activeGalaxyId);
     }
-    
+
     getActiveSolarSystem() {
         const galaxy = this.getActiveGalaxy();
         return galaxy?.solarSystems.find(s => s.id === this._state.activeSolarSystemId);
@@ -59,11 +60,11 @@ class GameStateManager {
     setActiveSolarSystemId(id) {
         this._state.activeSolarSystemId = id;
     }
-    
+
     setInitialized(isInitialized) {
         this._state.isInitialized = isInitialized;
     }
-
+    
     addCustomPlanetDesign(design) {
         this._state.customPlanetDesigns.push(design);
         this.saveGameState(); // Auto-save on change
@@ -76,12 +77,12 @@ class GameStateManager {
             this.saveGameState();
         }
     }
-    
+
     addCustomGalaxyDesign(design) {
         this._state.customGalaxyDesigns.push(design);
         this.saveGameState();
     }
-    
+
     deleteCustomGalaxyDesign(designId) {
         const designIndex = this._state.customGalaxyDesigns.findIndex(d => d.designId === designId);
         if (designIndex > -1) {
@@ -89,15 +90,15 @@ class GameStateManager {
             this.saveGameState();
         }
     }
-
+    
     updateGalaxyProperty(galaxyId, property, value) {
         const galaxy = this._state.galaxies.find(g => g.id === galaxyId);
-        if(galaxy) {
+        if (galaxy) {
             galaxy[property] = value;
             this.saveGameState();
         }
     }
-    
+
     updateSolarSystemProperty(systemId, property, value) {
         for (const galaxy of this._state.galaxies) {
             const system = galaxy.solarSystems.find(s => s.id === systemId);
@@ -109,7 +110,7 @@ class GameStateManager {
         }
     }
 
-    // --- Storage Logic (from storage.js) ---
+    // --- Storage Logic (moved from storage.js) ---
 
     saveGameState() {
         try {
@@ -138,7 +139,7 @@ class GameStateManager {
                 return false;
             }
             
-            // --- Data migration logic from original storage.js ---
+            // Data migration logic from original storage.js
             loadedState.galaxies.forEach(gal => {
                 gal.currentZoom = gal.currentZoom || 1.0;
                 gal.currentPanX = gal.currentPanX || 0;
@@ -146,7 +147,7 @@ class GameStateManager {
                 gal.customName = gal.customName || null;
                 gal.generationParams = gal.generationParams || { densityFactor: 0.8 + Math.random() * 0.4 };
                 if (!gal.generationParams.galaxyConfig) {
-                    gal.generationParams.galaxyConfig = null; 
+                    gal.generationParams.galaxyConfig = null;
                 }
                 gal.solarSystems = gal.solarSystems || [];
                 gal.solarSystems.forEach(ss => {
@@ -156,7 +157,6 @@ class GameStateManager {
                 gal.lineConnections = gal.lineConnections || [];
                 gal.layoutGenerated = gal.layoutGenerated || false;
             });
-            // --- End of migration ---
             
             this._state.universe.diameter = loadedState.universeDiameter;
             this._state.galaxies = loadedState.galaxies;

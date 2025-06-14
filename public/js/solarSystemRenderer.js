@@ -435,42 +435,47 @@ export const SolarSystemRenderer = (() => {
         renderer.render(scene, camera);
     }
     
-    function focusOnPlanet(planetId) {
-        controls.saveState();
-        controls.enabled = false;
+// in public/js/solarSystemRenderer.js
 
-        focusedPlanetMesh = planetMeshes.find(p => p.userData.id === planetId);
+function focusOnPlanet(planetId) {
+    controls.saveState();
+    controls.enabled = false;
 
-        if (!focusedPlanetMesh) {
-            console.warn(`focusOnPlanet: Planet with ID ${planetId} not found.`);
-            return false;
-        }
-        
-        const planetWorldPosition = new THREE.Vector3();
-        focusedPlanetMesh.getWorldPosition(planetWorldPosition);
-        
-        controls.minDistance = focusedPlanetMesh.userData.size * 1.2;
-        controls.enablePan = false;
+    focusedPlanetMesh = planetMeshes.find(p => p.userData.id === planetId);
 
-        const planetToCamera = new THREE.Vector3().subVectors(camera.position, planetWorldPosition);
-        const desiredDistance = focusedPlanetMesh.userData.size * 2.0; 
-        const offset = planetToCamera.normalize().multiplyScalar(desiredDistance);
-
-        let targetPosition = planetWorldPosition.clone().add(offset);
-        
-        const direction = new THREE.Vector3().subVectors(planetWorldPosition, camera.position).normalize();
-        raycaster.set(camera.position, direction);
-        const intersects = raycaster.intersectObjects(sunLOD.children);
-        
-        if (intersects.length > 0 && intersects[0].distance < camera.position.distanceTo(planetWorldPosition)) {
-            targetPosition.y += 20000;
-        }
-        
-        cameraAnimation = { targetPosition, targetLookAt: planetWorldPosition.clone() };
-        controls.autoRotate = false;
-
-        return true;
+    if (!focusedPlanetMesh) {
+        console.warn(`focusOnPlanet: Planet with ID ${planetId} not found.`);
+        return false;
     }
+    
+    const planetWorldPosition = new THREE.Vector3();
+    focusedPlanetMesh.getWorldPosition(planetWorldPosition);
+    
+    controls.minDistance = focusedPlanetMesh.userData.size * 1.2; // Sets the maximum zoom level
+    controls.enablePan = false;
+
+    const planetToCamera = new THREE.Vector3().subVectors(camera.position, planetWorldPosition);
+    
+    // MODIFIED: This now matches the minDistance for maximum zoom
+    const desiredDistance = focusedPlanetMesh.userData.size * 1.2; 
+    
+    const offset = planetToCamera.normalize().multiplyScalar(desiredDistance);
+
+    let targetPosition = planetWorldPosition.clone().add(offset);
+    
+    const direction = new THREE.Vector3().subVectors(planetWorldPosition, camera.position).normalize();
+    raycaster.set(camera.position, direction);
+    const intersects = raycaster.intersectObjects(sunLOD.children);
+    
+    if (intersects.length > 0 && intersects[0].distance < camera.position.distanceTo(planetWorldPosition)) {
+        targetPosition.y += 20000;
+    }
+    
+    cameraAnimation = { targetPosition, targetLookAt: planetWorldPosition.clone() };
+    controls.autoRotate = false;
+
+    return true;
+}
 
     function unfocusPlanet() {
         if (!focusedPlanetMesh && !cameraAnimation) return;

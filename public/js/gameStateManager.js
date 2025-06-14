@@ -1,18 +1,11 @@
 // public/js/gameStateManager.js
 
-/**
- * GameStateManager: A singleton class to manage the entire game state.
- * It handles loading, saving, and modifying the state, replacing the
- * global window.gameSessionData object and the separate storage.js module.
- */
 class GameStateManager {
     constructor() {
-        // Singleton pattern: ensures only one instance of the state manager exists.
         if (GameStateManager.instance) {
             return GameStateManager.instance;
         }
 
-        // The internal state object, no longer global.
         this._state = {
             universe: { diameter: null },
             galaxies: [],
@@ -42,8 +35,6 @@ class GameStateManager {
         return galaxy?.solarSystems.find(s => s.id === this._state.activeSolarSystemId);
     }
 
-    // --- Mutators to safely modify state ---
-
     setUniverseDiameter(diameter) {
         this._state.universe.diameter = diameter;
     }
@@ -54,7 +45,7 @@ class GameStateManager {
 
     setActiveGalaxyId(id) {
         this._state.activeGalaxyId = id;
-        this._state.activeSolarSystemId = null; // Reset solar system when galaxy changes
+        this._state.activeSolarSystemId = null; 
     }
 
     setActiveSolarSystemId(id) {
@@ -67,7 +58,7 @@ class GameStateManager {
     
     addCustomPlanetDesign(design) {
         this._state.customPlanetDesigns.push(design);
-        this.saveGameState(); // Auto-save on change
+        this.saveGameState(); 
     }
 
     deleteCustomPlanetDesign(designId) {
@@ -109,8 +100,6 @@ class GameStateManager {
             ...designs
         };
         console.log("Game state has been reset via GameStateManager.");
-        // This method does not save state automatically.
-        // The calling function should handle saving when appropriate.
     }
 
     updateGalaxyProperty(galaxyId, property, value) {
@@ -131,8 +120,6 @@ class GameStateManager {
             }
         }
     }
-
-    // --- Storage Logic (moved from storage.js) ---
 
     saveGameState() {
         try {
@@ -161,7 +148,6 @@ class GameStateManager {
                 return false;
             }
             
-            // Data migration logic from original storage.js
             loadedState.galaxies.forEach(gal => {
                 gal.currentZoom = gal.currentZoom || 1.0;
                 gal.currentPanX = gal.currentPanX || 0;
@@ -198,7 +184,6 @@ class GameStateManager {
     }
 }
 
-// Create and freeze a single instance of the manager to export.
 const instance = new GameStateManager();
 Object.freeze(instance);
 

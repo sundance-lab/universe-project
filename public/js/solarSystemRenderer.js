@@ -87,7 +87,7 @@ export const SolarSystemRenderer = (() => {
     let orbitLines = [];
     let currentSystemData = null;
     let animationFrameId = null;
-    let lastAnimateTime = null;
+    let simulationStartTime = 0;
     let raycaster, mouse;
     let boundWheelHandler = null;
     let focusAnimation = null;
@@ -150,6 +150,11 @@ export const SolarSystemRenderer = (() => {
         });
         const mesh = new THREE.Mesh(geometry, material);
         mesh.userData = { ...planetData, lastPosition: new THREE.Vector3(), lastWorldPosition: new THREE.Vector3() };
+        
+        // Store the initial random angles for time-based animation
+        mesh.userData.initialOrbitalAngle = planetData.currentOrbitalAngle;
+        mesh.userData.initialAxialAngle = planetData.currentAxialAngle;
+
         return mesh;
     }
 
@@ -298,7 +303,7 @@ export const SolarSystemRenderer = (() => {
         createdTextures = [];
 
         animationFrameId = null; boundWheelHandler = null; controls = null; sunLOD = null;
-        planetMeshes = []; orbitLines = []; backgroundStars = null; lastAnimateTime = null;
+        planetMeshes = []; orbitLines = []; backgroundStars = null;
         renderer = null; scene = null; camera = null; currentSystemData = null; distantGalaxiesGroup = null;
     }
 
@@ -352,9 +357,8 @@ export const SolarSystemRenderer = (() => {
     function _animate(now) {
         if (!renderer) return;
         animationFrameId = requestAnimationFrame(_animate);
-        if (lastAnimateTime === null) lastAnimateTime = now;
-        const deltaTime = (now - lastAnimateTime) / 1000;
-        lastAnimateTime = now;
+
+        const totalElapsedTime = (now - simulationStartTime) / 1000; // Time in seconds
 
         if (focusAnimation) {
             const elapsedTime = performance.now() - focusAnimation.startTime;
@@ -373,7 +377,6 @@ export const SolarSystemRenderer = (() => {
                 focusAnimation = null;
                 controls.enabled = true;
                 
-                // Configure controls for focused state
                 controls.enablePan = false;
                 controls.mouseButtons.RIGHT = THREE.MOUSE.ROTATE;
             }
@@ -387,16 +390,20 @@ export const SolarSystemRenderer = (() => {
 
         planetMeshes.forEach(mesh => {
             const planet = mesh.userData;
-            mesh.getWorldPosition(planet.lastWorldPosition);
             
-            planet.lastPosition.copy(mesh.position);
-            planet.currentOrbitalAngle += planet.orbitalSpeed * 0.1 * deltaTime * moduleState.orbitSpeedMultiplier;
-            planet.currentAxialAngle += planet.axialSpeed * 2 * deltaTime;
+            // Calculate angles based on total elapsed time for smooth motion
+            const orbitalAngularVelocity = planet.orbitalSpeed * 0.1 * moduleState.orbitSpeedMultiplier;
+            const newOrbitalAngle = planet.initialOrbitalAngle + (orbitalAngularVelocity * totalElapsedTime);
             
-            mesh.rotation.y = planet.currentAxialAngle;
-            const x = planet.orbitalRadius * Math.cos(planet.currentOrbitalAngle);
-            const z = planet.orbitalRadius * Math.sin(planet.currentOrbitalAngle); 
+            const axialAngularVelocity = planet.axialSpeed * 2;
+            const newAxialAngle = planet.initialAxialAngle + (axialAngularVelocity * totalElapsedTime);
+
+            // Set position and rotation
+            const x = planet.orbitalRadius * Math.cos(newOrbitalAngle);
+            const z = planet.orbitalRadius * Math.sin(newOrbitalAngle); 
             mesh.position.set(x, 0, z);
+            mesh.rotation.y = newAxialAngle;
+            
             mesh.material.uniforms.uLightDirection.value.copy(mesh.position).negate().normalize();
         });
         
@@ -425,7 +432,6 @@ export const SolarSystemRenderer = (() => {
     function unfocus() {
         if (followedPlanet) {
             followedPlanet = null;
-            // Revert controls to default state
             controls.enablePan = true;
             controls.mouseButtons.RIGHT = THREE.MOUSE.PAN;
         }
@@ -435,7 +441,7 @@ export const SolarSystemRenderer = (() => {
         const targetPlanet = planetMeshes.find(p => p.userData.id === planetId);
         if (!targetPlanet) return;
     
-        followedPlanet = null;
+        unfocus(); // Unfocus any previous planet and reset controls
         const radius = targetPlanet.geometry.parameters.radius;
     
         focusAnimation = {
@@ -457,10 +463,11 @@ export const SolarSystemRenderer = (() => {
             _setupScene(container);
             currentSystemData = solarSystemData;
 
+            simulationStartTime = performance.now();
+
             sunLOD = _createSun(solarSystemData.sun);
             scene.add(sunLOD);
             
-            // Set sun mesh and its light to be initially off to prevent flash
             sunLOD.visible = false;
             if (sunLight) sunLight.intensity = 0.0;
 
@@ -481,10 +488,8 @@ export const SolarSystemRenderer = (() => {
                 setOrbitSpeed(initialDevSettings.orbitSpeed);
             }
 
-            lastAnimateTime = performance.now();
-            _animate(lastAnimateTime);
+            _animate(simulationStartTime);
             
-            // After a brief delay, make the sun and its light visible.
             setTimeout(() => {
                 if (sunLOD) sunLOD.visible = true;
                 if (sunLight) sunLight.intensity = 1.8;

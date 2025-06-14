@@ -90,6 +90,8 @@ export const SolarSystemRenderer = (() => {
     let lastAnimateTime = null;
     let raycaster, mouse;
     let boundWheelHandler = null;
+    let focusAnimation = null;
+    let followedPlanet = null;
 
     const moduleState = {
         orbitSpeedMultiplier: 1.0
@@ -327,6 +329,10 @@ export const SolarSystemRenderer = (() => {
             autoRotateSpeed: 0.5
         });
 
+        controls.addEventListener('start', () => {
+            followedPlanet = null;
+        });
+
         boundWheelHandler = (event) => {
             event.preventDefault();
 
@@ -353,6 +359,28 @@ export const SolarSystemRenderer = (() => {
         if (lastAnimateTime === null) lastAnimateTime = now;
         const deltaTime = (now - lastAnimateTime) / 1000;
         lastAnimateTime = now;
+
+        if (focusAnimation) {
+            const elapsedTime = performance.now() - focusAnimation.startTime;
+            const progress = Math.min(elapsedTime / focusAnimation.duration, 1.0);
+            const easedProgress = 1 - Math.pow(1 - progress, 3); // easeOutCubic
+    
+            const planetPos = focusAnimation.targetPlanet.getWorldPosition(new THREE.Vector3());
+            const desiredCamPos = planetPos.clone().add(focusAnimation.cameraOffset);
+    
+            camera.position.lerpVectors(focusAnimation.startPosition, desiredCamPos, easedProgress);
+            controls.target.lerpVectors(focusAnimation.startTarget, planetPos, easedProgress);
+    
+            if (progress >= 1.0) {
+                followedPlanet = focusAnimation.targetPlanet;
+                focusAnimation = null;
+                controls.enabled = true;
+            }
+        }
+
+        if (followedPlanet) {
+            controls.target.copy(followedPlanet.getWorldPosition(new THREE.Vector3()));
+        }
 
         planetMeshes.forEach(mesh => {
             const planet = mesh.userData;
@@ -389,6 +417,24 @@ export const SolarSystemRenderer = (() => {
         orbitLines.forEach(line => {
             line.visible = visible;
         });
+    }
+
+    function focusOnPlanet(planetId) {
+        const targetPlanet = planetMeshes.find(p => p.userData.id === planetId);
+        if (!targetPlanet) return;
+    
+        followedPlanet = null;
+        const radius = targetPlanet.geometry.parameters.radius;
+    
+        focusAnimation = {
+            targetPlanet: targetPlanet,
+            startTime: performance.now(),
+            duration: 1600, // ms
+            startPosition: camera.position.clone(),
+            startTarget: controls.target.clone(),
+            cameraOffset: new THREE.Vector3(0, radius * 1.5, radius * 3.5)
+        };
+        controls.enabled = false;
     }
 
     return {
@@ -435,6 +481,7 @@ export const SolarSystemRenderer = (() => {
         dispose: () => _cleanup(),
         setOrbitLinesVisible,
         setOrbitSpeed,
+        focusOnPlanet,
         getPlanetMeshes: () => planetMeshes,
         getRaycaster: () => raycaster,
         getMouse: () => mouse,

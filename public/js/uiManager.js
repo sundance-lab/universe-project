@@ -4,13 +4,12 @@ import { GalaxyRenderer } from './galaxyRenderer.js';
 import { generateSolarSystemsForGalaxy } from './universeGenerator.js';
 import { SolarSystemRenderer } from './solarSystemRenderer.js';
 import { HexPlanetViewController } from './hexPlanetViewController.js';
+import { FocusManager } from './focusManager.js';
 
 export const UIManager = (() => {
     let elements = {};
     let callbacks = {};
     let currentStarfieldCleanup;
-    let focusedPlanetId = null;
-    let currentGalaxyRenderer = null;
 
     // NEW: Cached DOM elements for Galaxy Customization
     let galaxyCustomizationModal, galaxyCustomizeBtn;
@@ -53,6 +52,8 @@ export const UIManager = (() => {
             return;
         }
 
+        const focusedPlanetId = FocusManager.getFocusedPlanetId();
+
         planets.forEach((planet, index) => {
             const li = document.createElement('li');
             li.className = 'planet-sidebar-item';
@@ -72,21 +73,13 @@ export const UIManager = (() => {
     }
 
     function togglePlanetFocus(planetId) {
-        const renderer = window.activeSolarSystemRenderer;
-        if (!renderer) return;
+        const currentlyFocused = FocusManager.getFocusedPlanetId();
 
-        if (focusedPlanetId === planetId) {
-            renderer.unfocusPlanet();
-            focusedPlanetId = null;
+        if (currentlyFocused === planetId) {
+            FocusManager.clearFocus();
         } else {
-            if (renderer.focusOnPlanet(planetId)) {
-                focusedPlanetId = planetId;
-            }
+            FocusManager.setFocus(planetId);
         }
-
-        const activeGalaxy = window.gameSessionData.galaxies.find(g => window.gameSessionData.activeSolarSystemId.startsWith(g.id));
-        const solarSystemObject = activeGalaxy?.solarSystems.find(s => s.id === window.gameSessionData.activeSolarSystemId);
-        _renderPlanetSidebar(solarSystemObject?.planets);
     }
 
     function makeTitleEditable(titleTextElement, inputElement, onSaveCallback) {
@@ -165,7 +158,6 @@ export const UIManager = (() => {
         if (elements.planetSidebar) elements.planetSidebar.style.display = (screenToShow === elements.solarSystemScreen) ? 'block' : 'none';
         const isOnOverlayScreen = (screenToShow === elements.planetDesignerScreen || screenToShow === elements.hexPlanetScreen || screenToShow === galaxyCustomizationModal);
         
-        // Hide the main dev panel button if any overlay is active
         if (elements.devPanelButton) {
             elements.devPanelButton.style.display = isOnOverlayScreen ? 'none' : 'block';
         }
@@ -180,7 +172,7 @@ export const UIManager = (() => {
             currentGalaxyRenderer.dispose();
             currentGalaxyRenderer = null;
         }
-        focusedPlanetId = null;
+        FocusManager.clearFocus();
 
         const galaxy = window.gameSessionData.galaxies.find(g => g.id === galaxyId);
         if (!galaxy) {
@@ -202,11 +194,11 @@ export const UIManager = (() => {
         };
 
         currentGalaxyRenderer = GalaxyRenderer;
-        currentGalaxyRenderer.resetConfig(); // Reset to defaults first
+        currentGalaxyRenderer.resetConfig();
         
         const galaxyConfig = galaxy.generationParams?.galaxyConfig;
         if (galaxyConfig) {
-            currentGalaxyRenderer.updateConfig(galaxyConfig); // Then apply custom config if it exists
+            currentGalaxyRenderer.updateConfig(galaxyConfig);
         }
         
         currentGalaxyRenderer.init(elements.galaxyCanvasContainer, galaxy, onSystemClick);
@@ -252,13 +244,7 @@ export const UIManager = (() => {
         
         elements.solarSystemContent.addEventListener('click', _onSolarSystemCanvasClick);
         
-        if (planetToFocusId) {
-            if (window.activeSolarSystemRenderer.focusOnPlanet(planetToFocusId)) {
-                focusedPlanetId = planetToFocusId;
-            }
-        } else {
-            focusedPlanetId = null;
-        }
+        FocusManager.setFocus(planetToFocusId);
         _renderPlanetSidebar(solarSystemObject.planets);
 
         makeTitleEditable(elements.solarSystemTitleText, elements.solarSystemTitleInput, (newName) => {
@@ -304,7 +290,6 @@ export const UIManager = (() => {
         HexPlanetViewController.activate(planetData, onBackCallback);
     }
 
-    // NEW: Galaxy Customization Functions
     function getGalaxyElements() {
         console.log("Attempting to get galaxy customization elements...");
         galaxyCustomizationModal = document.getElementById('galaxy-customization-modal');
@@ -366,9 +351,9 @@ export const UIManager = (() => {
 
     function showGalaxyCustomizationModal() {
         console.log("Showing galaxy customization modal.");
-        if (!galaxyCustomizationModal) getGalaxyElements(); // Ensure elements are cached
+        if (!galaxyCustomizationModal) getGalaxyElements();
         setActiveScreen(galaxyCustomizationModal);
-        galaxyCustomizationModal.classList.add('visible'); // Add this line
+        galaxyCustomizationModal.classList.add('visible');
         populateGalaxyCustomizationUI(GalaxyRenderer.getCurrentConfig());
         populateSavedGalaxyDesignsList();
         console.log("Galaxy customization modal should be visible and populated.");
@@ -380,19 +365,16 @@ export const UIManager = (() => {
         if (window.gameSessionData.activeGalaxyId) {
             setActiveScreen(elements.galaxyDetailScreen);
         } else {
-            // Fallback if something went wrong, though we should always have an active galaxy.
             callbacks.regenerateUniverseState();
         }
         console.log("Galaxy customization modal hidden.");
     }
     
-    // Helper to convert THREE.Color to hex string
     function _toHex(c) {
         const hex = Math.round(c * 255).toString(16);
         return hex.length === 1 ? '0' + hex : hex;
     }
 
-    // Helper to convert THREE.Color object to #RRGGBB hex string
     function _rgbToHex(color) {
         if (color instanceof THREE.Color) {
             return `#${_toHex(color.r)}${_toHex(color.g)}${_toHex(color.b)}`;
@@ -401,7 +383,7 @@ export const UIManager = (() => {
         if (parts && parts.length >= 3) {
             return `#${_toHex(parseInt(parts[0]) / 255)}${_toHex(parseInt(parts[1]) / 255)}${_toHex(parseInt(parts[2]) / 255)}`;
         }
-        return color; // Return as is if format is not recognized or already hex
+        return color;
     }
 
     function populateGalaxyCustomizationUI(config) {
@@ -536,11 +518,11 @@ export const UIManager = (() => {
         const activeGalaxy = window.gameSessionData.galaxies.find(g => g.id === window.gameSessionData.activeGalaxyId);
         if (activeGalaxy) {
             if (!activeGalaxy.generationParams) activeGalaxy.generationParams = {};
-            activeGalaxy.generationParams.galaxyConfig = newConfig; // Store config with the galaxy
-            callbacks.saveGameState(); // Save game state to persist galaxy config
+            activeGalaxy.generationParams.galaxyConfig = newConfig;
+            callbacks.saveGameState();
         }
         
-        GalaxyRenderer.updateConfig(newConfig); // Apply config to renderer
+        GalaxyRenderer.updateConfig(newConfig);
         hideGalaxyCustomizationModal();
         console.log("Galaxy settings applied and modal hidden.");
     }
@@ -607,10 +589,8 @@ export const UIManager = (() => {
                 NEBULA_COLOR_STOP_04: '#' + (Math.random() * 0xFFFFFF | 0).toString(16).padStart(6, '0'),
                 BACKGROUND_STAR_COLOR: Math.random() * 0xFFFFFF,
                 SKYBOX_COLOR: Math.random() * 0xFFFFFF,
-                // Palettes are randomized separately via _randomizeGalaxyPalette
             }
         };
-        // Apply random values to UI and then apply to galaxy
         populateGalaxyCustomizationUI(randomConfig);
         _applyGalaxySettings();
         console.log("Randomization complete.");
@@ -619,13 +599,12 @@ export const UIManager = (() => {
     function _randomizeGalaxyPalette() {
         console.log("Randomizing galaxy color palette...");
         const newPalette = [];
-        for (let i = 0; i < 10; i++) { // Generate 10 random colors for the palette
+        for (let i = 0; i < 10; i++) {
             newPalette.push(new THREE.Color(Math.random(), Math.random(), Math.random()));
         }
         const currentConfig = GalaxyRenderer.getCurrentConfig();
         currentConfig.COLORS.PALETTE = newPalette;
-        GalaxyRenderer.updateConfig(currentConfig); // Apply new palette to renderer
-        // No UI update needed for palette directly as it's not exposed as individual inputs
+        GalaxyRenderer.updateConfig(currentConfig);
         console.log("Galaxy color palette randomized.");
     }
 
@@ -666,10 +645,9 @@ export const UIManager = (() => {
         console.log("Attempting to load galaxy design:", designId);
         const designToLoad = window.gameSessionData?.customGalaxyDesigns?.find(d => d.designId === designId);
         if (designToLoad) {
-            populateGalaxyCustomizationUI(designToLoad.config); // Update UI inputs
-            GalaxyRenderer.updateConfig(designToLoad.config); // Apply config to renderer
+            populateGalaxyCustomizationUI(designToLoad.config);
+            GalaxyRenderer.updateConfig(designToLoad.config);
             console.log(`Galaxy design '${designToLoad.designName}' loaded.`);
-            // No need to hide modal, user might want to tweak further
         } else {
             console.warn(`Design with ID '${designId}' not found.`);
         }
@@ -764,16 +742,25 @@ export const UIManager = (() => {
                     window.activeSolarSystemRenderer.unfocusPlanet();
                     elements.solarSystemContent.removeEventListener('click', _onSolarSystemCanvasClick);
                 }
-                focusedPlanetId = null;
+                FocusManager.clearFocus();
                 if (window.gameSessionData.activeGalaxyId) {
                     switchToGalaxyDetailView(window.gameSessionData.activeGalaxyId);
                 }
             });
+            
+            FocusManager.addEventListener('focusChanged', ({ planetId }) => {
+                const solarSystemId = window.gameSessionData.activeSolarSystemId;
+                if (solarSystemId) {
+                    const activeGalaxy = window.gameSessionData.galaxies.find(g => solarSystemId.startsWith(g.id));
+                    const solarSystemObject = activeGalaxy?.solarSystems.find(s => s.id === solarSystemId);
+                    if (solarSystemObject?.planets) {
+                        _renderPlanetSidebar(solarSystemObject.planets);
+                    }
+                }
+            });
 
-            // Initialize galaxy customization elements and listeners
             getGalaxyElements(); 
             
-            // Event Handlers for Galaxy Customization
             boundGalaxyApplyHandler = () => _applyGalaxySettings();
             boundGalaxyCancelHandler = () => hideGalaxyCustomizationModal();
             boundGalaxyRandomizeAllHandler = () => _randomizeAllGalaxySettings();

@@ -90,8 +90,6 @@ export const SolarSystemRenderer = (() => {
     let lastAnimateTime = null;
     let raycaster, mouse;
     let boundWheelHandler = null;
-    let cameraAnimation = null;
-    let focusedPlanetMesh = null;
 
     const moduleState = {
         orbitSpeedMultiplier: 1.0
@@ -253,7 +251,6 @@ export const SolarSystemRenderer = (() => {
         if (animationFrameId) cancelAnimationFrame(animationFrameId);
         if (renderer?.domElement && boundWheelHandler) renderer.domElement.removeEventListener('wheel', boundWheelHandler);
         if(controls) {
-            controls.removeEventListener('start', onControlsStart);
             controls.dispose();
         }
         if (sunLOD) {
@@ -303,14 +300,6 @@ export const SolarSystemRenderer = (() => {
         renderer = null; scene = null; camera = null; currentSystemData = null; distantGalaxiesGroup = null;
     }
 
-    function onControlsStart() {
-        if (cameraAnimation) return;
-
-        if (focusedPlanetMesh) {
-            controls.autoRotate = false;
-        }
-    }
-
     function _setupScene(container) {
         _cleanup();
         scene = new THREE.Scene();
@@ -338,14 +327,8 @@ export const SolarSystemRenderer = (() => {
             autoRotateSpeed: 0.5
         });
 
-        controls.addEventListener('start', onControlsStart);
-
         boundWheelHandler = (event) => {
             event.preventDefault();
-
-            if (!cameraAnimation && focusedPlanetMesh) {
-                controls.autoRotate = false;
-            }
 
             const linearZoomAmount = 1000; 
             let zoomFactor = event.deltaY < 0 ? -linearZoomAmount : linearZoomAmount;
@@ -386,33 +369,6 @@ export const SolarSystemRenderer = (() => {
             mesh.material.uniforms.uLightDirection.value.copy(mesh.position).negate().normalize();
         });
         
-        controls.enableDamping = true;
-
-        if (cameraAnimation) {
-            const distanceToTarget = camera.position.distanceTo(cameraAnimation.targetPosition);
-            const speed = 0.04;
-
-            if (focusedPlanetMesh) {
-                const currentPlanetWorldPosition = new THREE.Vector3();
-                focusedPlanetMesh.getWorldPosition(currentPlanetWorldPosition);
-                cameraAnimation.targetLookAt.copy(currentPlanetWorldPosition);
-            }
-
-            camera.position.lerp(cameraAnimation.targetPosition, speed);
-            controls.target.lerp(cameraAnimation.targetLookAt, speed);
-            
-            if (distanceToTarget < 1) {
-                camera.position.copy(cameraAnimation.targetPosition);
-                controls.target.copy(cameraAnimation.targetLookAt);
-                cameraAnimation = null;
-                controls.enabled = true;
-            }
-        } else if (focusedPlanetMesh) {
-            const newPlanetPosition = new THREE.Vector3();
-            focusedPlanetMesh.getWorldPosition(newPlanetPosition);
-            controls.target.copy(newPlanetPosition);
-        }
-        
         controls.update();
         if (distantGalaxiesGroup) distantGalaxiesGroup.rotation.y += 0.00005;
         if (sunLOD) {
@@ -423,64 +379,6 @@ export const SolarSystemRenderer = (() => {
             });
         }
         renderer.render(scene, camera);
-    }
-    
-    function focusOnPlanet(planetId) {
-        if (!focusedPlanetMesh && !cameraAnimation) {
-            controls.saveState();
-        }
-        controls.enabled = false;
-
-        focusedPlanetMesh = planetMeshes.find(p => p.userData.id === planetId);
-
-        if (!focusedPlanetMesh) {
-            console.warn(`focusOnPlanet: Planet with ID ${planetId} not found.`);
-            controls.enabled = true;
-            return false;
-        }
-        
-        const planetWorldPosition = new THREE.Vector3();
-        focusedPlanetMesh.getWorldPosition(planetWorldPosition);
-        
-        controls.minDistance = focusedPlanetMesh.userData.size * 1.2;
-        controls.enablePan = false;
-
-        const planetToCamera = new THREE.Vector3().subVectors(camera.position, planetWorldPosition);
-        const desiredDistance = focusedPlanetMesh.userData.size * 1.2; 
-        const offset = planetToCamera.normalize().multiplyScalar(desiredDistance);
-
-        let targetPosition = planetWorldPosition.clone().add(offset);
-        
-        const direction = new THREE.Vector3().subVectors(planetWorldPosition, camera.position).normalize();
-        raycaster.set(camera.position, direction);
-        const intersects = raycaster.intersectObjects(sunLOD.children);
-        
-        if (intersects.length > 0 && intersects[0].distance < camera.position.distanceTo(planetWorldPosition)) {
-            targetPosition.y += 20000;
-        }
-        
-        cameraAnimation = { targetPosition, targetLookAt: planetWorldPosition.clone() };
-        controls.autoRotate = false;
-
-        return true;
-    }
-
-    function unfocusPlanet() {
-        if (!focusedPlanetMesh && !cameraAnimation) return;
-        controls.enabled = false;
-
-        const savedPosition = controls.position0.clone();
-        const savedTarget = controls.target0.clone();
-        
-        focusedPlanetMesh = null;
-        controls.autoRotate = false;
-        controls.enablePan = true;
-        controls.minDistance = 50;
-        
-        cameraAnimation = {
-            targetPosition: savedPosition,
-            targetLookAt: savedTarget,
-        };
     }
     
     function setOrbitSpeed(multiplier) {
@@ -504,6 +402,7 @@ export const SolarSystemRenderer = (() => {
             sunLOD = _createSun(solarSystemData.sun);
             scene.add(sunLOD);
             
+            // Set sun mesh and its light to be initially off to prevent flash
             sunLOD.visible = false;
             if (sunLight) sunLight.intensity = 0.0;
 
@@ -527,14 +426,13 @@ export const SolarSystemRenderer = (() => {
             lastAnimateTime = performance.now();
             _animate(lastAnimateTime);
             
+            // After a brief delay, make the sun and its light visible.
             setTimeout(() => {
                 if (sunLOD) sunLOD.visible = true;
                 if (sunLight) sunLight.intensity = 1.8;
             }, 50);
         },
         dispose: () => _cleanup(),
-        focusOnPlanet,
-        unfocusPlanet,
         setOrbitLinesVisible,
         setOrbitSpeed,
         getPlanetMeshes: () => planetMeshes,

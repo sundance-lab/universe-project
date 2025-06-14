@@ -406,10 +406,8 @@ export const SolarSystemRenderer = (() => {
                 controls.target.copy(cameraAnimation.targetLookAt);
                 cameraAnimation = null;
                 controls.enabled = true;
-                // MODIFICATION: Removed the autoRotate = true line
             }
         } else if (focusedPlanetMesh) {
-            // MODIFICATION: New, simplified follow logic
             const newPlanetPosition = new THREE.Vector3();
             focusedPlanetMesh.getWorldPosition(newPlanetPosition);
             controls.target.copy(newPlanetPosition);
@@ -428,13 +426,16 @@ export const SolarSystemRenderer = (() => {
     }
     
     function focusOnPlanet(planetId) {
-        controls.saveState();
+        if (!focusedPlanetMesh && !cameraAnimation) {
+            controls.saveState();
+        }
         controls.enabled = false;
 
         focusedPlanetMesh = planetMeshes.find(p => p.userData.id === planetId);
 
         if (!focusedPlanetMesh) {
             console.warn(`focusOnPlanet: Planet with ID ${planetId} not found.`);
+            controls.enabled = true;
             return false;
         }
         
@@ -445,7 +446,6 @@ export const SolarSystemRenderer = (() => {
         controls.enablePan = false;
 
         const planetToCamera = new THREE.Vector3().subVectors(camera.position, planetWorldPosition);
-        // MODIFICATION: Set desiredDistance to the max zoom level
         const desiredDistance = focusedPlanetMesh.userData.size * 1.2; 
         const offset = planetToCamera.normalize().multiplyScalar(desiredDistance);
 
@@ -475,6 +475,7 @@ export const SolarSystemRenderer = (() => {
         focusedPlanetMesh = null;
         controls.autoRotate = false;
         controls.enablePan = true;
+        controls.minDistance = 50;
         
         cameraAnimation = {
             targetPosition: savedPosition,
@@ -503,7 +504,6 @@ export const SolarSystemRenderer = (() => {
             sunLOD = _createSun(solarSystemData.sun);
             scene.add(sunLOD);
             
-            // Set sun mesh and its light to be initially off to prevent flash
             sunLOD.visible = false;
             if (sunLight) sunLight.intensity = 0.0;
 
@@ -527,7 +527,6 @@ export const SolarSystemRenderer = (() => {
             lastAnimateTime = performance.now();
             _animate(lastAnimateTime);
             
-            // After a brief delay, make the sun and its light visible.
             setTimeout(() => {
                 if (sunLOD) sunLOD.visible = true;
                 if (sunLight) sunLight.intensity = 1.8;

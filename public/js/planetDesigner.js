@@ -1,445 +1,418 @@
 // public/js/planetDesigner.js
 
-import '../styles.css';
 import * as THREE from 'three';
 import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls';
 import { getPlanetShaders } from './shaders.js';
 import { HexPlanetViewController } from './hexPlanetViewController.js';
+import GameStateManager from './gameStateManager.js'; // Import the state manager
 
 export const PlanetDesigner = (() => {
- // --- CACHED DOM ELEMENTS & STATE ---
- let savedDesignsUl, designerPlanetCanvas, designerWaterColorInput, designerLandColorInput, designerMinHeightInput, designerMaxHeightInput, designerOceanHeightInput,
-  designerSaveBtn, designerCancelBtn, designerRiverBasinInput, designerRiverBasinValue,
-  designerForestDensityInput, designerForestDensityValue, designerRandomizeBtn, boundResizeHandler, designerExploreBtn;
+    // --- CACHED DOM ELEMENTS & STATE ---
+    let savedDesignsUl, designerPlanetCanvas, designerWaterColorInput, designerLandColorInput, designerMinHeightInput, designerMaxHeightInput, designerOceanHeightInput,
+        designerSaveBtn, designerCancelBtn, designerRiverBasinInput, designerRiverBasinValue,
+        designerForestDensityInput, designerForestDensityValue, designerRandomizeBtn, boundResizeHandler, designerExploreBtn;
 
-  let onBackCallback = null;
+    let onBackCallback = null;
 
-  // --- NEW: Event handler references for cleanup ---
-  let handleControlChangeRef, randomizeDesignerPlanetRef, handleExploreButtonClickRef, 
-      saveCustomPlanetDesignRef, cancelDesignerRef, savedDesignsClickHandlerRef;
+    // --- NEW: Event handler references for cleanup ---
+    let handleControlChangeRef, randomizeDesignerPlanetRef, handleExploreButtonClickRef,
+        saveCustomPlanetDesignRef, cancelDesignerRef, savedDesignsClickHandlerRef;
 
- const DISPLACEMENT_SCALING_FACTOR = 0.005;
- const SPHERE_BASE_RADIUS = 0.8;
+    const DISPLACEMENT_SCALING_FACTOR = 0.005;
+    const SPHERE_BASE_RADIUS = 0.8;
 
- let currentDesignerBasis = {
-  waterColor: '#1E90FF', landColor: '#556B2F', continentSeed: Math.random(),
-  riverBasin: 0.05, forestDensity: 0.5,
-  minTerrainHeight: 0.0, maxTerrainHeight: 10.0, oceanHeightLevel: 1.0
- };
-
- let designerThreeScene, designerThreeCamera, designerThreeRenderer,
-  designerThreePlanetMesh, designerThreeControls, designerThreeAnimationId, designerShaderMaterial;
-
- function _onDesignerResize() {
-  if (designerThreeRenderer && document.getElementById('planet-designer-screen')?.classList.contains('active')) {
-   const newWidth = designerPlanetCanvas.offsetWidth;
-   const newHeight = designerPlanetCanvas.offsetHeight;
-   if (newWidth > 0 && newHeight > 0) {
-    designerThreeCamera.aspect = newWidth / newHeight;
-    designerThreeCamera.updateProjectionMatrix();
-    designerThreeRenderer.setSize(newWidth, newHeight);
-   }
-  }
- }
-
- function _initDesignerThreeJSView() {
-  if (!designerPlanetCanvas) return;
-   
-  const { vertexShader, fragmentShader } = getPlanetShaders();
-
-  designerThreeScene = new THREE.Scene();
-  designerThreeScene.background = new THREE.Color(0x0d0d0d);
-  designerThreeCamera = new THREE.PerspectiveCamera(60, designerPlanetCanvas.offsetWidth / designerPlanetCanvas.offsetHeight, 0.001, 100);
-  designerThreeCamera.position.z = 2.5;
-
-  designerThreeRenderer = new THREE.WebGLRenderer({ canvas: designerPlanetCanvas, antialias: true });
-  designerThreeRenderer.setSize(designerPlanetCanvas.offsetWidth, designerPlanetCanvas.offsetHeight);
-  designerThreeRenderer.setPixelRatio(window.devicePixelRatio);
-   
-  const geometry = new THREE.IcosahedronGeometry(SPHERE_BASE_RADIUS, 32);
-
-  // --- THIS IS THE FINAL FIX ---
-  // We merge our custom uniforms with Three.js's "common" uniforms library.
-  // This provides the shader with essential built-in variables like 'cameraPosition'.
-  const uniforms = THREE.UniformsUtils.merge([
-    THREE.UniformsLib.common,
-    {
-      uLandColor: { value: new THREE.Color() }, 
-      uWaterColor: { value: new THREE.Color() },
-      uOceanHeightLevel: { value: 0.5 }, 
-      uContinentSeed: { value: Math.random() },
-      uRiverBasin: { value: 0.05 }, 
-      uForestDensity: { value: 0.5 },
-      uTime: { value: 0.0 }, 
-      uSphereRadius: { value: SPHERE_BASE_RADIUS },
-      uDisplacementAmount: { value: 0.0 },
-      uLightDirection: { value: new THREE.Vector3(0.8, 0.6, 1.0) },
-      uPlanetType: { value: 0 }
-    }
-  ]);
-   
-  designerShaderMaterial = new THREE.ShaderMaterial({
-   uniforms: uniforms,
-   vertexShader: vertexShader,
-   fragmentShader: fragmentShader,
-  });
-   
-  designerThreePlanetMesh = new THREE.Mesh(geometry, designerShaderMaterial);
-  designerThreeScene.add(designerThreePlanetMesh);
-
-  designerThreeControls = new OrbitControls(designerThreeCamera, designerThreeRenderer.domElement);
-  designerThreeControls.enableDamping = true;
-  designerThreeControls.dampingFactor = 0.1;
-  designerThreeControls.rotateSpeed = 0.5;
-  designerThreeControls.minDistance = 0.9;
-  designerThreeControls.maxDistance = 4;
-
-  designerThreeControls.minAzimuthAngle = -Infinity;
-  designerThreeControls.maxAzimuthAngle = Infinity;
-  
-  designerThreeControls.minPolarAngle = 0;
-  designerThreeControls.maxPolarAngle = Math.PI;
-  
-  _animateDesignerThreeJSView();
- }
-
- function _animateDesignerThreeJSView() {
-  if (!designerThreeRenderer) return;
-  designerThreeAnimationId = requestAnimationFrame(_animateDesignerThreeJSView);
-  if (designerShaderMaterial?.uniforms.uTime) designerShaderMaterial.uniforms.uTime.value += 0.015;
-  if (designerThreeControls) designerThreeControls.update();
-  if (designerThreeScene && designerThreeCamera) designerThreeRenderer.render(designerThreeScene, designerThreeCamera);
- }
-
- function _stopAndCleanupDesignerThreeJSView() {
-  if (designerThreeAnimationId) cancelAnimationFrame(designerThreeAnimationId);
-  if (designerThreeControls) designerThreeControls.dispose();
-  if (designerShaderMaterial) designerShaderMaterial.dispose();
-  if (designerThreePlanetMesh) {
-   if(designerThreePlanetMesh.geometry) designerThreePlanetMesh.geometry.dispose();
-   if(designerThreeScene) designerThreeScene.remove(designerThreePlanetMesh);
-  }
-  if (designerThreeRenderer) designerThreeRenderer.dispose();
-  designerThreeAnimationId = null; designerThreeControls = null; designerShaderMaterial = null;
-  designerThreePlanetMesh = null; designerThreeRenderer = null; designerThreeScene = null; designerThreeCamera = null;
- }
-  
- function _handleControlChange(event) {
-  const input = event.target;
-  switch (input.id) {
-    case 'designer-water-color':
-      currentDesignerBasis.waterColor = input.value;
-      break;
-    case 'designer-land-color':
-      currentDesignerBasis.landColor = input.value;
-      break;
-    case 'designer-river-basin':
-      const riverBasin = parseFloat(input.value);
-      currentDesignerBasis.riverBasin = riverBasin;
-      designerRiverBasinValue.textContent = riverBasin.toFixed(2);
-      break;
-    case 'designer-forest-density':
-      const forestDensity = parseFloat(input.value);
-      currentDesignerBasis.forestDensity = forestDensity;
-      designerForestDensityValue.textContent = forestDensity.toFixed(2);
-      break;
-    case 'designer-min-height':
-      currentDesignerBasis.minTerrainHeight = parseFloat(input.value);
-      break;
-    case 'designer-max-height':
-      currentDesignerBasis.maxTerrainHeight = parseFloat(input.value);
-      break;
-    case 'designer-ocean-height':
-      currentDesignerBasis.oceanHeightLevel = parseFloat(input.value);
-      break;
-  }
-  const { minTerrainHeight, maxTerrainHeight, oceanHeightLevel } = currentDesignerBasis;
-  currentDesignerBasis.oceanHeightLevel = Math.max(minTerrainHeight, Math.min(maxTerrainHeight, oceanHeightLevel));
-  _refreshDesignerPreview();
- }
-
- function _refreshDesignerPreview() {
-  if (!designerShaderMaterial) return;
-  const {
-    waterColor, landColor, continentSeed, riverBasin, forestDensity,
-    minTerrainHeight, maxTerrainHeight, oceanHeightLevel
-  } = currentDesignerBasis;
-  const terrainRange = Math.max(0.1, maxTerrainHeight - minTerrainHeight);
-  const normalizedOceanLevel = (oceanHeightLevel - minTerrainHeight) / terrainRange;
-  const uniforms = designerShaderMaterial.uniforms;
-  uniforms.uWaterColor.value.set(waterColor);
-  uniforms.uLandColor.value.set(landColor);
-  uniforms.uContinentSeed.value = continentSeed;
-  uniforms.uRiverBasin.value = riverBasin;
-  uniforms.uForestDensity.value = forestDensity;
-  uniforms.uOceanHeightLevel.value = normalizedOceanLevel - 0.5;
-  const displacementAmount = terrainRange * DISPLACEMENT_SCALING_FACTOR;
-  uniforms.uDisplacementAmount.value = displacementAmount;
- }
-  
- function _populateDesignerInputsFromBasis() {
-  if (!designerWaterColorInput) return;
-  const basis = currentDesignerBasis;
-  designerWaterColorInput.value = basis.waterColor;
-  designerLandColorInput.value = basis.landColor;
-  designerRiverBasinInput.value = basis.riverBasin;
-  designerRiverBasinValue.textContent = Number(basis.riverBasin).toFixed(2);
-  designerForestDensityInput.value = basis.forestDensity;
-  designerForestDensityValue.textContent = Number(basis.forestDensity).toFixed(2);
-  designerMinHeightInput.value = basis.minTerrainHeight;
-  designerMaxHeightInput.value = basis.maxTerrainHeight;
-  designerOceanHeightInput.value = basis.oceanHeightLevel;
- }
-  
- function _randomizeDesignerPlanet() {
-  function _getRandomHexColor() { return '#' + (Math.random() * 0xFFFFFF | 0).toString(16).padStart(6, '0'); }
-  function _getRandomFloat(min, max, p = 1) { const f = Math.pow(10, p); return parseFloat((Math.random() * (max - min) + min).toFixed(p)); }
-   
-  const minH = _getRandomFloat(0.0, 4.0);
-  const maxH = _getRandomFloat(minH + 1.0, minH + 10.0);
-   
-  currentDesignerBasis = {
-    waterColor: _getRandomHexColor(),
-    landColor: _getRandomHexColor(),
-    continentSeed: Math.random(),
-    riverBasin: _getRandomFloat(0.01, 0.15, 2),
-    forestDensity: _getRandomFloat(0.1, 0.9, 2),
-    minTerrainHeight: minH,
-    maxTerrainHeight: maxH,
-    oceanHeightLevel: _getRandomFloat(minH, maxH)
-  };
-   
-  _populateDesignerInputsFromBasis();
-  _refreshDesignerPreview();
- }
-
-  function _generateUUID() {
-    return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, function(c) {
-      const r = Math.random() * 16 | 0;
-      const v = c === 'x' ? r : (r & 0x3 | 0x8);
-      return v.toString(16);
-    });
-  }
-
-  function _saveCustomPlanetDesign() {
-    const designName = `My Planet ${window.gameSessionData.customPlanetDesigns.length + 1}`;
-
-    if (!window.gameSessionData.customPlanetDesigns) {
-      window.gameSessionData.customPlanetDesigns = [];
-    }
-
-    const newDesign = {
-      ...currentDesignerBasis, 
-      designId: _generateUUID(),
-      designName: designName
+    let currentDesignerBasis = {
+        waterColor: '#1E90FF',
+        landColor: '#556B2F',
+        continentSeed: Math.random(),
+        riverBasin: 0.05,
+        forestDensity: 0.5,
+        minTerrainHeight: 0.0,
+        maxTerrainHeight: 10.0,
+        oceanHeightLevel: 1.0,
+        planetType: 0
     };
 
-    window.gameSessionData.customPlanetDesigns.push(newDesign);
-    
-    if (window.saveGameState) {
-      window.saveGameState();
-      console.log(`Planet design '${designName}' saved.`);
-    } else {
-      console.error("Could not find window.saveGameState() function.");
-    }
-    
-    _populateSavedDesignsList();
-  }
+    let designerThreeScene, designerThreeCamera, designerThreeRenderer,
+        designerThreePlanetMesh, designerThreeControls, designerThreeAnimationId, designerShaderMaterial;
 
-  function _loadAndPreviewDesign(designId) {
-    const designToLoad = window.gameSessionData?.customPlanetDesigns?.find(d => d.designId === designId);
-    if (designToLoad) {
-      const newBasis = { ...designToLoad };
-      newBasis.riverBasin = newBasis.riverBasin ?? 0.05;
-      newBasis.forestDensity = newBasis.forestDensity ?? 0.5;
-      delete newBasis.designId;
-      delete newBasis.designName;
-      currentDesignerBasis = newBasis;
-      
-      _populateDesignerInputsFromBasis();
-      _refreshDesignerPreview();
-    }
-  }
-
-function _handleExploreButtonClick(fromSolarSystem = false) {
-    const planetScreen = document.getElementById('planet-designer-screen');
-    const hexScreen = document.getElementById('hex-planet-screen');
-    
-    HexPlanetViewController.activate(currentDesignerBasis, () => {
-        // This callback will be different based on where we came from
-        if (fromSolarSystem) {
-            if (window.switchToSolarSystemView) {
-                window.switchToSolarSystemView();
-            } else {
-                console.error("Missing switchToSolarSystemView function");
+    function _onDesignerResize() {
+        if (designerThreeRenderer && document.getElementById('planet-designer-screen')?.classList.contains('active')) {
+            const newWidth = designerPlanetCanvas.offsetWidth;
+            const newHeight = designerPlanetCanvas.offsetHeight;
+            if (newWidth > 0 && newHeight > 0) {
+                designerThreeCamera.aspect = newWidth / newHeight;
+                designerThreeCamera.updateProjectionMatrix();
+                designerThreeRenderer.setSize(newWidth, newHeight);
             }
-        } else {
-            // Coming from designer
-            planetScreen.classList.add('active');
-            hexScreen.classList.remove('active');
         }
-    });
-
-    if (!fromSolarSystem) {
-        // Only hide the planet screen if we came from designer
-        planetScreen.classList.remove('active');
     }
-    hexScreen.classList.add('active');
-}
- 
-  function _deleteCustomPlanetDesign(designId) {
-    if (!window.gameSessionData?.customPlanetDesigns) return;
 
-    const designIndex = window.gameSessionData.customPlanetDesigns.findIndex(d => d.designId === designId);
-    if (designIndex > -1) {
-      const deletedDesignName = window.gameSessionData.customPlanetDesigns[designIndex].designName;
-      window.gameSessionData.customPlanetDesigns.splice(designIndex, 1);
-      
-      if (window.saveGameState) {
-        window.saveGameState();
-        console.log(`Planet design '${deletedDesignName}' deleted.`);
-      }
-      
-      _populateSavedDesignsList();
-    } else {
-      console.warn(`Could not find design with ID '${designId}' to delete.`);
+    function _initDesignerThreeJSView() {
+        if (!designerPlanetCanvas) return;
+
+        const { vertexShader, fragmentShader } = getPlanetShaders();
+
+        designerThreeScene = new THREE.Scene();
+        designerThreeScene.background = new THREE.Color(0x0d0d0d);
+        designerThreeCamera = new THREE.PerspectiveCamera(60, designerPlanetCanvas.offsetWidth / designerPlanetCanvas.offsetHeight, 0.001, 100);
+        designerThreeCamera.position.z = 2.5;
+
+        designerThreeRenderer = new THREE.WebGLRenderer({ canvas: designerPlanetCanvas, antialias: true });
+        designerThreeRenderer.setSize(designerPlanetCanvas.offsetWidth, designerPlanetCanvas.offsetHeight);
+        designerThreeRenderer.setPixelRatio(window.devicePixelRatio);
+
+        const geometry = new THREE.IcosahedronGeometry(SPHERE_BASE_RADIUS, 32);
+
+        const uniforms = THREE.UniformsUtils.merge([
+            THREE.UniformsLib.common,
+            {
+                uLandColor: { value: new THREE.Color() },
+                uWaterColor: { value: new THREE.Color() },
+                uOceanHeightLevel: { value: 0.5 },
+                uContinentSeed: { value: Math.random() },
+                uRiverBasin: { value: 0.05 },
+                uForestDensity: { value: 0.5 },
+                uTime: { value: 0.0 },
+                uSphereRadius: { value: SPHERE_BASE_RADIUS },
+                uDisplacementAmount: { value: 0.0 },
+                uLightDirection: { value: new THREE.Vector3(0.8, 0.6, 1.0) },
+                uPlanetType: { value: 0 }
+            }
+        ]);
+
+        designerShaderMaterial = new THREE.ShaderMaterial({
+            uniforms: uniforms,
+            vertexShader: vertexShader,
+            fragmentShader: fragmentShader,
+        });
+
+        designerThreePlanetMesh = new THREE.Mesh(geometry, designerShaderMaterial);
+        designerThreeScene.add(designerThreePlanetMesh);
+
+        designerThreeControls = new OrbitControls(designerThreeCamera, designerThreeRenderer.domElement);
+        designerThreeControls.enableDamping = true;
+        designerThreeControls.dampingFactor = 0.1;
+        designerThreeControls.rotateSpeed = 0.5;
+        designerThreeControls.minDistance = 0.9;
+        designerThreeControls.maxDistance = 4;
+        designerThreeControls.minAzimuthAngle = -Infinity;
+        designerThreeControls.maxAzimuthAngle = Infinity;
+        designerThreeControls.minPolarAngle = 0;
+        designerThreeControls.maxPolarAngle = Math.PI;
+
+        _animateDesignerThreeJSView();
     }
-  }
 
-  function _populateSavedDesignsList() {
-    if (!savedDesignsUl) return;
-    
-    savedDesignsUl.innerHTML = '';
-
-    if (!window.gameSessionData?.customPlanetDesigns || window.gameSessionData.customPlanetDesigns.length === 0) {
-      const li = document.createElement('li');
-      li.textContent = "No saved designs yet.";
-      li.style.fontStyle = "italic";
-      li.style.color = "#95a5a6";
-      savedDesignsUl.appendChild(li);
-      return;
+    function _animateDesignerThreeJSView() {
+        if (!designerThreeRenderer) return;
+        designerThreeAnimationId = requestAnimationFrame(_animateDesignerThreeJSView);
+        if (designerShaderMaterial?.uniforms.uTime) designerShaderMaterial.uniforms.uTime.value += 0.015;
+        if (designerThreeControls) designerThreeControls.update();
+        if (designerThreeScene && designerThreeCamera) designerThreeRenderer.render(designerThreeScene, designerThreeCamera);
     }
-    
-    window.gameSessionData.customPlanetDesigns.forEach(design => {
-      const li = document.createElement('li');
-      
-      const nameSpan = document.createElement('span');
-      nameSpan.className = 'design-item-name';
-      nameSpan.textContent = design.designName;
-      
-      const buttonsDiv = document.createElement('div');
 
-      const loadBtn = document.createElement('button');
-      loadBtn.textContent = 'Load';
-      loadBtn.className = 'design-item-load';
-      loadBtn.dataset.id = design.designId;
-      
-      const deleteBtn = document.createElement('button');
-      deleteBtn.innerHTML = '×'; 
-      deleteBtn.className = 'design-item-delete';
-      deleteBtn.dataset.id = design.designId;
-      deleteBtn.title = `Delete ${design.designName}`;
-      
-      buttonsDiv.appendChild(loadBtn);
-      buttonsDiv.appendChild(deleteBtn);
-      
-      li.appendChild(nameSpan);
-      li.appendChild(buttonsDiv);
-      
-      savedDesignsUl.appendChild(li);
-    });
-  }
+    function _stopAndCleanupDesignerThreeJSView() {
+        if (designerThreeAnimationId) cancelAnimationFrame(designerThreeAnimationId);
+        if (designerThreeControls) designerThreeControls.dispose();
+        if (designerShaderMaterial) designerShaderMaterial.dispose();
+        if (designerThreePlanetMesh) {
+            if (designerThreePlanetMesh.geometry) designerThreePlanetMesh.geometry.dispose();
+            if (designerThreeScene) designerThreeScene.remove(designerThreePlanetMesh);
+        }
+        if (designerThreeRenderer) designerThreeRenderer.dispose();
+        designerThreeAnimationId = null; designerThreeControls = null; designerShaderMaterial = null;
+        designerThreePlanetMesh = null; designerThreeRenderer = null; designerThreeScene = null; designerThreeCamera = null;
+    }
 
- return {
-  init: () => {
-   designerPlanetCanvas = document.getElementById('designer-planet-canvas');
-   designerWaterColorInput = document.getElementById('designer-water-color');
-   designerLandColorInput = document.getElementById('designer-land-color');
-   designerRiverBasinInput = document.getElementById('designer-river-basin');
-   designerRiverBasinValue = document.getElementById('designer-river-basin-value');
-   designerForestDensityInput = document.getElementById('designer-forest-density');
-   designerForestDensityValue = document.getElementById('designer-forest-density-value');
-   designerMinHeightInput = document.getElementById('designer-min-height');
-   designerMaxHeightInput = document.getElementById('designer-max-height');
-   designerOceanHeightInput = document.getElementById('designer-ocean-height');
-   savedDesignsUl = document.getElementById('saved-designs-ul');
-   designerRandomizeBtn = document.getElementById('designer-randomize-btn');
-   designerExploreBtn = document.getElementById('designer-explore-btn');
-   designerSaveBtn = document.getElementById('designer-save-btn');
-   designerCancelBtn = document.getElementById('designer-cancel-btn');
+    function _handleControlChange(event) {
+        const input = event.target;
+        switch (input.id) {
+            case 'designer-water-color':
+                currentDesignerBasis.waterColor = input.value;
+                break;
+            case 'designer-land-color':
+                currentDesignerBasis.landColor = input.value;
+                break;
+            case 'designer-river-basin':
+                const riverBasin = parseFloat(input.value);
+                currentDesignerBasis.riverBasin = riverBasin;
+                designerRiverBasinValue.textContent = riverBasin.toFixed(2);
+                break;
+            case 'designer-forest-density':
+                const forestDensity = parseFloat(input.value);
+                currentDesignerBasis.forestDensity = forestDensity;
+                designerForestDensityValue.textContent = forestDensity.toFixed(2);
+                break;
+            case 'designer-min-height':
+                currentDesignerBasis.minTerrainHeight = parseFloat(input.value);
+                break;
+            case 'designer-max-height':
+                currentDesignerBasis.maxTerrainHeight = parseFloat(input.value);
+                break;
+            case 'designer-ocean-height':
+                currentDesignerBasis.oceanHeightLevel = parseFloat(input.value);
+                break;
+        }
+        const { minTerrainHeight, maxTerrainHeight, oceanHeightLevel } = currentDesignerBasis;
+        currentDesignerBasis.oceanHeightLevel = Math.max(minTerrainHeight, Math.min(maxTerrainHeight, oceanHeightLevel));
+        _refreshDesignerPreview();
+    }
 
-   // --- NEW: Define handlers ---
-   handleControlChangeRef = (e) => _handleControlChange(e);
-   randomizeDesignerPlanetRef = () => _randomizeDesignerPlanet();
-   handleExploreButtonClickRef = () => _handleExploreButtonClick(false);
-   saveCustomPlanetDesignRef = () => _saveCustomPlanetDesign();
-   cancelDesignerRef = () => PlanetDesigner.deactivate();
-   savedDesignsClickHandlerRef = (e) => {
-        const targetButton = e.target.closest('button');
-        if (!targetButton) return;
-        const id = targetButton.dataset.id;
-        if (!id) return;
+    function _refreshDesignerPreview() {
+        if (!designerShaderMaterial) return;
+        const {
+            waterColor, landColor, continentSeed, riverBasin, forestDensity,
+            minTerrainHeight, maxTerrainHeight, oceanHeightLevel
+        } = currentDesignerBasis;
+        const terrainRange = Math.max(0.1, maxTerrainHeight - minTerrainHeight);
+        const normalizedOceanLevel = (oceanHeightLevel - minTerrainHeight) / terrainRange;
+        const uniforms = designerShaderMaterial.uniforms;
+        uniforms.uWaterColor.value.set(waterColor);
+        uniforms.uLandColor.value.set(landColor);
+        uniforms.uContinentSeed.value = continentSeed;
+        uniforms.uRiverBasin.value = riverBasin;
+        uniforms.uForestDensity.value = forestDensity;
+        uniforms.uOceanHeightLevel.value = normalizedOceanLevel - 0.5;
+        const displacementAmount = terrainRange * DISPLACEMENT_SCALING_FACTOR;
+        uniforms.uDisplacementAmount.value = displacementAmount;
+    }
 
-        if (targetButton.classList.contains('design-item-load')) {
-            _loadAndPreviewDesign(id);
-        } else if (targetButton.classList.contains('design-item-delete')) {
-            _deleteCustomPlanetDesign(id);
+    function _populateDesignerInputsFromBasis() {
+        if (!designerWaterColorInput) return;
+        const basis = currentDesignerBasis;
+        designerWaterColorInput.value = basis.waterColor;
+        designerLandColorInput.value = basis.landColor;
+        designerRiverBasinInput.value = basis.riverBasin;
+        designerRiverBasinValue.textContent = Number(basis.riverBasin).toFixed(2);
+        designerForestDensityInput.value = basis.forestDensity;
+        designerForestDensityValue.textContent = Number(basis.forestDensity).toFixed(2);
+        designerMinHeightInput.value = basis.minTerrainHeight;
+        designerMaxHeightInput.value = basis.maxTerrainHeight;
+        designerOceanHeightInput.value = basis.oceanHeightLevel;
+    }
+
+    function _randomizeDesignerPlanet() {
+        function _getRandomHexColor() { return '#' + (Math.random() * 0xFFFFFF | 0).toString(16).padStart(6, '0'); }
+        function _getRandomFloat(min, max, p = 1) { const f = Math.pow(10, p); return parseFloat((Math.random() * (max - min) + min).toFixed(p)); }
+
+        const minH = _getRandomFloat(0.0, 4.0);
+        const maxH = _getRandomFloat(minH + 1.0, minH + 10.0);
+
+        currentDesignerBasis = {
+            waterColor: _getRandomHexColor(),
+            landColor: _getRandomHexColor(),
+            continentSeed: Math.random(),
+            riverBasin: _getRandomFloat(0.01, 0.15, 2),
+            forestDensity: _getRandomFloat(0.1, 0.9, 2),
+            minTerrainHeight: minH,
+            maxTerrainHeight: maxH,
+            oceanHeightLevel: _getRandomFloat(minH, maxH),
+            planetType: Math.floor(Math.random() * 4) // Also randomize planet type
+        };
+
+        _populateDesignerInputsFromBasis();
+        _refreshDesignerPreview();
+    }
+
+    function _generateUUID() {
+        return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, function (c) {
+            const r = Math.random() * 16 | 0;
+            const v = c === 'x' ? r : (r & 0x3 | 0x8);
+            return v.toString(16);
+        });
+    }
+
+    function _saveCustomPlanetDesign() {
+        // Use the manager to get the current number of designs to name the new one.
+        const designName = `My Planet ${GameStateManager.getCustomPlanetDesigns().length + 1}`;
+
+        const newDesign = {
+            ...currentDesignerBasis,
+            designId: _generateUUID(),
+            designName: designName
+        };
+
+        // Use the manager to add the design. It will handle saving to localStorage.
+        GameStateManager.addCustomPlanetDesign(newDesign);
+        console.log(`Planet design '${designName}' saved.`);
+
+        _populateSavedDesignsList();
+    }
+
+    function _loadAndPreviewDesign(designId) {
+        // Use the manager to find the design.
+        const designToLoad = GameStateManager.getCustomPlanetDesigns().find(d => d.designId === designId);
+        if (designToLoad) {
+            // Ensure all properties are copied.
+            currentDesignerBasis = {
+                ...currentDesignerBasis, // Keep defaults for any missing properties
+                ...designToLoad
+            };
+            delete currentDesignerBasis.designId;
+            delete currentDesignerBasis.designName;
+
+            _populateDesignerInputsFromBasis();
+            _refreshDesignerPreview();
+        }
+    }
+
+    function _handleExploreButtonClick(fromSolarSystem = false) {
+        const planetScreen = document.getElementById('planet-designer-screen');
+        const hexScreen = document.getElementById('hex-planet-screen');
+
+        HexPlanetViewController.activate(currentDesignerBasis, () => {
+            if (fromSolarSystem) {
+                // This case is for future expansion if you can explore from the solar system view
+                if (window.switchToSolarSystemView) {
+                    window.switchToSolarSystemView();
+                }
+            } else {
+                // Default case: returning from explore view back to the designer
+                planetScreen.classList.add('active');
+                hexScreen.classList.remove('active');
+            }
+        });
+
+        if (!fromSolarSystem) {
+            planetScreen.classList.remove('active');
+        }
+        hexScreen.classList.add('active');
+    }
+
+    function _deleteCustomPlanetDesign(designId) {
+        // Use the manager to delete the design. It handles saving.
+        GameStateManager.deleteCustomPlanetDesign(designId);
+        console.log(`Planet design with ID '${designId}' deleted.`);
+        _populateSavedDesignsList();
+    }
+
+    function _populateSavedDesignsList() {
+        if (!savedDesignsUl) return;
+        savedDesignsUl.innerHTML = '';
+
+        // Get the list of designs from the manager.
+        const designs = GameStateManager.getCustomPlanetDesigns();
+
+        if (designs.length === 0) {
+            const li = document.createElement('li');
+            li.textContent = "No saved designs yet.";
+            li.style.fontStyle = "italic";
+            li.style.color = "#95a5a6";
+            savedDesignsUl.appendChild(li);
+            return;
+        }
+
+        designs.forEach(design => {
+            const li = document.createElement('li');
+            const nameSpan = document.createElement('span');
+            nameSpan.className = 'design-item-name';
+            nameSpan.textContent = design.designName;
+
+            const buttonsDiv = document.createElement('div');
+            const loadBtn = document.createElement('button');
+            loadBtn.textContent = 'Load';
+            loadBtn.className = 'design-item-load modal-button-apply';
+            loadBtn.dataset.id = design.designId;
+
+            const deleteBtn = document.createElement('button');
+            deleteBtn.innerHTML = '×';
+            deleteBtn.className = 'design-item-delete';
+            deleteBtn.dataset.id = design.designId;
+            deleteBtn.title = `Delete ${design.designName}`;
+
+            buttonsDiv.appendChild(loadBtn);
+            buttonsDiv.appendChild(deleteBtn);
+            li.appendChild(nameSpan);
+            li.appendChild(buttonsDiv);
+            savedDesignsUl.appendChild(li);
+        });
+    }
+
+    return {
+        init: () => {
+            designerPlanetCanvas = document.getElementById('designer-planet-canvas');
+            designerWaterColorInput = document.getElementById('designer-water-color');
+            designerLandColorInput = document.getElementById('designer-land-color');
+            designerRiverBasinInput = document.getElementById('designer-river-basin');
+            designerRiverBasinValue = document.getElementById('designer-river-basin-value');
+            designerForestDensityInput = document.getElementById('designer-forest-density');
+            designerForestDensityValue = document.getElementById('designer-forest-density-value');
+            designerMinHeightInput = document.getElementById('designer-min-height');
+            designerMaxHeightInput = document.getElementById('designer-max-height');
+            designerOceanHeightInput = document.getElementById('designer-ocean-height');
+            savedDesignsUl = document.getElementById('saved-designs-ul');
+            designerRandomizeBtn = document.getElementById('designer-randomize-btn');
+            designerExploreBtn = document.getElementById('designer-explore-btn');
+            designerSaveBtn = document.getElementById('designer-save-btn');
+            designerCancelBtn = document.getElementById('designer-cancel-btn');
+
+            handleControlChangeRef = (e) => _handleControlChange(e);
+            randomizeDesignerPlanetRef = () => _randomizeDesignerPlanet();
+            handleExploreButtonClickRef = () => _handleExploreButtonClick(false);
+            saveCustomPlanetDesignRef = () => _saveCustomPlanetDesign();
+            cancelDesignerRef = () => PlanetDesigner.deactivate();
+            savedDesignsClickHandlerRef = (e) => {
+                const targetButton = e.target.closest('button');
+                if (!targetButton) return;
+                const id = targetButton.dataset.id;
+                if (!id) return;
+
+                if (targetButton.classList.contains('design-item-load')) {
+                    _loadAndPreviewDesign(id);
+                } else if (targetButton.classList.contains('design-item-delete')) {
+                    _deleteCustomPlanetDesign(id);
+                }
+            };
+            boundResizeHandler = _onDesignerResize.bind(this);
+
+            document.querySelectorAll('.designer-controls input').forEach(input => {
+                input.addEventListener('input', handleControlChangeRef);
+            });
+
+            designerRandomizeBtn?.addEventListener('click', randomizeDesignerPlanetRef);
+            designerExploreBtn?.addEventListener('click', handleExploreButtonClickRef);
+            designerSaveBtn?.addEventListener('click', saveCustomPlanetDesignRef);
+            designerCancelBtn?.addEventListener('click', cancelDesignerRef);
+            savedDesignsUl?.addEventListener('click', savedDesignsClickHandlerRef);
+            window.addEventListener('resize', boundResizeHandler);
+        },
+
+        activate: (onBack) => {
+            console.log("PlanetDesigner.activate called.");
+            onBackCallback = onBack;
+            _populateDesignerInputsFromBasis();
+            _populateSavedDesignsList();
+
+            requestAnimationFrame(() => {
+                _stopAndCleanupDesignerThreeJSView();
+                _initDesignerThreeJSView();
+                _refreshDesignerPreview();
+            });
+        },
+
+        deactivate: () => {
+            console.log("PlanetDesigner.deactivate called.");
+            _stopAndCleanupDesignerThreeJSView();
+
+            if (typeof onBackCallback === 'function') {
+                onBackCallback();
+            } else {
+                console.error("No onBack callback provided to PlanetDesigner.");
+            }
+        },
+
+        destroy: () => {
+            console.log("PlanetDesigner: Removing event listeners.");
+            document.querySelectorAll('.designer-controls input').forEach(input => {
+                input.removeEventListener('input', handleControlChangeRef);
+            });
+            designerRandomizeBtn?.removeEventListener('click', randomizeDesignerPlanetRef);
+            designerExploreBtn?.removeEventListener('click', handleExploreButtonClickRef);
+            designerSaveBtn?.removeEventListener('click', saveCustomPlanetDesignRef);
+            designerCancelBtn?.removeEventListener('click', cancelDesignerRef);
+            savedDesignsUl?.removeEventListener('click', savedDesignsClickHandlerRef);
+            window.removeEventListener('resize', boundResizeHandler);
         }
     };
-   boundResizeHandler = _onDesignerResize.bind(this);
-   
-   // --- ATTACH EVENT LISTENERS ---
-   document.querySelectorAll('.designer-control').forEach(input => {
-    input.addEventListener('input', handleControlChangeRef);
-   });
-
-   designerRandomizeBtn?.addEventListener('click', randomizeDesignerPlanetRef);
-   designerExploreBtn?.addEventListener('click', handleExploreButtonClickRef);
-   designerSaveBtn?.addEventListener('click', saveCustomPlanetDesignRef); 
-   designerCancelBtn?.addEventListener('click', cancelDesignerRef);
-   savedDesignsUl?.addEventListener('click', savedDesignsClickHandlerRef);
-   window.addEventListener('resize', boundResizeHandler);
-  },
-
-  activate: (onBack) => {
-   console.log("PlanetDesigner.activate called.");
-   onBackCallback = onBack;
-   _populateDesignerInputsFromBasis();
-   _populateSavedDesignsList(); 
-    
-   requestAnimationFrame(() => {
-    _stopAndCleanupDesignerThreeJSView();
-    _initDesignerThreeJSView();
-    _refreshDesignerPreview();
-   });
-  },
-
-  deactivate: () => {
-    console.log("PlanetDesigner.deactivate called.");
-    _stopAndCleanupDesignerThreeJSView();
-
-    if (typeof onBackCallback === 'function') {
-        onBackCallback();
-    } else {
-        console.error("No onBack callback provided to PlanetDesigner, returning to galaxy view as a fallback.");
-        if (window.gameSessionData.activeGalaxyId && window.switchToGalaxyDetailView) {
-            window.switchToGalaxyDetailView(window.gameSessionData.activeGalaxyId);
-        }
-    }
-  },
-  
-  destroy: () => {
-    // --- NEW: Cleanup function ---
-    console.log("PlanetDesigner: Removing event listeners.");
-    document.querySelectorAll('.designer-control').forEach(input => {
-        input.removeEventListener('input', handleControlChangeRef);
-    });
-    designerRandomizeBtn?.removeEventListener('click', randomizeDesignerPlanetRef);
-    designerExploreBtn?.removeEventListener('click', handleExploreButtonClickRef);
-    designerSaveBtn?.removeEventListener('click', saveCustomPlanetDesignRef);
-    designerCancelBtn?.removeEventListener('click', cancelDesignerRef);
-    savedDesignsUl?.removeEventListener('click', savedDesignsClickHandlerRef);
-    window.removeEventListener('resize', boundResizeHandler);
-  }
- };
 })();

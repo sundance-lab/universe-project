@@ -60,9 +60,6 @@ float ridgedRiverNoise(vec3 p, float seed) {
 
 const noiseFunctions = glslRandom2to1 + glslSimpleValueNoise3D + glslLayeredNoise + glslRidgedRiverNoise;
 
-
-// --- Shaders for Standard Planet Preview (Designer View) ---
-
 const planetVertexShaderSource = `
 uniform float uContinentSeed;
 uniform float uSphereRadius;
@@ -250,9 +247,6 @@ export function getPlanetShaders() {
  };
 }
 
-
-// --- Shaders for Hex Planet Surface (Explore View) ---
-// Note: These shaders are also updated to accept the uPlanetType uniform
 export function getHexPlanetShaders() {
  const hexVertexShader = `
   attribute vec3 barycentric;

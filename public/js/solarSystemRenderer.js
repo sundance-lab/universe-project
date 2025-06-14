@@ -390,52 +390,32 @@ export const SolarSystemRenderer = (() => {
         
         controls.enableDamping = true;
 
-        if (cameraAnimation) {
-            const distanceToTarget = camera.position.distanceTo(cameraAnimation.targetPosition);
-            const speed = 0.04;
+// In public/js/solarSystemRenderer.js, inside the _animate function
 
-            if (focusedPlanetMesh) {
-                const currentPlanetWorldPosition = new THREE.Vector3();
-                focusedPlanetMesh.getWorldPosition(currentPlanetWorldPosition);
-                cameraAnimation.targetLookAt.copy(currentPlanetWorldPosition);
-            }
+if (cameraAnimation) {
+    const distanceToTarget = camera.position.distanceTo(cameraAnimation.targetPosition);
+    const speed = 0.04;
 
-            camera.position.lerp(cameraAnimation.targetPosition, speed);
-            controls.target.lerp(cameraAnimation.targetLookAt, speed);
-            
-            if (distanceToTarget < 1) {
-                camera.position.copy(cameraAnimation.targetPosition);
-                controls.target.copy(cameraAnimation.targetLookAt);
-                cameraAnimation = null;
-                controls.enabled = true;
-                if (focusedPlanetMesh) {
-                    controls.autoRotate = true;
-                } else {
-                    controls.minDistance = 50; 
-                }
-            }
-        } else if (focusedPlanetMesh) {
-            const newPlanetPosition = new THREE.Vector3();
-            focusedPlanetMesh.getWorldPosition(newPlanetPosition);
-            const oldPlanetPosition = focusedPlanetMesh.userData.lastWorldPosition;
-
-            const delta = new THREE.Vector3().subVectors(newPlanetPosition, oldPlanetPosition);
-            
-            camera.position.add(delta);
-            controls.target.add(delta);
-        }
-        
-        controls.update();
-        if (distantGalaxiesGroup) distantGalaxiesGroup.rotation.y += 0.00005;
-        if (sunLOD) {
-            sunLOD.rotation.y += 0.0001;
-            sunLOD.update(camera);
-            sunLOD.levels.forEach(level => {
-                if (level.object.material.uniforms) level.object.material.uniforms.time.value = now * 0.0003;
-            });
-        }
-        renderer.render(scene, camera);
+    if (focusedPlanetMesh) {
+        const currentPlanetWorldPosition = new THREE.Vector3();
+        focusedPlanetMesh.getWorldPosition(currentPlanetWorldPosition);
+        cameraAnimation.targetLookAt.copy(currentPlanetWorldPosition);
     }
+
+    camera.position.lerp(cameraAnimation.targetPosition, speed);
+    controls.target.lerp(cameraAnimation.targetLookAt, speed);
+    
+    if (distanceToTarget < 1) {
+        camera.position.copy(cameraAnimation.targetPosition);
+        controls.target.copy(cameraAnimation.targetLookAt);
+        cameraAnimation = null;
+        controls.enabled = true;
+        // The "if (focusedPlanetMesh)" block that set autoRotate to true is now gone.
+        if (!focusedPlanetMesh) { // You may want to ensure minDistance is only reset when unfocusing
+            controls.minDistance = 50; 
+        }
+    }
+}
     
     function focusOnPlanet(planetId) {
         controls.saveState();

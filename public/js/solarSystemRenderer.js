@@ -372,6 +372,10 @@ export const SolarSystemRenderer = (() => {
                 controls.target.copy(followedPlanet.getWorldPosition(new THREE.Vector3()));
                 focusAnimation = null;
                 controls.enabled = true;
+                
+                // Configure controls for focused state
+                controls.enablePan = false;
+                controls.mouseButtons.RIGHT = THREE.MOUSE.ROTATE;
             }
         } else if (followedPlanet) {
             const newPlanetWorldPos = followedPlanet.getWorldPosition(new THREE.Vector3());
@@ -379,11 +383,6 @@ export const SolarSystemRenderer = (() => {
             
             camera.position.add(delta);
             controls.target.copy(newPlanetWorldPos);
-            controls.enableRotate = false;
-            controls.enablePan = false;
-        } else {
-            controls.enableRotate = true;
-            controls.enablePan = true;
         }
 
         planetMeshes.forEach(mesh => {
@@ -424,7 +423,12 @@ export const SolarSystemRenderer = (() => {
     }
 
     function unfocus() {
-        followedPlanet = null;
+        if (followedPlanet) {
+            followedPlanet = null;
+            // Revert controls to default state
+            controls.enablePan = true;
+            controls.mouseButtons.RIGHT = THREE.MOUSE.PAN;
+        }
     }
 
     function focusOnPlanet(planetId) {

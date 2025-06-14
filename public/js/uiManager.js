@@ -397,7 +397,7 @@ export const UIManager = (() => {
             if (galaxyCameraFovInput) galaxyCameraFovInput.value = config.RENDERER.CAMERA_FOV;
             if (galaxyCameraNearInput) galaxyCameraNearInput.value = config.RENDERER.CAMERA_NEAR;
             if (galaxyCameraFarInput) galaxyCameraFarInput.value = config.RENDERER.CAMERA_FAR;
-            if (galaxyControlsDampingFactorInput) galaxyControlsDampingFactorInput.value = config.RENDERER.CONTROLS_Damping_FACTOR;
+            if (galaxyControlsDampingFactorInput) galaxyControlsDampingFactorInput.value = config.RENDERER.CONTROLS_DAMPING_FACTOR;
             if (galaxyControlsMinDistanceInput) galaxyControlsMinDistanceInput.value = config.RENDERER.CONTROLS_MIN_DISTANCE;
             if (galaxyControlsMaxDistanceMultiplierInput) galaxyControlsMaxDistanceMultiplierInput.value = config.RENDERER.CONTROLS_MAX_DISTANCE_MULTIPLIER;
             if (galaxyRotationSpeedInput) galaxyRotationSpeedInput.value = config.RENDERER.ROTATION_SPEED;
@@ -669,11 +669,18 @@ export const UIManager = (() => {
             elements.planetSidebarList.addEventListener('click', (event) => {
                 const item = event.target.closest('.planet-sidebar-item');
                 if (!item) return;
-        
+            
                 const planetId = item.dataset.planetId;
-                if (planetId && window.activeSolarSystemRenderer) {
+                if (!planetId || !window.activeSolarSystemRenderer) return;
+
+                const isCurrentlyFocused = item.classList.contains('active-focus');
+
+                if (isCurrentlyFocused) {
+                    window.activeSolarSystemRenderer.unfocus();
+                    item.classList.remove('active-focus');
+                } else {
                     window.activeSolarSystemRenderer.focusOnPlanet(planetId);
-        
+            
                     const allItems = elements.planetSidebarList.querySelectorAll('.planet-sidebar-item');
                     allItems.forEach(i => i.classList.remove('active-focus'));
                     item.classList.add('active-focus');

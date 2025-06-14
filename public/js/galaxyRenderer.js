@@ -12,10 +12,9 @@ export const GalaxyRenderer = (() => {
     let skybox, galaxyGroup, sisterGalaxy, distantGalaxiesGroup;
     let animationFrameId = null;
     let onSystemClickCallback = null;
-    // We no longer need a module-level variable for the interactive data
-    // as it will be attached directly to the clickableSystemParticles object.
     let createdTextures = [];
     let _currentGalaxyData = null;
+    let resizeObserver = null; // For robust resizing
 
     // --- CONFIGURATION PARAMETERS ---
     let GALAXY_CONFIG = {
@@ -302,7 +301,6 @@ export const GalaxyRenderer = (() => {
         _loadSkybox();
 
         renderer.domElement.addEventListener('click', _onCanvasClick);
-        window.addEventListener('resize', _onResize);
     }
 
     function _createGalacticCoreGlow() {
@@ -519,8 +517,6 @@ export const GalaxyRenderer = (() => {
         nebulaParticles = _createParticleSystem(nebulaPositions, [], GALAXY_CONFIG.NEBULA.SIZE, nebulaTexture, GALAXY_CONFIG.NEBULA.OPACITY, THREE.AdditiveBlending, false);
         clickableSystemParticles = _createParticleSystem(clickablePositions, clickableColors, GALAXY_CONFIG.STAR_COUNTS.CLICKABLE_SYSTEM_SIZE, _createClickableSystemTexture(), 0.95, THREE.AdditiveBlending, false);
 
-        // --- THIS IS THE FIX ---
-        // Attach the data directly to the 3D object's userData property.
         clickableSystemParticles.userData.systems = interactiveSystemsData;
 
         galaxyGroup.add(haloStarParticles, coreStarParticles, diskStarParticles, decorativeStarParticles, dustParticles, nebulaParticles, clickableSystemParticles, _createGalacticCoreGlow());
@@ -558,8 +554,6 @@ export const GalaxyRenderer = (() => {
             intersects.sort((a, b) => a.distanceToRay - b.distanceToRay);
             const intersection = intersects[0];
 
-            // --- THIS IS THE FIX ---
-            // Get data from the clicked object's userData, not a separate variable.
             const systemsData = intersection.object.userData.systems;
             const clickedSystem = systemsData?.[intersection.index];
 
@@ -607,7 +601,12 @@ export const GalaxyRenderer = (() => {
 
     function _dispose() {
         if (animationFrameId) cancelAnimationFrame(animationFrameId);
-        window.removeEventListener('resize', _onResize);
+        
+        if (resizeObserver) {
+            resizeObserver.disconnect();
+            resizeObserver = null;
+        }
+        
         if (renderer) renderer.domElement.removeEventListener('click', _onCanvasClick);
 
         if (controls) controls.dispose();
@@ -655,9 +654,16 @@ export const GalaxyRenderer = (() => {
             _dispose();
             onSystemClickCallback = callback;
             _currentGalaxyData = galaxyData;
+            
+            resizeObserver = new ResizeObserver(() => {
+                _onResize();
+            });
+            if (container) {
+                resizeObserver.observe(container);
+            }
+            
             _initScene(container, galaxyData);
             _animate();
-            setTimeout(_onResize, 100);
         },
         dispose: _dispose,
         resetConfig: () => {
@@ -665,14 +671,13 @@ export const GalaxyRenderer = (() => {
             GALAXY_CONFIG.COLORS.PALETTE = GALAXY_CONFIG.COLORS.PALETTE.map(c => new THREE.Color(c.r, c.g, c.b));
         },
         updateConfig: (newConfig) => {
-            _deepMerge(GALAXY_CONFIG, newConfig);
+            _deepMerge(GALAAXA_CONFIG, newConfig);
             if (scene && _currentGalaxyData) {
                 const currentContainer = renderer ? renderer.domElement.parentNode : document.getElementById('galaxy-canvas-container');
                 _dispose();
                 if (currentContainer) {
                     _initScene(currentContainer, _currentGalaxyData);
                     _animate();
-                    setTimeout(_onResize, 100);
                 } else {
                     console.warn("GalaxyRenderer: Attempted to update config without an active canvas container.");
                 }

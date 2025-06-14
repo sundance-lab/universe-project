@@ -437,6 +437,8 @@ export const SolarSystemRenderer = (() => {
     
 // in public/js/solarSystemRenderer.js
 
+// In public/js/solarSystemRenderer.js
+
 function focusOnPlanet(planetId) {
     controls.saveState();
     controls.enabled = false;
@@ -451,18 +453,25 @@ function focusOnPlanet(planetId) {
     const planetWorldPosition = new THREE.Vector3();
     focusedPlanetMesh.getWorldPosition(planetWorldPosition);
     
-    controls.minDistance = focusedPlanetMesh.userData.size * 1.2; // Sets the maximum zoom level
+    // Set the new min zoom distance for the controls
+    controls.minDistance = focusedPlanetMesh.userData.size * 1.2;
     controls.enablePan = false;
 
-    const planetToCamera = new THREE.Vector3().subVectors(camera.position, planetWorldPosition);
-    
-    // MODIFIED: This now matches the minDistance for maximum zoom
-    const desiredDistance = focusedPlanetMesh.userData.size * 1.2; 
-    
-    const offset = planetToCamera.normalize().multiplyScalar(desiredDistance);
+    // --- NEW, MORE RELIABLE LOGIC ---
+    // 1. Define the distance we want to be from the planet (max zoom).
+    const desiredDistance = controls.minDistance;
 
-    let targetPosition = planetWorldPosition.clone().add(offset);
-    
+    // 2. Define a standard direction for the camera's offset (e.g., slightly above and behind).
+    const offsetDirection = new THREE.Vector3(0, 0.4, 1).normalize();
+
+    // 3. Create the final offset vector by scaling our direction by the desired distance.
+    const offset = offsetDirection.multiplyScalar(desiredDistance);
+
+    // 4. Calculate the camera's target position by adding the offset to the planet's position.
+    const targetPosition = planetWorldPosition.clone().add(offset);
+    // --- END OF NEW LOGIC ---
+
+    // This check to see if the sun is in the way is still useful.
     const direction = new THREE.Vector3().subVectors(planetWorldPosition, camera.position).normalize();
     raycaster.set(camera.position, direction);
     const intersects = raycaster.intersectObjects(sunLOD.children);
@@ -471,12 +480,12 @@ function focusOnPlanet(planetId) {
         targetPosition.y += 20000;
     }
     
-    cameraAnimation = { targetPosition, targetLookAt: planetWorldPosition.clone() };
+    // The look-at target is always the center of the planet
+    cameraAnimation = { targetPosition: targetPosition, targetLookAt: planetWorldPosition.clone() };
     controls.autoRotate = false;
 
     return true;
 }
-
     function unfocusPlanet() {
         if (!focusedPlanetMesh && !cameraAnimation) return;
         controls.enabled = false;

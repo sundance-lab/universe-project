@@ -681,7 +681,7 @@ export const UIManager = (() => {
             
             boundGalaxyApplyHandler = () => _applyGalaxySettings();
             boundGalaxyCancelHandler = () => hideGalaxyCustomizationModal();
-            boundGalaxyRandomizeAllHandler = () => _randomizeAllGalaxySettings();
+             = () => _randomizeAllGalaxySettings();
             boundGalaxyRandomizePaletteHandler = () => _randomizeGalaxyPalette();
             boundGalaxySaveDesignHandler = () => _saveGalaxyDesign();
             boundSavedGalaxyDesignsClickHandler = (e) => {
@@ -699,8 +699,7 @@ export const UIManager = (() => {
 
             galaxyApplyBtn?.addEventListener('click', boundGalaxyApplyHandler);
             galaxyCancelBtn?.addEventListener('click', boundGalaxyCancelHandler);
-            galaxyRandomizeAllBtn?.addEventListener('click', boundGalaxyRandomizeAllHandler);
-            // THIS IS THE FIX: Using the correct variable name for the handler
+            galaxyRandomizeAllBtn?.addEventListener('click', boundGalaxyRandomizePaletteHandler);
             galaxyRandomizePaletteBtn?.addEventListener('click', boundGalaxyRandomizePaletteHandler);
             galaxySaveDesignBtn?.addEventListener('click', boundGalaxySaveDesignHandler);
             savedGalaxyDesignsUl?.addEventListener('click', boundSavedGalaxyDesignsClickHandler);

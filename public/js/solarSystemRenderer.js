@@ -394,12 +394,6 @@ export const SolarSystemRenderer = (() => {
             const distanceToTarget = camera.position.distanceTo(cameraAnimation.targetPosition);
             const speed = 0.04;
 
-            if (focusedPlanetMesh) {
-                const currentPlanetWorldPosition = new THREE.Vector3();
-                focusedPlanetMesh.getWorldPosition(currentPlanetWorldPosition);
-                cameraAnimation.targetLookAt.copy(currentPlanetWorldPosition);
-            }
-
             camera.position.lerp(cameraAnimation.targetPosition, speed);
             controls.target.lerp(cameraAnimation.targetLookAt, speed);
             
@@ -408,19 +402,12 @@ export const SolarSystemRenderer = (() => {
                 controls.target.copy(cameraAnimation.targetLookAt);
                 cameraAnimation = null;
                 controls.enabled = true;
-                if (!focusedPlanetMesh) {
-                    controls.minDistance = 50; 
-                }
             }
         } else if (focusedPlanetMesh) {
+            // REWORKED FOLLOW LOGIC
             const newPlanetPosition = new THREE.Vector3();
             focusedPlanetMesh.getWorldPosition(newPlanetPosition);
-            const oldPlanetPosition = focusedPlanetMesh.userData.lastWorldPosition;
-
-            const delta = new THREE.Vector3().subVectors(newPlanetPosition, oldPlanetPosition);
-            
-            camera.position.add(delta);
-            controls.target.add(delta);
+            controls.target.copy(newPlanetPosition);
         }
         
         controls.update();
@@ -435,72 +422,50 @@ export const SolarSystemRenderer = (() => {
         renderer.render(scene, camera);
     }
     
-// in public/js/solarSystemRenderer.js
+    // REWORKED FOCUS FUNCTION
+    function focusOnPlanet(planetId) {
+        if (cameraAnimation) return false; // Don't allow focusing while another animation is running
+        
+        controls.saveState();
+        
+        focusedPlanetMesh = planetMeshes.find(p => p.userData.id === planetId);
 
-// In public/js/solarSystemRenderer.js
-
-function focusOnPlanet(planetId) {
-    controls.saveState();
-    controls.enabled = false;
-
-    focusedPlanetMesh = planetMeshes.find(p => p.userData.id === planetId);
-
-    if (!focusedPlanetMesh) {
-        console.warn(`focusOnPlanet: Planet with ID ${planetId} not found.`);
-        return false;
-    }
-    
-    const planetWorldPosition = new THREE.Vector3();
-    focusedPlanetMesh.getWorldPosition(planetWorldPosition);
-    
-    // Set the new min zoom distance for the controls
-    controls.minDistance = focusedPlanetMesh.userData.size * 1.2;
-    controls.enablePan = false;
-
-    // --- NEW, MORE RELIABLE LOGIC ---
-    // 1. Define the distance we want to be from the planet (max zoom).
-    const desiredDistance = controls.minDistance;
-
-    // 2. Define a standard direction for the camera's offset (e.g., slightly above and behind).
-    const offsetDirection = new THREE.Vector3(0, 0.4, 1).normalize();
-
-    // 3. Create the final offset vector by scaling our direction by the desired distance.
-    const offset = offsetDirection.multiplyScalar(desiredDistance);
-
-    // 4. Calculate the camera's target position by adding the offset to the planet's position.
-    const targetPosition = planetWorldPosition.clone().add(offset);
-    // --- END OF NEW LOGIC ---
-
-    // This check to see if the sun is in the way is still useful.
-    const direction = new THREE.Vector3().subVectors(planetWorldPosition, camera.position).normalize();
-    raycaster.set(camera.position, direction);
-    const intersects = raycaster.intersectObjects(sunLOD.children);
-    
-    if (intersects.length > 0 && intersects[0].distance < camera.position.distanceTo(planetWorldPosition)) {
-        targetPosition.y += 20000;
-    }
-    
-    // The look-at target is always the center of the planet
-    cameraAnimation = { targetPosition: targetPosition, targetLookAt: planetWorldPosition.clone() };
-    controls.autoRotate = false;
-
-    return true;
-}
-    function unfocusPlanet() {
-        if (!focusedPlanetMesh && !cameraAnimation) return;
+        if (!focusedPlanetMesh) {
+            console.warn(`focusOnPlanet: Planet with ID ${planetId} not found.`);
+            return false;
+        }
+        
         controls.enabled = false;
+        
+        const planetWorldPosition = new THREE.Vector3();
+        focusedPlanetMesh.getWorldPosition(planetWorldPosition);
+        
+        const newMinDistance = focusedPlanetMesh.userData.size * 1.2;
+        controls.minDistance = newMinDistance;
+        controls.enablePan = false;
 
-        const savedPosition = controls.position0.clone();
-        const savedTarget = controls.target0.clone();
+        const offsetDirection = new THREE.Vector3(0, 0.4, 1).normalize();
+        const offset = offsetDirection.multiplyScalar(newMinDistance);
+        const targetPosition = planetWorldPosition.clone().add(offset);
         
-        focusedPlanetMesh = null;
-        controls.autoRotate = false;
-        controls.enablePan = true;
-        
-        cameraAnimation = {
-            targetPosition: savedPosition,
-            targetLookAt: savedTarget,
+        cameraAnimation = { 
+            targetPosition: targetPosition, 
+            targetLookAt: planetWorldPosition.clone() 
         };
+
+        return true;
+    }
+
+    // REWORKED UNFOCUS FUNCTION
+    function unfocusPlanet() {
+        if (cameraAnimation) return; // Don't allow unfocusing while an animation is running
+
+        focusedPlanetMesh = null;
+        controls.enablePan = true;
+        controls.minDistance = 50; // Reset to default
+        
+        // Let OrbitControls handle the animation back to the saved state
+        controls.reset();
     }
     
     function setOrbitSpeed(multiplier) {
@@ -524,7 +489,6 @@ function focusOnPlanet(planetId) {
             sunLOD = _createSun(solarSystemData.sun);
             scene.add(sunLOD);
             
-            // Set sun mesh and its light to be initially off to prevent flash
             sunLOD.visible = false;
             if (sunLight) sunLight.intensity = 0.0;
 
@@ -548,7 +512,6 @@ function focusOnPlanet(planetId) {
             lastAnimateTime = performance.now();
             _animate(lastAnimateTime);
             
-            // After a brief delay, make the sun and its light visible.
             setTimeout(() => {
                 if (sunLOD) sunLOD.visible = true;
                 if (sunLight) sunLight.intensity = 1.8;

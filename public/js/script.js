@@ -9,12 +9,10 @@ import {
     regenerateCurrentUniverseState
 } from './universeGenerator.js';
 import { UIManager } from './uiManager.js';
-import { FocusManager } from './focusManager.js'; // <-- ADD THIS IMPORT
 
 // --- INITIALIZATION ---
 function initializeModules() {
     window.PlanetDesigner = PlanetDesigner;
-    window.FocusManager = FocusManager; // <-- ADD THIS LINE
     if (window.PlanetDesigner?.init) {
         window.PlanetDesigner.init();
     } else {

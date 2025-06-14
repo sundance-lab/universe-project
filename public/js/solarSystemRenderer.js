@@ -329,10 +329,6 @@ export const SolarSystemRenderer = (() => {
             autoRotateSpeed: 0.5
         });
 
-        controls.addEventListener('start', () => {
-            followedPlanet = null;
-        });
-
         boundWheelHandler = (event) => {
             event.preventDefault();
 
@@ -383,6 +379,11 @@ export const SolarSystemRenderer = (() => {
             
             camera.position.add(delta);
             controls.target.copy(newPlanetWorldPos);
+            controls.enableRotate = false;
+            controls.enablePan = false;
+        } else {
+            controls.enableRotate = true;
+            controls.enablePan = true;
         }
 
         planetMeshes.forEach(mesh => {
@@ -420,6 +421,10 @@ export const SolarSystemRenderer = (() => {
         orbitLines.forEach(line => {
             line.visible = visible;
         });
+    }
+
+    function unfocus() {
+        followedPlanet = null;
     }
 
     function focusOnPlanet(planetId) {
@@ -485,6 +490,7 @@ export const SolarSystemRenderer = (() => {
         setOrbitLinesVisible,
         setOrbitSpeed,
         focusOnPlanet,
+        unfocus,
         getPlanetMeshes: () => planetMeshes,
         getRaycaster: () => raycaster,
         getMouse: () => mouse,

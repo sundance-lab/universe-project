@@ -2,52 +2,51 @@
 * { 
   margin: 0;
   padding: 0;
-  box-sizing: border-box; /* Good universal reset */
+  box-sizing: border-box;
 }
 
 body {
   font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
   background-color: #000;
   color: #fff;
-  display: flex; /* Centers screen-container if it's smaller than viewport */
+  display: flex;
   justify-content: center;
   align-items: center;
-  min-height: 100vh; /* Ensures body takes full viewport height */
-  overflow: hidden; /* Prevents scrollbars on the body if content overflows slightly */
+  min-height: 100vh;
+  overflow: hidden;
 }
 
 .screen {
   width: 100%;
   height: 100%;
-  position: absolute; /* Stacked on top of each other */
+  position: absolute;
   top: 0;
   left: 0;
-  display: flex; /* For centering content within each screen */
+  display: flex; 
   justify-content: center;
   align-items: center;
   visibility: hidden;
   opacity: 0;
-  /* Transition opacity first, then snap visibility. Good practice. */
   transition: opacity 0.3s ease-in-out, visibility 0s linear 0.3s;
-  overflow: hidden; /* Prevents content within a screen from causing scrollbars ON THAT SCREEN */
+  overflow: hidden; 
 }
 
 .screen.active {
   visibility: visible;
   opacity: 1;
-  transition-delay: 0s; /* Override delay for becoming active */
-  z-index: 1; /* Default active screen */
+  transition-delay: 0s; 
+  z-index: 1; 
 }
 
-.screen.active.panning-active { /* This class seems to be for galaxy/solar system view when panning */
-  z-index: 2; /* Ensure panning screen is above other UI if needed */
+.screen.active.panning-active { 
+  z-index: 2; 
 }
 
 .editable-title-container {
   position: absolute;
   top: 15px;
   left: 20px;
-  z-index: 100; /* High z-index to be above most screen content */
+  z-index: 100;
 }
 
 .editable-title-text {
@@ -57,8 +56,8 @@ body {
   text-shadow: 1px 1px 2px rgba(0, 0, 0, 0.7);
   cursor: text;
   display: inline-block;
-  pointer-events: all; /* Necessary if parent has pointer-events: none */
-  user-select: none; /* Common for custom interactive elements */
+  pointer-events: all; 
+  user-select: none;
   -webkit-user-select: none;
 }
 
@@ -68,22 +67,22 @@ body {
   color: #fff;
   background-color: rgba(0, 0, 0, 0.7);
   border: 1px solid #fff;
-  padding: 0px 5px; /* Might be a bit tight vertically, consider 2px 5px */
-  width: auto; /* Good for fitting content */
-  display: none; /* Shown by JS */
-  line-height: 1.2; /* Good for font alignment */
-  font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; /* Consistent font */
+  padding: 0px 5px; 
+  width: auto; 
+  display: none;
+  line-height: 1.2; 
+  font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; 
 }
 
 #main-screen {
-  background-color: #000; /* Consistent with body */
+  background-color: #000;
 }
 
 #universe-circle {
-  position: relative; /* Good for positioning galaxies inside */
+  position: relative; 
   border-radius: 50%;
-  background-color: #100520; /* Dark space color */
-  box-shadow: 0 0 30px rgba(100, 0, 150, 0.5); /* Nice glow effect */
+  background-color: #100520; 
+  box-shadow: 0 0 30px rgba(100, 0, 150, 0.5); 
 }
 
 .galaxy-icon {
@@ -92,13 +91,13 @@ body {
   cursor: pointer;
   background-color: #7f00ff;
   border: 3px solid #da70d6;
-  transition: transform 0.1s ease-out, box-shadow 0.2s ease-out; /* Smooth hover */
+  transition: transform 0.1s ease-out, box-shadow 0.2s ease-out; 
   box-shadow: 0 0 10px #7f00ff;
 }
 
 .galaxy-icon:hover {
   transform: scale(1.1);
-  box-shadow: 0 0 20px #da70d6; /* Enhanced glow on hover */
+  box-shadow: 0 0 20px #da70d6; 
 }
 
 #galaxy-detail-screen {
@@ -155,26 +154,25 @@ body, html {
 }
 
 .planet-icon {
-  position: absolute; /* Positioned by JS (left/top calc) */
+  position: absolute; 
   border-radius: 50%;
-  z-index: 3; /* Above sun and orbit lines canvas typically */
-  cursor: default; /* Default cursor, unless made clickable */
-  transform-origin: center center; /* For potential CSS rotations if any, though JS handles axial */
-  /* JS sets background style */
+  z-index: 3;
+  cursor: default; 
+  transform-origin: center center; 
 }
 
-.planet-icon.clickable-when-paused { /* This class is mentioned in JS */
+.planet-icon.clickable-when-paused { 
   cursor: pointer;
 }
 
 .controls-overlay {
-  position: fixed; /* Stays in place regardless of page scroll (though body overflow is hidden) */
+  position: fixed; 
   top: 0;
   left: 0;
   width: 100%;
-  height: auto; /* Only as tall as its content needs */
+  height: auto;
   z-index: 200;
-  pointer-events: none; /* Overlay doesn't block, children opt-in */
+  pointer-events: none;
 }
 
 .controls-overlay > * {
@@ -237,12 +235,9 @@ body, html {
   background-color: #5a7d9b;
 }
 
-/* MODIFICATION: Removed .planet-visual-panel and all related styles */
 
-/* Planet Designer Specific Styles */
 #planet-designer-screen {
   width: 100vw; height: 100vh;
-  /* display: flex; etc. are handled by .screen.active */
   overflow: hidden; padding: 0; box-sizing: border-box; background: #000;
 }
 
@@ -284,7 +279,7 @@ body, html {
   display: flex; flex-direction: column; gap: 15px;
   padding: 24px; box-sizing: border-box;
   overflow-y: auto;
-  height: 100%; /* This might need adjustment based on how .designer-panel height is managed */
+  height: 100%; 
 }
 
 .designer-preview {
@@ -327,7 +322,6 @@ body, html {
 
 #designer-planet-canvas.dragging { cursor: grabbing; }
 
-/* Styles for Planet Designer Range Controls */
 .designer-controls .designer-range-control {
   display: flex;
   flex-direction: column;
@@ -351,7 +345,6 @@ body, html {
   width: 70px;
   padding: 6px;
   margin-bottom: 0;
-  /* Inherits general modal input styles if those are defined more broadly */
   color: #ecf0f1; /* Ensure text is visible */
   background-color: #34495e; /* Consistent background */
   border: 1px solid #7f8c8d; /* Consistent border */
@@ -376,10 +369,10 @@ body, html {
 }
 
 .hex-controls {
-  position: fixed; /* Place controls at the bottom, like other screens */
+  position: fixed; 
   bottom: 15px;
   left: 15px;
-  z-index: 10; /* Ensure controls are on top of the canvas */
+  z-index: 10; 
 }
 
 .saved-designs-list {
@@ -422,7 +415,6 @@ body, html {
 .design-item-load {
   margin-left: 10px; padding: 3px 6px; font-size: 0.8em;
   white-space: nowrap;
-  /* Assuming .modal-button-apply is used for base styling */
 }
 .design-item-delete {
   background: none; border: none; color: #e74c3c;
@@ -430,7 +422,6 @@ body, html {
 }
 .design-item-delete:hover { color: #c0392b; }
 
-/* Modal Styles (if you have a separate general modal component) */
 .modal-overlay {
   position: fixed;
   top: 0; left: 0; width: 100%; height: 100%;
@@ -445,11 +436,10 @@ body, html {
   background-color: #2c3e50; padding: 25px;
   border-radius: 8px; box-shadow: 0 5px 15px rgba(0, 0, 0, 0.5);
   min-width: 380px; max-width: 90%;
-  /* NEW: Ensure modal content takes full height and stacks children vertically */
-  height: 90vh; /* Set a specific height, max-height from flex parent */
+  height: 90vh; 
   display: flex;
   flex-direction: column;
-  overflow-y: auto; /* Allow scrolling if content overflows */
+  overflow-y: auto; 
 }
 
 .modal-content h2 { margin-top: 0; margin-bottom: 20px; color: #ecf0f1; }
@@ -462,13 +452,13 @@ body, html {
   border-radius: 4px; border: 1px solid #7f8c8d;
   background-color: #34495e; color: #ecf0f1; font-size: 1em;
 }
-.designer-controls input[type="color"] { /* Specific for color pickers */
-    padding: 2px; /* Color pickers often need less padding */
-    height: 35px; /* Adjust height */
+.designer-controls input[type="color"] { 
+    padding: 2px;
+    height: 35px; 
 }
 
 #planet-surface-screen {
-  background-color: #334; /* A temporary sky color */
+  background-color: #334;
   cursor: default;
 }
 
@@ -491,7 +481,7 @@ body, html {
 }
 
 .surface-controls .back-button {
-  position: static; /* Override the fixed position for this specific case */
+  position: static; 
 }
 
 .modal-content .checkbox-label { display: flex; align-items: center; margin-bottom: 15px; }
@@ -499,14 +489,14 @@ body, html {
 
 .modal-actions { text-align: right; margin-top: 20px; }
 .modal-actions button,
-.designer-actions-fixed button { /* Shared styles for action buttons */
+.designer-actions-fixed button {
   padding: 10px 18px; margin-left: 10px; border-radius: 5px; border: none;
   cursor: pointer; font-weight: bold;
   transition: background-color 0.2s ease;
 }
 
 .modal-button-apply,
-#designer-save-btn, /* Assuming these use apply styling */
+#designer-save-btn,
 #designer-randomize-btn {
   background-color: #27ae60; color: white;
 }
@@ -518,18 +508,16 @@ body, html {
 }
 
 .modal-button-cancel,
-#designer-cancel-btn { /* Assuming these use cancel styling */
-  background-color: #7f8c8d; color: #fff; /* Ensure good contrast */
+#designer-cancel-btn { 
+  background-color: #7f8c8d; color: #fff; 
 }
 .modal-button-cancel:hover,
 #designer-cancel-btn:hover {
   background-color: #95a5a6;
 }
 
-/* Ensure planet designer input[type="number"] don't conflict heavily if .modal-content styles are too broad */
 .designer-controls .designer-range-control input[type="number"] {
-  width: 70px; /* Keep this specific width */
-  /* Other properties like color, background, border will be inherited */
+  width: 70px;
 }
 
 .designer-controls .color-control { margin-bottom: 15px; }
@@ -551,7 +539,6 @@ body, html {
     background-color: #2ecc71;
 }
 
-/* Planet Sidebar Styles */
 #planet-sidebar {
   position: fixed;
   top: 50%;
@@ -565,7 +552,7 @@ body, html {
   color: #ecf0f1;
   z-index: 100;
   box-shadow: 0 4px 12px rgba(0, 0, 0, 0.5);
-  display: none; /* Hidden by default, shown by JS */
+  display: none; 
 }
 
 #planet-sidebar-title {
@@ -586,8 +573,6 @@ body, html {
   overflow-y: auto;
 }
 
-
-/* Style for individual planet items in the list */
 .planet-sidebar-item {
   padding: 10px 8px;
   border-bottom: 1px solid #2c3e50;
@@ -604,7 +589,6 @@ body, html {
   background-color: #3b5062;
 }
 
-/* Custom scrollbar for the list */
 #planet-sidebar-list::-webkit-scrollbar {
   width: 6px;
 }
@@ -616,7 +600,6 @@ body, html {
   border-radius: 3px;
 }
 
-/* Position for the new Developer Controls button */
 #dev-controls-btn {
   top: 168px; /* Position below the other buttons */
   left: 15px;
@@ -628,7 +611,6 @@ body, html {
   background-color: #5a7d9b;
 }
 
-/* Styling for control groups inside modals */
 .modal-content .control-group {
     margin-bottom: 20px;
     border-bottom: 1px solid #34495e;
@@ -657,15 +639,13 @@ body, html {
     color: #bdc3c7;
 }
 
-/* In styles.css */
 .planet-sidebar-item.active-focus {
-  background-color: #5a7d9b; /* Highlight color */
+  background-color: #5a7d9b; 
   font-weight: bold;
-  border-left: 3px solid #2ecc71; /* Accent */
-  padding-left: 5px; /* Adjust padding due to border */
+  border-left: 3px solid #2ecc71;/
+  padding-left: 5px; 
 }
 
-/* Style for Customize Galaxy button */
 .customize-galaxy-button {
   position: fixed;
   bottom: 15px;
@@ -674,7 +654,7 @@ body, html {
   font-size: 1.1em;
   font-weight: 700;
   cursor: pointer;
-  background-color: #3498db; /* A blue color */
+  background-color: #3498db; 
   color: #fff;
   border: 2px solid #2980b9;
   border-radius: 8px;
@@ -713,7 +693,6 @@ body, html {
   background-color: #4a6a8a;
 }
 
-/* --- Notification Toast Styles --- */
 .notification-toast {
   position: fixed;
   bottom: 20px;
@@ -725,11 +704,11 @@ body, html {
   border-radius: 8px;
   border: 1px solid #4a6a8a;
   box-shadow: 0 4px 12px rgba(0, 0, 0, 0.5);
-  z-index: 2000; /* High z-index to be on top of everything */
+  z-index: 2000;
   opacity: 0;
   visibility: hidden;
   transition: opacity 0.5s ease-in-out, visibility 0s linear 0.5s, bottom 0.5s ease-in-out;
-  pointer-events: none; /* The toast should not be clickable */
+  pointer-events: none;
 }
 
 .notification-toast.show {

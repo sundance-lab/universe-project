@@ -81,11 +81,16 @@ function _createSimpleGalaxySpriteTexture() {
 
 
 export const SolarSystemRenderer = (() => {
+    // --- MODULE SCOPE VARIABLES ---
     let scene, camera, renderer, controls;
     let sunLOD, sunLight, backgroundStars, distantGalaxiesGroup;
     let planetMeshes = [];
     let orbitLines = [];
     let focusedPlanetMesh = null;
+    let animationFrameId = null;
+    let lastAnimateTime = null;
+    let raycaster, mouse;
+    let boundWheelHandler = null;
 
     const moduleState = {
         orbitSpeedMultiplier: 1.0
@@ -135,7 +140,6 @@ export const SolarSystemRenderer = (() => {
             new THREE.Color(0xFF8C00), new THREE.Color(0xFFDAB9),
             new THREE.Color(0x87CEEB), new THREE.Color(0xFFFFFF)
         ];
-
         for (let i = 0; i < starCount; i++) {
             positions.push(
                 (Math.random() - 0.5) * starFieldSize,
@@ -146,28 +150,19 @@ export const SolarSystemRenderer = (() => {
             colors.push(starColor.r, starColor.g, starColor.b);
             sizes.push(15 + Math.random() * 85);
         }
-
         const geometry = new THREE.BufferGeometry();
         geometry.setAttribute('position', new THREE.Float32BufferAttribute(positions, 3));
         geometry.setAttribute('color', new THREE.Float32BufferAttribute(colors, 3));
         geometry.setAttribute('particleSize', new THREE.Float32BufferAttribute(sizes, 1));
-
         const onBeforeCompile = shader => {
             shader.vertexShader = 'attribute float particleSize;\n' + shader.vertexShader;
             shader.vertexShader = shader.vertexShader.replace('gl_PointSize = size;', 'gl_PointSize = particleSize;');
         };
-
         const material = new THREE.PointsMaterial({
-            map: _createStarTexture(),
-            vertexColors: true,
-            sizeAttenuation: true,
-            depthWrite: false,
-            blending: THREE.AdditiveBlending,
-            transparent: true,
-            opacity: 0.85,
-            onBeforeCompile: onBeforeCompile
+            map: _createStarTexture(), vertexColors: true, sizeAttenuation: true,
+            depthWrite: false, blending: THREE.AdditiveBlending, transparent: true,
+            opacity: 0.85, onBeforeCompile: onBeforeCompile
         });
-
         backgroundStars = new THREE.Points(geometry, material);
         scene.add(backgroundStars);
     }
@@ -175,16 +170,10 @@ export const SolarSystemRenderer = (() => {
     function _createDistantGalaxies() {
         distantGalaxiesGroup = new THREE.Group();
         const galaxyTexture = _createSimpleGalaxySpriteTexture();
-        const config = {
-            COUNT: 150, MIN_SCALE: 800, MAX_SCALE: 1500,
-            MIN_OPACITY: 0.2, MAX_OPACITY: 0.5,
-        };
-
+        const config = { COUNT: 150, MIN_SCALE: 800, MAX_SCALE: 1500, MIN_OPACITY: 0.2, MAX_OPACITY: 0.5 };
         for (let i = 0; i < config.COUNT; i++) {
             const material = new THREE.SpriteMaterial({
-                map: galaxyTexture,
-                blending: THREE.AdditiveBlending,
-                transparent: true,
+                map: galaxyTexture, blending: THREE.AdditiveBlending, transparent: true,
                 opacity: config.MIN_OPACITY + Math.random() * (config.MAX_OPACITY - config.MIN_OPACITY),
                 color: new THREE.Color(Math.random(), Math.random(), Math.random())
             });
@@ -202,7 +191,7 @@ export const SolarSystemRenderer = (() => {
     
     function _cleanup() {
         if (animationFrameId) cancelAnimationFrame(animationFrameId);
-        if (renderer?.domElement) {
+        if (renderer?.domElement && boundWheelHandler) {
             renderer.domElement.removeEventListener('wheel', boundWheelHandler);
         }
         if(controls) {
@@ -213,11 +202,8 @@ export const SolarSystemRenderer = (() => {
             scene.traverse(object => {
                 if (object.geometry) object.geometry.dispose();
                 if (object.material) {
-                    if (Array.isArray(object.material)) {
-                        object.material.forEach(m => m.dispose());
-                    } else {
-                        object.material.dispose();
-                    }
+                    if (Array.isArray(object.material)) object.material.forEach(m => m.dispose());
+                    else object.material.dispose();
                 }
             });
         }
@@ -229,7 +215,6 @@ export const SolarSystemRenderer = (() => {
             if (texture) texture.dispose();
         }
         createdTextures = [];
-        // Clear all state
         scene = camera = renderer = controls = sunLOD = sunLight = backgroundStars = distantGalaxiesGroup = null;
         planetMeshes = [];
         orbitLines = [];
@@ -271,7 +256,7 @@ export const SolarSystemRenderer = (() => {
 
         controls.addEventListener('start', onControlsStart);
 
-        const boundWheelHandler = (event) => {
+        boundWheelHandler = (event) => {
             event.preventDefault();
             const camToTarget = new THREE.Vector3().subVectors(controls.target, camera.position);
             const dist = camToTarget.length();
@@ -282,12 +267,13 @@ export const SolarSystemRenderer = (() => {
         };
         renderer.domElement.addEventListener('wheel', boundWheelHandler, { passive: false });
         
+        raycaster = new THREE.Raycaster();
+        mouse = new THREE.Vector2();
         sunLight = new THREE.PointLight(0xffffff, 1.8, 550000);
         scene.add(sunLight);
         scene.add(new THREE.AmbientLight(0xffffff, 0.1));
     }
 
-    let lastAnimateTime = null;
     function _animate(now) {
         if (!renderer) return;
         animationFrameId = requestAnimationFrame(_animate);
@@ -417,6 +403,9 @@ export const SolarSystemRenderer = (() => {
         setOrbitLinesVisible,
         setOrbitSpeed,
         getPlanetMeshes: () => planetMeshes,
+        // Restored getters for external use (e.g., in uiManager)
+        getRaycaster: () => raycaster,
+        getMouse: () => mouse,
         getCamera: () => camera,
     };
 })();

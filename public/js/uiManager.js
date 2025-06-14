@@ -4,7 +4,7 @@ import { GalaxyRenderer } from './galaxyRenderer.js';
 import { generateSolarSystemsForGalaxy } from './universeGenerator.js';
 import { SolarSystemRenderer } from './solarSystemRenderer.js';
 import { HexPlanetViewController } from './hexPlanetViewController.js';
-import GameStateManager from './gameStateManager.js'; // Import the state manager
+import GameStateManager from './gameStateManager.js';
 
 export const UIManager = (() => {
     let elements = {};
@@ -25,8 +25,8 @@ export const UIManager = (() => {
     let galaxyRandomizePaletteBtn, galaxyRandomizeAllBtn, galaxySaveDesignBtn, galaxyLoadDesignBtn, galaxyCancelBtn, galaxyApplyBtn;
     let savedGalaxyDesignsUl;
 
-    // --- Event handler references for cleanup ---
-    let boundGalaxyRandomizeAllHandler, boundGalaxyRandomizePaletteHandler, boundGalaxySaveDesignHandler, boundGalaxyCancelHandler, boundGalaxyApplyHandler, boundSavedGalaxyDesignsClickHandler;
+    // --- Event handler references ---
+    let boundGalaxyApplyHandler, boundGalaxyCancelHandler, boundGalaxyRandomizeAllHandler, boundGalaxyRandomizePaletteHandler, boundGalaxySaveDesignHandler, boundSavedGalaxyDesignsClickHandler;
 
 
     function _getPlanetTypeString(planetType) {
@@ -269,7 +269,7 @@ export const UIManager = (() => {
         HexPlanetViewController.activate(planetData, onBackCallback);
     }
 
-    // --- Galaxy Customization Functions (Refactored) ---
+    // --- Galaxy Customization Functions ---
     function getGalaxyElements() {
         galaxyCustomizationModal = document.getElementById('galaxy-customization-modal');
         galaxyRadiusInput = document.getElementById('galaxy-radius');
@@ -499,7 +499,7 @@ export const UIManager = (() => {
         hideGalaxyCustomizationModal();
     }
 
-function _randomizeAllGalaxySettings() {
+    function _randomizeAllGalaxySettings() {
         console.log("Randomizing all galaxy settings...");
         const randomConfig = {
             RADIUS: Math.floor(Math.random() * (3000 - 1000 + 1)) + 1000,
@@ -563,7 +563,6 @@ function _randomizeAllGalaxySettings() {
                 SKYBOX_COLOR: Math.random() * 0xFFFFFF,
             }
         };
-        // Apply random values to UI and then apply to galaxy
         populateGalaxyCustomizationUI(randomConfig);
         _applyGalaxySettings();
         console.log("Randomization complete.");
@@ -678,7 +677,7 @@ function _randomizeAllGalaxySettings() {
                 }
             });
 
-            getGalaxyElements();
+            getGalaxyElements(); 
             
             boundGalaxyApplyHandler = () => _applyGalaxySettings();
             boundGalaxyCancelHandler = () => hideGalaxyCustomizationModal();
@@ -701,7 +700,8 @@ function _randomizeAllGalaxySettings() {
             galaxyApplyBtn?.addEventListener('click', boundGalaxyApplyHandler);
             galaxyCancelBtn?.addEventListener('click', boundGalaxyCancelHandler);
             galaxyRandomizeAllBtn?.addEventListener('click', boundGalaxyRandomizeAllHandler);
-            galaxyRandomizePaletteBtn?.addEventListener('click', boundGalaxyRandomizePaletteBtn);
+            // THIS IS THE FIX: Using the correct variable name for the handler
+            galaxyRandomizePaletteBtn?.addEventListener('click', boundGalaxyRandomizePaletteHandler);
             galaxySaveDesignBtn?.addEventListener('click', boundGalaxySaveDesignHandler);
             savedGalaxyDesignsUl?.addEventListener('click', boundSavedGalaxyDesignsClickHandler);
         },

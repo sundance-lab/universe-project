@@ -2,20 +2,17 @@
 
 import * as THREE from 'three';
 import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls';
-// The import for LOD is no longer needed here
 import { getHexPlanetShaders } from './shaders.js';
 
 export const HexPlanetViewController = (() => {
     let scene, camera, renderer, controls, lod;
     let animationId = null;
     let backButton = null;
-    // The old 'deactivate' and 'boundDeactivate' are no longer needed.
 
     const SPHERE_BASE_RADIUS = 1.0;
     const DISPLACEMENT_SCALING_FACTOR = 0.005;
 
     function addBarycentricCoordinates(geometry) {
-        // ... (this function is correct, no changes needed)
         const positions = geometry.attributes.position.array;
         const vertexCount = positions.length / 3;
         const barycentric = new Float32Array(vertexCount * 3);
@@ -30,7 +27,6 @@ export const HexPlanetViewController = (() => {
     }
 
     function initScene(canvas, planetBasis) {
-        // ... (this function is correct, no changes needed)
         scene = new THREE.Scene();
         scene.background = new THREE.Color(0x000000);
 
@@ -43,9 +39,9 @@ export const HexPlanetViewController = (() => {
       
    controls = new OrbitControls(camera, renderer.domElement);
 controls.enableDamping = true;
-controls.dampingFactor = 0.08;     // Increased from 0.05 for smoother transitions
+controls.dampingFactor = 0.08;    
 controls.rotateSpeed = 1.0;     
-controls.zoomSpeed = 0.8;          // Reduced from 1.2 for smoother zoom
+controls.zoomSpeed = 0.8;        
 controls.minDistance = 1.2;
 controls.maxDistance = 40.0;
 controls.enablePan = false;
@@ -71,7 +67,7 @@ controls.maxPolarAngle = Math.PI;
                     uOceanHeightLevel: { value: 0.0 },
                     uMountainStrength: { value: 1.0 },
                     uIslandStrength: { value: 1.0 },
-                    uPlanetType: { value: planetBasis.planetType || 0 }, // <-- THIS LINE IS THE FIX
+                    uPlanetType: { value: planetBasis.planetType || 0 }, 
                 }
             ]),
             vertexShader,
@@ -84,7 +80,7 @@ controls.maxPolarAngle = Math.PI;
         baseMaterial.uniforms.uOceanHeightLevel.value = normalizedOceanLevel - 0.5;
         baseMaterial.uniforms.uDisplacementAmount.value = terrainRange * DISPLACEMENT_SCALING_FACTOR;
 
-        lod = new THREE.LOD(); // Use THREE.LOD() here
+        lod = new THREE.LOD();
         scene.add(lod);
 
         const detailLevels = [
@@ -113,7 +109,6 @@ controls.maxPolarAngle = Math.PI;
     }
         
     function animate(now) {
-        // ... (this function is correct, no changes needed)
         animationId = requestAnimationFrame(animate);
         if (lod) {
             lod.children.forEach(mesh => {
@@ -128,7 +123,6 @@ controls.maxPolarAngle = Math.PI;
     }
 
     function cleanup() {
-        // ... (this function is correct, no changes needed)
         if (animationId) {
             cancelAnimationFrame(animationId);
             animationId = null;
@@ -160,7 +154,6 @@ controls.maxPolarAngle = Math.PI;
     }
 
     function onResize() {
-        // ... (this function is correct, no changes needed)
         if (!renderer || !camera) return;
         const canvas = renderer.domElement;
         const width = canvas.offsetWidth;

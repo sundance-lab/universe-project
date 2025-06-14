@@ -65,6 +65,27 @@ document.addEventListener('DOMContentLoaded', () => {
     // --- FUNCTIONS ---
     window.generatePlanetInstanceFromBasis = generatePlanetInstanceFromBasis;
 
+    // --- NEW: Notification Function ---
+    function showNotification(message) {
+        const notification = document.createElement('div');
+        notification.className = 'notification-toast';
+        notification.textContent = message;
+        document.body.appendChild(notification);
+
+        setTimeout(() => {
+            notification.classList.add('show');
+        }, 10);
+
+        setTimeout(() => {
+            notification.classList.remove('show');
+            setTimeout(() => {
+                if (document.body.contains(notification)) {
+                    document.body.removeChild(notification);
+                }
+            }, 500); // Matches CSS transition time
+        }, 3000); // Notification is visible for 3 seconds
+    }
+
     function loadDevSettings() {
         const defaults = { minPlanets: 2, maxPlanets: 8, orbitLinesVisible: false, orbitSpeed: 9.0 };
         try {
@@ -99,8 +120,8 @@ document.addEventListener('DOMContentLoaded', () => {
             callbacks.regenerateUniverseState();
         } else {
             applyDynamicDevSettings();
-            // Using a less intrusive notification would be a good next step.
-            alert("Settings saved. Dynamic settings have been applied.");
+            // --- UPDATED: Replaced alert with new notification ---
+            showNotification("Settings saved. Dynamic settings have been applied.");
         }
     }
 
@@ -195,7 +216,7 @@ document.addEventListener('DOMContentLoaded', () => {
             const state = GameStateManager.getState();
             generateUniverseLayout(null, state, { universeBg: '#100520' });
             generateGalaxies(state);
-            GameStateManager.saveGameState(); // Initial save for new universe
+            GameStateManager.saveGameState();
         }
         
         preGenerateAllGalaxyContents(GameStateManager.getState(), domElements.galaxyDetailScreen, { min: 80, max: 120 });

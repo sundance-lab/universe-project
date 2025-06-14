@@ -712,3 +712,29 @@ body, html {
 .panel-action-btn:hover {
   background-color: #4a6a8a;
 }
+
+/* --- Notification Toast Styles --- */
+.notification-toast {
+  position: fixed;
+  bottom: 20px;
+  left: 50%;
+  transform: translateX(-50%);
+  background-color: rgba(30, 45, 60, 0.9);
+  color: #ecf0f1;
+  padding: 12px 25px;
+  border-radius: 8px;
+  border: 1px solid #4a6a8a;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.5);
+  z-index: 2000; /* High z-index to be on top of everything */
+  opacity: 0;
+  visibility: hidden;
+  transition: opacity 0.5s ease-in-out, visibility 0s linear 0.5s, bottom 0.5s ease-in-out;
+  pointer-events: none; /* The toast should not be clickable */
+}
+
+.notification-toast.show {
+  bottom: 40px;
+  opacity: 1;
+  visibility: visible;
+  transition: opacity 0.5s ease-in-out, visibility 0s linear 0s, bottom 0.5s ease-in-out;
+}

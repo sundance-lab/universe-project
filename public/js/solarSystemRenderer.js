@@ -363,7 +363,7 @@ export const SolarSystemRenderer = (() => {
         if (focusAnimation) {
             const elapsedTime = performance.now() - focusAnimation.startTime;
             const progress = Math.min(elapsedTime / focusAnimation.duration, 1.0);
-            const easedProgress = 1 - Math.pow(1 - progress, 3); // easeOutCubic
+            const easedProgress = 1 - Math.pow(1 - progress, 3);
     
             const planetPos = focusAnimation.targetPlanet.getWorldPosition(new THREE.Vector3());
             const desiredCamPos = planetPos.clone().add(focusAnimation.cameraOffset);
@@ -373,13 +373,16 @@ export const SolarSystemRenderer = (() => {
     
             if (progress >= 1.0) {
                 followedPlanet = focusAnimation.targetPlanet;
+                controls.target.copy(followedPlanet.getWorldPosition(new THREE.Vector3()));
                 focusAnimation = null;
                 controls.enabled = true;
             }
-        }
-
-        if (followedPlanet) {
-            controls.target.copy(followedPlanet.getWorldPosition(new THREE.Vector3()));
+        } else if (followedPlanet) {
+            const newPlanetWorldPos = followedPlanet.getWorldPosition(new THREE.Vector3());
+            const delta = new THREE.Vector3().subVectors(newPlanetWorldPos, controls.target);
+            
+            camera.position.add(delta);
+            controls.target.copy(newPlanetWorldPos);
         }
 
         planetMeshes.forEach(mesh => {

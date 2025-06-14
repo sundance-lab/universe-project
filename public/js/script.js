@@ -1,10 +1,9 @@
 // public/js/script.js
 import { PlanetDesigner } from './planetDesigner.js';
-// NEW: Import the state manager
-import GameStateManager from './gameStateManager.js'; 
-import { 
+import GameStateManager from './gameStateManager.js';
+import {
     generatePlanetInstanceFromBasis,
-    generateUniverseLayout, 
+    generateUniverseLayout,
     generateGalaxies,
     preGenerateAllGalaxyContents,
     regenerateCurrentUniverseState
@@ -22,32 +21,136 @@ function initializeModules() {
 }
 
 document.addEventListener('DOMContentLoaded', () => {
-    
-    // --- GLOBAL CONFIG & STATE (State is now in GameStateManager) ---
+
+    // --- GLOBAL CONFIG ---
     window.DEFAULT_MIN_TERRAIN_HEIGHT = 0.0;
     window.DEFAULT_MAX_TERRAIN_HEIGHT = 10.0;
     window.DEFAULT_OCEAN_HEIGHT_LEVEL = 2.0;
     window.DEFAULT_PLANET_AXIAL_SPEED = 0.01;
-    
+
     const DEV_SETTINGS_KEY = 'universeDevSettings';
     let devSettings = {};
     let oldDevSettingsForRegenCheck = {};
 
-    // REMOVED: window.gameSessionData object is gone.
+    // --- DOM ELEMENT REFERENCES ---
+    const domElements = {
+        mainScreen: document.getElementById('main-screen'),
+        galaxyDetailScreen: document.getElementById('galaxy-detail-screen'),
+        solarSystemScreen: document.getElementById('solar-system-screen'),
+        hexPlanetScreen: document.getElementById('hex-planet-screen'),
+        solarSystemContent: document.getElementById('solar-system-content'),
+        planetDesignerScreen: document.getElementById('planet-designer-screen'),
+        galaxyDetailTitleText: document.getElementById('galaxy-detail-title-text'),
+        galaxyDetailTitleInput: document.getElementById('galaxy-detail-title-input'),
+        solarSystemTitleText: document.getElementById('solar-system-title-text'),
+        solarSystemTitleInput: document.getElementById('solar-system-title-input'),
+        backToGalaxyButton: document.getElementById('back-to-galaxy'),
+        planetSidebar: document.getElementById('planet-sidebar'),
+        planetSidebarList: document.getElementById('planet-sidebar-list'),
+        galaxyCustomizationModal: document.getElementById('galaxy-customization-modal'),
+        devPanelButton: document.getElementById('dev-panel-btn'),
+        devPanelModal: document.getElementById('dev-panel-modal'),
+        panelRegenerateUniverseButton: document.getElementById('panel-regenerate-universe-btn'),
+        panelOpenPlanetDesignerButton: document.getElementById('panel-open-planet-designer-btn'),
+        panelOpenGalaxyCustomizerButton: document.getElementById('panel-open-galaxy-customizer-btn'),
+        devMinPlanetsInput: document.getElementById('dev-min-planets'),
+        devMaxPlanetsInput: document.getElementById('dev-max-planets'),
+        devOrbitLinesVisibleInput: document.getElementById('dev-orbit-lines-visible'),
+        devOrbitSpeedInput: document.getElementById('dev-orbit-speed'),
+        devOrbitSpeedValue: document.getElementById('dev-orbit-speed-value'),
+        devPanelSaveButton: document.getElementById('dev-panel-save'),
+        devPanelCancelButton: document.getElementById('dev-panel-cancel'),
+    };
 
-    // --- DOM ELEMENT REFERENCES (no changes here) ---
-    const domElements = { /* ... */ };
-    
-    // --- FUNCTIONS (Refactored) ---
-    // REMOVED: window.saveGameState and window.generatePlanetInstanceFromBasis
-    // The generate function is imported, and save is handled by the manager.
+    // --- FUNCTIONS ---
     window.generatePlanetInstanceFromBasis = generatePlanetInstanceFromBasis;
 
-    function loadDevSettings() { /* ... */ } // No changes needed
-    function saveDevSettings() { /* ... */ } // No changes needed
-    function updateDevControlsUI() { /* ... */ } // No changes needed
-    function applyDynamicDevSettings() { /* ... */ } // No changes needed
-    function setupDevPanelListeners() { /* ... */ } // No changes needed
+    function loadDevSettings() {
+        const defaults = { minPlanets: 2, maxPlanets: 8, orbitLinesVisible: false, orbitSpeed: 9.0 };
+        try {
+            const storedSettings = localStorage.getItem(DEV_SETTINGS_KEY);
+            devSettings = storedSettings ? { ...defaults, ...JSON.parse(storedSettings) } : defaults;
+        } catch (e) {
+            console.error("Error loading dev settings, using defaults.", e);
+            devSettings = defaults;
+        }
+        updateDevControlsUI();
+        applyDynamicDevSettings();
+    }
+
+    function saveDevSettings() {
+        const newMinPlanets = parseInt(domElements.devMinPlanetsInput.value, 10);
+        const newMaxPlanets = parseInt(domElements.devMaxPlanetsInput.value, 10);
+
+        const needsRegen = newMinPlanets !== oldDevSettingsForRegenCheck.minPlanets ||
+                           newMaxPlanets !== oldDevSettingsForRegenCheck.maxPlanets;
+
+        devSettings = {
+            minPlanets: newMinPlanets,
+            maxPlanets: newMaxPlanets,
+            orbitLinesVisible: domElements.devOrbitLinesVisibleInput.checked,
+            orbitSpeed: parseFloat(domElements.devOrbitSpeedInput.value)
+        };
+        localStorage.setItem(DEV_SETTINGS_KEY, JSON.stringify(devSettings));
+        
+        domElements.devPanelModal.classList.remove('visible');
+
+        if (needsRegen) {
+            callbacks.regenerateUniverseState();
+        } else {
+            applyDynamicDevSettings();
+            // Using a less intrusive notification would be a good next step.
+            alert("Settings saved. Dynamic settings have been applied.");
+        }
+    }
+
+    function updateDevControlsUI() {
+        domElements.devMinPlanetsInput.value = devSettings.minPlanets;
+        domElements.devMaxPlanetsInput.value = devSettings.maxPlanets;
+        domElements.devOrbitLinesVisibleInput.checked = devSettings.orbitLinesVisible;
+        domElements.devOrbitSpeedInput.value = devSettings.orbitSpeed;
+        domElements.devOrbitSpeedValue.textContent = Number(devSettings.orbitSpeed).toFixed(1);
+    }
+
+    function applyDynamicDevSettings() {
+        if (window.activeSolarSystemRenderer) {
+            window.activeSolarSystemRenderer.setOrbitLinesVisible(devSettings.orbitLinesVisible);
+            window.activeSolarSystemRenderer.setOrbitSpeed(devSettings.orbitSpeed);
+        }
+    }
+
+    function setupDevPanelListeners() {
+        domElements.devPanelButton.addEventListener('click', () => {
+            updateDevControlsUI();
+            oldDevSettingsForRegenCheck = {
+                minPlanets: devSettings.minPlanets,
+                maxPlanets: devSettings.maxPlanets,
+            };
+            domElements.devPanelModal.classList.add('visible');
+        });
+
+        domElements.devPanelCancelButton.addEventListener('click', () => domElements.devPanelModal.classList.remove('visible'));
+        domElements.devPanelSaveButton.addEventListener('click', saveDevSettings);
+        
+        domElements.devOrbitSpeedInput.addEventListener('input', (e) => {
+            domElements.devOrbitSpeedValue.textContent = Number(e.target.value).toFixed(1);
+        });
+
+        domElements.panelRegenerateUniverseButton.addEventListener('click', () => {
+            domElements.devPanelModal.classList.remove('visible');
+            callbacks.regenerateUniverseState();
+        });
+
+        domElements.panelOpenPlanetDesignerButton.addEventListener('click', () => {
+            domElements.devPanelModal.classList.remove('visible');
+            callbacks.switchToPlanetDesignerScreen();
+        });
+
+        domElements.panelOpenGalaxyCustomizerButton.addEventListener('click', () => {
+            domElements.devPanelModal.classList.remove('visible');
+            callbacks.showGalaxyCustomizationModal();
+        });
+    }
 
     function generatePlanetsForSystem(solarSystemObject){
         solarSystemObject.planets = [];
@@ -74,7 +177,6 @@ document.addEventListener('DOMContentLoaded', () => {
             });
             lastOrbitalRadius = orbitalRadius;
         }
-        // Use the manager to save the state
         GameStateManager.saveGameState();
     }
     
@@ -84,17 +186,16 @@ document.addEventListener('DOMContentLoaded', () => {
 
         let galaxyToLoadId = null;
 
-        // Use the manager to load the game state
         if (!isForcedRegeneration && GameStateManager.loadGameState()) {
             console.log("Loaded existing game state.");
-            // Pass state from manager to generators
             generateUniverseLayout(null, GameStateManager.getState(), { universeBg: '#100520' });
             galaxyToLoadId = GameStateManager.getState().activeGalaxyId;
         } else {
-            if (!isForcedRegeneration) console.log("No valid save found. Generating new universe.");
-            // Pass state from manager to generators
-            generateUniverseLayout(null, GameStateManager.getState(), { universeBg: '#100520' });
-            generateGalaxies(GameStateManager.getState());
+            console.log("No valid save found. Generating new universe.");
+            const state = GameStateManager.getState();
+            generateUniverseLayout(null, state, { universeBg: '#100520' });
+            generateGalaxies(state);
+            GameStateManager.saveGameState(); // Initial save for new universe
         }
         
         preGenerateAllGalaxyContents(GameStateManager.getState(), domElements.galaxyDetailScreen, { min: 80, max: 120 });
@@ -118,20 +219,19 @@ document.addEventListener('DOMContentLoaded', () => {
     }
     
     const callbacks = {
-        // Provide the save function from the manager
         saveGameState: () => GameStateManager.saveGameState(),
         regenerateUniverseState: () => regenerateCurrentUniverseState(
             { initializeGame },
-            domElements
+            domElements,
+            GameStateManager
         ),
         switchToPlanetDesignerScreen: () => {
             let onBack;
-            // Use manager to get active system/galaxy ID
-            const activeSystemId = GameStateManager.getState().activeSolarSystemId;
-            if (activeSystemId) {
-                onBack = () => window.switchToSolarSystemView(activeSystemId);
+            const state = GameStateManager.getState();
+            if (state.activeSolarSystemId) {
+                onBack = () => window.switchToSolarSystemView(state.activeSolarSystemId);
             } else {
-                onBack = () => window.switchToGalaxyDetailView(GameStateManager.getState().activeGalaxyId);
+                onBack = () => window.switchToGalaxyDetailView(state.activeGalaxyId);
             }
 
             UIManager.setActiveScreen(domElements.planetDesignerScreen);

@@ -7,14 +7,12 @@ import { HexPlanetViewController } from './hexPlanetViewController.js';
 import GameStateManager from './gameStateManager.js'; // Import the state manager
 
 export const PlanetDesigner = (() => {
-    // --- CACHED DOM ELEMENTS & STATE ---
     let savedDesignsUl, designerPlanetCanvas, designerWaterColorInput, designerLandColorInput, designerMinHeightInput, designerMaxHeightInput, designerOceanHeightInput,
         designerSaveBtn, designerCancelBtn, designerRiverBasinInput, designerRiverBasinValue,
         designerForestDensityInput, designerForestDensityValue, designerRandomizeBtn, boundResizeHandler, designerExploreBtn;
 
     let onBackCallback = null;
 
-    // --- NEW: Event handler references for cleanup ---
     let handleControlChangeRef, randomizeDesignerPlanetRef, handleExploreButtonClickRef,
         saveCustomPlanetDesignRef, cancelDesignerRef, savedDesignsClickHandlerRef;
 
@@ -224,7 +222,6 @@ export const PlanetDesigner = (() => {
     }
 
     function _saveCustomPlanetDesign() {
-        // Use the manager to get the current number of designs to name the new one.
         const designName = `My Planet ${GameStateManager.getCustomPlanetDesigns().length + 1}`;
 
         const newDesign = {
@@ -233,7 +230,6 @@ export const PlanetDesigner = (() => {
             designName: designName
         };
 
-        // Use the manager to add the design. It will handle saving to localStorage.
         GameStateManager.addCustomPlanetDesign(newDesign);
         console.log(`Planet design '${designName}' saved.`);
 
@@ -241,12 +237,10 @@ export const PlanetDesigner = (() => {
     }
 
     function _loadAndPreviewDesign(designId) {
-        // Use the manager to find the design.
         const designToLoad = GameStateManager.getCustomPlanetDesigns().find(d => d.designId === designId);
         if (designToLoad) {
-            // Ensure all properties are copied.
             currentDesignerBasis = {
-                ...currentDesignerBasis, // Keep defaults for any missing properties
+                ...currentDesignerBasis,
                 ...designToLoad
             };
             delete currentDesignerBasis.designId;
@@ -268,7 +262,6 @@ export const PlanetDesigner = (() => {
                     window.switchToSolarSystemView();
                 }
             } else {
-                // Default case: returning from explore view back to the designer
                 planetScreen.classList.add('active');
                 hexScreen.classList.remove('active');
             }
@@ -281,7 +274,6 @@ export const PlanetDesigner = (() => {
     }
 
     function _deleteCustomPlanetDesign(designId) {
-        // Use the manager to delete the design. It handles saving.
         GameStateManager.deleteCustomPlanetDesign(designId);
         console.log(`Planet design with ID '${designId}' deleted.`);
         _populateSavedDesignsList();
@@ -291,7 +283,6 @@ export const PlanetDesigner = (() => {
         if (!savedDesignsUl) return;
         savedDesignsUl.innerHTML = '';
 
-        // Get the list of designs from the manager.
         const designs = GameStateManager.getCustomPlanetDesigns();
 
         if (designs.length === 0) {

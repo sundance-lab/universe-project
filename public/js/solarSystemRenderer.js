@@ -37,8 +37,6 @@ function _createSunMaterial(variation, finalSize, lodLevel) {
     });
 }
 
-
-// --- Background Helpers (Copied from Galaxy Renderer for consistency) ---
 let createdTextures = [];
 function _createAndCacheTexture(creationFunction) {
     const texture = creationFunction();
@@ -87,38 +85,11 @@ export const SolarSystemRenderer = (() => {
     let sunLOD, sunLight, backgroundStars, distantGalaxiesGroup;
     let planetMeshes = [];
     let orbitLines = [];
-    let currentSystemData = null;
-    let animationFrameId = null;
-    let lastAnimateTime = null;
-    let raycaster, mouse;
-    let boundWheelHandler = null;
     let focusedPlanetMesh = null;
 
     const moduleState = {
         orbitSpeedMultiplier: 1.0
     };
-
-    const SPHERE_BASE_RADIUS = 0.8;
-    const DISPLACEMENT_SCALING_FACTOR = 0.005;
-
-    function _createSun(sunData) {
-        const variation = sunVariations[sunData.type % sunVariations.length];
-        const baseSize = sizeTiers[variation.sizeCategory].size;
-        const detailMultiplier = sizeTiers[variation.sizeCategory].detailMultiplier;
-        const sizeVariation = 0.5 + Math.random() * 1.5;
-        const finalSize = baseSize * sizeVariation;
-        const lod = new THREE.LOD();
-        Object.values(LOD_LEVELS).forEach(level => {
-            const adjustedSegments = Math.floor(level.segments * detailMultiplier);
-            const geometry = new THREE.SphereGeometry(1, adjustedSegments, adjustedSegments);
-            const material = _createSunMaterial(variation, finalSize, level);
-            const sunMesh = new THREE.Mesh(geometry, material);
-            sunMesh.scale.setScalar(finalSize);
-            lod.addLevel(sunMesh, level.distance);
-        });
-        lod.position.set(0, 0, 0);
-        return lod;
-    }
 
     function _createPlanetMesh(planetData) {
         const { vertexShader, fragmentShader } = getPlanetShaders();
@@ -128,7 +99,7 @@ export const SolarSystemRenderer = (() => {
         const pOcean = planetData.oceanHeightLevel ?? (pMin + (pMax - pMin) * 0.3);
         const terrainRange = Math.max(0.1, pMax - pMin);
         const normalizedOceanLevel = terrainRange > 0 ? (pOcean - pMin) / terrainRange : 0.5;
-        const displacementAmount = terrainRange * DISPLACEMENT_SCALING_FACTOR * 40;
+        const displacementAmount = terrainRange * 0.005 * 40;
         const material = new THREE.ShaderMaterial({
             uniforms: THREE.UniformsUtils.merge([
                 THREE.UniformsLib.common,
@@ -139,7 +110,7 @@ export const SolarSystemRenderer = (() => {
                     uContinentSeed: { value: planetData.continentSeed ?? Math.random() },
                     uRiverBasin: { value: planetData.riverBasin ?? 0.05 },
                     uForestDensity: { value: planetData.forestDensity ?? 0.5 },
-                    uSphereRadius: { value: SPHERE_BASE_RADIUS },
+                    uSphereRadius: { value: 0.8 },
                     uDisplacementAmount: { value: displacementAmount },
                     uTime: { value: 0.0 },
                     uPlanetType: { value: planetData.planetType || 0 },
@@ -150,29 +121,8 @@ export const SolarSystemRenderer = (() => {
             fragmentShader,
         });
         const mesh = new THREE.Mesh(geometry, material);
-        mesh.userData = { ...planetData, lastPosition: new THREE.Vector3(), lastWorldPosition: new THREE.Vector3() };
+        mesh.userData = { ...planetData };
         return mesh;
-    }
-
-    function _createParticleSystem(positions, colors, size, texture, opacity, blending, depthWrite, sizeAttenuation = true, vertexColors = true) {
-        const geometry = new THREE.BufferGeometry();
-        geometry.setAttribute('position', new THREE.Float32BufferAttribute(positions, 3));
-        if (vertexColors && colors.length > 0) {
-            geometry.setAttribute('color', new THREE.Float32BufferAttribute(colors, 3));
-        }
-
-        const materialParams = {
-            size: size,
-            map: texture,
-            sizeAttenuation: sizeAttenuation,
-            depthWrite: depthWrite,
-            blending: blending,
-            transparent: true,
-            opacity: opacity,
-        };
-        if (vertexColors && colors.length > 0) materialParams.vertexColors = true;
-        const material = new THREE.PointsMaterial(materialParams);
-        return new THREE.Points(geometry, material);
     }
 
     function _createDistantStars() {
@@ -252,44 +202,25 @@ export const SolarSystemRenderer = (() => {
     
     function _cleanup() {
         if (animationFrameId) cancelAnimationFrame(animationFrameId);
-        if (renderer?.domElement && boundWheelHandler) renderer.domElement.removeEventListener('wheel', boundWheelHandler);
+        if (renderer?.domElement) {
+            renderer.domElement.removeEventListener('wheel', boundWheelHandler);
+        }
         if(controls) {
             controls.removeEventListener('start', onControlsStart);
             controls.dispose();
         }
-        if (sunLOD) {
-            sunLOD.traverse(object => {
+        if (scene) {
+            scene.traverse(object => {
                 if (object.geometry) object.geometry.dispose();
                 if (object.material) {
-                    if (Array.isArray(object.material)) object.material.forEach(material => material.dispose());
-                    else object.material.dispose();
+                    if (Array.isArray(object.material)) {
+                        object.material.forEach(m => m.dispose());
+                    } else {
+                        object.material.dispose();
+                    }
                 }
             });
-            scene.remove(sunLOD);
         }
-        if (backgroundStars) {
-            if (backgroundStars.geometry) backgroundStars.geometry.dispose();
-            if (backgroundStars.material) backgroundStars.material.dispose();
-            scene.remove(backgroundStars);
-        }
-        if (distantGalaxiesGroup) {
-            distantGalaxiesGroup.traverse(object => {
-                 if (object.isSprite) {
-                    if (object.material) object.material.dispose();
-                }
-            });
-            scene.remove(distantGalaxiesGroup);
-        }
-        planetMeshes.forEach(mesh => {
-            if (mesh.geometry) mesh.geometry.dispose();
-            if (mesh.material) mesh.material.dispose();
-            scene.remove(mesh);
-        });
-        orbitLines.forEach(line => {
-            if (line.geometry) line.geometry.dispose();
-            if (line.material) line.material.dispose();
-            scene.remove(line);
-        });
         if (renderer) {
             renderer.dispose();
             renderer.domElement.remove();
@@ -298,14 +229,15 @@ export const SolarSystemRenderer = (() => {
             if (texture) texture.dispose();
         }
         createdTextures = [];
-
-        animationFrameId = null; boundWheelHandler = null; controls = null; sunLOD = null;
-        planetMeshes = []; orbitLines = []; backgroundStars = null; lastAnimateTime = null;
-        renderer = null; scene = null; camera = null; currentSystemData = null; distantGalaxiesGroup = null;
+        // Clear all state
+        scene = camera = renderer = controls = sunLOD = sunLight = backgroundStars = distantGalaxiesGroup = null;
+        planetMeshes = [];
+        orbitLines = [];
+        focusedPlanetMesh = null;
+        animationFrameId = null;
     }
 
     function onControlsStart() {
-        // When user manually interacts, stop any automatic orbiting
         if (focusedPlanetMesh) {
             controls.autoRotate = false;
         }
@@ -327,54 +259,43 @@ export const SolarSystemRenderer = (() => {
         renderer.setPixelRatio(window.devicePixelRatio);
         renderer.setSize(container.offsetWidth, container.offsetHeight);
         container.appendChild(renderer.domElement);
+        
         controls = new OrbitControls(camera, renderer.domElement);
         Object.assign(controls, {
-            enabled: true,
             enableDamping: true, dampingFactor: 0.05, screenSpacePanning: true,
             minDistance: 50, maxDistance: 450000, enablePan: true, rotateSpeed: 0.4,
             mouseButtons: { LEFT: THREE.MOUSE.ROTATE, MIDDLE: THREE.MOUSE.DOLLY, RIGHT: THREE.MOUSE.PAN },
-            enableZoom: false, // Keep this false to use our custom zoom
+            enableZoom: false,
             autoRotate: false,
-            autoRotateSpeed: 0.5
         });
 
         controls.addEventListener('start', onControlsStart);
 
-        // REWORKED ZOOM HANDLER
-        boundWheelHandler = (event) => {
+        const boundWheelHandler = (event) => {
             event.preventDefault();
-        
             const camToTarget = new THREE.Vector3().subVectors(controls.target, camera.position);
             const dist = camToTarget.length();
-        
-            // Proportional zoom: Zoom speed is 10% of the current distance.
-            // This provides smooth and controllable zoom at any distance.
             const zoomAmount = dist * 0.1;
             let zoomFactor = event.deltaY < 0 ? -zoomAmount : zoomAmount;
-            
             const newDist = THREE.MathUtils.clamp(dist + zoomFactor, controls.minDistance, controls.maxDistance);
-            
-            // Apply the new distance
             camera.position.copy(controls.target).addScaledVector(camToTarget.normalize(), -newDist);
         };
         renderer.domElement.addEventListener('wheel', boundWheelHandler, { passive: false });
         
-        raycaster = new THREE.Raycaster();
-        mouse = new THREE.Vector2();
         sunLight = new THREE.PointLight(0xffffff, 1.8, 550000);
         scene.add(sunLight);
         scene.add(new THREE.AmbientLight(0xffffff, 0.1));
     }
 
-    // REWORKED ANIMATE LOOP
+    let lastAnimateTime = null;
     function _animate(now) {
         if (!renderer) return;
         animationFrameId = requestAnimationFrame(_animate);
+
         if (lastAnimateTime === null) lastAnimateTime = now;
         const deltaTime = (now - lastAnimateTime) / 1000;
         lastAnimateTime = now;
 
-        // Update all planet positions
         planetMeshes.forEach(mesh => {
             const planet = mesh.userData;
             planet.currentOrbitalAngle += planet.orbitalSpeed * 0.1 * deltaTime * moduleState.orbitSpeedMultiplier;
@@ -387,17 +308,14 @@ export const SolarSystemRenderer = (() => {
             mesh.material.uniforms.uLightDirection.value.copy(mesh.position).negate().normalize();
         });
         
-        // REWORKED FOLLOW LOGIC
         if (focusedPlanetMesh) {
-            // If a planet is focused, lock the camera's target to it.
             const newPlanetPosition = new THREE.Vector3();
             focusedPlanetMesh.getWorldPosition(newPlanetPosition);
             controls.target.copy(newPlanetPosition);
         }
         
-        controls.update(); // This now correctly handles following the moving target
+        controls.update();
 
-        // Animate background elements
         if (distantGalaxiesGroup) distantGalaxiesGroup.rotation.y += 0.00005;
         if (sunLOD) {
             sunLOD.rotation.y += 0.0001;
@@ -409,9 +327,8 @@ export const SolarSystemRenderer = (() => {
         renderer.render(scene, camera);
     }
     
-    // REWORKED FOCUS FUNCTION (SNAP-TO-FOCUS)
     function focusOnPlanet(planetId) {
-        controls.saveState(); // Save the current wide-view state
+        controls.saveState();
         
         focusedPlanetMesh = planetMeshes.find(p => p.userData.id === planetId);
 
@@ -423,30 +340,27 @@ export const SolarSystemRenderer = (() => {
         const planetWorldPosition = new THREE.Vector3();
         focusedPlanetMesh.getWorldPosition(planetWorldPosition);
         
-        // Set new control limits for the focused view
         controls.minDistance = focusedPlanetMesh.userData.size * 1.2;
         controls.enablePan = false;
-        controls.autoRotate = false; // Ensure auto-rotate is off
+        controls.autoRotate = false;
 
-        // Calculate the final camera position for the close-up view
         const offsetDirection = new THREE.Vector3(0, 0.4, 1).normalize();
         const offset = offsetDirection.multiplyScalar(controls.minDistance);
         const targetCamPos = planetWorldPosition.clone().add(offset);
 
-        // --- INSTANTLY SNAP THE CAMERA AND TARGET ---
         camera.position.copy(targetCamPos);
         controls.target.copy(planetWorldPosition);
+
+        // THE CRITICAL FIX: Force controls to update their internal state immediately.
+        controls.update();
 
         return true;
     }
 
-    // REWORKED UNFOCUS FUNCTION
     function unfocusPlanet() {
         focusedPlanetMesh = null;
         controls.enablePan = true;
-        controls.minDistance = 50; // Reset to default wide-view zoom limit
-        
-        // Use the built-in reset to smoothly animate back to the saved state
+        controls.minDistance = 50;
         controls.reset();
     }
     
@@ -464,9 +378,7 @@ export const SolarSystemRenderer = (() => {
         init: (solarSystemData, initialDevSettings) => {
             const container = document.getElementById('solar-system-content');
             if (!container) return console.error("SolarSystemRenderer: Container #solar-system-content not found.");
-            container.innerHTML = '';
             _setupScene(container);
-            currentSystemData = solarSystemData;
 
             sunLOD = _createSun(solarSystemData.sun);
             scene.add(sunLOD);
@@ -491,8 +403,8 @@ export const SolarSystemRenderer = (() => {
                 setOrbitSpeed(initialDevSettings.orbitSpeed);
             }
 
-            lastAnimateTime = performance.now();
-            _animate(lastAnimateTime);
+            lastAnimateTime = null;
+            _animate(performance.now());
             
             setTimeout(() => {
                 if (sunLOD) sunLOD.visible = true;
@@ -505,8 +417,6 @@ export const SolarSystemRenderer = (() => {
         setOrbitLinesVisible,
         setOrbitSpeed,
         getPlanetMeshes: () => planetMeshes,
-        getRaycaster: () => raycaster,
-        getMouse: () => mouse,
         getCamera: () => camera,
     };
 })();

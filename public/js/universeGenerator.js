@@ -2,14 +2,12 @@
 import { getNonOverlappingPositionInCircle, getDistance } from './utils.js';
 import GameStateManager from './gameStateManager.js'; // Import the state manager
 
-// --- GENERATION CONSTANTS ---
 const SOLAR_SYSTEM_BASE_ICON_SIZE = 2.5;
 const MAX_CONNECTIONS_PER_SYSTEM = 3;
 const MAX_NEIGHBOR_CANDIDATES_FOR_ADDITIONAL_CONNECTIONS = 5;
 const MAX_EUCLIDEAN_CONNECTION_DISTANCE_PERCENT = 0.07;
 const MAX_FORCED_CONNECTION_DISTANCE_PERCENT = 0.20;
 
-// --- HELPER FUNCTIONS (INTERNAL TO THIS MODULE) ---
 
 function getWeightedNumberOfConnections() {
     const rand = Math.random();
@@ -40,7 +38,6 @@ function tryAddConnection(fromSystemId, toSystemId, currentConnectionsArray, con
 // --- EXPORTED GENERATION FUNCTIONS ---
 
 export function generatePlanetInstanceFromBasis(basis, isForDesignerPreview = false) {
-    // Get custom designs directly from the manager
     const customDesigns = GameStateManager.getCustomPlanetDesigns();
     const useCustomDesign = !isForDesignerPreview &&
         customDesigns && customDesigns.length > 0 &&
@@ -325,10 +322,8 @@ export function regenerateCurrentUniverseState(callbacks, elementsToClear, manag
         window.activeSolarSystemRenderer = null;
     }
 
-    // This is much cleaner
-    manager.resetState(true); // Resets state but preserves designs
+    manager.resetState(true); 
 
-    // Clear UI
     if (elementsToClear.galaxyZoomContent) {
         const linesCanvas = elementsToClear.galaxyZoomContent.querySelector('#solar-system-lines-canvas');
         elementsToClear.galaxyZoomContent.innerHTML = '';

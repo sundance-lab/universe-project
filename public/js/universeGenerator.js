@@ -325,27 +325,8 @@ export function regenerateCurrentUniverseState(callbacks, elementsToClear, manag
         window.activeSolarSystemRenderer = null;
     }
 
-    const existingCustomPlanetDesigns = [...manager.getCustomPlanetDesigns()];
-    const existingCustomGalaxyDesigns = [...manager.getCustomGalaxyDesigns()];
-
-    const newCleanState = {
-        universe: { diameter: null },
-        galaxies: [],
-        activeGalaxyId: null,
-        activeSolarSystemId: null,
-        isInitialized: false,
-        customPlanetDesigns: existingCustomPlanetDesigns,
-        customGalaxyDesigns: existingCustomGalaxyDesigns,
-    };
-    // This is a direct update, so we need a method for it in the manager.
-    // Let's assume a method `setState` exists for this purpose.
-    if (manager.setState) {
-        manager.setState(newCleanState);
-    } else {
-        // Fallback for direct property update if setState isn't implemented
-        Object.assign(manager.getState(), newCleanState);
-    }
-
+    // This is much cleaner
+    manager.resetState(true); // Resets state but preserves designs
 
     // Clear UI
     if (elementsToClear.galaxyZoomContent) {

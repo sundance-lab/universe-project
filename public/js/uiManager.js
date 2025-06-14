@@ -11,8 +11,6 @@ export const UIManager = (() => {
     let callbacks = {};
     let currentStarfieldCleanup;
     let currentGalaxyRenderer = null;
-
-    // --- Cached DOM elements ---
     let galaxyCustomizationModal;
     let galaxyRadiusInput, galaxyThicknessInput, galaxyCoreRadiusInput, galaxyNumArmsInput, galaxyArmRotationMultiplierInput;
     let galaxyStarsDecorativeInput, galaxyStarsCoreInput, galaxyStarsDiskInput, galaxyStarsHaloInput, galaxyDecorativeStarMaxSizeInput, galaxyDecorativeStarMinSizeInput;
@@ -24,8 +22,6 @@ export const UIManager = (() => {
     let galaxyColorStarTextureColorInput, galaxyColorCoreGlowColorInput, galaxyColorDustColorStop0Input, galaxyColorDustColorStop04Input, galaxyColorNebulaColorStop0Input, galaxyColorNebulaColorStop04Input, galaxyColorBackgroundStarColorInput, galaxyColorSkyboxColorInput;
     let galaxyRandomizePaletteBtn, galaxyRandomizeAllBtn, galaxySaveDesignBtn, galaxyLoadDesignBtn, galaxyCancelBtn, galaxyApplyBtn;
     let savedGalaxyDesignsUl;
-
-    // --- Event handler references ---
     let boundGalaxyApplyHandler, boundGalaxyCancelHandler, boundGalaxyRandomizeAllHandler, boundGalaxyRandomizePaletteHandler, boundGalaxySaveDesignHandler, boundSavedGalaxyDesignsClickHandler;
 
 

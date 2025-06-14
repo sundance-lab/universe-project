@@ -681,7 +681,7 @@ export const UIManager = (() => {
             
             boundGalaxyApplyHandler = () => _applyGalaxySettings();
             boundGalaxyCancelHandler = () => hideGalaxyCustomizationModal();
-             = () => _randomizeAllGalaxySettings();
+            boundGalaxyRandomizeAllHandler = () => _randomizeAllGalaxySettings();
             boundGalaxyRandomizePaletteHandler = () => _randomizeGalaxyPalette();
             boundGalaxySaveDesignHandler = () => _saveGalaxyDesign();
             boundSavedGalaxyDesignsClickHandler = (e) => {

@@ -1,8 +1,8 @@
+// public/js/universeGenerator.js
 import { getNonOverlappingPositionInCircle, getDistance } from './utils.js';
-import { saveGameState } from './storage.js';
+import GameStateManager from './gameStateManager.js'; // Import the state manager
 
 // --- GENERATION CONSTANTS ---
-const GALAXY_ICON_SIZE = 60;
 const SOLAR_SYSTEM_BASE_ICON_SIZE = 2.5;
 const MAX_CONNECTIONS_PER_SYSTEM = 3;
 const MAX_NEIGHBOR_CANDIDATES_FOR_ADDITIONAL_CONNECTIONS = 5;
@@ -40,14 +40,14 @@ function tryAddConnection(fromSystemId, toSystemId, currentConnectionsArray, con
 // --- EXPORTED GENERATION FUNCTIONS ---
 
 export function generatePlanetInstanceFromBasis(basis, isForDesignerPreview = false) {
+    // Get custom designs directly from the manager
+    const customDesigns = GameStateManager.getCustomPlanetDesigns();
     const useCustomDesign = !isForDesignerPreview &&
-        window.gameSessionData?.customPlanetDesigns?.length > 0 &&
+        customDesigns && customDesigns.length > 0 &&
         Math.random() < 0.5;
 
     if (useCustomDesign) {
-        const randomDesign = window.gameSessionData.customPlanetDesigns[
-            Math.floor(Math.random() * window.gameSessionData.customPlanetDesigns.length)
-        ];
+        const randomDesign = customDesigns[Math.floor(Math.random() * customDesigns.length)];
 
         return {
             waterColor: randomDesign.waterColor,
@@ -64,6 +64,7 @@ export function generatePlanetInstanceFromBasis(basis, isForDesignerPreview = fa
         };
     }
 
+    // Default generation
     return {
         waterColor: basis.waterColor || '#0000FF',
         landColor: basis.landColor || '#008000',
@@ -80,7 +81,7 @@ export function generatePlanetInstanceFromBasis(basis, isForDesignerPreview = fa
         forestDensity: basis.forestDensity || 0.5,
         sourceDesignId: null,
         isExplorable: true,
-        planetType: basis.planetType ?? Math.floor(Math.random() * 4), // Assign a random type
+        planetType: basis.planetType ?? Math.floor(Math.random() * 4),
         explorationData: {
             surfaceDetail: basis.surfaceDetail || 1.0,
             atmosphereColor: basis.atmosphereColor || '#87CEEB',
@@ -89,31 +90,30 @@ export function generatePlanetInstanceFromBasis(basis, isForDesignerPreview = fa
     };
 };
 
-export function generateUniverseLayout(universeCircle, gameSessionData, fixedColors) {
+export function generateUniverseLayout(universeCircle, gameState, fixedColors) {
     const screenMinDimension = Math.min(window.innerWidth, window.innerHeight);
-    gameSessionData.universe.diameter = Math.max(300, screenMinDimension * 0.85);
+    const diameter = Math.max(300, screenMinDimension * 0.85);
+    GameStateManager.setUniverseDiameter(diameter);
 
     if (universeCircle) {
-        universeCircle.style.width = `${gameSessionData.universe.diameter}px`;
-        universeCircle.style.height = `${gameSessionData.universe.diameter}px`;
+        universeCircle.style.width = `${diameter}px`;
+        universeCircle.style.height = `${diameter}px`;
         universeCircle.style.backgroundColor = fixedColors.universeBg;
-    } else {
-        console.warn("generateUniverseLayout: universeCircle element not found.");
     }
 }
 
-export function generateGalaxies(gameSessionData) {
-    if (!gameSessionData.universe.diameter) {
+export function generateGalaxies(gameState) {
+    if (!gameState.universe.diameter) {
         console.warn("generateGalaxies: Universe diameter not set.");
         return;
     }
-
-    gameSessionData.galaxies = [];
+    
+    const newGalaxies = [];
     const galaxyId = `galaxy-1`;
 
-    gameSessionData.galaxies.push({
+    newGalaxies.push({
         id: galaxyId,
-        x: 0, // Position is irrelevant now
+        x: 0,
         y: 0,
         customName: "The Galaxy",
         solarSystems: [],
@@ -124,30 +124,32 @@ export function generateGalaxies(gameSessionData) {
         currentPanY: 0,
         generationParams: { densityFactor: 1.0 }
     });
+    GameStateManager.setGalaxies(newGalaxies);
 }
 
-export function generateSolarSystemsForGalaxy(galaxy, galaxyViewport, ssCountRange) {
+export function generateSolarSystemsForGalaxy(galaxy, galaxyViewport, ssCountRange, isForcedRegeneration = false) {
     if (!galaxy) {
         console.warn(`generateSolarSystemsForGalaxy: Galaxy not provided.`);
         return;
     }
 
     if (!galaxyViewport) {
-        console.warn(`generateSolarSystemsForGalaxy: galaxyViewport element not found. Cannot determine placement area for galaxy ${galaxy.id}.`);
+        console.warn(`generateSolarSystemsForGalaxy: galaxyViewport element not found.`);
         return;
     }
 
-    if (galaxy.layoutGenerated && !window.gameSessionData.isForceRegenerating) {
+    if (galaxy.layoutGenerated && !isForcedRegeneration) {
         return;
     }
 
-    const galaxyContentDiameter = galaxyViewport.offsetWidth > 0 ? galaxyViewport.offsetWidth : (window.gameSessionData.universe.diameter || 500);
+    const state = GameStateManager.getState();
+    const galaxyContentDiameter = galaxyViewport.offsetWidth > 0 ? galaxyViewport.offsetWidth : (state.universe.diameter || 500);
     const galaxyContentRadius = galaxyContentDiameter / 2;
 
     if (galaxyContentRadius <= 0) {
-        console.warn(`generateSolarSystemsForGalaxy: Invalid content dimensions for galaxy ${galaxy.id}. Diameter: ${galaxyContentDiameter}`);
+        console.warn(`generateSolarSystemsForGalaxy: Invalid content dimensions for galaxy ${galaxy.id}.`);
         galaxy.layoutGenerated = true;
-        if (!window.gameSessionData.isForceRegenerating) saveGameState();
+        if (!isForcedRegeneration) GameStateManager.saveGameState();
         return;
     }
 
@@ -176,7 +178,7 @@ export function generateSolarSystemsForGalaxy(galaxy, galaxyViewport, ssCountRan
 
     if (galaxy.solarSystems.length < 2) {
         galaxy.layoutGenerated = true;
-        if (!window.gameSessionData.isForceRegenerating) saveGameState();
+        if (!isForcedRegeneration) GameStateManager.saveGameState();
         return;
     }
 
@@ -302,42 +304,50 @@ export function generateSolarSystemsForGalaxy(galaxy, galaxyViewport, ssCountRan
     });
 
     galaxy.layoutGenerated = true;
-    if (!window.gameSessionData.isForceRegenerating) saveGameState();
+    if (!isForcedRegeneration) GameStateManager.saveGameState();
 }
 
 
-export async function preGenerateAllGalaxyContents(gameSessionData, galaxyViewport, ssCountRange) {
-    window.gameSessionData.isForceRegenerating = true;
+export async function preGenerateAllGalaxyContents(gameState, galaxyViewport, ssCountRange) {
     console.log("Pre-generating all galaxy contents...");
-    for (const g of gameSessionData.galaxies) {
+    for (const g of gameState.galaxies) {
         if (!g.layoutGenerated || g.solarSystems.length === 0) {
-            generateSolarSystemsForGalaxy(g, galaxyViewport, ssCountRange);
+            generateSolarSystemsForGalaxy(g, galaxyViewport, ssCountRange, true);
         }
     }
-    window.gameSessionData.isForceRegenerating = false;
     console.log("Pre-generation complete.");
-    saveGameState();
+    GameStateManager.saveGameState();
 }
 
-export function regenerateCurrentUniverseState(callbacks, elementsToClear) {
+export function regenerateCurrentUniverseState(callbacks, elementsToClear, manager) {
     if (window.activeSolarSystemRenderer) {
         window.activeSolarSystemRenderer.dispose();
         window.activeSolarSystemRenderer = null;
     }
 
-    const existingCustomPlanetDesigns = [...(window.gameSessionData.customPlanetDesigns || [])];
+    const existingCustomPlanetDesigns = [...manager.getCustomPlanetDesigns()];
+    const existingCustomGalaxyDesigns = [...manager.getCustomGalaxyDesigns()];
 
-    // Reset state
-    window.gameSessionData.universe = { diameter: null };
-    window.gameSessionData.galaxies = [];
-    window.gameSessionData.activeGalaxyId = null;
-    window.gameSessionData.activeSolarSystemId = null;
-    window.gameSessionData.solarSystemView = { zoomLevel: 1.0, currentPanX: 0, currentPanY: 0, planets: [], systemId: null };
-    window.gameSessionData.isInitialized = false;
-    window.gameSessionData.customPlanetDesigns = existingCustomPlanetDesigns;
+    const newCleanState = {
+        universe: { diameter: null },
+        galaxies: [],
+        activeGalaxyId: null,
+        activeSolarSystemId: null,
+        isInitialized: false,
+        customPlanetDesigns: existingCustomPlanetDesigns,
+        customGalaxyDesigns: existingCustomGalaxyDesigns,
+    };
+    // This is a direct update, so we need a method for it in the manager.
+    // Let's assume a method `setState` exists for this purpose.
+    if (manager.setState) {
+        manager.setState(newCleanState);
+    } else {
+        // Fallback for direct property update if setState isn't implemented
+        Object.assign(manager.getState(), newCleanState);
+    }
+
 
     // Clear UI
-    if (elementsToClear.universeCircle) elementsToClear.universeCircle.innerHTML = '';
     if (elementsToClear.galaxyZoomContent) {
         const linesCanvas = elementsToClear.galaxyZoomContent.querySelector('#solar-system-lines-canvas');
         elementsToClear.galaxyZoomContent.innerHTML = '';
@@ -345,5 +355,5 @@ export function regenerateCurrentUniverseState(callbacks, elementsToClear) {
     }
     if (elementsToClear.solarSystemContent) elementsToClear.solarSystemContent.innerHTML = '';
 
-    callbacks.initializeGame(true); // isForcedRegeneration = true
+    callbacks.initializeGame(true);
 }

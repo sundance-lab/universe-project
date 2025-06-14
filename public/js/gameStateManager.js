@@ -91,6 +91,28 @@ class GameStateManager {
         }
     }
     
+    resetState(preserveCustomDesigns = true) {
+        const designs = preserveCustomDesigns ? {
+            customPlanetDesigns: this._state.customPlanetDesigns,
+            customGalaxyDesigns: this._state.customGalaxyDesigns
+        } : {
+            customPlanetDesigns: [],
+            customGalaxyDesigns: []
+        };
+
+        this._state = {
+            universe: { diameter: null },
+            galaxies: [],
+            activeGalaxyId: null,
+            activeSolarSystemId: null,
+            isInitialized: false,
+            ...designs
+        };
+        console.log("Game state has been reset via GameStateManager.");
+        // This method does not save state automatically.
+        // The calling function should handle saving when appropriate.
+    }
+
     updateGalaxyProperty(galaxyId, property, value) {
         const galaxy = this._state.galaxies.find(g => g.id === galaxyId);
         if (galaxy) {

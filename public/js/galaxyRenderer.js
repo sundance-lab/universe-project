@@ -671,7 +671,7 @@ export const GalaxyRenderer = (() => {
             GALAXY_CONFIG.COLORS.PALETTE = GALAXY_CONFIG.COLORS.PALETTE.map(c => new THREE.Color(c.r, c.g, c.b));
         },
         updateConfig: (newConfig) => {
-            _deepMerge(GALAAXA_CONFIG, newConfig);
+            _deepMerge(GALAXY_CONFIG, newConfig);
             if (scene && _currentGalaxyData) {
                 const currentContainer = renderer ? renderer.domElement.parentNode : document.getElementById('galaxy-canvas-container');
                 _dispose();

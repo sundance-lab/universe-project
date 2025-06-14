@@ -81,20 +81,43 @@ function _createSimpleGalaxySpriteTexture() {
 
 
 export const SolarSystemRenderer = (() => {
-    // --- MODULE SCOPE VARIABLES ---
     let scene, camera, renderer, controls;
     let sunLOD, sunLight, backgroundStars, distantGalaxiesGroup;
     let planetMeshes = [];
     let orbitLines = [];
-    let focusedPlanetMesh = null;
+    let currentSystemData = null;
     let animationFrameId = null;
     let lastAnimateTime = null;
     let raycaster, mouse;
     let boundWheelHandler = null;
+    let cameraAnimation = null;
+    let focusedPlanetMesh = null;
 
     const moduleState = {
         orbitSpeedMultiplier: 1.0
     };
+
+    const SPHERE_BASE_RADIUS = 0.8;
+    const DISPLACEMENT_SCALING_FACTOR = 0.005;
+
+    function _createSun(sunData) {
+        const variation = sunVariations[sunData.type % sunVariations.length];
+        const baseSize = sizeTiers[variation.sizeCategory].size;
+        const detailMultiplier = sizeTiers[variation.sizeCategory].detailMultiplier;
+        const sizeVariation = 0.5 + Math.random() * 1.5;
+        const finalSize = baseSize * sizeVariation;
+        const lod = new THREE.LOD();
+        Object.values(LOD_LEVELS).forEach(level => {
+            const adjustedSegments = Math.floor(level.segments * detailMultiplier);
+            const geometry = new THREE.SphereGeometry(1, adjustedSegments, adjustedSegments);
+            const material = _createSunMaterial(variation, finalSize, level);
+            const sunMesh = new THREE.Mesh(geometry, material);
+            sunMesh.scale.setScalar(finalSize);
+            lod.addLevel(sunMesh, level.distance);
+        });
+        lod.position.set(0, 0, 0);
+        return lod;
+    }
 
     function _createPlanetMesh(planetData) {
         const { vertexShader, fragmentShader } = getPlanetShaders();
@@ -104,7 +127,7 @@ export const SolarSystemRenderer = (() => {
         const pOcean = planetData.oceanHeightLevel ?? (pMin + (pMax - pMin) * 0.3);
         const terrainRange = Math.max(0.1, pMax - pMin);
         const normalizedOceanLevel = terrainRange > 0 ? (pOcean - pMin) / terrainRange : 0.5;
-        const displacementAmount = terrainRange * 0.005 * 40;
+        const displacementAmount = terrainRange * DISPLACEMENT_SCALING_FACTOR * 40;
         const material = new THREE.ShaderMaterial({
             uniforms: THREE.UniformsUtils.merge([
                 THREE.UniformsLib.common,
@@ -115,7 +138,7 @@ export const SolarSystemRenderer = (() => {
                     uContinentSeed: { value: planetData.continentSeed ?? Math.random() },
                     uRiverBasin: { value: planetData.riverBasin ?? 0.05 },
                     uForestDensity: { value: planetData.forestDensity ?? 0.5 },
-                    uSphereRadius: { value: 0.8 },
+                    uSphereRadius: { value: SPHERE_BASE_RADIUS },
                     uDisplacementAmount: { value: displacementAmount },
                     uTime: { value: 0.0 },
                     uPlanetType: { value: planetData.planetType || 0 },
@@ -126,8 +149,29 @@ export const SolarSystemRenderer = (() => {
             fragmentShader,
         });
         const mesh = new THREE.Mesh(geometry, material);
-        mesh.userData = { ...planetData };
+        mesh.userData = { ...planetData, lastPosition: new THREE.Vector3(), lastWorldPosition: new THREE.Vector3() };
         return mesh;
+    }
+
+    function _createParticleSystem(positions, colors, size, texture, opacity, blending, depthWrite, sizeAttenuation = true, vertexColors = true) {
+        const geometry = new THREE.BufferGeometry();
+        geometry.setAttribute('position', new THREE.Float32BufferAttribute(positions, 3));
+        if (vertexColors && colors.length > 0) {
+            geometry.setAttribute('color', new THREE.Float32BufferAttribute(colors, 3));
+        }
+
+        const materialParams = {
+            size: size,
+            map: texture,
+            sizeAttenuation: sizeAttenuation,
+            depthWrite: depthWrite,
+            blending: blending,
+            transparent: true,
+            opacity: opacity,
+        };
+        if (vertexColors && colors.length > 0) materialParams.vertexColors = true;
+        const material = new THREE.PointsMaterial(materialParams);
+        return new THREE.Points(geometry, material);
     }
 
     function _createDistantStars() {
@@ -140,6 +184,7 @@ export const SolarSystemRenderer = (() => {
             new THREE.Color(0xFF8C00), new THREE.Color(0xFFDAB9),
             new THREE.Color(0x87CEEB), new THREE.Color(0xFFFFFF)
         ];
+
         for (let i = 0; i < starCount; i++) {
             positions.push(
                 (Math.random() - 0.5) * starFieldSize,
@@ -150,19 +195,28 @@ export const SolarSystemRenderer = (() => {
             colors.push(starColor.r, starColor.g, starColor.b);
             sizes.push(15 + Math.random() * 85);
         }
+
         const geometry = new THREE.BufferGeometry();
         geometry.setAttribute('position', new THREE.Float32BufferAttribute(positions, 3));
         geometry.setAttribute('color', new THREE.Float32BufferAttribute(colors, 3));
         geometry.setAttribute('particleSize', new THREE.Float32BufferAttribute(sizes, 1));
+
         const onBeforeCompile = shader => {
             shader.vertexShader = 'attribute float particleSize;\n' + shader.vertexShader;
             shader.vertexShader = shader.vertexShader.replace('gl_PointSize = size;', 'gl_PointSize = particleSize;');
         };
+
         const material = new THREE.PointsMaterial({
-            map: _createStarTexture(), vertexColors: true, sizeAttenuation: true,
-            depthWrite: false, blending: THREE.AdditiveBlending, transparent: true,
-            opacity: 0.85, onBeforeCompile: onBeforeCompile
+            map: _createStarTexture(),
+            vertexColors: true,
+            sizeAttenuation: true,
+            depthWrite: false,
+            blending: THREE.AdditiveBlending,
+            transparent: true,
+            opacity: 0.85,
+            onBeforeCompile: onBeforeCompile
         });
+
         backgroundStars = new THREE.Points(geometry, material);
         scene.add(backgroundStars);
     }
@@ -170,10 +224,16 @@ export const SolarSystemRenderer = (() => {
     function _createDistantGalaxies() {
         distantGalaxiesGroup = new THREE.Group();
         const galaxyTexture = _createSimpleGalaxySpriteTexture();
-        const config = { COUNT: 150, MIN_SCALE: 800, MAX_SCALE: 1500, MIN_OPACITY: 0.2, MAX_OPACITY: 0.5 };
+        const config = {
+            COUNT: 150, MIN_SCALE: 800, MAX_SCALE: 1500,
+            MIN_OPACITY: 0.2, MAX_OPACITY: 0.5,
+        };
+
         for (let i = 0; i < config.COUNT; i++) {
             const material = new THREE.SpriteMaterial({
-                map: galaxyTexture, blending: THREE.AdditiveBlending, transparent: true,
+                map: galaxyTexture,
+                blending: THREE.AdditiveBlending,
+                transparent: true,
                 opacity: config.MIN_OPACITY + Math.random() * (config.MAX_OPACITY - config.MIN_OPACITY),
                 color: new THREE.Color(Math.random(), Math.random(), Math.random())
             });
@@ -191,22 +251,44 @@ export const SolarSystemRenderer = (() => {
     
     function _cleanup() {
         if (animationFrameId) cancelAnimationFrame(animationFrameId);
-        if (renderer?.domElement && boundWheelHandler) {
-            renderer.domElement.removeEventListener('wheel', boundWheelHandler);
-        }
+        if (renderer?.domElement && boundWheelHandler) renderer.domElement.removeEventListener('wheel', boundWheelHandler);
         if(controls) {
             controls.removeEventListener('start', onControlsStart);
             controls.dispose();
         }
-        if (scene) {
-            scene.traverse(object => {
+        if (sunLOD) {
+            sunLOD.traverse(object => {
                 if (object.geometry) object.geometry.dispose();
                 if (object.material) {
-                    if (Array.isArray(object.material)) object.material.forEach(m => m.dispose());
+                    if (Array.isArray(object.material)) object.material.forEach(material => material.dispose());
                     else object.material.dispose();
                 }
             });
+            scene.remove(sunLOD);
         }
+        if (backgroundStars) {
+            if (backgroundStars.geometry) backgroundStars.geometry.dispose();
+            if (backgroundStars.material) backgroundStars.material.dispose();
+            scene.remove(backgroundStars);
+        }
+        if (distantGalaxiesGroup) {
+            distantGalaxiesGroup.traverse(object => {
+                 if (object.isSprite) {
+                    if (object.material) object.material.dispose();
+                }
+            });
+            scene.remove(distantGalaxiesGroup);
+        }
+        planetMeshes.forEach(mesh => {
+            if (mesh.geometry) mesh.geometry.dispose();
+            if (mesh.material) mesh.material.dispose();
+            scene.remove(mesh);
+        });
+        orbitLines.forEach(line => {
+            if (line.geometry) line.geometry.dispose();
+            if (line.material) line.material.dispose();
+            scene.remove(line);
+        });
         if (renderer) {
             renderer.dispose();
             renderer.domElement.remove();
@@ -215,14 +297,15 @@ export const SolarSystemRenderer = (() => {
             if (texture) texture.dispose();
         }
         createdTextures = [];
-        scene = camera = renderer = controls = sunLOD = sunLight = backgroundStars = distantGalaxiesGroup = null;
-        planetMeshes = [];
-        orbitLines = [];
-        focusedPlanetMesh = null;
-        animationFrameId = null;
+
+        animationFrameId = null; boundWheelHandler = null; controls = null; sunLOD = null;
+        planetMeshes = []; orbitLines = []; backgroundStars = null; lastAnimateTime = null;
+        renderer = null; scene = null; camera = null; currentSystemData = null; distantGalaxiesGroup = null;
     }
 
     function onControlsStart() {
+        if (cameraAnimation) return;
+
         if (focusedPlanetMesh) {
             controls.autoRotate = false;
         }
@@ -244,29 +327,36 @@ export const SolarSystemRenderer = (() => {
         renderer.setPixelRatio(window.devicePixelRatio);
         renderer.setSize(container.offsetWidth, container.offsetHeight);
         container.appendChild(renderer.domElement);
-        
         controls = new OrbitControls(camera, renderer.domElement);
         Object.assign(controls, {
+            enabled: true,
             enableDamping: true, dampingFactor: 0.05, screenSpacePanning: true,
             minDistance: 50, maxDistance: 450000, enablePan: true, rotateSpeed: 0.4,
             mouseButtons: { LEFT: THREE.MOUSE.ROTATE, MIDDLE: THREE.MOUSE.DOLLY, RIGHT: THREE.MOUSE.PAN },
             enableZoom: false,
             autoRotate: false,
+            autoRotateSpeed: 0.5
         });
 
         controls.addEventListener('start', onControlsStart);
 
         boundWheelHandler = (event) => {
             event.preventDefault();
+
+            if (!cameraAnimation && focusedPlanetMesh) {
+                controls.autoRotate = false;
+            }
+
+            const linearZoomAmount = 1000; 
+            let zoomFactor = event.deltaY < 0 ? -linearZoomAmount : linearZoomAmount;
+
             const camToTarget = new THREE.Vector3().subVectors(controls.target, camera.position);
             const dist = camToTarget.length();
-            const zoomAmount = dist * 0.1;
-            let zoomFactor = event.deltaY < 0 ? -zoomAmount : zoomAmount;
             const newDist = THREE.MathUtils.clamp(dist + zoomFactor, controls.minDistance, controls.maxDistance);
+            
             camera.position.copy(controls.target).addScaledVector(camToTarget.normalize(), -newDist);
         };
         renderer.domElement.addEventListener('wheel', boundWheelHandler, { passive: false });
-        
         raycaster = new THREE.Raycaster();
         mouse = new THREE.Vector2();
         sunLight = new THREE.PointLight(0xffffff, 1.8, 550000);
@@ -277,13 +367,15 @@ export const SolarSystemRenderer = (() => {
     function _animate(now) {
         if (!renderer) return;
         animationFrameId = requestAnimationFrame(_animate);
-
         if (lastAnimateTime === null) lastAnimateTime = now;
         const deltaTime = (now - lastAnimateTime) / 1000;
         lastAnimateTime = now;
 
         planetMeshes.forEach(mesh => {
             const planet = mesh.userData;
+            mesh.getWorldPosition(planet.lastWorldPosition);
+            
+            planet.lastPosition.copy(mesh.position);
             planet.currentOrbitalAngle += planet.orbitalSpeed * 0.1 * deltaTime * moduleState.orbitSpeedMultiplier;
             planet.currentAxialAngle += planet.axialSpeed * 2 * deltaTime;
             
@@ -294,14 +386,36 @@ export const SolarSystemRenderer = (() => {
             mesh.material.uniforms.uLightDirection.value.copy(mesh.position).negate().normalize();
         });
         
-        if (focusedPlanetMesh) {
+        controls.enableDamping = true;
+
+        if (cameraAnimation) {
+            const distanceToTarget = camera.position.distanceTo(cameraAnimation.targetPosition);
+            const speed = 0.04;
+
+            if (focusedPlanetMesh) {
+                const currentPlanetWorldPosition = new THREE.Vector3();
+                focusedPlanetMesh.getWorldPosition(currentPlanetWorldPosition);
+                cameraAnimation.targetLookAt.copy(currentPlanetWorldPosition);
+            }
+
+            camera.position.lerp(cameraAnimation.targetPosition, speed);
+            controls.target.lerp(cameraAnimation.targetLookAt, speed);
+            
+            if (distanceToTarget < 1) {
+                camera.position.copy(cameraAnimation.targetPosition);
+                controls.target.copy(cameraAnimation.targetLookAt);
+                cameraAnimation = null;
+                controls.enabled = true;
+                // MODIFICATION: Removed the autoRotate = true line
+            }
+        } else if (focusedPlanetMesh) {
+            // MODIFICATION: New, simplified follow logic
             const newPlanetPosition = new THREE.Vector3();
             focusedPlanetMesh.getWorldPosition(newPlanetPosition);
             controls.target.copy(newPlanetPosition);
         }
         
         controls.update();
-
         if (distantGalaxiesGroup) distantGalaxiesGroup.rotation.y += 0.00005;
         if (sunLOD) {
             sunLOD.rotation.y += 0.0001;
@@ -315,7 +429,8 @@ export const SolarSystemRenderer = (() => {
     
     function focusOnPlanet(planetId) {
         controls.saveState();
-        
+        controls.enabled = false;
+
         focusedPlanetMesh = planetMeshes.find(p => p.userData.id === planetId);
 
         if (!focusedPlanetMesh) {
@@ -328,26 +443,43 @@ export const SolarSystemRenderer = (() => {
         
         controls.minDistance = focusedPlanetMesh.userData.size * 1.2;
         controls.enablePan = false;
+
+        const planetToCamera = new THREE.Vector3().subVectors(camera.position, planetWorldPosition);
+        // MODIFICATION: Set desiredDistance to the max zoom level
+        const desiredDistance = focusedPlanetMesh.userData.size * 1.2; 
+        const offset = planetToCamera.normalize().multiplyScalar(desiredDistance);
+
+        let targetPosition = planetWorldPosition.clone().add(offset);
+        
+        const direction = new THREE.Vector3().subVectors(planetWorldPosition, camera.position).normalize();
+        raycaster.set(camera.position, direction);
+        const intersects = raycaster.intersectObjects(sunLOD.children);
+        
+        if (intersects.length > 0 && intersects[0].distance < camera.position.distanceTo(planetWorldPosition)) {
+            targetPosition.y += 20000;
+        }
+        
+        cameraAnimation = { targetPosition, targetLookAt: planetWorldPosition.clone() };
         controls.autoRotate = false;
-
-        const offsetDirection = new THREE.Vector3(0, 0.4, 1).normalize();
-        const offset = offsetDirection.multiplyScalar(controls.minDistance);
-        const targetCamPos = planetWorldPosition.clone().add(offset);
-
-        camera.position.copy(targetCamPos);
-        controls.target.copy(planetWorldPosition);
-
-        // THE CRITICAL FIX: Force controls to update their internal state immediately.
-        controls.update();
 
         return true;
     }
 
     function unfocusPlanet() {
+        if (!focusedPlanetMesh && !cameraAnimation) return;
+        controls.enabled = false;
+
+        const savedPosition = controls.position0.clone();
+        const savedTarget = controls.target0.clone();
+        
         focusedPlanetMesh = null;
+        controls.autoRotate = false;
         controls.enablePan = true;
-        controls.minDistance = 50;
-        controls.reset();
+        
+        cameraAnimation = {
+            targetPosition: savedPosition,
+            targetLookAt: savedTarget,
+        };
     }
     
     function setOrbitSpeed(multiplier) {
@@ -364,11 +496,14 @@ export const SolarSystemRenderer = (() => {
         init: (solarSystemData, initialDevSettings) => {
             const container = document.getElementById('solar-system-content');
             if (!container) return console.error("SolarSystemRenderer: Container #solar-system-content not found.");
+            container.innerHTML = '';
             _setupScene(container);
+            currentSystemData = solarSystemData;
 
             sunLOD = _createSun(solarSystemData.sun);
             scene.add(sunLOD);
             
+            // Set sun mesh and its light to be initially off to prevent flash
             sunLOD.visible = false;
             if (sunLight) sunLight.intensity = 0.0;
 
@@ -389,9 +524,10 @@ export const SolarSystemRenderer = (() => {
                 setOrbitSpeed(initialDevSettings.orbitSpeed);
             }
 
-            lastAnimateTime = null;
-            _animate(performance.now());
+            lastAnimateTime = performance.now();
+            _animate(lastAnimateTime);
             
+            // After a brief delay, make the sun and its light visible.
             setTimeout(() => {
                 if (sunLOD) sunLOD.visible = true;
                 if (sunLight) sunLight.intensity = 1.8;
@@ -403,7 +539,6 @@ export const SolarSystemRenderer = (() => {
         setOrbitLinesVisible,
         setOrbitSpeed,
         getPlanetMeshes: () => planetMeshes,
-        // Restored getters for external use (e.g., in uiManager)
         getRaycaster: () => raycaster,
         getMouse: () => mouse,
         getCamera: () => camera,

@@ -65,7 +65,6 @@ document.addEventListener('DOMContentLoaded', () => {
     // --- FUNCTIONS ---
     window.generatePlanetInstanceFromBasis = generatePlanetInstanceFromBasis;
 
-    // --- NEW: Notification Function ---
     function showNotification(message) {
         const notification = document.createElement('div');
         notification.className = 'notification-toast';
@@ -82,8 +81,8 @@ document.addEventListener('DOMContentLoaded', () => {
                 if (document.body.contains(notification)) {
                     document.body.removeChild(notification);
                 }
-            }, 500); // Matches CSS transition time
-        }, 3000); // Notification is visible for 3 seconds
+            }, 500);
+        }, 3000);
     }
 
     function loadDevSettings() {
@@ -120,7 +119,6 @@ document.addEventListener('DOMContentLoaded', () => {
             callbacks.regenerateUniverseState();
         } else {
             applyDynamicDevSettings();
-            // --- UPDATED: Replaced alert with new notification ---
             showNotification("Settings saved. Dynamic settings have been applied.");
         }
     }
@@ -140,16 +138,20 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     }
 
-    function setupDevPanelListeners() {
-        domElements.devPanelButton.addEventListener('click', () => {
-            updateDevControlsUI();
-            oldDevSettingsForRegenCheck = {
-                minPlanets: devSettings.minPlanets,
-                maxPlanets: devSettings.maxPlanets,
-            };
-            domElements.devPanelModal.classList.add('visible');
-        });
+    // --- CHANGE 1: Define the function that will be called by the UIManager ---
+    function showDevPanel() {
+        updateDevControlsUI();
+        oldDevSettingsForRegenCheck = {
+            minPlanets: devSettings.minPlanets,
+            maxPlanets: devSettings.maxPlanets,
+        };
+        domElements.devPanelModal.classList.add('visible');
+    }
 
+    // --- CHANGE 2: Remove the redundant listener from this function ---
+    function setupDevPanelListeners() {
+        // The main devPanelButton click is now handled by UIManager.
+        // We leave the other listeners here.
         domElements.devPanelCancelButton.addEventListener('click', () => domElements.devPanelModal.classList.remove('visible'));
         domElements.devPanelSaveButton.addEventListener('click', saveDevSettings);
         
@@ -201,7 +203,7 @@ document.addEventListener('DOMContentLoaded', () => {
         GameStateManager.saveGameState();
     }
     
-    function initializeGame(isForcedRegeneration = false) {
+    async function initializeGame(isForcedRegeneration = false) {
         console.log("Initializing game...");
         loadDevSettings();
 
@@ -219,18 +221,16 @@ document.addEventListener('DOMContentLoaded', () => {
             GameStateManager.saveGameState();
         }
         
-        preGenerateAllGalaxyContents(GameStateManager.getState(), domElements.galaxyDetailScreen, { min: 80, max: 120 });
+        await preGenerateAllGalaxyContents(GameStateManager.getState(), domElements.galaxyDetailScreen, { min: 80, max: 120 });
         
         if (!galaxyToLoadId && GameStateManager.getGalaxies().length > 0) {
             galaxyToLoadId = GameStateManager.getGalaxies()[0].id;
         }
 
         if (galaxyToLoadId) {
-            setTimeout(() => {
-                if(window.switchToGalaxyDetailView){
-                    window.switchToGalaxyDetailView(galaxyToLoadId)
-                }
-            }, 0);
+            if(window.switchToGalaxyDetailView){
+                window.switchToGalaxyDetailView(galaxyToLoadId)
+            }
         } else {
             console.error("No galaxy found to load. Cannot start game.");
         }
@@ -239,6 +239,7 @@ document.addEventListener('DOMContentLoaded', () => {
         console.log("Game initialization complete.");
     }
     
+    // --- CHANGE 3: Add the showDevPanel function to the callbacks object ---
     const callbacks = {
         saveGameState: () => GameStateManager.saveGameState(),
         regenerateUniverseState: () => regenerateCurrentUniverseState(
@@ -267,6 +268,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 UIManager.showGalaxyCustomizationModal();
             }
         },
+        showDevPanel: showDevPanel, // This is the new line
         generatePlanetsForSystem: generatePlanetsForSystem,
         getCustomizationSettings: () => ({
             ssCountRange: { min: 200, max: 300 }

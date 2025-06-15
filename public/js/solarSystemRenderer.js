@@ -467,7 +467,6 @@ export const SolarSystemRenderer = (() => {
 
             sunLOD = _createSun(solarSystemData.sun);
             scene.add(sunLOD);
-            
 
             solarSystemData.planets.forEach(planet => {
                 const planetMesh = _createPlanetMesh(planet);
@@ -487,8 +486,6 @@ export const SolarSystemRenderer = (() => {
             }
 
             _animate(simulationStartTime);
-            
-            
         },
         dispose: () => _cleanup(),
         setOrbitLinesVisible,

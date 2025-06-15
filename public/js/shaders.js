@@ -436,7 +436,7 @@ export function getHexPlanetShaders() {
  `;
 
  return {
-  vertexShader,
-  fragmentShader
+  vertexShader: hexVertexShader,
+  fragmentShader: hexFragmentShader
  };
 }

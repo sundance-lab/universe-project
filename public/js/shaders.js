@@ -60,7 +60,7 @@ float ridgedRiverNoise(vec3 p, float seed) {
 
 const noiseFunctions = glslRandom2to1 + glslSimpleValueNoise3D + glslLayeredNoise + glslRidgedRiverNoise;
 
-function getPlanetShaders() {
+export function getPlanetShaders() {
     const vertexShader = `
         #include <logdepthbuf_pars_vertex>
 

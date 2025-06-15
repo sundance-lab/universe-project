@@ -234,7 +234,7 @@ export const UIManager = (() => {
         });
     }
 
-    function _onSolarSystemCanvasClick(event) {
+   function _onSolarSystemCanvasClick(event) {
         const renderer = window.activeSolarSystemRenderer;
         if (!renderer) return;
 
@@ -255,12 +255,9 @@ export const UIManager = (() => {
         if (intersects.length > 0) {
             const clickedPlanetId = intersects[0].object.userData.id;
             const followedPlanetId = renderer.getFollowedPlanetId();
-
-            if (clickedPlanetId === followedPlanetId) {
-                renderer.unfocus();
-                const item = elements.planetSidebarList.querySelector(`.planet-sidebar-item[data-planet-id="${clickedPlanetId}"]`);
-                if(item) item.classList.remove('active-focus');
-            } else {
+            
+            // Only focus if a new planet is clicked. Do nothing if the same planet is clicked.
+            if (clickedPlanetId !== followedPlanetId) {
                 renderer.focusOnPlanet(clickedPlanetId);
                 const allItems = elements.planetSidebarList.querySelectorAll('.planet-sidebar-item');
                 allItems.forEach(i => i.classList.remove('active-focus'));

@@ -91,7 +91,7 @@ export const SolarSystemRenderer = (() => {
     let orbitLineMaterials = [];
     let currentSystemData = null;
     let animationFrameId = null;
-    let simulationStartTime = 0;
+    let simulationStartTime = 0, lastUpdateTime = 0;
     let raycaster, mouse;
     let boundWheelHandler = null;
     let boundResizeHandler = null, boundRightClickHandler = null, boundSpawnClickHandler = null;
@@ -101,9 +101,18 @@ export const SolarSystemRenderer = (() => {
     let initialCameraState = null;
     let followedPlanet = null;
     let sunRadius = 0;
+
     let playerShip = null;
+    let shipState = {
+        velocity: new THREE.Vector3(),
+        maxSpeed: 4000,
+        maxForce: 20, // Steering force
+        target: null,
+        pathfinding: {
+            obstacles: []
+        }
+    };
     let isSpawningMode = false;
-    let movementPath = { target: null, startTime: 0, startPosition: null, duration: 0 };
 
     const moduleState = {
         orbitSpeedMultiplier: 1.0
@@ -130,20 +139,28 @@ export const SolarSystemRenderer = (() => {
             lod.addLevel(sunMesh, level.distance);
         });
         lod.position.set(0, 0, 0);
+        
+        // Add sun to obstacles for pathfinding
+        shipState.pathfinding.obstacles.push({
+            object: lod,
+            position: lod.position,
+            radius: finalSize * 1.2 // Add a clearance buffer
+        });
+
         return lod;
     }
 
     function _createPlanetLabel(planetData) {
         const canvas = document.createElement('canvas');
         const context = canvas.getContext('2d');
-        const fontSize = 48;
+        const fontSize = 72; // Increased font size
         context.font = `Bold ${fontSize}px "Segoe UI", Arial, sans-serif`;
-        const textWidth = context.measureText(planetData.name).width;
+        const textMetrics = context.measureText(planetData.name);
+        const textWidth = textMetrics.width;
         
-        canvas.width = textWidth;
+        canvas.width = textWidth + 20; // Add some padding
         canvas.height = fontSize * 1.2;
         
-        // Re-set font after canvas resize
         context.font = `Bold ${fontSize}px "Segoe UI", Arial, sans-serif`;
         context.fillStyle = 'rgba(255, 255, 255, 0.85)';
         context.textAlign = 'center';
@@ -155,10 +172,10 @@ export const SolarSystemRenderer = (() => {
             map: texture,
             transparent: true,
             opacity: 0,
-            depthTest: false // Render on top of orbit lines
+            depthTest: false 
         });
         const sprite = new THREE.Sprite(material);
-        sprite.scale.set(canvas.width * 5, canvas.height * 5, 1.0);
+        sprite.scale.set(canvas.width * 8, canvas.height * 8, 1.0); // Increased scale
         sprite.userData.planetId = planetData.id;
         return sprite;
     }
@@ -166,17 +183,18 @@ export const SolarSystemRenderer = (() => {
     function _createPlayerShip() {
         if (playerShip) scene.remove(playerShip);
 
-        const shipGeometry = new THREE.ConeGeometry(300, 1000, 8);
-        shipGeometry.rotateX(Math.PI / 2); // Point forward
+        const shipGeometry = new THREE.ConeGeometry(400, 1200, 8);
+        shipGeometry.rotateX(Math.PI / 2); 
         const shipMaterial = new THREE.MeshStandardMaterial({
             color: 0xeeeeff,
             emissive: 0x55eeff,
-            emissiveIntensity: 2,
+            emissiveIntensity: 3,
             metalness: 0.8,
-            roughness: 0.2
+            roughness: 0.2,
+            side: THREE.DoubleSide
         });
         const ship = new THREE.Mesh(shipGeometry, shipMaterial);
-        ship.add(new THREE.PointLight(0x55eeff, 5, 3000)); // Add a light for effect
+        ship.add(new THREE.PointLight(0x55eeff, 5, 4000));
         return ship;
     }
 
@@ -214,6 +232,13 @@ export const SolarSystemRenderer = (() => {
         
         mesh.userData.initialOrbitalAngle = planetData.currentOrbitalAngle;
         mesh.userData.initialAxialAngle = planetData.currentAxialAngle;
+        
+        // Add planet to obstacles for pathfinding
+        shipState.pathfinding.obstacles.push({
+            object: mesh,
+            position: mesh.position, // This will be updated each frame
+            radius: planetData.size * 1.5 // Add a clearance buffer
+        });
 
         return mesh;
     }
@@ -384,6 +409,7 @@ export const SolarSystemRenderer = (() => {
         planetMeshes = []; orbitLines = []; orbitLineMaterials = []; backgroundStars = null;
         renderer = null; scene = null; camera = null; currentSystemData = null; distantGalaxiesGroup = null;
         planetLabels = []; playerShip = null; isSpawningMode = false;
+        shipState.pathfinding.obstacles = [];
     }
 
     function _onSpawnClick(event) {
@@ -394,7 +420,6 @@ export const SolarSystemRenderer = (() => {
         mouse.y = -((event.clientY - rect.top) / rect.height) * 2 + 1;
         raycaster.setFromCamera(mouse, camera);
 
-        // Raycast against an invisible plane at y=0
         const plane = new THREE.Plane(new THREE.Vector3(0, 1, 0), 0);
         const intersectionPoint = new THREE.Vector3();
         raycaster.ray.intersectPlane(plane, intersectionPoint);
@@ -405,7 +430,8 @@ export const SolarSystemRenderer = (() => {
                 scene.add(playerShip);
             }
             playerShip.position.copy(intersectionPoint);
-            movementPath.target = null; // Stop any current movement
+            shipState.target = null;
+            shipState.velocity.set(0, 0, 0);
         }
 
         isSpawningMode = false;
@@ -426,12 +452,7 @@ export const SolarSystemRenderer = (() => {
         raycaster.ray.intersectPlane(plane, targetPosition);
 
         if (targetPosition) {
-            movementPath.target = targetPosition;
-            movementPath.startPosition = playerShip.position.clone();
-            const distance = movementPath.startPosition.distanceTo(targetPosition);
-            const speed = 10000; // units per second
-            movementPath.duration = (distance / speed) * 1000; // ms
-            movementPath.startTime = performance.now();
+            shipState.target = targetPosition;
         }
     }
 
@@ -496,10 +517,87 @@ export const SolarSystemRenderer = (() => {
         scene.add(sunLight);
         scene.add(new THREE.AmbientLight(0xffffff, 0.1));
     }
+    
+    // Pathfinding helper
+    function _calculateAvoidanceForce() {
+        const avoidanceForce = new THREE.Vector3();
+        if (!playerShip) return avoidanceForce;
+
+        const ahead = playerShip.position.clone().add(shipState.velocity.clone().normalize().multiplyScalar(5000)); // How far to look ahead
+
+        for (const obstacle of shipState.pathfinding.obstacles) {
+            const distance = ahead.distanceTo(obstacle.position);
+            if (distance <= obstacle.radius) {
+                let force = ahead.clone().sub(obstacle.position);
+                force.normalize().multiplyScalar(1 / distance); // Stronger force when closer
+                avoidanceForce.add(force);
+            }
+        }
+        return avoidanceForce;
+    }
+
+
+    function _updatePlayerShip(deltaTime) {
+        if (!playerShip) return;
+
+        let steeringForce = new THREE.Vector3();
+
+        if (shipState.target) {
+            const distanceToTarget = playerShip.position.distanceTo(shipState.target);
+
+            if (distanceToTarget > 100) { // Arrival threshold
+                // --- Steering Behavior ---
+                // 1. Seek force
+                const desiredVelocity = new THREE.Vector3().subVectors(shipState.target, playerShip.position);
+                desiredVelocity.normalize().multiplyScalar(shipState.maxSpeed);
+                const seekForce = new THREE.Vector3().subVectors(desiredVelocity, shipState.velocity);
+                steeringForce.add(seekForce);
+
+                // 2. Avoidance force
+                const avoidanceForce = _calculateAvoidanceForce();
+                steeringForce.add(avoidanceForce.multiplyScalar(50)); // avoidance weight
+
+                // 3. Deceleration
+                const brakingDistance = (shipState.velocity.lengthSq()) / (2 * (shipState.maxForce * 0.8));
+                if (distanceToTarget < brakingDistance) {
+                    const brakingForce = desiredVelocity.normalize().multiplyScalar(-shipState.maxSpeed * (1 - distanceToTarget / brakingDistance));
+                     steeringForce.add(brakingForce);
+                }
+            } else {
+                // Arrived
+                shipState.target = null;
+                shipState.velocity.multiplyScalar(0.9); // Dampen velocity
+            }
+        }
+
+        // Apply steering force and update physics
+        steeringForce.clampLength(0, shipState.maxForce);
+        shipState.velocity.add(steeringForce.multiplyScalar(deltaTime));
+        shipState.velocity.clampLength(0, shipState.maxSpeed);
+        playerShip.position.add(shipState.velocity.clone().multiplyScalar(deltaTime));
+        
+        // Update rotation smoothly
+        if (shipState.velocity.lengthSq() > 0.01) {
+            const targetQuaternion = new THREE.Quaternion();
+            const direction = shipState.velocity.clone().normalize();
+            const up = new THREE.Vector3(0, 1, 0);
+            
+            // Create a rotation matrix that looks in the direction of velocity
+            const matrix = new THREE.Matrix4().lookAt(playerShip.position, playerShip.position.clone().add(direction), up);
+            targetQuaternion.setFromRotationMatrix(matrix);
+            
+            // Slerp to the target rotation
+            playerShip.quaternion.slerp(targetQuaternion, deltaTime * 5.0);
+        }
+    }
+
 
     function _animate(now) {
         if (!renderer) return;
         animationFrameId = requestAnimationFrame(_animate);
+
+        const deltaTime = lastUpdateTime > 0 ? (now - lastUpdateTime) / 1000 : 0.016;
+        lastUpdateTime = now;
 
         const totalElapsedTime = (now - simulationStartTime) / 1000;
 
@@ -566,30 +664,13 @@ export const SolarSystemRenderer = (() => {
         planetLabels.forEach(label => {
             const planetMesh = planetMeshes.find(p => p.userData.id === label.userData.planetId);
             if (planetMesh) {
-                const yOffset = planetMesh.geometry.parameters.radius * 1.5;
+                const yOffset = planetMesh.geometry.parameters.radius * 2.0;
                 label.position.copy(planetMesh.position).y += yOffset;
                 label.material.opacity = baseOpacity;
             }
         });
 
-        // Update Player Ship
-        if (playerShip && movementPath.target) {
-            const now = performance.now();
-            let progress = (now - movementPath.startTime) / movementPath.duration;
-            
-            if (progress >= 1) {
-                playerShip.position.copy(movementPath.target);
-                movementPath.target = null;
-            } else {
-                // Ease in and out
-                const easedProgress = progress < 0.5 
-                    ? 4 * progress * progress * progress 
-                    : 1 - Math.pow(-2 * progress + 2, 3) / 2;
-                
-                playerShip.position.lerpVectors(movementPath.startPosition, movementPath.target, easedProgress);
-                playerShip.lookAt(movementPath.target);
-            }
-        }
+        _updatePlayerShip(deltaTime);
 
         if (backgroundStars) backgroundStars.position.copy(camera.position);
         if (distantGalaxiesGroup) distantGalaxiesGroup.position.copy(camera.position);
@@ -692,6 +773,7 @@ export const SolarSystemRenderer = (() => {
             currentSystemData = solarSystemData;
 
             simulationStartTime = performance.now();
+            lastUpdateTime = simulationStartTime;
 
             sunLOD = _createSun(solarSystemData.sun);
             scene.add(sunLOD);

@@ -468,8 +468,6 @@ export const SolarSystemRenderer = (() => {
             sunLOD = _createSun(solarSystemData.sun);
             scene.add(sunLOD);
             
-            sunLOD.visible = false;
-            if (sunLight) sunLight.intensity = 0.0;
 
             solarSystemData.planets.forEach(planet => {
                 const planetMesh = _createPlanetMesh(planet);
@@ -490,10 +488,7 @@ export const SolarSystemRenderer = (() => {
 
             _animate(simulationStartTime);
             
-            setTimeout(() => {
-                if (sunLOD) sunLOD.visible = true;
-                if (sunLight) sunLight.intensity = 1.8;
-            }, 50);
+            
         },
         dispose: () => _cleanup(),
         setOrbitLinesVisible,

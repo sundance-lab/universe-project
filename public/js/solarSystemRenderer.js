@@ -917,11 +917,11 @@ export const SolarSystemRenderer = (() => {
         } else {
             controls.minDistance = DEFAULT_MIN_DISTANCE;
             controls.enablePan = true;
-            controls.minPolarAngle = 0.1;
-            controls.maxPolarAngle = Math.PI / 2 - 0.1;
-            controls.mouseButtons.LEFT = THREE.MOUSE.PAN;
-            controls.mouseButtons.MIDDLE = THREE.MOUSE.ROTATE;
-            controls.mouseButtons.RIGHT = -1;
+            controls.minPolarAngle = 0; // Restore to default
+            controls.maxPolarAngle = Math.PI; // Restore to default
+            controls.mouseButtons.LEFT = THREE.MOUSE.ROTATE; // Default
+            controls.mouseButtons.MIDDLE = THREE.MOUSE.DOLLY; // Default
+            controls.mouseButtons.RIGHT = THREE.MOUSE.PAN; // Default for screen space panning
         }
 
         planetLODs.forEach(lod => {
@@ -942,12 +942,10 @@ export const SolarSystemRenderer = (() => {
     
         if (unfocusAnimation) unfocusAnimation = null;
 
-        if(!preFocusState) {
-            preFocusState = {
-                position: camera.position.clone(),
-                target: controls.target.clone()
-            };
-        }
+        preFocusState = {
+            position: camera.position.clone(),
+            target: controls.target.clone()
+        };
         
         const radius = targetPlanetLOD.userData.size;
         controls.minDistance = radius * 1.2;

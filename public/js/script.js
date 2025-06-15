@@ -68,6 +68,8 @@ document.addEventListener('DOMContentLoaded', () => {
         devOrbitLinesVisibleInput: document.getElementById('dev-orbit-lines-visible'),
         devOrbitSpeedInput: document.getElementById('dev-orbit-speed'),
         devOrbitSpeedValue: document.getElementById('dev-orbit-speed-value'),
+        devShipSpeedInput: document.getElementById('dev-ship-speed'),
+        devShipSpeedValue: document.getElementById('dev-ship-speed-value'),
         devPanelSaveButton: document.getElementById('dev-panel-save'),
         devPanelCancelButton: document.getElementById('dev-panel-cancel'),
     };
@@ -111,7 +113,13 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     function loadDevSettings() {
-        const defaults = { minPlanets: 2, maxPlanets: 8, orbitLinesVisible: false, orbitSpeed: 9.0 };
+        const defaults = { 
+            minPlanets: 2, 
+            maxPlanets: 8, 
+            orbitLinesVisible: false, 
+            orbitSpeed: 9.0,
+            shipSpeed: 7500
+        };
         try {
             const storedSettings = localStorage.getItem(DEV_SETTINGS_KEY);
             devSettings = storedSettings ? { ...defaults, ...JSON.parse(storedSettings) } : defaults;
@@ -134,7 +142,8 @@ document.addEventListener('DOMContentLoaded', () => {
             minPlanets: newMinPlanets,
             maxPlanets: newMaxPlanets,
             orbitLinesVisible: domElements.devOrbitLinesVisibleInput.checked,
-            orbitSpeed: parseFloat(domElements.devOrbitSpeedInput.value)
+            orbitSpeed: parseFloat(domElements.devOrbitSpeedInput.value),
+            shipSpeed: parseFloat(domElements.devShipSpeedInput.value)
         };
         localStorage.setItem(DEV_SETTINGS_KEY, JSON.stringify(devSettings));
         
@@ -154,12 +163,15 @@ document.addEventListener('DOMContentLoaded', () => {
         domElements.devOrbitLinesVisibleInput.checked = devSettings.orbitLinesVisible;
         domElements.devOrbitSpeedInput.value = devSettings.orbitSpeed;
         domElements.devOrbitSpeedValue.textContent = Number(devSettings.orbitSpeed).toFixed(1);
+        domElements.devShipSpeedInput.value = devSettings.shipSpeed;
+        domElements.devShipSpeedValue.textContent = devSettings.shipSpeed;
     }
 
     function applyDynamicDevSettings() {
         if (window.activeSolarSystemRenderer) {
             window.activeSolarSystemRenderer.setOrbitLinesVisible(devSettings.orbitLinesVisible);
             window.activeSolarSystemRenderer.setOrbitSpeed(devSettings.orbitSpeed);
+            window.activeSolarSystemRenderer.setShipSpeed(devSettings.shipSpeed);
         }
     }
 
@@ -188,6 +200,10 @@ document.addEventListener('DOMContentLoaded', () => {
         
         domElements.devOrbitSpeedInput.addEventListener('input', (e) => {
             domElements.devOrbitSpeedValue.textContent = Number(e.target.value).toFixed(1);
+        });
+
+        domElements.devShipSpeedInput.addEventListener('input', (e) => {
+            domElements.devShipSpeedValue.textContent = e.target.value;
         });
 
         domElements.panelRegenerateUniverseButton.addEventListener('click', () => {
@@ -226,12 +242,9 @@ document.addEventListener('DOMContentLoaded', () => {
             const planetData = generatePlanetInstanceFromBasis({});
             
             let separation;
-            // 15% chance of a very distant orbit, but not for the first planet
             if (i > 0 && Math.random() < 0.15) {
-                // Super far away orbit
                 separation = 60000 + Math.random() * 80000;
             } else {
-                // Regular, but with more variance towards smaller gaps
                 separation = MIN_ORBITAL_SEPARATION + (Math.random() * Math.random()) * 55000;
             }
             

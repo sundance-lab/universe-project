@@ -546,11 +546,11 @@ export const SolarSystemRenderer = (() => {
         const focusOffset = a * e;
 
         const curve = new THREE.EllipseCurve(
-            -focusOffset, 0, // ax, aY
-            a, b,            // xRadius, yRadius
-            0, 2 * Math.PI,  // aStartAngle, aEndAngle
-            false,           // aClockwise
-            0                // aRotation
+            -focusOffset, 0,
+            a, b,
+            0, 2 * Math.PI,
+            false,
+            0
         );
 
         const points2D = curve.getPoints(256);
@@ -575,7 +575,7 @@ export const SolarSystemRenderer = (() => {
             resolution: new THREE.Vector2(renderer.domElement.offsetWidth, renderer.domElement.offsetHeight),
             dashed: false,
             transparent: true,
-            opacity: 0.25
+            opacity: 0.2
         });
         orbitLineMaterials.push(lineMaterial);
 
@@ -663,13 +663,8 @@ export const SolarSystemRenderer = (() => {
 
         planetMeshes.forEach(mesh => {
             const planet = mesh.userData;
-            const orbitalPeriod = 2 * Math.PI * Math.sqrt(Math.pow(planet.semiMajorAxis, 3) / (10000 * 100));
-            const meanMotion = (2 * Math.PI) / orbitalPeriod;
-            
-            const meanAnomaly = (planet.currentOrbitalAngle + meanMotion * totalElapsedTime * moduleState.orbitSpeedMultiplier) % (2 * Math.PI);
-            
-            // Simplified: Use mean anomaly directly for position. A true sim would solve Kepler's equation.
-            const angle = meanAnomaly;
+            const orbitalAngularVelocity = planet.orbitalSpeed * 0.1 * moduleState.orbitSpeedMultiplier;
+            const angle = (planet.currentOrbitalAngle + orbitalAngularVelocity * totalElapsedTime) % (2 * Math.PI);
             
             const a = planet.semiMajorAxis;
             const e = planet.orbitalEccentricity;
@@ -721,7 +716,7 @@ export const SolarSystemRenderer = (() => {
                 controls.enabled = true;
                 controls.enablePan = false;
                 controls.minPolarAngle = 0;
-                controls.maxPolarAngle = Math.PI;
+                controls.maxPolarAngle = Math.PI / 2 - 0.1;
                 controls.mouseButtons.LEFT = THREE.MOUSE.ROTATE;
                 controls.mouseButtons.MIDDLE = THREE.MOUSE.DOLLY;
                 controls.mouseButtons.RIGHT = THREE.MOUSE.ROTATE;

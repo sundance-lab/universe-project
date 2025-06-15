@@ -234,29 +234,68 @@ export const UIManager = (() => {
         });
     }
 
-   function _onSolarSystemCanvasClick(event) {
+    function showLandingConfirmation(locationData) {
+        const { landingConfirmationPanel, landingQuestionText, landingBtnYes, landingBtnNo } = elements;
+    
+        if (!landingConfirmationPanel || !landingQuestionText || !landingBtnYes || !landingBtnNo) return;
+    
+        landingQuestionText.textContent = `Land at ${locationData.name} (${locationData.type})?`;
+    
+        const yesHandler = () => {
+            console.log(`Landing at ${locationData.name} on planet ${locationData.planetId}!`);
+            // Future logic: Transition to a surface view for this location.
+            landingConfirmationPanel.classList.remove('visible');
+            cleanupHandlers();
+        };
+    
+        const noHandler = () => {
+            landingConfirmationPanel.classList.remove('visible');
+            cleanupHandlers();
+        };
+    
+        const cleanupHandlers = () => {
+            landingBtnYes.removeEventListener('click', yesHandler);
+            landingBtnNo.removeEventListener('click', noHandler);
+        };
+    
+        landingBtnYes.addEventListener('click', yesHandler, { once: true });
+        landingBtnNo.addEventListener('click', noHandler, { once: true });
+    
+        landingConfirmationPanel.classList.add('visible');
+    }
+
+    function _onSolarSystemCanvasClick(event) {
         const renderer = window.activeSolarSystemRenderer;
         if (!renderer) return;
-
+    
         const raycaster = renderer.getRaycaster();
         const mouse = renderer.getMouse();
         const camera = renderer.getCamera();
         const planetMeshes = renderer.getPlanetMeshes();
+        const landingSiteIcons = renderer.getLandingSiteIcons();
         
-        if (!raycaster || !mouse || !camera || !planetMeshes) return;
-
+        if (!raycaster || !mouse || !camera || !planetMeshes || !landingSiteIcons) return;
+    
         const rect = elements.solarSystemContent.getBoundingClientRect();
         mouse.x = ((event.clientX - rect.left) / rect.width) * 2 - 1;
         mouse.y = -((event.clientY - rect.top) / rect.height) * 2 + 1;
-
+    
         raycaster.setFromCamera(mouse, camera);
-        const intersects = raycaster.intersectObjects(planetMeshes);
 
+        const iconIntersects = raycaster.intersectObjects(landingSiteIcons.filter(i => i.visible));
+
+        if (iconIntersects.length > 0) {
+            const clickedIcon = iconIntersects[0].object;
+            showLandingConfirmation(clickedIcon.userData);
+            return; 
+        }
+
+        const intersects = raycaster.intersectObjects(planetMeshes);
+    
         if (intersects.length > 0) {
             const clickedPlanetId = intersects[0].object.userData.id;
             const followedPlanetId = renderer.getFollowedPlanetId();
             
-            // Only focus if a new planet is clicked. Do nothing if the same planet is clicked.
             if (clickedPlanetId !== followedPlanetId) {
                 renderer.focusOnPlanet(clickedPlanetId);
                 const allItems = elements.planetSidebarList.querySelectorAll('.planet-sidebar-item');

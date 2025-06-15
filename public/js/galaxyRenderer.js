@@ -112,7 +112,7 @@ export const GalaxyRenderer = (() => {
     // --- HELPER FUNCTIONS ---
     function _createAndCacheTexture(creationFunction) {
         const texture = creationFunction();
-        texture.flipY = false;
+        // FIX: Removed 'texture.flipY = false;' which was causing WebGL errors.
         createdTextures.push(texture);
         return texture;
     }

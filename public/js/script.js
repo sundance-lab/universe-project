@@ -58,6 +58,7 @@ document.addEventListener('DOMContentLoaded', () => {
         planetSidebarList: document.getElementById('planet-sidebar-list'),
         galaxyCustomizationModal: document.getElementById('galaxy-customization-modal'),
         devPanelButton: document.getElementById('dev-panel-btn'),
+        spawnCharacterButton: document.getElementById('spawn-character-btn'),
         devPanelModal: document.getElementById('dev-panel-modal'),
         panelRegenerateUniverseButton: document.getElementById('panel-regenerate-universe-btn'),
         panelOpenPlanetDesignerButton: document.getElementById('panel-open-planet-designer-btn'),
@@ -171,7 +172,17 @@ document.addEventListener('DOMContentLoaded', () => {
         domElements.devPanelModal.classList.add('visible');
     }
 
-    function setupDevPanelListeners() {
+    function setupActionListeners() {
+        domElements.devPanelButton.addEventListener('click', showDevPanel);
+
+        domElements.spawnCharacterButton.addEventListener('click', () => {
+            if (window.activeSolarSystemRenderer?.enterSpawningMode) {
+                window.activeSolarSystemRenderer.enterSpawningMode();
+                showNotification("Spawning Mode: Click on the system plane to place your ship.");
+            }
+        });
+
+        // Dev Panel Listeners
         domElements.devPanelCancelButton.addEventListener('click', () => domElements.devPanelModal.classList.remove('visible'));
         domElements.devPanelSaveButton.addEventListener('click', saveDevSettings);
         
@@ -319,6 +330,6 @@ document.addEventListener('DOMContentLoaded', () => {
     
     // --- STARTUP ---
     initializeModules();
-    setupDevPanelListeners();
+    setupActionListeners();
     initializeGame();
 });

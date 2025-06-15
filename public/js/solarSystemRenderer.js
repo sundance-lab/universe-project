@@ -485,13 +485,13 @@ export const SolarSystemRenderer = (() => {
         _cleanup();
         scene = new THREE.Scene();
         const aspect = container.offsetWidth / container.offsetHeight;
-        camera = new THREE.PerspectiveCamera(60, aspect, 1, 1000000);
+        camera = new THREE.PerspectiveCamera(25, aspect, 1, 1000000);
 
         const sunVariation = sunVariations[solarSystemData.sun.type % sunVariations.length];
         if (sunVariation.sizeCategory === 'hypergiant') {
-            camera.position.set(0, 80000, 25000);
+            camera.position.set(0, 200000, 60000);
         } else {
-            camera.position.set(0, 50000, 15000);
+            camera.position.set(0, 140000, 40000);
         }
         camera.lookAt(0, 0, 0);
         
@@ -516,7 +516,7 @@ export const SolarSystemRenderer = (() => {
             dampingFactor: 0.05,
             screenSpacePanning: true,
             minDistance: DEFAULT_MIN_DISTANCE,
-            maxDistance: 450000,
+            maxDistance: 600000,
             enableZoom: false,
         });
 

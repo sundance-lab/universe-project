@@ -235,6 +235,9 @@ body, html {
   background-color: #5a7d9b;
 }
 
+#spawn-character-btn {
+  top: 75px; /* Position below the dev panel button */
+}
 
 #planet-designer-screen {
   width: 100vw; height: 100vh;

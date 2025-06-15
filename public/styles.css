@@ -720,3 +720,21 @@ body, html {
   visibility: visible;
   transition: opacity 0.5s ease-in-out, visibility 0s linear 0s, bottom 0.5s ease-in-out;
 }
+
+/* Add these styles to the end of styles.css */
+#surface-screen {
+  background-color: #1a1a1a;
+  cursor: default;
+}
+
+#surface-canvas {
+  width: 100%;
+  height: 100%;
+  display: block;
+}
+
+.surface-controls {
+  position: fixed;
+  bottom: 15px;
+  left: 15px;
+}

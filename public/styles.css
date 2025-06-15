@@ -460,12 +460,13 @@ body, html {
     height: 35px; 
 }
 
-#planet-surface-screen {
-  background-color: #334;
+/* Consolidated and cleaned up surface screen styles */
+#surface-screen {
+  background-color: #1a1a1a;
   cursor: default;
 }
 
-#planet-surface-canvas {
+#surface-canvas {
   width: 100%;
   height: 100%;
   display: block;
@@ -481,6 +482,7 @@ body, html {
   display: flex;
   align-items: center;
   gap: 20px;
+  z-index: 10;
 }
 
 .surface-controls .back-button {
@@ -719,22 +721,4 @@ body, html {
   opacity: 1;
   visibility: visible;
   transition: opacity 0.5s ease-in-out, visibility 0s linear 0s, bottom 0.5s ease-in-out;
-}
-
-/* Add these styles to the end of styles.css */
-#surface-screen {
-  background-color: #1a1a1a;
-  cursor: default;
-}
-
-#surface-canvas {
-  width: 100%;
-  height: 100%;
-  display: block;
-}
-
-.surface-controls {
-  position: fixed;
-  bottom: 15px;
-  left: 15px;
 }

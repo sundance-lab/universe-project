@@ -226,7 +226,7 @@ export const UIManager = (() => {
         
         elements.solarSystemContent.addEventListener('click', _onSolarSystemCanvasClick);
         
-        _renderPlanetSidebar(solarSystemObject.planets);
+        _renderPlanetSidebar(solarSystemObject.planets.map(p => ({ id: p.id, name: p.name })));
 
         makeTitleEditable(elements.solarSystemTitleText, elements.solarSystemTitleInput, (newName) => {
             GameStateManager.updateSolarSystemProperty(solarSystemObject.id, 'customName', newName);
@@ -234,29 +234,28 @@ export const UIManager = (() => {
         });
     }
 
-   function _onSolarSystemCanvasClick(event) {
+    function _onSolarSystemCanvasClick(event) {
         const renderer = window.activeSolarSystemRenderer;
         if (!renderer) return;
 
         const raycaster = renderer.getRaycaster();
         const mouse = renderer.getMouse();
         const camera = renderer.getCamera();
-        const planetMeshes = renderer.getPlanetMeshes();
+        const planetLODs = renderer.getPlanetMeshes();
         
-        if (!raycaster || !mouse || !camera || !planetMeshes) return;
+        if (!raycaster || !mouse || !camera || !planetLODs) return;
 
         const rect = elements.solarSystemContent.getBoundingClientRect();
         mouse.x = ((event.clientX - rect.left) / rect.width) * 2 - 1;
         mouse.y = -((event.clientY - rect.top) / rect.height) * 2 + 1;
 
         raycaster.setFromCamera(mouse, camera);
-        const intersects = raycaster.intersectObjects(planetMeshes);
+        const intersects = raycaster.intersectObjects(planetLODs);
 
         if (intersects.length > 0) {
-            const clickedPlanetId = intersects[0].object.userData.id;
+            const clickedPlanetId = intersects[0].object.parent.userData.id;
             const followedPlanetId = renderer.getFollowedPlanetId();
-            
-            // Only focus if a new planet is clicked. Do nothing if the same planet is clicked.
+
             if (clickedPlanetId !== followedPlanetId) {
                 renderer.focusOnPlanet(clickedPlanetId);
                 const allItems = elements.planetSidebarList.querySelectorAll('.planet-sidebar-item');
@@ -734,5 +733,33 @@ export const UIManager = (() => {
         },
         setActiveScreen: setActiveScreen,
         showGalaxyCustomizationModal: showGalaxyCustomizationModal,
+        showLandingConfirmation: (planetName, onConfirm, onCancel) => {
+            if (!elements.landingConfirmationPanel) return;
+            
+            const yesBtn = elements.landingBtnYes;
+            const noBtn = elements.landingBtnNo;
+            const newYesBtn = yesBtn.cloneNode(true);
+            const newNoBtn = noBtn.cloneNode(true);
+            yesBtn.parentNode.replaceChild(newYesBtn, yesBtn);
+            noBtn.parentNode.replaceChild(newNoBtn, noBtn);
+            
+            elements.landingQuestionText.textContent = `Land on ${planetName}?`;
+            
+            const closePanel = () => {
+                elements.landingConfirmationPanel.classList.remove('visible');
+            };
+
+            newNoBtn.addEventListener('click', () => {
+                if(onCancel) onCancel();
+                closePanel();
+            }, { once: true });
+
+            newYesBtn.addEventListener('click', () => {
+                if(onConfirm) onConfirm();
+                closePanel();
+            }, { once: true });
+
+            elements.landingConfirmationPanel.classList.add('visible');
+        },
     };
 })();

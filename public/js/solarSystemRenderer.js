@@ -100,7 +100,7 @@ function _createSimpleGalaxySpriteTexture() {
 export const SolarSystemRenderer = (() => {
     let scene, camera, renderer, controls;
     let sunLOD, sunLight, backgroundStars, distantGalaxiesGroup;
-    let planetMeshes = [], planetLabels = [];
+    let planetLODs = [], planetLabels = [];
     let orbitLines = [];
     let orbitLineMaterials = [];
     let currentSystemData = null;
@@ -113,7 +113,7 @@ export const SolarSystemRenderer = (() => {
     let unfocusAnimation = null;
     let preFocusState = null;
     let initialCameraState = null;
-    let followedPlanet = null;
+    let followedPlanetLOD = null;
     let sunRadius = 0;
 
     let playerShip = null;
@@ -212,15 +212,15 @@ export const SolarSystemRenderer = (() => {
         return ship;
     }
 
-    function _createPlanetMesh(planetData) {
+    function _createPlanetLOD(planetData) {
         const { vertexShader, fragmentShader } = getPlanetShaders();
-        const geometry = new THREE.SphereGeometry(planetData.size, 32, 32);
         const pMin = planetData.minTerrainHeight ?? 0.0;
         const pMax = planetData.maxTerrainHeight ?? (pMin + 10.0);
         const pOcean = planetData.oceanHeightLevel ?? (pMin + (pMax - pMin) * 0.3);
         const terrainRange = Math.max(0.1, pMax - pMin);
         const normalizedOceanLevel = terrainRange > 0 ? (pOcean - pMin) / terrainRange : 0.5;
         const displacementAmount = terrainRange * DISPLACEMENT_SCALING_FACTOR * 40;
+
         const material = new THREE.ShaderMaterial({
             uniforms: THREE.UniformsUtils.merge([
                 THREE.UniformsLib.common,
@@ -241,19 +241,31 @@ export const SolarSystemRenderer = (() => {
             vertexShader,
             fragmentShader
         });
-        const mesh = new THREE.Mesh(geometry, material);
-        mesh.userData = { ...planetData, lastPosition: new THREE.Vector3(), lastWorldPosition: new THREE.Vector3() };
-        
-        mesh.userData.initialOrbitalAngle = planetData.currentOrbitalAngle;
-        mesh.userData.initialAxialAngle = planetData.currentAxialAngle;
+
+        const lod = new THREE.LOD();
+        lod.userData = { ...planetData, lastPosition: new THREE.Vector3(), lastWorldPosition: new THREE.Vector3() };
+        lod.userData.initialOrbitalAngle = planetData.currentOrbitalAngle;
+        lod.userData.initialAxialAngle = planetData.currentAxialAngle;
+
+        const levels = [
+            { distance: 0, subdivision: 32 },
+            { distance: planetData.size * 20, subdivision: 16 },
+            { distance: planetData.size * 40, subdivision: 8 },
+        ];
+
+        levels.forEach(level => {
+            const geometry = new THREE.SphereGeometry(planetData.size, level.subdivision, level.subdivision);
+            const mesh = new THREE.Mesh(geometry, material);
+            lod.addLevel(mesh, level.distance);
+        });
         
         shipState.pathfinding.obstacles.push({
-            object: mesh,
-            position: mesh.position,
+            object: lod,
+            position: lod.position,
             radius: planetData.size * 1.5
         });
 
-        return mesh;
+        return lod;
     }
     
     function _createHexPlanetMeshLOD(planetData) {
@@ -440,19 +452,23 @@ export const SolarSystemRenderer = (() => {
             });
             scene.remove(distantGalaxiesGroup);
         }
-        planetMeshes.forEach(mesh => {
-            if (mesh.userData.hexMeshLOD) {
-                mesh.userData.hexMeshLOD.traverse(object => {
+        planetLODs.forEach(lod => {
+            if (lod.userData.hexMeshLOD) {
+                lod.userData.hexMeshLOD.traverse(object => {
                     if (object.isMesh) {
                         object.geometry.dispose();
                         if(object.material) object.material.dispose();
                     }
                 });
-                scene.remove(mesh.userData.hexMeshLOD);
+                scene.remove(lod.userData.hexMeshLOD);
             }
-            if (mesh.geometry) mesh.geometry.dispose();
-            if (mesh.material) mesh.material.dispose();
-            scene.remove(mesh);
+            lod.traverse(object => {
+                if(object.isMesh) {
+                    if(object.geometry) object.geometry.dispose();
+                    if(object.material) object.material.dispose();
+                }
+            });
+            scene.remove(lod);
         });
         planetLabels.forEach(label => {
             if (label.material.map) label.material.map.dispose();
@@ -485,7 +501,7 @@ export const SolarSystemRenderer = (() => {
         createdTextures = [];
 
         animationFrameId = null; boundWheelHandler = null; controls = null; sunLOD = null;
-        planetMeshes = []; orbitLines = []; orbitLineMaterials = []; backgroundStars = null;
+        planetLODs = []; orbitLines = []; orbitLineMaterials = []; backgroundStars = null;
         renderer = null; scene = null; camera = null; currentSystemData = null; distantGalaxiesGroup = null;
         planetLabels = []; playerShip = null; shipTargetSignifier = null; isSpawningMode = false;
         shipState.pathfinding.obstacles = [];
@@ -736,8 +752,8 @@ export const SolarSystemRenderer = (() => {
 
         const totalElapsedTime = (now - simulationStartTime) / 1000;
 
-        planetMeshes.forEach(mesh => {
-            const planet = mesh.userData;
+        planetLODs.forEach(lod => {
+            const planet = lod.userData;
             const orbitalAngularVelocity = planet.orbitalSpeed * 0.1 * moduleState.orbitSpeedMultiplier;
             const angle = (planet.currentOrbitalAngle + orbitalAngularVelocity * totalElapsedTime) % (2 * Math.PI);
             
@@ -756,16 +772,15 @@ export const SolarSystemRenderer = (() => {
             const q_LAN = new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(0, 0, 1), planet.longitudeOfAscendingNode);
             const finalQuaternion = new THREE.Quaternion().multiply(q_LAN).multiply(q_inc).multiply(q_argP);
             
-            mesh.position.copy(pos_orbital_plane).applyQuaternion(finalQuaternion);
+            lod.position.copy(pos_orbital_plane).applyQuaternion(finalQuaternion);
 
             const axialAngularVelocity = planet.axialSpeed * 2;
             const newAxialAngle = planet.initialAxialAngle + (axialAngularVelocity * totalElapsedTime);
-            mesh.rotation.y = newAxialAngle;
-            mesh.material.uniforms.uLightDirection.value.copy(mesh.position).negate().normalize();
+            lod.rotation.y = newAxialAngle;
             
-            if(mesh.userData.hexMeshLOD) {
-                mesh.userData.hexMeshLOD.position.copy(mesh.position);
-                mesh.userData.hexMeshLOD.rotation.copy(mesh.rotation);
+            if(lod.userData.hexMeshLOD) {
+                lod.userData.hexMeshLOD.position.copy(lod.position);
+                lod.userData.hexMeshLOD.rotation.copy(lod.rotation);
             }
         });
 
@@ -785,35 +800,35 @@ export const SolarSystemRenderer = (() => {
             const elapsedTime = performance.now() - focusAnimation.startTime;
             const progress = Math.min(elapsedTime / focusAnimation.duration, 1.0);
             const easedProgress = 1 - Math.pow(1 - progress, 3);
-            const planetPos = focusAnimation.targetPlanet.getWorldPosition(new THREE.Vector3());
+            const planetPos = focusAnimation.targetPlanetLOD.getWorldPosition(new THREE.Vector3());
             const desiredCamPos = planetPos.clone().add(focusAnimation.cameraOffset);
             camera.position.lerpVectors(focusAnimation.startPosition, desiredCamPos, easedProgress);
             controls.target.lerpVectors(focusAnimation.startTarget, planetPos, easedProgress);
             
             const dist = camera.position.distanceTo(planetPos);
-            const swapDist = focusAnimation.targetPlanet.userData.size * 10;
+            const swapDist = focusAnimation.targetPlanetLOD.userData.size * 10;
             if(dist < swapDist && !focusAnimation.swapped) {
-                focusAnimation.targetPlanet.visible = false;
-                if(focusAnimation.targetPlanet.userData.hexMeshLOD) {
-                    focusAnimation.targetPlanet.userData.hexMeshLOD.visible = true;
+                focusAnimation.targetPlanetLOD.visible = false;
+                if(focusAnimation.targetPlanetLOD.userData.hexMeshLOD) {
+                    focusAnimation.targetPlanetLOD.userData.hexMeshLOD.visible = true;
                 }
                 focusAnimation.swapped = true;
             }
 
             if (progress >= 1.0) {
-                followedPlanet = focusAnimation.targetPlanet;
-                controls.target.copy(followedPlanet.getWorldPosition(new THREE.Vector3()));
+                followedPlanetLOD = focusAnimation.targetPlanetLOD;
+                controls.target.copy(followedPlanetLOD.getWorldPosition(new THREE.Vector3()));
                 focusAnimation = null;
                 controls.enabled = true;
                 controls.enablePan = false;
-                controls.minPolarAngle = Math.PI / 2 - 0.1;
-                controls.maxPolarAngle = Math.PI / 2 - 0.1;
+                controls.minPolarAngle = 0;
+                controls.maxPolarAngle = Math.PI;
                 controls.mouseButtons.LEFT = THREE.MOUSE.ROTATE;
                 controls.mouseButtons.MIDDLE = THREE.MOUSE.DOLLY;
                 controls.mouseButtons.RIGHT = THREE.MOUSE.ROTATE;
             }
-        } else if (followedPlanet) {
-            const newPlanetWorldPos = followedPlanet.getWorldPosition(new THREE.Vector3());
+        } else if (followedPlanetLOD) {
+            const newPlanetWorldPos = followedPlanetLOD.getWorldPosition(new THREE.Vector3());
             const delta = new THREE.Vector3().subVectors(newPlanetWorldPos, controls.target);
             camera.position.add(delta);
             controls.target.copy(newPlanetWorldPos);
@@ -825,13 +840,13 @@ export const SolarSystemRenderer = (() => {
         
         const labelFadeStart = 80000;
         const labelFadeEnd = 50000;
-        let labelBaseOpacity = (followedPlanet) ? 0 : THREE.MathUtils.smoothstep(zoomDistance, labelFadeEnd, labelFadeStart);
+        let labelBaseOpacity = (followedPlanetLOD) ? 0 : THREE.MathUtils.smoothstep(zoomDistance, labelFadeEnd, labelFadeStart);
 
         planetLabels.forEach(label => {
-            const planetMesh = planetMeshes.find(p => p.userData.id === label.userData.planetId);
-            if (planetMesh) {
-                const yOffset = planetMesh.geometry.parameters.radius * 2.0;
-                label.position.copy(planetMesh.position).y += yOffset;
+            const planetLOD = planetLODs.find(p => p.userData.id === label.userData.planetId);
+            if (planetLOD) {
+                const yOffset = planetLOD.userData.size * 2.0;
+                label.position.copy(planetLOD.position).y += yOffset;
                 label.material.opacity = labelBaseOpacity;
             }
         });
@@ -852,7 +867,7 @@ export const SolarSystemRenderer = (() => {
         
         const sunPosition = new THREE.Vector3(0, 0, 0);
         const distanceToSun = camera.position.distanceTo(sunPosition);
-        if (!followedPlanet && sunRadius > 0 && distanceToSun < sunRadius * 1.1) {
+        if (!followedPlanetLOD && sunRadius > 0 && distanceToSun < sunRadius * 1.1) {
             const direction = camera.position.clone().normalize();
             camera.position.copy(direction.multiplyScalar(sunRadius * 1.1));
         }
@@ -887,14 +902,14 @@ export const SolarSystemRenderer = (() => {
             focusAnimation = null;
         }
 
-        if (!fromAnimation && (followedPlanet || preFocusState)) {
+        if (!fromAnimation && (followedPlanetLOD || preFocusState)) {
             unfocusAnimation = {
                 startTime: performance.now(),
                 duration: 1200,
                 startPosition: camera.position.clone(),
                 startTarget: controls.target.clone(),
-                endPosition: initialCameraState.position,
-                endTarget: initialCameraState.target
+                endPosition: preFocusState ? preFocusState.position : initialCameraState.position,
+                endTarget: preFocusState ? preFocusState.target : initialCameraState.target
             };
             controls.enabled = false;
         } else {
@@ -907,21 +922,21 @@ export const SolarSystemRenderer = (() => {
             controls.mouseButtons.RIGHT = -1;
         }
 
-        planetMeshes.forEach(mesh => {
-            mesh.visible = true;
-            if (mesh.userData.hexMeshLOD) {
-                mesh.userData.hexMeshLOD.visible = false;
+        planetLODs.forEach(lod => {
+            lod.visible = true;
+            if (lod.userData.hexMeshLOD) {
+                lod.userData.hexMeshLOD.visible = false;
             }
         });
 
-        if (followedPlanet) {
-            followedPlanet = null;
+        if (followedPlanetLOD) {
+            followedPlanetLOD = null;
         }
     }
 
     function focusOnPlanet(planetId) {
-        const targetPlanet = planetMeshes.find(p => p.userData.id === planetId);
-        if (!targetPlanet) return;
+        const targetPlanetLOD = planetLODs.find(p => p.userData.id === planetId);
+        if (!targetPlanetLOD) return;
     
         if (unfocusAnimation) unfocusAnimation = null;
 
@@ -932,11 +947,11 @@ export const SolarSystemRenderer = (() => {
             };
         }
         
-        const radius = targetPlanet.geometry.parameters.radius;
+        const radius = targetPlanetLOD.userData.size;
         controls.minDistance = radius * 1.2;
     
         focusAnimation = {
-            targetPlanet: targetPlanet,
+            targetPlanetLOD: targetPlanetLOD,
             startTime: performance.now(),
             duration: 1600,
             startPosition: camera.position.clone(),
@@ -948,7 +963,7 @@ export const SolarSystemRenderer = (() => {
     }
 
     function getFollowedPlanetId() {
-        return followedPlanet ? followedPlanet.userData.id : null;
+        return followedPlanetLOD ? followedPlanetLOD.userData.id : null;
     }
 
     return {
@@ -966,13 +981,13 @@ export const SolarSystemRenderer = (() => {
             scene.add(sunLOD);
             
             solarSystemData.planets.forEach(planet => {
-                const planetMesh = _createPlanetMesh(planet);
-                planetMeshes.push(planetMesh);
-                scene.add(planetMesh);
+                const planetLOD = _createPlanetLOD(planet);
+                planetLODs.push(planetLOD);
+                scene.add(planetLOD);
 
                 const hexLOD = _createHexPlanetMeshLOD(planet);
                 hexLOD.visible = false;
-                planetMesh.userData.hexMeshLOD = hexLOD;
+                planetLOD.userData.hexMeshLOD = hexLOD;
                 scene.add(hexLOD);
                 
                 const label = _createPlanetLabel(planet);
@@ -1004,7 +1019,7 @@ export const SolarSystemRenderer = (() => {
         focusOnPlanet,
         unfocus,
         getFollowedPlanetId,
-        getPlanetMeshes: () => planetMeshes,
+        getPlanetMeshes: () => planetLODs,
         getRaycaster: () => raycaster,
         getMouse: () => mouse,
         getCamera: () => camera,

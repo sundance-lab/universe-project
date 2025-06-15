@@ -167,15 +167,30 @@ export const SolarSystemRenderer = (() => {
         const planetData = planetLOD.userData;
         if (!planetData.landingLocations) return;
     
-        const iconTexture = _createLandingSiteTexture();
-    
+        // --- CUSTOM ICONS STEP 2: Load Textures (add this part) ---
+        // const textureLoader = new THREE.TextureLoader();
+        // const iconTextureMap = {
+        //     'City': textureLoader.load('./assets/icons/city.png'),
+        //     'Mine': textureLoader.load('./assets/icons/mine.png'),
+        //     // Add other types and their paths
+        //     'Default': _createLandingSiteTexture() // Fallback
+        // };
+        // Object.values(iconTextureMap).forEach(tex => createdTextures.push(tex));
+
+        const defaultIconTexture = _createLandingSiteTexture();
+
         planetData.landingLocations.forEach(location => {
+            
+            // --- CUSTOM ICONS STEP 3: Apply the correct texture ---
+            // let iconTexture = iconTextureMap[location.type] || iconTextureMap['Default'];
+            
             const material = new THREE.SpriteMaterial({
-                map: iconTexture,
+                map: defaultIconTexture, // Replace with iconTexture variable from Step 3
                 color: 0x00ff80,
                 transparent: true,
                 opacity: 0,
-                depthTest: true,
+                depthTest: false,
+                depthWrite: false,
                 sizeAttenuation: true 
             });
     
@@ -211,6 +226,7 @@ export const SolarSystemRenderer = (() => {
                 icon.visible = true;
                 icon.material.opacity = 1.0;
                 
+                // Scale is now relative to the planet's radius, adjusted by the dev slider
                 const scale = planetRadius * moduleState.landingIconSizeMultiplier;
                 icon.scale.set(scale, scale, 1.0);
     

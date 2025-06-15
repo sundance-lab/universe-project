@@ -99,6 +99,7 @@ export const SolarSystemRenderer = (() => {
 
     const SPHERE_BASE_RADIUS = 0.8;
     const DISPLACEMENT_SCALING_FACTOR = 0.005;
+    const DEFAULT_MIN_DISTANCE = 50;
 
     function _createSun(sunData) {
         const variation = sunVariations[sunData.type % sunVariations.length];
@@ -323,11 +324,32 @@ export const SolarSystemRenderer = (() => {
         renderer.setPixelRatio(window.devicePixelRatio);
         renderer.setSize(container.offsetWidth, container.offsetHeight);
         container.appendChild(renderer.domElement);
+
+        const invisiblePlane = new THREE.Mesh(
+            new THREE.PlaneGeometry(1000000, 1000000),
+            new THREE.MeshBasicMaterial({ visible: false, side: THREE.DoubleSide })
+        );
+        invisiblePlane.rotation.x = -Math.PI / 2;
+        scene.add(invisiblePlane);
+
+        renderer.domElement.addEventListener('contextmenu', (event) => {
+            if (followedPlanet || focusAnimation) return;
+            event.preventDefault();
+            const rect = renderer.domElement.getBoundingClientRect();
+            mouse.x = ((event.clientX - rect.left) / rect.width) * 2 - 1;
+            mouse.y = -((event.clientY - rect.top) / rect.height) * 2 + 1;
+            raycaster.setFromCamera(mouse, camera);
+            const intersects = raycaster.intersectObjects([invisiblePlane], true);
+            if (intersects.length > 0) {
+                controls.target.copy(intersects[0].point);
+            }
+        });
+        
         controls = new OrbitControls(camera, renderer.domElement);
         Object.assign(controls, {
             enabled: true,
             enableDamping: true, dampingFactor: 0.05, screenSpacePanning: true,
-            minDistance: 50, maxDistance: 450000, enablePan: true, rotateSpeed: 0.4,
+            minDistance: DEFAULT_MIN_DISTANCE, maxDistance: 450000, enablePan: false, rotateSpeed: 0.4,
             mouseButtons: { LEFT: THREE.MOUSE.ROTATE, MIDDLE: THREE.MOUSE.DOLLY, RIGHT: THREE.MOUSE.PAN },
             enableZoom: false,
             autoRotate: false,
@@ -336,17 +358,12 @@ export const SolarSystemRenderer = (() => {
 
         boundWheelHandler = (event) => {
             event.preventDefault();
-
             const camToTarget = new THREE.Vector3().subVectors(controls.target, camera.position);
             const dist = camToTarget.length();
-            
-            // Make zoom speed proportional to the distance from the target
             const zoomScale = 0.1;
             const proportionalZoomAmount = dist * zoomScale;
             let zoomFactor = event.deltaY < 0 ? -proportionalZoomAmount : proportionalZoomAmount;
-
             const newDist = THREE.MathUtils.clamp(dist + zoomFactor, controls.minDistance, controls.maxDistance);
-            
             if (newDist !== dist) {
                 camera.position.copy(controls.target).addScaledVector(camToTarget.normalize(), -newDist);
             }
@@ -441,9 +458,9 @@ export const SolarSystemRenderer = (() => {
         if (followedPlanet) {
             followedPlanet = null;
         }
-
+        controls.minDistance = DEFAULT_MIN_DISTANCE;
         controls.enabled = true;
-        controls.enablePan = true;
+        controls.enablePan = false;
         controls.mouseButtons.RIGHT = THREE.MOUSE.PAN;
     }
 
@@ -451,8 +468,9 @@ export const SolarSystemRenderer = (() => {
         const targetPlanet = planetMeshes.find(p => p.userData.id === planetId);
         if (!targetPlanet) return;
     
-        unfocus(); // Unfocus any previous planet and reset controls
+        unfocus();
         const radius = targetPlanet.geometry.parameters.radius;
+        controls.minDistance = radius * 1.2;
     
         focusAnimation = {
             targetPlanet: targetPlanet,

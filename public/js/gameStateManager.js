@@ -161,6 +161,9 @@ class GameStateManager {
                 gal.solarSystems.forEach(ss => {
                     ss.customName = ss.customName || null;
                     ss.sunSizeFactor = ss.sunSizeFactor ?? (0.5 + Math.random() * 9.5);
+                    if (ss.sunType === undefined || ss.sunType === null) {
+                        ss.sunType = Math.floor(Math.random() * 5);
+                    }
                 });
                 gal.lineConnections = gal.lineConnections || [];
                 gal.layoutGenerated = gal.layoutGenerated || false;

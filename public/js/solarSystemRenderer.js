@@ -158,9 +158,6 @@ export const SolarSystemRenderer = (() => {
             ]),
             vertexShader,
             fragmentShader,
-            polygonOffset: true,
-            polygonOffsetFactor: -4.0,
-            polygonOffsetUnits: -1.0
         });
         const mesh = new THREE.Mesh(geometry, material);
         mesh.userData = { ...planetData, lastPosition: new THREE.Vector3(), lastWorldPosition: new THREE.Vector3() };
@@ -386,7 +383,6 @@ export const SolarSystemRenderer = (() => {
         const totalElapsedTime = (now - simulationStartTime) / 1000;
 
         planetMeshes.forEach(mesh => {
-            mesh.renderOrder = 1;
             const planet = mesh.userData;
             const orbitalAngularVelocity = planet.orbitalSpeed * 0.1 * moduleState.orbitSpeedMultiplier;
             const newOrbitalAngle = planet.initialOrbitalAngle + (orbitalAngularVelocity * totalElapsedTime);
@@ -564,13 +560,12 @@ export const SolarSystemRenderer = (() => {
                     dashed: false,
                     transparent: true,
                     opacity: 0.75,
-                    depthTest: true,
-                    depthWrite: false
                 });
                 orbitLineMaterials.push(lineMaterial);
                 
                 const orbitLine = new Line2(lineGeometry, lineMaterial);
                 orbitLine.rotation.x = Math.PI / 2;
+                orbitLine.position.y = -0.1; // Nudge line down slightly to prevent z-fighting
                 orbitLines.push(orbitLine);
                 scene.add(orbitLine);
             });

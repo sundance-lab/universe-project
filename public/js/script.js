@@ -1,4 +1,5 @@
 // public/js/script.js
+import * as THREE from 'three';
 import { PlanetDesigner } from './planetDesigner.js';
 import GameStateManager from './gameStateManager.js';
 import {
@@ -62,6 +63,21 @@ document.addEventListener('DOMContentLoaded', () => {
 
     // --- FUNCTIONS ---
     window.generatePlanetInstanceFromBasis = generatePlanetInstanceFromBasis;
+
+    const sizeTiers = {
+        dwarf:      { size: 15 * 100, detailMultiplier: 1.5 },
+        normal:     { size: 30 * 100, detailMultiplier: 1.3 },
+        giant:      { size: 60 * 100, detailMultiplier: 1.1 },
+        supergiant: { size: 120 * 100, detailMultiplier: 1.0 },
+        hypergiant: { size: 240 * 100, detailMultiplier: 0.9 }
+    };
+    const sunVariations = [
+        { baseColor: new THREE.Color(0x4A90E2), hotColor: new THREE.Color(0xFFFFFF), coolColor: new THREE.Color(0x2979FF), glowColor: new THREE.Color(0x64B5F6), coronaColor: new THREE.Color(0x90CAF9), midColor: new THREE.Color(0x82B1FF), peakColor: new THREE.Color(0xE3F2FD), valleyColor: new THREE.Color(0x1565C0), turbulence: 1.2, fireSpeed: 0.35, pulseSpeed: 0.006, sizeCategory: 'normal', terrainScale: 2.0, fireIntensity: 1.8 },
+        { baseColor: new THREE.Color(0xFF5722), hotColor: new THREE.Color(0xFF8A65), coolColor: new THREE.Color(0xBF360C), glowColor: new THREE.Color(0xFF7043), coronaColor: new THREE.Color(0xFFAB91), midColor: new THREE.Color(0xFF7043), peakColor: new THREE.Color(0xFFCCBC), valleyColor: new THREE.Color(0x8D1F06), turbulence: 1.0, fireSpeed: 0.25, pulseSpeed: 0.003, sizeCategory: 'giant', terrainScale: 1.8, fireIntensity: 1.6 },
+        { baseColor: new THREE.Color(0xFFA500), hotColor: new THREE.Color(0xFFF7E6), coolColor: new THREE.Color(0xFF4500), glowColor: new THREE.Color(0xFFDF00), coronaColor: new THREE.Color(0xFFA726), midColor: new THREE.Color(0xFFB74D), peakColor: new THREE.Color(0xFFE0B2), valleyColor: new THREE.Color(0xE65100), turbulence: 1.1, fireSpeed: 0.3, pulseSpeed: 0.004, sizeCategory: 'normal', terrainScale: 2.2, fireIntensity: 1.7 },
+        { baseColor: new THREE.Color(0xE0E0E0), hotColor: new THREE.Color(0xFFFFFF), coolColor: new THREE.Color(0x9E9E9E), glowColor: new THREE.Color(0x82B1FF), coronaColor: new THREE.Color(0xBBDEFB), midColor: new THREE.Color(0xF5F5F5), peakColor: new THREE.Color(0xFFFFFF), valleyColor: new THREE.Color(0x757575), turbulence: 1.5, fireSpeed: 0.5, pulseSpeed: 0.01, sizeCategory: 'dwarf', terrainScale: 3.0, fireIntensity: 2.5 },
+        { baseColor: new THREE.Color(0xE65100), hotColor: new THREE.Color(0xFFAB40), coolColor: new THREE.Color(0xBF360C), glowColor: new THREE.Color(0xFFD740), coronaColor: new THREE.Color(0xFFC107), midColor: new THREE.Color(0xFF9800), peakColor: new THREE.Color(0xFFE0B2), valleyColor: new THREE.Color(0xBF360C), turbulence: 1.15, fireSpeed: 0.28, pulseSpeed: 0.002, sizeCategory: 'hypergiant', terrainScale: 1.5, fireIntensity: 1.9 }
+    ];
 
     function showNotification(message) {
         const notification = document.createElement('div');
@@ -170,12 +186,19 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     function generatePlanetsForSystem(solarSystemObject){
+        const sunType = solarSystemObject.sunType;
+        const variation = sunVariations[sunType % sunVariations.length];
+        const baseSize = sizeTiers[variation.sizeCategory].size;
+        
+        // Use max possible sun size for safety margin, as random variation is in renderer
+        const sunRadius = baseSize * 2.0; 
+        
         solarSystemObject.planets = [];
         const numPlanets = Math.floor(Math.random() * (devSettings.maxPlanets - devSettings.minPlanets + 1)) + devSettings.minPlanets;
         
-        const SUN_ICON_SIZE = 60;
         const MIN_ORBITAL_SEPARATION = 2000;
-        const MIN_PLANET_DISTANCE = SUN_ICON_SIZE * 3.0;
+        // Set minimum distance safely outside the sun's maximum possible radius
+        const MIN_PLANET_DISTANCE = sunRadius * 1.5;
         let lastOrbitalRadius = MIN_PLANET_DISTANCE;
 
         for (let i = 0; i < numPlanets; i++) {

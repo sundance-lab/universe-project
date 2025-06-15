@@ -189,7 +189,7 @@ export const UIManager = (() => {
         });
     }
 
-  function switchToSolarSystemView(solarSystemId) {
+    function switchToSolarSystemView(solarSystemId) {
        if (currentGalaxyRenderer) {
             currentGalaxyRenderer.dispose();
             currentGalaxyRenderer = null;

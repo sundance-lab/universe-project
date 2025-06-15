@@ -559,7 +559,7 @@ export const SolarSystemRenderer = (() => {
                     resolution: new THREE.Vector2(container.offsetWidth, container.offsetHeight),
                     dashed: false,
                     transparent: true,
-                    opacity: 0.75
+                    opacity: 0.25
                 });
                 orbitLineMaterials.push(lineMaterial);
                 

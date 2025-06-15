@@ -726,7 +726,8 @@ export const SolarSystemRenderer = (() => {
 
     function _createOrbitLine(planet) {
         const a = planet.semiMajorAxis;
-        const e = planet.orbitalEccentricity;
+        // Clamp eccentricity to a value slightly less than 1 to prevent Math.sqrt(negative)
+        const e = Math.min(planet.orbitalEccentricity, 0.999);
         const b = a * Math.sqrt(1 - e * e);
         const focusOffset = a * e;
 

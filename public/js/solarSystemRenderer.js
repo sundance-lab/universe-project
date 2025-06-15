@@ -86,7 +86,7 @@ function _createSimpleGalaxySpriteTexture() {
 export const SolarSystemRenderer = (() => {
     let scene, camera, renderer, controls;
     let sunLOD, sunLight, backgroundStars, distantGalaxiesGroup;
-    let planetMeshes = [];
+    let planetMeshes = [], planetLabels = [];
     let orbitLines = [];
     let orbitLineMaterials = [];
     let currentSystemData = null;
@@ -94,13 +94,16 @@ export const SolarSystemRenderer = (() => {
     let simulationStartTime = 0;
     let raycaster, mouse;
     let boundWheelHandler = null;
-    let boundResizeHandler = null;
+    let boundResizeHandler = null, boundRightClickHandler = null, boundSpawnClickHandler = null;
     let focusAnimation = null;
     let unfocusAnimation = null;
     let preFocusState = null;
     let initialCameraState = null;
     let followedPlanet = null;
     let sunRadius = 0;
+    let playerShip = null;
+    let isSpawningMode = false;
+    let movementPath = { target: null, startTime: 0, startPosition: null, duration: 0 };
 
     const moduleState = {
         orbitSpeedMultiplier: 1.0
@@ -128,6 +131,53 @@ export const SolarSystemRenderer = (() => {
         });
         lod.position.set(0, 0, 0);
         return lod;
+    }
+
+    function _createPlanetLabel(planetData) {
+        const canvas = document.createElement('canvas');
+        const context = canvas.getContext('2d');
+        const fontSize = 48;
+        context.font = `Bold ${fontSize}px "Segoe UI", Arial, sans-serif`;
+        const textWidth = context.measureText(planetData.name).width;
+        
+        canvas.width = textWidth;
+        canvas.height = fontSize * 1.2;
+        
+        // Re-set font after canvas resize
+        context.font = `Bold ${fontSize}px "Segoe UI", Arial, sans-serif`;
+        context.fillStyle = 'rgba(255, 255, 255, 0.85)';
+        context.textAlign = 'center';
+        context.textBaseline = 'middle';
+        context.fillText(planetData.name, canvas.width / 2, canvas.height / 2);
+
+        const texture = new THREE.CanvasTexture(canvas);
+        const material = new THREE.SpriteMaterial({
+            map: texture,
+            transparent: true,
+            opacity: 0,
+            depthTest: false // Render on top of orbit lines
+        });
+        const sprite = new THREE.Sprite(material);
+        sprite.scale.set(canvas.width * 5, canvas.height * 5, 1.0);
+        sprite.userData.planetId = planetData.id;
+        return sprite;
+    }
+
+    function _createPlayerShip() {
+        if (playerShip) scene.remove(playerShip);
+
+        const shipGeometry = new THREE.ConeGeometry(300, 1000, 8);
+        shipGeometry.rotateX(Math.PI / 2); // Point forward
+        const shipMaterial = new THREE.MeshStandardMaterial({
+            color: 0xeeeeff,
+            emissive: 0x55eeff,
+            emissiveIntensity: 2,
+            metalness: 0.8,
+            roughness: 0.2
+        });
+        const ship = new THREE.Mesh(shipGeometry, shipMaterial);
+        ship.add(new THREE.PointLight(0x55eeff, 5, 3000)); // Add a light for effect
+        return ship;
     }
 
     function _createPlanetMesh(planetData) {
@@ -267,8 +317,14 @@ export const SolarSystemRenderer = (() => {
     
     function _cleanup() {
         if (animationFrameId) cancelAnimationFrame(animationFrameId);
-        if (renderer?.domElement && boundWheelHandler) renderer.domElement.removeEventListener('wheel', boundWheelHandler);
+        
+        if (renderer?.domElement) {
+            renderer.domElement.removeEventListener('wheel', boundWheelHandler);
+            renderer.domElement.removeEventListener('click', boundSpawnClickHandler);
+            renderer.domElement.removeEventListener('contextmenu', boundRightClickHandler);
+        }
         if (boundResizeHandler) window.removeEventListener('resize', boundResizeHandler);
+
         if(controls) {
             controls.dispose();
         }
@@ -300,11 +356,21 @@ export const SolarSystemRenderer = (() => {
             if (mesh.material) mesh.material.dispose();
             scene.remove(mesh);
         });
+        planetLabels.forEach(label => {
+            if (label.material.map) label.material.map.dispose();
+            if (label.material) label.material.dispose();
+            scene.remove(label);
+        });
         orbitLines.forEach(line => {
             if (line.geometry) line.geometry.dispose();
             if (line.material) line.material.dispose();
             scene.remove(line);
         });
+        if (playerShip) {
+            if(playerShip.geometry) playerShip.geometry.dispose();
+            if(playerShip.material) playerShip.material.dispose();
+            scene.remove(playerShip);
+        }
         if (renderer) {
             renderer.dispose();
             renderer.domElement.remove();
@@ -317,6 +383,56 @@ export const SolarSystemRenderer = (() => {
         animationFrameId = null; boundWheelHandler = null; controls = null; sunLOD = null;
         planetMeshes = []; orbitLines = []; orbitLineMaterials = []; backgroundStars = null;
         renderer = null; scene = null; camera = null; currentSystemData = null; distantGalaxiesGroup = null;
+        planetLabels = []; playerShip = null; isSpawningMode = false;
+    }
+
+    function _onSpawnClick(event) {
+        if (!isSpawningMode) return;
+
+        const rect = renderer.domElement.getBoundingClientRect();
+        mouse.x = ((event.clientX - rect.left) / rect.width) * 2 - 1;
+        mouse.y = -((event.clientY - rect.top) / rect.height) * 2 + 1;
+        raycaster.setFromCamera(mouse, camera);
+
+        // Raycast against an invisible plane at y=0
+        const plane = new THREE.Plane(new THREE.Vector3(0, 1, 0), 0);
+        const intersectionPoint = new THREE.Vector3();
+        raycaster.ray.intersectPlane(plane, intersectionPoint);
+
+        if (intersectionPoint) {
+            if (!playerShip) {
+                playerShip = _createPlayerShip();
+                scene.add(playerShip);
+            }
+            playerShip.position.copy(intersectionPoint);
+            movementPath.target = null; // Stop any current movement
+        }
+
+        isSpawningMode = false;
+        renderer.domElement.style.cursor = 'default';
+    }
+
+    function _onMovementRightClick(event) {
+        event.preventDefault();
+        if (!playerShip) return;
+
+        const rect = renderer.domElement.getBoundingClientRect();
+        mouse.x = ((event.clientX - rect.left) / rect.width) * 2 - 1;
+        mouse.y = -((event.clientY - rect.top) / rect.height) * 2 + 1;
+        raycaster.setFromCamera(mouse, camera);
+
+        const plane = new THREE.Plane(new THREE.Vector3(0, 1, 0), 0);
+        const targetPosition = new THREE.Vector3();
+        raycaster.ray.intersectPlane(plane, targetPosition);
+
+        if (targetPosition) {
+            movementPath.target = targetPosition;
+            movementPath.startPosition = playerShip.position.clone();
+            const distance = movementPath.startPosition.distanceTo(targetPosition);
+            const speed = 10000; // units per second
+            movementPath.duration = (distance / speed) * 1000; // ms
+            movementPath.startTime = performance.now();
+        }
     }
 
     function _setupScene(container) {
@@ -368,6 +484,11 @@ export const SolarSystemRenderer = (() => {
         
         boundResizeHandler = _onResize;
         window.addEventListener('resize', boundResizeHandler);
+        boundSpawnClickHandler = _onSpawnClick;
+        renderer.domElement.addEventListener('click', boundSpawnClickHandler);
+        boundRightClickHandler = _onMovementRightClick;
+        renderer.domElement.addEventListener('contextmenu', boundRightClickHandler);
+
 
         raycaster = new THREE.Raycaster();
         mouse = new THREE.Vector2();
@@ -435,6 +556,40 @@ export const SolarSystemRenderer = (() => {
         }
 
         controls.update();
+
+        // Update Labels
+        const camDist = camera.position.length();
+        const fadeStart = 80000;
+        const fadeEnd = 50000;
+        let baseOpacity = (followedPlanet) ? 0 : THREE.MathUtils.smoothstep(camDist, fadeEnd, fadeStart);
+
+        planetLabels.forEach(label => {
+            const planetMesh = planetMeshes.find(p => p.userData.id === label.userData.planetId);
+            if (planetMesh) {
+                const yOffset = planetMesh.geometry.parameters.radius * 1.5;
+                label.position.copy(planetMesh.position).y += yOffset;
+                label.material.opacity = baseOpacity;
+            }
+        });
+
+        // Update Player Ship
+        if (playerShip && movementPath.target) {
+            const now = performance.now();
+            let progress = (now - movementPath.startTime) / movementPath.duration;
+            
+            if (progress >= 1) {
+                playerShip.position.copy(movementPath.target);
+                movementPath.target = null;
+            } else {
+                // Ease in and out
+                const easedProgress = progress < 0.5 
+                    ? 4 * progress * progress * progress 
+                    : 1 - Math.pow(-2 * progress + 2, 3) / 2;
+                
+                playerShip.position.lerpVectors(movementPath.startPosition, movementPath.target, easedProgress);
+                playerShip.lookAt(movementPath.target);
+            }
+        }
 
         if (backgroundStars) backgroundStars.position.copy(camera.position);
         if (distantGalaxiesGroup) distantGalaxiesGroup.position.copy(camera.position);
@@ -546,6 +701,10 @@ export const SolarSystemRenderer = (() => {
                 planetMeshes.push(planetMesh);
                 scene.add(planetMesh);
                 
+                const label = _createPlanetLabel(planet);
+                planetLabels.push(label);
+                scene.add(label);
+
                 const points = new THREE.Path().absarc(0, 0, planet.orbitalRadius, 0, Math.PI * 2, false).getPoints(256);
                 const positions = [];
                 points.forEach(p => positions.push(p.x, p.y, 0));
@@ -577,6 +736,10 @@ export const SolarSystemRenderer = (() => {
 
             unfocus(true);
             _animate(simulationStartTime);
+        },
+        enterSpawningMode: () => {
+            isSpawningMode = true;
+            if (renderer) renderer.domElement.style.cursor = 'crosshair';
         },
         dispose: () => _cleanup(),
         setOrbitLinesVisible,

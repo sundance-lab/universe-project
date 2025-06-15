@@ -276,9 +276,9 @@ document.addEventListener('DOMContentLoaded', () => {
                 longitudeOfAscendingNode: Math.random() * Math.PI * 2,
                 argumentOfPeriapsis: Math.random() * Math.PI * 2,
                 orbitalSpeed: Math.sqrt(10000 / semiMajorAxis),
-                initialOrbitalAngle: Math.random() * 2 * Math.PI,
+                currentOrbitalAngle: Math.random() * 2 * Math.PI,
                 axialSpeed: (Math.random() - 0.5) * 0.05,
-                initialAxialAngle: Math.random() * 2 * Math.PI,
+                currentAxialAngle: Math.random() * 2 * Math.PI,
             });
             lastOrbitalRadius = semiMajorAxis;
         }

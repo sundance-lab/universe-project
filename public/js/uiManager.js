@@ -253,7 +253,20 @@ export const UIManager = (() => {
         const intersects = raycaster.intersectObjects(planetMeshes);
 
         if (intersects.length > 0) {
-            // Clicking a planet does nothing. This could be a future feature.
+            const clickedPlanetId = intersects[0].object.userData.id;
+            const followedPlanetId = renderer.getFollowedPlanetId();
+
+            if (clickedPlanetId === followedPlanetId) {
+                renderer.unfocus();
+                const item = elements.planetSidebarList.querySelector(`.planet-sidebar-item[data-planet-id="${clickedPlanetId}"]`);
+                if(item) item.classList.remove('active-focus');
+            } else {
+                renderer.focusOnPlanet(clickedPlanetId);
+                const allItems = elements.planetSidebarList.querySelectorAll('.planet-sidebar-item');
+                allItems.forEach(i => i.classList.remove('active-focus'));
+                const item = elements.planetSidebarList.querySelector(`.planet-sidebar-item[data-planet-id="${clickedPlanetId}"]`);
+                if(item) item.classList.add('active-focus');
+            }
         }
     }
 

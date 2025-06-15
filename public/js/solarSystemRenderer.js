@@ -132,7 +132,7 @@ export const SolarSystemRenderer = (() => {
 
     const moduleState = {
         orbitSpeedMultiplier: 1.0,
-        landingIconSizeMultiplier: 25 
+        landingIconSizeMultiplier: 25
     };
 
     const SPHERE_BASE_RADIUS = 0.8;
@@ -673,7 +673,7 @@ export const SolarSystemRenderer = (() => {
         _createDistantStars();
         _createDistantGalaxies();
 
-        renderer = new THREE.WebGLRenderer({ antialias: true, alpha: false, logarithmicDepthBuffer: true });
+        renderer = new THREE.WebGLRenderer({ antialias: true, alpha: false, logarithmicDepthBuffer: false });
         renderer.setPixelRatio(window.devicePixelRatio);
         renderer.setSize(container.offsetWidth, container.offsetHeight);
         container.appendChild(renderer.domElement);

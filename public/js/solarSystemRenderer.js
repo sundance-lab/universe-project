@@ -103,6 +103,7 @@ export const SolarSystemRenderer = (() => {
     let sunRadius = 0;
 
     let playerShip = null;
+    let shipTargetSignifier = null;
     let shipState = {
         velocity: new THREE.Vector3(),
         maxSpeed: 7500,
@@ -394,6 +395,12 @@ export const SolarSystemRenderer = (() => {
             if(playerShip.material) playerShip.material.dispose();
             scene.remove(playerShip);
         }
+        if (shipTargetSignifier) {
+            if(shipTargetSignifier.geometry) shipTargetSignifier.geometry.dispose();
+            if(shipTargetSignifier.material) shipTargetSignifier.material.dispose();
+            scene.remove(shipTargetSignifier);
+        }
+
         if (renderer) {
             renderer.dispose();
             renderer.domElement.remove();
@@ -406,7 +413,7 @@ export const SolarSystemRenderer = (() => {
         animationFrameId = null; boundWheelHandler = null; controls = null; sunLOD = null;
         planetMeshes = []; orbitLines = []; orbitLineMaterials = []; backgroundStars = null;
         renderer = null; scene = null; camera = null; currentSystemData = null; distantGalaxiesGroup = null;
-        planetLabels = []; playerShip = null; isSpawningMode = false;
+        planetLabels = []; playerShip = null; shipTargetSignifier = null; isSpawningMode = false;
         shipState.pathfinding.obstacles = [];
     }
 
@@ -451,6 +458,16 @@ export const SolarSystemRenderer = (() => {
 
         if (targetPosition) {
             shipState.target = targetPosition;
+
+            if (!shipTargetSignifier) {
+                const ringGeometry = new THREE.RingGeometry(300, 400, 32);
+                const ringMaterial = new THREE.MeshBasicMaterial({ color: 0x00ffaa, side: THREE.DoubleSide, transparent: true });
+                shipTargetSignifier = new THREE.Mesh(ringGeometry, ringMaterial);
+                shipTargetSignifier.rotation.x = -Math.PI / 2;
+                scene.add(shipTargetSignifier);
+            }
+            shipTargetSignifier.position.copy(targetPosition);
+            shipTargetSignifier.visible = true;
         }
     }
 
@@ -521,6 +538,50 @@ export const SolarSystemRenderer = (() => {
         scene.add(sunLight);
         scene.add(new THREE.AmbientLight(0xffffff, 0.1));
     }
+
+    function _createOrbitLine(planet) {
+        const a = planet.semiMajorAxis;
+        const e = planet.orbitalEccentricity;
+        const b = a * Math.sqrt(1 - e * e);
+        const focusOffset = a * e;
+
+        const curve = new THREE.EllipseCurve(
+            -focusOffset, 0, // ax, aY
+            a, b,            // xRadius, yRadius
+            0, 2 * Math.PI,  // aStartAngle, aEndAngle
+            false,           // aClockwise
+            0                // aRotation
+        );
+
+        const points2D = curve.getPoints(256);
+        const points3D = points2D.map(p => new THREE.Vector3(p.x, p.y, 0));
+
+        const q_argP = new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(0, 0, 1), planet.argumentOfPeriapsis);
+        const q_inc = new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(1, 0, 0), planet.orbitalInclination);
+        const q_LAN = new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(0, 0, 1), planet.longitudeOfAscendingNode);
+        const finalQuaternion = new THREE.Quaternion().multiply(q_LAN).multiply(q_inc).multiply(q_argP);
+
+        points3D.forEach(p => p.applyQuaternion(finalQuaternion));
+
+        const positions = [];
+        points3D.forEach(p => positions.push(p.x, p.y, p.z));
+
+        const lineGeometry = new LineGeometry();
+        lineGeometry.setPositions(positions);
+
+        const lineMaterial = new LineMaterial({
+            color: 0x888888,
+            linewidth: 2,
+            resolution: new THREE.Vector2(renderer.domElement.offsetWidth, renderer.domElement.offsetHeight),
+            dashed: false,
+            transparent: true,
+            opacity: 0.25
+        });
+        orbitLineMaterials.push(lineMaterial);
+
+        const orbitLine = new Line2(lineGeometry, lineMaterial);
+        return orbitLine;
+    }
     
     function _calculateAvoidanceForce() {
         const avoidanceForce = new THREE.Vector3();
@@ -564,6 +625,7 @@ export const SolarSystemRenderer = (() => {
                 }
             } else {
                 shipState.target = null;
+                if(shipTargetSignifier) shipTargetSignifier.visible = false;
             }
         }
 
@@ -601,13 +663,33 @@ export const SolarSystemRenderer = (() => {
 
         planetMeshes.forEach(mesh => {
             const planet = mesh.userData;
-            const orbitalAngularVelocity = planet.orbitalSpeed * 0.1 * moduleState.orbitSpeedMultiplier;
-            const newOrbitalAngle = planet.initialOrbitalAngle + (orbitalAngularVelocity * totalElapsedTime);
+            const orbitalPeriod = 2 * Math.PI * Math.sqrt(Math.pow(planet.semiMajorAxis, 3) / (10000 * 100));
+            const meanMotion = (2 * Math.PI) / orbitalPeriod;
+            
+            const meanAnomaly = (planet.currentOrbitalAngle + meanMotion * totalElapsedTime * moduleState.orbitSpeedMultiplier) % (2 * Math.PI);
+            
+            // Simplified: Use mean anomaly directly for position. A true sim would solve Kepler's equation.
+            const angle = meanAnomaly;
+            
+            const a = planet.semiMajorAxis;
+            const e = planet.orbitalEccentricity;
+            const b = a * Math.sqrt(1.0 - e * e);
+            const focusOffset = a * e;
+
+            const x_orbital = a * Math.cos(angle) - focusOffset;
+            const y_orbital = b * Math.sin(angle);
+
+            const pos_orbital_plane = new THREE.Vector3(x_orbital, y_orbital, 0);
+
+            const q_argP = new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(0, 0, 1), planet.argumentOfPeriapsis);
+            const q_inc = new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(1, 0, 0), planet.orbitalInclination);
+            const q_LAN = new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(0, 0, 1), planet.longitudeOfAscendingNode);
+            const finalQuaternion = new THREE.Quaternion().multiply(q_LAN).multiply(q_inc).multiply(q_argP);
+            
+            mesh.position.copy(pos_orbital_plane).applyQuaternion(finalQuaternion);
+
             const axialAngularVelocity = planet.axialSpeed * 2;
             const newAxialAngle = planet.initialAxialAngle + (axialAngularVelocity * totalElapsedTime);
-            const x = planet.orbitalRadius * Math.cos(newOrbitalAngle);
-            const z = planet.orbitalRadius * Math.sin(newOrbitalAngle); 
-            mesh.position.set(x, 0, z);
             mesh.rotation.y = newAxialAngle;
             mesh.material.uniforms.uLightDirection.value.copy(mesh.position).negate().normalize();
         });
@@ -668,7 +750,7 @@ export const SolarSystemRenderer = (() => {
             }
         });
 
-        const maxOrbitOpacity = 0.5;
+        const maxOrbitOpacity = 0.2;
         const orbitFadeStart = 120000;
         const orbitFadeEnd = 30000;
         const fadeAmount = THREE.MathUtils.smoothstep(zoomDistance, orbitFadeEnd, orbitFadeStart);
@@ -798,26 +880,7 @@ export const SolarSystemRenderer = (() => {
                 planetLabels.push(label);
                 scene.add(label);
 
-                const points = new THREE.Path().absarc(0, 0, planet.orbitalRadius, 0, Math.PI * 2, false).getPoints(256);
-                const positions = [];
-                points.forEach(p => positions.push(p.x, p.y, 0));
-
-                const lineGeometry = new LineGeometry();
-                lineGeometry.setPositions(positions);
-                
-                const lineMaterial = new LineMaterial({
-                    color: 0x888888,
-                    linewidth: 2,
-                    resolution: new THREE.Vector2(container.offsetWidth, container.offsetHeight),
-                    dashed: false,
-                    transparent: true,
-                    opacity: 0.25
-                });
-                orbitLineMaterials.push(lineMaterial);
-                
-                const orbitLine = new Line2(lineGeometry, lineMaterial);
-                orbitLine.rotation.x = Math.PI / 2;
-                orbitLine.position.y = -0.1;
+                const orbitLine = _createOrbitLine(planet);
                 orbitLines.push(orbitLine);
                 scene.add(orbitLine);
             });

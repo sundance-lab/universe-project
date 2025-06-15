@@ -8,6 +8,7 @@ import { getPlanetShaders, getHexPlanetShaders } from './shaders.js';
 import { Line2 } from 'three/examples/jsm/lines/Line2.js';
 import { LineMaterial } from 'three/examples/jsm/lines/LineMaterial.js';
 import { LineGeometry } from 'three/examples/jsm/lines/LineGeometry.js';
+import { UIManager } from './uiManager.js';
 
 // --- Sun Creation Logic ---
 const LOD_LEVELS = {
@@ -243,21 +244,20 @@ export const SolarSystemRenderer = (() => {
         });
 
         const lod = new THREE.LOD();
-        lod.userData = { ...planetData, lastPosition: new THREE.Vector3(), lastWorldPosition: new THREE.Vector3() };
-        lod.userData.initialOrbitalAngle = planetData.currentOrbitalAngle;
-        lod.userData.initialAxialAngle = planetData.currentAxialAngle;
+        lod.userData = { ...planetData };
 
         const levels = [
-            { distance: 0, subdivision: 32 },
+            { distance: planetData.size * 3, subdivision: 32 },
             { distance: planetData.size * 20, subdivision: 16 },
             { distance: planetData.size * 40, subdivision: 8 },
         ];
 
-        levels.forEach(level => {
+        for (const level of levels) {
             const geometry = new THREE.SphereGeometry(planetData.size, level.subdivision, level.subdivision);
             const mesh = new THREE.Mesh(geometry, material);
+            mesh.userData.id = planetData.id; // Important for raycasting
             lod.addLevel(mesh, level.distance);
-        });
+        }
         
         shipState.pathfinding.obstacles.push({
             object: lod,
@@ -313,6 +313,7 @@ export const SolarSystemRenderer = (() => {
             addBarycentricCoordinates(geometry);
             
             const mesh = new THREE.Mesh(geometry, hexPlanetMaterial.clone());
+            mesh.userData.id = planetData.id;
             lod.addLevel(mesh, distance);
         }
         
@@ -536,28 +537,30 @@ export const SolarSystemRenderer = (() => {
     function _onMovementRightClick(event) {
         event.preventDefault();
         
-        if (playerShip) {
-            const rect = renderer.domElement.getBoundingClientRect();
-            mouse.x = ((event.clientX - rect.left) / rect.width) * 2 - 1;
-            mouse.y = -((event.clientY - rect.top) / rect.height) * 2 + 1;
-            raycaster.setFromCamera(mouse, camera);
+        const rect = renderer.domElement.getBoundingClientRect();
+        mouse.x = ((event.clientX - rect.left) / rect.width) * 2 - 1;
+        mouse.y = -((event.clientY - rect.top) / rect.height) * 2 + 1;
+        raycaster.setFromCamera(mouse, camera);
 
+        const intersects = raycaster.intersectObjects(planetLODs, true);
+
+        if (intersects.length > 0 && followedPlanetLOD && intersects[0].object.parent === followedPlanetLOD) {
+            const planetData = followedPlanetLOD.userData;
+            UIManager.showLandingConfirmation(
+                planetData.name, 
+                () => { console.log("Affirmative. Landing on " + planetData.name); },
+                () => { console.log("Negative. Cancelling landing."); }
+            );
+            return;
+        }
+        
+        if (playerShip) {
             const plane = new THREE.Plane(new THREE.Vector3(0, 1, 0), 0);
             const targetPosition = new THREE.Vector3();
             raycaster.ray.intersectPlane(plane, targetPosition);
 
             if (targetPosition) {
                 shipState.target = targetPosition;
-
-                if (!shipTargetSignifier) {
-                    const ringGeometry = new THREE.RingGeometry(300, 400, 32);
-                    const ringMaterial = new THREE.MeshBasicMaterial({ color: 0x00ffaa, side: THREE.DoubleSide, transparent: true });
-                    shipTargetSignifier = new THREE.Mesh(ringGeometry, ringMaterial);
-                    shipTargetSignifier.rotation.x = -Math.PI / 2;
-                    scene.add(shipTargetSignifier);
-                }
-                shipTargetSignifier.position.copy(targetPosition);
-                shipTargetSignifier.visible = true;
             }
         }
     }
@@ -716,7 +719,6 @@ export const SolarSystemRenderer = (() => {
                 }
             } else {
                 shipState.target = null;
-                if(shipTargetSignifier) shipTargetSignifier.visible = false;
             }
         }
 
@@ -755,7 +757,7 @@ export const SolarSystemRenderer = (() => {
         planetLODs.forEach(lod => {
             const planet = lod.userData;
             const orbitalAngularVelocity = planet.orbitalSpeed * 0.1 * moduleState.orbitSpeedMultiplier;
-            const angle = (planet.currentOrbitalAngle + orbitalAngularVelocity * totalElapsedTime) % (2 * Math.PI);
+            const angle = (planet.initialOrbitalAngle + orbitalAngularVelocity * totalElapsedTime) % (2 * Math.PI);
             
             const a = planet.semiMajorAxis;
             const e = planet.orbitalEccentricity;
@@ -822,7 +824,7 @@ export const SolarSystemRenderer = (() => {
                 controls.enabled = true;
                 controls.enablePan = false;
                 controls.minPolarAngle = 0;
-                controls.maxPolarAngle = Math.PI;
+                controls.maxPolarAngle = Math.PI / 2 - 0.1;
                 controls.mouseButtons.LEFT = THREE.MOUSE.ROTATE;
                 controls.mouseButtons.MIDDLE = THREE.MOUSE.DOLLY;
                 controls.mouseButtons.RIGHT = THREE.MOUSE.ROTATE;
@@ -956,7 +958,7 @@ export const SolarSystemRenderer = (() => {
             duration: 1600,
             startPosition: camera.position.clone(),
             startTarget: controls.target.clone(),
-            cameraOffset: new THREE.Vector3(0, radius * 1.5, radius * 3.5),
+            cameraOffset: new THREE.Vector3(0, radius * 4.0, radius * 10.0),
             swapped: false
         };
         controls.enabled = false;

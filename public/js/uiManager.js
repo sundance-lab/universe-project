@@ -189,7 +189,7 @@ export const UIManager = (() => {
         });
     }
 
-    function switchToSolarSystemView(solarSystemId) {
+  function switchToSolarSystemView(solarSystemId) {
        if (currentGalaxyRenderer) {
             currentGalaxyRenderer.dispose();
             currentGalaxyRenderer = null;
@@ -214,7 +214,7 @@ export const UIManager = (() => {
 
         const solarSystemDataForRenderer = {
             id: solarSystemObject.id,
-            sun: { size: solarSystemObject.sunSizeFactor, type: Math.floor(Math.random() * 5) },
+            sun: { size: solarSystemObject.sunSizeFactor, type: solarSystemObject.sunType },
             planets: solarSystemObject.planets.map(p => ({ ...p }))
         };
         setActiveScreen(elements.solarSystemScreen);

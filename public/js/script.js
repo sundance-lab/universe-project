@@ -10,6 +10,7 @@ import {
     regenerateCurrentUniverseState
 } from './universeGenerator.js';
 import { UIManager } from './uiManager.js';
+import { getPlanetElevation } from './noise.js'; // Import the new utility
 
 // --- INITIALIZATION ---
 function initializeModules() {
@@ -280,16 +281,37 @@ document.addEventListener('DOMContentLoaded', () => {
 
             const numLocations = Math.floor(Math.random() * 4) + 1; // 1 to 4 locations
             const locations = [];
-            for (let j = 0; j < numLocations; j++) {
-                const type = landingLocationTypes[Math.floor(Math.random() * landingLocationTypes.length)];
-                locations.push({
-                    id: `${solarSystemObject.id}-planet-${i}-loc-${j}`,
-                    type: type,
-                    name: `${type} #${j + 1}`,
-                    // Using spherical coordinates: phi (polar), theta (azimuthal)
-                    phi: Math.acos(2 * Math.random() - 1), // Latitudinal angle (from -PI/2 to PI/2)
-                    theta: Math.random() * 2 * Math.PI,     // Longitudinal angle
-                });
+            let attempts = 0;
+
+            while(locations.length < numLocations && attempts < 50) {
+                const phi = Math.acos(2 * Math.random() - 1);
+                const theta = Math.random() * 2 * Math.PI;
+
+                const positionOnSphere = [
+                    Math.sin(phi) * Math.cos(theta),
+                    Math.sin(phi) * Math.sin(theta),
+                    Math.cos(phi)
+                ];
+                
+                const planetBasisForNoise = { 
+                    continentSeed: planetData.continentSeed,
+                    minTerrainHeight: planetData.minTerrainHeight,
+                    maxTerrainHeight: planetData.maxTerrainHeight
+                };
+
+                const elevation = getPlanetElevation(positionOnSphere, planetBasisForNoise);
+
+                if (elevation > planetData.oceanHeightLevel) {
+                    const type = landingLocationTypes[Math.floor(Math.random() * landingLocationTypes.length)];
+                    locations.push({
+                        id: `${solarSystemObject.id}-planet-${i}-loc-${locations.length}`,
+                        type: type,
+                        name: `${type} #${locations.length + 1}`,
+                        phi: phi,
+                        theta: theta,
+                    });
+                }
+                attempts++;
             }
 
             solarSystemObject.planets.push({

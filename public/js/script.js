@@ -242,6 +242,8 @@ document.addEventListener('DOMContentLoaded', () => {
         const MIN_PLANET_DISTANCE = sunRadius * 1.5;
         let lastOrbitalRadius = MIN_PLANET_DISTANCE;
 
+        const landingLocationTypes = ['City', 'Military Outpost', 'Trading Hub', 'Mine', 'Science Facility'];
+
         for (let i = 0; i < numPlanets; i++) {
             const planetData = generatePlanetInstanceFromBasis({});
             
@@ -265,6 +267,20 @@ document.addEventListener('DOMContentLoaded', () => {
                 inclination = Math.random() * Math.PI;
             }
 
+            const numLocations = Math.floor(Math.random() * 4) + 1; // 1 to 4 locations
+            const locations = [];
+            for (let j = 0; j < numLocations; j++) {
+                const type = landingLocationTypes[Math.floor(Math.random() * landingLocationTypes.length)];
+                locations.push({
+                    id: `${solarSystemObject.id}-planet-${i}-loc-${j}`,
+                    type: type,
+                    name: `${type} #${j + 1}`,
+                    // Using spherical coordinates: phi (polar), theta (azimuthal)
+                    phi: Math.acos(2 * Math.random() - 1), // Latitudinal angle (from -PI/2 to PI/2)
+                    theta: Math.random() * 2 * Math.PI,     // Longitudinal angle
+                });
+            }
+
             solarSystemObject.planets.push({
                 ...planetData,
                 id: `${solarSystemObject.id}-planet-${i}`,
@@ -279,6 +295,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 currentOrbitalAngle: Math.random() * 2 * Math.PI,
                 axialSpeed: (Math.random() - 0.5) * 0.05,
                 currentAxialAngle: Math.random() * 2 * Math.PI,
+                landingLocations: locations,
             });
             lastOrbitalRadius = semiMajorAxis;
         }

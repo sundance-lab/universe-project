@@ -78,6 +78,8 @@ document.addEventListener('DOMContentLoaded', () => {
         landingQuestionText: document.getElementById('landing-question-text'),
         landingBtnYes: document.getElementById('landing-btn-yes'),
         landingBtnNo: document.getElementById('landing-btn-no'),
+        surfaceScreen: document.getElementById('surface-screen'),
+        backToSystemButton: document.getElementById('back-to-system'),
     };
 
     // --- FUNCTIONS ---
@@ -276,7 +278,6 @@ document.addEventListener('DOMContentLoaded', () => {
                 inclination = Math.random() * Math.PI;
             }
 
-            // The landingLocations array is now added by generatePlanetInstanceFromBasis
             solarSystemObject.planets.push({
                 ...planetData,
                 id: `${solarSystemObject.id}-planet-${i}`,

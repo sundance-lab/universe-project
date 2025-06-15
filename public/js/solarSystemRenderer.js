@@ -92,6 +92,7 @@ export const SolarSystemRenderer = (() => {
     let boundWheelHandler = null;
     let focusAnimation = null;
     let followedPlanet = null;
+    let sunRadius = 0;
 
     const moduleState = {
         orbitSpeedMultiplier: 1.0
@@ -107,6 +108,7 @@ export const SolarSystemRenderer = (() => {
         const detailMultiplier = sizeTiers[variation.sizeCategory].detailMultiplier;
         const sizeVariation = 0.5 + Math.random() * 1.5;
         const finalSize = baseSize * sizeVariation;
+        sunRadius = finalSize;
         const lod = new THREE.LOD();
         Object.values(LOD_LEVELS).forEach(level => {
             const adjustedSegments = Math.floor(level.segments * detailMultiplier);
@@ -324,33 +326,13 @@ export const SolarSystemRenderer = (() => {
         renderer.setPixelRatio(window.devicePixelRatio);
         renderer.setSize(container.offsetWidth, container.offsetHeight);
         container.appendChild(renderer.domElement);
-
-        const invisiblePlane = new THREE.Mesh(
-            new THREE.PlaneGeometry(1000000, 1000000),
-            new THREE.MeshBasicMaterial({ visible: false, side: THREE.DoubleSide })
-        );
-        invisiblePlane.rotation.x = -Math.PI / 2;
-        scene.add(invisiblePlane);
-
-        renderer.domElement.addEventListener('contextmenu', (event) => {
-            if (followedPlanet || focusAnimation) return;
-            event.preventDefault();
-            const rect = renderer.domElement.getBoundingClientRect();
-            mouse.x = ((event.clientX - rect.left) / rect.width) * 2 - 1;
-            mouse.y = -((event.clientY - rect.top) / rect.height) * 2 + 1;
-            raycaster.setFromCamera(mouse, camera);
-            const intersects = raycaster.intersectObjects([invisiblePlane], true);
-            if (intersects.length > 0) {
-                controls.target.copy(intersects[0].point);
-            }
-        });
         
         controls = new OrbitControls(camera, renderer.domElement);
         Object.assign(controls, {
             enabled: true,
             enableDamping: true, dampingFactor: 0.05, screenSpacePanning: true,
-            minDistance: DEFAULT_MIN_DISTANCE, maxDistance: 450000, enablePan: false, rotateSpeed: 0.4,
-            mouseButtons: { LEFT: THREE.MOUSE.ROTATE, MIDDLE: THREE.MOUSE.DOLLY, RIGHT: THREE.MOUSE.PAN },
+            minDistance: DEFAULT_MIN_DISTANCE, maxDistance: 450000, enablePan: true, rotateSpeed: 0.4,
+            mouseButtons: { LEFT: THREE.MOUSE.PAN, MIDDLE: THREE.MOUSE.DOLLY, RIGHT: -1 },
             enableZoom: false,
             autoRotate: false,
             autoRotateSpeed: 0.5
@@ -382,7 +364,6 @@ export const SolarSystemRenderer = (() => {
 
         const totalElapsedTime = (now - simulationStartTime) / 1000; // Time in seconds
 
-        // Update planet positions first to eliminate camera lag
         planetMeshes.forEach(mesh => {
             const planet = mesh.userData;
             
@@ -400,7 +381,6 @@ export const SolarSystemRenderer = (() => {
             mesh.material.uniforms.uLightDirection.value.copy(mesh.position).negate().normalize();
         });
 
-        // Then, update camera and focus logic based on new planet positions
         if (focusAnimation) {
             const elapsedTime = performance.now() - focusAnimation.startTime;
             const progress = Math.min(elapsedTime / focusAnimation.duration, 1.0);
@@ -419,6 +399,7 @@ export const SolarSystemRenderer = (() => {
                 controls.enabled = true;
                 
                 controls.enablePan = false;
+                controls.mouseButtons.LEFT = THREE.MOUSE.ROTATE;
                 controls.mouseButtons.RIGHT = THREE.MOUSE.ROTATE;
             }
         } else if (followedPlanet) {
@@ -430,6 +411,14 @@ export const SolarSystemRenderer = (() => {
         }
 
         controls.update();
+
+        const sunPosition = new THREE.Vector3(0, 0, 0);
+        const distanceToSun = camera.position.distanceTo(sunPosition);
+        if (sunRadius > 0 && distanceToSun < sunRadius * 1.1) {
+            const direction = camera.position.clone().normalize();
+            camera.position.copy(direction.multiplyScalar(sunRadius * 1.1));
+        }
+
         if (distantGalaxiesGroup) distantGalaxiesGroup.rotation.y += 0.00005;
         if (sunLOD) {
             sunLOD.rotation.y += 0.0001;
@@ -460,8 +449,9 @@ export const SolarSystemRenderer = (() => {
         }
         controls.minDistance = DEFAULT_MIN_DISTANCE;
         controls.enabled = true;
-        controls.enablePan = false;
-        controls.mouseButtons.RIGHT = THREE.MOUSE.PAN;
+        controls.enablePan = true;
+        controls.mouseButtons.LEFT = THREE.MOUSE.PAN;
+        controls.mouseButtons.RIGHT = -1;
     }
 
     function focusOnPlanet(planetId) {
@@ -513,6 +503,7 @@ export const SolarSystemRenderer = (() => {
                 setOrbitSpeed(initialDevSettings.orbitSpeed);
             }
 
+            unfocus();
             _animate(simulationStartTime);
         },
         dispose: () => _cleanup(),

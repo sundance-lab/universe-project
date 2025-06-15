@@ -103,6 +103,7 @@ export const SolarSystemRenderer = (() => {
     let planetLODs = [], planetLabels = [];
     let orbitLines = [];
     let orbitLineMaterials = [];
+    let landingSiteIcons = [];
     let currentSystemData = null;
     let animationFrameId = null;
     let simulationStartTime = 0, lastUpdateTime = 0;
@@ -136,6 +137,93 @@ export const SolarSystemRenderer = (() => {
     const SPHERE_BASE_RADIUS = 0.8;
     const DISPLACEMENT_SCALING_FACTOR = 0.005;
     const DEFAULT_MIN_DISTANCE = 50;
+
+    function _createLandingSiteTexture() {
+        return _createAndCacheTexture(() => {
+            const size = 64;
+            const canvas = document.createElement('canvas');
+            canvas.width = size;
+            canvas.height = size;
+            const context = canvas.getContext('2d');
+            const center = size / 2;
+    
+            context.beginPath();
+            context.arc(center, center, center - 2, 0, 2 * Math.PI, false);
+            context.strokeStyle = 'rgba(0, 255, 128, 1)';
+            context.lineWidth = 4;
+            context.stroke();
+    
+            context.beginPath();
+            context.arc(center, center, center / 2.5, 0, 2 * Math.PI, false);
+            context.fillStyle = 'rgba(0, 255, 128, 0.5)';
+            context.fill();
+    
+            return new THREE.CanvasTexture(canvas);
+        });
+    }
+
+    function _createLandingSiteIcons(planetLOD) {
+        const planetData = planetLOD.userData;
+        if (!planetData.landingLocations) return;
+    
+        const iconTexture = _createLandingSiteTexture();
+    
+        planetData.landingLocations.forEach(location => {
+            const material = new THREE.SpriteMaterial({
+                map: iconTexture,
+                color: 0x00ff80,
+                transparent: true,
+                opacity: 0,
+                depthTest: false,
+                sizeAttenuation: true
+            });
+    
+            const sprite = new THREE.Sprite(material);
+            sprite.userData = { ...location, planetId: planetData.id };
+            sprite.visible = false; // Start invisible
+            landingSiteIcons.push(sprite);
+            scene.add(sprite);
+        });
+    }
+
+    function _updateLandingSiteIcons(deltaTime) {
+        if (!followedPlanetLOD) {
+            landingSiteIcons.forEach(icon => { icon.visible = false; });
+            return;
+        }
+    
+        const planetPos = followedPlanetLOD.getWorldPosition(new THREE.Vector3());
+        const camDist = camera.position.distanceTo(planetPos);
+        const planetRadius = followedPlanetLOD.userData.size;
+        const showDistance = planetRadius * 5;
+    
+        landingSiteIcons.forEach(icon => {
+            if (icon.userData.planetId === followedPlanetLOD.userData.id) {
+                if (camDist < showDistance) {
+                    const opacity = THREE.MathUtils.smoothstep(camDist, showDistance, planetRadius * 1.5);
+    
+                    const positionOnSphere = new THREE.Vector3().setFromSphericalCoords(
+                        planetRadius * 1.01, // Slightly above the surface
+                        icon.userData.phi,
+                        icon.userData.theta
+                    );
+    
+                    positionOnSphere.applyQuaternion(followedPlanetLOD.quaternion);
+                    icon.position.copy(positionOnSphere).add(planetPos);
+    
+                    icon.material.opacity = opacity;
+                    icon.visible = true;
+                    const scale = planetRadius * 0.1;
+                    icon.scale.set(scale, scale, 1.0);
+    
+                } else {
+                    icon.visible = false;
+                }
+            } else {
+                icon.visible = false;
+            }
+        });
+    }
 
     function _createSun(sunData) {
         const variation = sunVariations[sunData.type % sunVariations.length];
@@ -480,6 +568,12 @@ export const SolarSystemRenderer = (() => {
             if (line.material) line.material.dispose();
             scene.remove(line);
         });
+        landingSiteIcons.forEach(icon => {
+            if (icon.material.map) icon.material.map.dispose();
+            if (icon.material) icon.material.dispose();
+            scene.remove(icon);
+        });
+        landingSiteIcons = [];
         if (playerShip) {
             if(playerShip.geometry) playerShip.geometry.dispose();
             if(playerShip.material) playerShip.material.dispose();
@@ -860,6 +954,7 @@ export const SolarSystemRenderer = (() => {
             material.opacity = orbitOpacity;
         });
 
+        _updateLandingSiteIcons(deltaTime);
         _updatePlayerShip(deltaTime);
 
         if (backgroundStars) backgroundStars.position.copy(camera.position);
@@ -997,6 +1092,8 @@ export const SolarSystemRenderer = (() => {
                 const orbitLine = _createOrbitLine(planet);
                 orbitLines.push(orbitLine);
                 scene.add(orbitLine);
+
+                _createLandingSiteIcons(planetLOD);
             });
 
             if(initialDevSettings) {
@@ -1023,5 +1120,6 @@ export const SolarSystemRenderer = (() => {
         getRaycaster: () => raycaster,
         getMouse: () => mouse,
         getCamera: () => camera,
+        getLandingSiteIcons: () => landingSiteIcons,
     };
 })();

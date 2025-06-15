@@ -5,6 +5,7 @@ import { generateSolarSystemsForGalaxy } from './universeGenerator.js';
 import { SolarSystemRenderer } from './solarSystemRenderer.js';
 import { HexPlanetViewController } from './hexPlanetViewController.js';
 import GameStateManager from './gameStateManager.js';
+import { SurfaceRenderer } from './surfaceRenderer.js';
 
 export const UIManager = (() => {
     let elements = {};
@@ -131,7 +132,7 @@ export const UIManager = (() => {
     }
 
     function setActiveScreen(screenToShow) {
-        const screens = [elements.mainScreen, elements.galaxyDetailScreen, elements.solarSystemScreen, elements.planetDesignerScreen, elements.hexPlanetScreen, galaxyCustomizationModal].filter(s => s);
+        const screens = [elements.mainScreen, elements.galaxyDetailScreen, elements.solarSystemScreen, elements.planetDesignerScreen, elements.hexPlanetScreen, elements.surfaceScreen, galaxyCustomizationModal].filter(s => s);
         screens.forEach(s => s.classList.remove('active', 'panning-active', 'visible'));
         if (screenToShow) screenToShow.classList.add('active');
         if (elements.planetSidebar) elements.planetSidebar.style.display = (screenToShow === elements.solarSystemScreen) ? 'block' : 'none';
@@ -242,8 +243,11 @@ export const UIManager = (() => {
         landingQuestionText.textContent = `Land at ${locationData.name} (${locationData.type})?`;
     
         const yesHandler = () => {
-            console.log(`Landing at ${locationData.name} on planet ${locationData.planetId}!`);
-            // Future logic: Transition to a surface view for this location.
+            const activeSystem = GameStateManager.getActiveSolarSystem();
+            const activePlanet = activeSystem?.planets.find(p => p.id === locationData.planetId);
+            if (activePlanet) {
+                switchToSurfaceView(activePlanet);
+            }
             landingConfirmationPanel.classList.remove('visible');
             cleanupHandlers();
         };
@@ -264,10 +268,19 @@ export const UIManager = (() => {
         landingConfirmationPanel.classList.add('visible');
     }
 
-    function _onSolarSystemCanvasClick(event) {
+    function switchToSurfaceView(planetData) {
+        if (window.activeSolarSystemRenderer) {
+            window.activeSolarSystemRenderer.dispose();
+            window.activeSolarSystemRenderer = null;
+        }
+        setActiveScreen(elements.surfaceScreen);
+        SurfaceRenderer.init(elements.surfaceCanvas, planetData);
+    }
+
+   function _onSolarSystemCanvasClick(event) {
         const renderer = window.activeSolarSystemRenderer;
         if (!renderer) return;
-    
+
         const raycaster = renderer.getRaycaster();
         const mouse = renderer.getMouse();
         const camera = renderer.getCamera();
@@ -275,11 +288,11 @@ export const UIManager = (() => {
         const landingSiteIcons = renderer.getLandingSiteIcons();
         
         if (!raycaster || !mouse || !camera || !planetMeshes || !landingSiteIcons) return;
-    
+
         const rect = elements.solarSystemContent.getBoundingClientRect();
         mouse.x = ((event.clientX - rect.left) / rect.width) * 2 - 1;
         mouse.y = -((event.clientY - rect.top) / rect.height) * 2 + 1;
-    
+
         raycaster.setFromCamera(mouse, camera);
 
         const iconIntersects = raycaster.intersectObjects(landingSiteIcons.filter(i => i.visible));
@@ -291,7 +304,7 @@ export const UIManager = (() => {
         }
 
         const intersects = raycaster.intersectObjects(planetMeshes);
-    
+
         if (intersects.length > 0) {
             const clickedPlanetId = intersects[0].object.userData.id;
             const followedPlanetId = renderer.getFollowedPlanetId();
@@ -711,6 +724,7 @@ export const UIManager = (() => {
             window.switchToHexPlanetView = switchToHexPlanetView;
 
             elements.galaxyCanvasContainer = document.getElementById('galaxy-canvas-container');
+            elements.surfaceCanvas = document.getElementById('surface-canvas');
             
             elements.devPanelButton?.addEventListener('click', () => {
                 callbacks.showDevPanel();
@@ -741,6 +755,14 @@ export const UIManager = (() => {
                 const activeGalaxyId = GameStateManager.getState().activeGalaxyId;
                 if (activeGalaxyId) {
                     switchToGalaxyDetailView(activeGalaxyId);
+                }
+            });
+
+            elements.backToSystemButton.addEventListener('click', () => {
+                SurfaceRenderer.dispose();
+                const activeSystemId = GameStateManager.getState().activeSolarSystemId;
+                if(activeSystemId) {
+                    switchToSolarSystemView(activeSystemId);
                 }
             });
 

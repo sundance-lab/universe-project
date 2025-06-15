@@ -242,7 +242,7 @@ document.addEventListener('DOMContentLoaded', () => {
             const planetData = generatePlanetInstanceFromBasis({});
             
             let separation;
-            if (i > 0 && Math.random() < 0.15) {
+            if (i > 0 && Math.random() < 0.20) { // Slightly increased chance
                 separation = 60000 + Math.random() * 80000;
             } else {
                 separation = MIN_ORBITAL_SEPARATION + (Math.random() * Math.random()) * 55000;
@@ -252,8 +252,13 @@ document.addEventListener('DOMContentLoaded', () => {
             const planetName = shuffledNames[i] || `Planet ${i + 1}`;
             
             let eccentricity = Math.pow(Math.random(), 2) * 0.4; // Most are near-circular
-            if (Math.random() < 0.1) { // 10% chance of a wonky one
+            if (Math.random() < 0.1) {
                 eccentricity = 0.4 + Math.random() * 0.3;
+            }
+
+            let inclination = Math.random() * 0.1; // Most are under ~5 degrees
+            if (Math.random() < 0.1) { // 10% chance for a wild orbit
+                inclination = Math.random() * Math.PI; // Any inclination is possible, for a "wonky" system
             }
 
             solarSystemObject.planets.push({
@@ -264,11 +269,11 @@ document.addEventListener('DOMContentLoaded', () => {
                 // Orbital elements
                 semiMajorAxis: semiMajorAxis,
                 orbitalEccentricity: eccentricity,
-                orbitalInclination: (Math.random() - 0.5) * 0.25, // up to ~7 degrees tilt
+                orbitalInclination: inclination,
                 longitudeOfAscendingNode: Math.random() * Math.PI * 2,
                 argumentOfPeriapsis: Math.random() * Math.PI * 2,
                 // Simulation state
-                orbitalSpeed: Math.sqrt(10000 / semiMajorAxis), // Used to determine period
+                orbitalSpeed: Math.sqrt(10000 / semiMajorAxis),
                 currentOrbitalAngle: Math.random() * 2 * Math.PI,
                 axialSpeed: (Math.random() - 0.5) * 0.05,
                 currentAxialAngle: Math.random() * 2 * Math.PI,

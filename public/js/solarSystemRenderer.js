@@ -157,7 +157,10 @@ export const SolarSystemRenderer = (() => {
                 }
             ]),
             vertexShader,
-            fragmentShader
+            fragmentShader,
+            polygonOffset: true,
+            polygonOffsetFactor: -4.0,
+            polygonOffsetUnits: -1.0
         });
         const mesh = new THREE.Mesh(geometry, material);
         mesh.userData = { ...planetData, lastPosition: new THREE.Vector3(), lastWorldPosition: new THREE.Vector3() };
@@ -246,24 +249,25 @@ export const SolarSystemRenderer = (() => {
         }
         scene.add(distantGalaxiesGroup);
     }
-    
+
     function _onResize() {
         if (!renderer) return;
         const container = renderer.domElement.parentElement;
         if (!container) return;
-
         const width = container.offsetWidth;
         const height = container.offsetHeight;
-
-        camera.aspect = width / height;
-        camera.updateProjectionMatrix();
-        renderer.setSize(width, height);
-
+        if (camera) {
+            camera.aspect = width / height;
+            camera.updateProjectionMatrix();
+        }
+        if (renderer) {
+            renderer.setSize(width, height);
+        }
         orbitLineMaterials.forEach(material => {
             material.resolution.set(width, height);
         });
     }
-
+    
     function _cleanup() {
         if (animationFrameId) cancelAnimationFrame(animationFrameId);
         if (renderer?.domElement && boundWheelHandler) renderer.domElement.removeEventListener('wheel', boundWheelHandler);
@@ -382,7 +386,7 @@ export const SolarSystemRenderer = (() => {
         const totalElapsedTime = (now - simulationStartTime) / 1000;
 
         planetMeshes.forEach(mesh => {
-            mesh.renderOrder = 1; // Ensure planets render before transparent lines
+            mesh.renderOrder = 1;
             const planet = mesh.userData;
             const orbitalAngularVelocity = planet.orbitalSpeed * 0.1 * moduleState.orbitSpeedMultiplier;
             const newOrbitalAngle = planet.initialOrbitalAngle + (orbitalAngularVelocity * totalElapsedTime);
@@ -503,10 +507,12 @@ export const SolarSystemRenderer = (() => {
     
         if (unfocusAnimation) unfocusAnimation = null;
 
-        preFocusState = {
-            position: camera.position.clone(),
-            target: controls.target.clone()
-        };
+        if(!preFocusState) {
+            preFocusState = {
+                position: camera.position.clone(),
+                target: controls.target.clone()
+            };
+        }
         
         const radius = targetPlanet.geometry.parameters.radius;
         controls.minDistance = radius * 1.2;
@@ -543,21 +549,26 @@ export const SolarSystemRenderer = (() => {
                 const planetMesh = _createPlanetMesh(planet);
                 planetMeshes.push(planetMesh);
                 scene.add(planetMesh);
-
+                
                 const points = new THREE.Path().absarc(0, 0, planet.orbitalRadius, 0, Math.PI * 2, false).getPoints(256);
                 const positions = [];
                 points.forEach(p => positions.push(p.x, p.y, 0));
+
                 const lineGeometry = new LineGeometry();
                 lineGeometry.setPositions(positions);
+                
                 const lineMaterial = new LineMaterial({
-                    color: 0x555555,
+                    color: 0x888888,
                     linewidth: 2,
                     resolution: new THREE.Vector2(container.offsetWidth, container.offsetHeight),
                     dashed: false,
                     transparent: true,
-                    opacity: 0.4
+                    opacity: 0.75,
+                    depthTest: true,
+                    depthWrite: false
                 });
                 orbitLineMaterials.push(lineMaterial);
+                
                 const orbitLine = new Line2(lineGeometry, lineMaterial);
                 orbitLine.rotation.x = Math.PI / 2;
                 orbitLines.push(orbitLine);

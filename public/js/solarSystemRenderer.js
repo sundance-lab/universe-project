@@ -132,7 +132,7 @@ export const SolarSystemRenderer = (() => {
 
     const moduleState = {
         orbitSpeedMultiplier: 1.0,
-        landingIconSizeMultiplier: 0.25
+        landingIconSizeMultiplier: 25 
     };
 
     const SPHERE_BASE_RADIUS = 0.8;
@@ -176,12 +176,12 @@ export const SolarSystemRenderer = (() => {
                 transparent: true,
                 opacity: 0,
                 depthTest: false,
-                sizeAttenuation: true
+                sizeAttenuation: false 
             });
     
             const sprite = new THREE.Sprite(material);
             sprite.userData = { ...location, planetId: planetData.id };
-            sprite.visible = false; // Start invisible
+            sprite.visible = false; 
             landingSiteIcons.push(sprite);
             scene.add(sprite);
         });
@@ -194,32 +194,25 @@ export const SolarSystemRenderer = (() => {
         }
     
         const planetPos = followedPlanetLOD.getWorldPosition(new THREE.Vector3());
-        const camDist = camera.position.distanceTo(planetPos);
         const planetRadius = followedPlanetLOD.userData.size;
-        const showDistance = planetRadius * 5;
     
         landingSiteIcons.forEach(icon => {
             if (icon.userData.planetId === followedPlanetLOD.userData.id) {
-                if (camDist < showDistance) {
-                    const opacity = THREE.MathUtils.smoothstep(camDist, showDistance, planetRadius * 1.5);
+                const positionOnSphere = new THREE.Vector3().setFromSphericalCoords(
+                    planetRadius * 1.01, 
+                    icon.userData.phi,
+                    icon.userData.theta
+                );
     
-                    const positionOnSphere = new THREE.Vector3().setFromSphericalCoords(
-                        planetRadius * 1.01, // Slightly above the surface
-                        icon.userData.phi,
-                        icon.userData.theta
-                    );
+                positionOnSphere.applyQuaternion(followedPlanetLOD.quaternion);
+                icon.position.copy(positionOnSphere).add(planetPos);
     
-                    positionOnSphere.applyQuaternion(followedPlanetLOD.quaternion);
-                    icon.position.copy(positionOnSphere).add(planetPos);
+                icon.visible = true;
+                icon.material.opacity = 1.0;
+                
+                const scale = moduleState.landingIconSizeMultiplier;
+                icon.scale.set(scale, scale, 1.0);
     
-                    icon.material.opacity = opacity;
-                    icon.visible = true;
-                    const scale = planetRadius * moduleState.landingIconSizeMultiplier;
-                    icon.scale.set(scale, scale, 1.0);
-    
-                } else {
-                    icon.visible = false;
-                }
             } else {
                 icon.visible = false;
             }
@@ -995,7 +988,10 @@ export const SolarSystemRenderer = (() => {
     }
 
     function setLandingIconSize(multiplier) {
-        moduleState.landingIconSizeMultiplier = Number(multiplier);
+        // The multiplier from the slider is 0.05 to 1.0.
+        // We will map this to a reasonable pixel size, e.g., 5px to 100px.
+        const pixelSize = multiplier * 100;
+        moduleState.landingIconSizeMultiplier = pixelSize;
     }
 
     function unfocus(fromAnimation = false) {

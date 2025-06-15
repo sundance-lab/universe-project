@@ -105,8 +105,8 @@ export const SolarSystemRenderer = (() => {
     let playerShip = null;
     let shipState = {
         velocity: new THREE.Vector3(),
-        maxSpeed: 4000,
-        maxForce: 20, // Steering force
+        maxSpeed: 7500,
+        maxForce: 50, // Steering force
         target: null,
         pathfinding: {
             obstacles: []
@@ -153,7 +153,7 @@ export const SolarSystemRenderer = (() => {
     function _createPlanetLabel(planetData) {
         const canvas = document.createElement('canvas');
         const context = canvas.getContext('2d');
-        const fontSize = 72; // Increased font size
+        const fontSize = 128; // Increased font size for clarity
         context.font = `Bold ${fontSize}px "Segoe UI", Arial, sans-serif`;
         const textMetrics = context.measureText(planetData.name);
         const textWidth = textMetrics.width;
@@ -175,7 +175,7 @@ export const SolarSystemRenderer = (() => {
             depthTest: false 
         });
         const sprite = new THREE.Sprite(material);
-        sprite.scale.set(canvas.width * 8, canvas.height * 8, 1.0); // Increased scale
+        sprite.scale.set(canvas.width * 12, canvas.height * 12, 1.0); // Increased scale
         sprite.userData.planetId = planetData.id;
         return sprite;
     }
@@ -183,7 +183,7 @@ export const SolarSystemRenderer = (() => {
     function _createPlayerShip() {
         if (playerShip) scene.remove(playerShip);
 
-        const shipGeometry = new THREE.ConeGeometry(400, 1200, 8);
+        const shipGeometry = new THREE.ConeGeometry(150, 450, 8); // Reduced size
         shipGeometry.rotateX(Math.PI / 2); 
         const shipMaterial = new THREE.MeshStandardMaterial({
             color: 0xeeeeff,
@@ -518,18 +518,17 @@ export const SolarSystemRenderer = (() => {
         scene.add(new THREE.AmbientLight(0xffffff, 0.1));
     }
     
-    // Pathfinding helper
     function _calculateAvoidanceForce() {
         const avoidanceForce = new THREE.Vector3();
         if (!playerShip) return avoidanceForce;
 
-        const ahead = playerShip.position.clone().add(shipState.velocity.clone().normalize().multiplyScalar(5000)); // How far to look ahead
+        const ahead = playerShip.position.clone().add(shipState.velocity.clone().normalize().multiplyScalar(10000)); // How far to look ahead
 
         for (const obstacle of shipState.pathfinding.obstacles) {
             const distance = ahead.distanceTo(obstacle.position);
             if (distance <= obstacle.radius) {
                 let force = ahead.clone().sub(obstacle.position);
-                force.normalize().multiplyScalar(1 / distance); // Stronger force when closer
+                force.normalize().multiplyScalar(1 - distance / obstacle.radius); // Stronger force when closer
                 avoidanceForce.add(force);
             }
         }
@@ -545,7 +544,7 @@ export const SolarSystemRenderer = (() => {
         if (shipState.target) {
             const distanceToTarget = playerShip.position.distanceTo(shipState.target);
 
-            if (distanceToTarget > 100) { // Arrival threshold
+            if (distanceToTarget > 150) { // Arrival threshold
                 // --- Steering Behavior ---
                 // 1. Seek force
                 const desiredVelocity = new THREE.Vector3().subVectors(shipState.target, playerShip.position);
@@ -555,7 +554,7 @@ export const SolarSystemRenderer = (() => {
 
                 // 2. Avoidance force
                 const avoidanceForce = _calculateAvoidanceForce();
-                steeringForce.add(avoidanceForce.multiplyScalar(50)); // avoidance weight
+                steeringForce.add(avoidanceForce.multiplyScalar(100)); // avoidance weight
 
                 // 3. Deceleration
                 const brakingDistance = (shipState.velocity.lengthSq()) / (2 * (shipState.maxForce * 0.8));
@@ -566,9 +565,13 @@ export const SolarSystemRenderer = (() => {
             } else {
                 // Arrived
                 shipState.target = null;
-                shipState.velocity.multiplyScalar(0.9); // Dampen velocity
             }
         }
+
+        if(!shipState.target) {
+            shipState.velocity.multiplyScalar(0.95); // Dampen velocity to a stop
+        }
+
 
         // Apply steering force and update physics
         steeringForce.clampLength(0, shipState.maxForce);
@@ -577,16 +580,16 @@ export const SolarSystemRenderer = (() => {
         playerShip.position.add(shipState.velocity.clone().multiplyScalar(deltaTime));
         
         // Update rotation smoothly
-        if (shipState.velocity.lengthSq() > 0.01) {
+        if (shipState.velocity.lengthSq() > 10) {
             const targetQuaternion = new THREE.Quaternion();
             const direction = shipState.velocity.clone().normalize();
-            const up = new THREE.Vector3(0, 1, 0);
             
-            // Create a rotation matrix that looks in the direction of velocity
+            // The default "up" vector for the cone geometry after its initial rotation
+            const up = new THREE.Vector3(0, 1, 0); 
+            
             const matrix = new THREE.Matrix4().lookAt(playerShip.position, playerShip.position.clone().add(direction), up);
             targetQuaternion.setFromRotationMatrix(matrix);
             
-            // Slerp to the target rotation
             playerShip.quaternion.slerp(targetQuaternion, deltaTime * 5.0);
         }
     }
@@ -655,7 +658,6 @@ export const SolarSystemRenderer = (() => {
 
         controls.update();
 
-        // Update Labels
         const camDist = camera.position.length();
         const fadeStart = 80000;
         const fadeEnd = 50000;

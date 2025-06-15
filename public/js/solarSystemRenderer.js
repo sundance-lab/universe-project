@@ -132,7 +132,7 @@ export const SolarSystemRenderer = (() => {
 
     const moduleState = {
         orbitSpeedMultiplier: 1.0,
-        landingIconSizeMultiplier: 0.00125
+        landingIconSizeMultiplier: 0.25
     };
 
     const SPHERE_BASE_RADIUS = 0.8;
@@ -196,7 +196,6 @@ export const SolarSystemRenderer = (() => {
     
         const planetPos = followedPlanetLOD.getWorldPosition(new THREE.Vector3());
         const planetRadius = followedPlanetLOD.userData.size;
-        const camDist = camera.position.distanceTo(planetPos);
     
         landingSiteIcons.forEach(icon => {
             if (icon.userData.planetId === followedPlanetLOD.userData.id) {
@@ -212,7 +211,7 @@ export const SolarSystemRenderer = (() => {
                 icon.visible = true;
                 icon.material.opacity = 1.0;
                 
-                const scale = camDist * moduleState.landingIconSizeMultiplier;
+                const scale = planetRadius * moduleState.landingIconSizeMultiplier;
                 icon.scale.set(scale, scale, 1.0);
     
             } else {
@@ -990,10 +989,7 @@ export const SolarSystemRenderer = (() => {
     }
 
     function setLandingIconSize(multiplier) {
-        // The multiplier from the slider is 0.05 to 1.0.
-        // We will map this to a much smaller constant for world-space distance scaling.
-        const worldScaleConstant = multiplier * 0.005;
-        moduleState.landingIconSizeMultiplier = worldScaleConstant;
+        moduleState.landingIconSizeMultiplier = Number(multiplier);
     }
 
     function unfocus(fromAnimation = false) {

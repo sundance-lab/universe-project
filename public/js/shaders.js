@@ -61,6 +61,8 @@ float ridgedRiverNoise(vec3 p, float seed) {
 const noiseFunctions = glslRandom2to1 + glslSimpleValueNoise3D + glslLayeredNoise + glslRidgedRiverNoise;
 
 const planetVertexShaderSource = `
+#include <logdepthbuf_pars_vertex>
+
 uniform float uContinentSeed;
 uniform float uSphereRadius;
 uniform float uDisplacementAmount;
@@ -112,10 +114,14 @@ void main() {
  vNormal = normal;
  vWorldPosition = (modelMatrix * vec4(displacedPosition, 1.0)).xyz;
  gl_Position = projectionMatrix * modelViewMatrix * vec4(displacedPosition, 1.0);
+
+ #include <logdepthbuf_vertex>
 }
 `;
 
 const planetFragmentShaderSource = `
+#include <logdepthbuf_pars_fragment>
+
 uniform vec3 uLandColor;
 uniform vec3 uWaterColor;
 uniform float uOceanHeightLevel;
@@ -237,6 +243,8 @@ void main() {
   
  vec3 viewDirection = normalize(cameraPosition - vWorldPosition);
  gl_FragColor = vec4(calculateLighting(finalColor, vNormal, viewDirection), 1.0);
+
+ #include <logdepthbuf_fragment>
 }
 `;
 

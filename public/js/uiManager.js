@@ -52,8 +52,9 @@ export const UIManager = (() => {
         planets.forEach((planet, index) => {
             const li = document.createElement('li');
             li.className = 'planet-sidebar-item';
-            li.textContent = `Planet ${index + 1}`;
-            li.title = `Click to focus on Planet ${index + 1}`;
+            const planetName = planet.name || `Planet ${index + 1}`;
+            li.textContent = planetName;
+            li.title = `Click to focus on ${planetName}`;
             li.dataset.planetId = planet.id;
 
             elements.planetSidebarList.appendChild(li);

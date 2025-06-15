@@ -599,7 +599,7 @@ export const GalaxyRenderer = (() => {
         return target;
     }
 
-    function _dispose() {
+ function _dispose() {
         if (animationFrameId) cancelAnimationFrame(animationFrameId);
         
         if (resizeObserver) {
@@ -638,7 +638,7 @@ export const GalaxyRenderer = (() => {
         }
 
         if (renderer) {
-            renderer.forceContextLoss();
+            
             renderer.dispose();
             if (renderer.domElement && renderer.domElement.parentNode) {
                  renderer.domElement.parentNode.removeChild(renderer.domElement);

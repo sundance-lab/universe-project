@@ -70,6 +70,8 @@ document.addEventListener('DOMContentLoaded', () => {
         devOrbitSpeedValue: document.getElementById('dev-orbit-speed-value'),
         devShipSpeedInput: document.getElementById('dev-ship-speed'),
         devShipSpeedValue: document.getElementById('dev-ship-speed-value'),
+        devLandingIconSizeInput: document.getElementById('dev-landing-icon-size'),
+        devLandingIconSizeValue: document.getElementById('dev-landing-icon-size-value'),
         devPanelSaveButton: document.getElementById('dev-panel-save'),
         devPanelCancelButton: document.getElementById('dev-panel-cancel'),
         landingConfirmationPanel: document.getElementById('landing-confirmation-panel'),
@@ -122,7 +124,8 @@ document.addEventListener('DOMContentLoaded', () => {
             maxPlanets: 8, 
             orbitLinesVisible: false, 
             orbitSpeed: 9.0,
-            shipSpeed: 7500
+            shipSpeed: 7500,
+            landingIconSize: 0.25
         };
         try {
             const storedSettings = localStorage.getItem(DEV_SETTINGS_KEY);
@@ -147,7 +150,8 @@ document.addEventListener('DOMContentLoaded', () => {
             maxPlanets: newMaxPlanets,
             orbitLinesVisible: domElements.devOrbitLinesVisibleInput.checked,
             orbitSpeed: parseFloat(domElements.devOrbitSpeedInput.value),
-            shipSpeed: parseFloat(domElements.devShipSpeedInput.value)
+            shipSpeed: parseFloat(domElements.devShipSpeedInput.value),
+            landingIconSize: parseFloat(domElements.devLandingIconSizeInput.value)
         };
         localStorage.setItem(DEV_SETTINGS_KEY, JSON.stringify(devSettings));
         
@@ -169,6 +173,8 @@ document.addEventListener('DOMContentLoaded', () => {
         domElements.devOrbitSpeedValue.textContent = Number(devSettings.orbitSpeed).toFixed(1);
         domElements.devShipSpeedInput.value = devSettings.shipSpeed;
         domElements.devShipSpeedValue.textContent = devSettings.shipSpeed;
+        domElements.devLandingIconSizeInput.value = devSettings.landingIconSize;
+        domElements.devLandingIconSizeValue.textContent = Number(devSettings.landingIconSize).toFixed(2);
     }
 
     function applyDynamicDevSettings() {
@@ -176,6 +182,7 @@ document.addEventListener('DOMContentLoaded', () => {
             window.activeSolarSystemRenderer.setOrbitLinesVisible(devSettings.orbitLinesVisible);
             window.activeSolarSystemRenderer.setOrbitSpeed(devSettings.orbitSpeed);
             window.activeSolarSystemRenderer.setShipSpeed(devSettings.shipSpeed);
+            window.activeSolarSystemRenderer.setLandingIconSize(devSettings.landingIconSize);
         }
     }
 
@@ -208,6 +215,10 @@ document.addEventListener('DOMContentLoaded', () => {
 
         domElements.devShipSpeedInput.addEventListener('input', (e) => {
             domElements.devShipSpeedValue.textContent = e.target.value;
+        });
+
+        domElements.devLandingIconSizeInput.addEventListener('input', (e) => {
+            domElements.devLandingIconSizeValue.textContent = Number(e.target.value).toFixed(2);
         });
 
         domElements.panelRegenerateUniverseButton.addEventListener('click', () => {

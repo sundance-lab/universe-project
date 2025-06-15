@@ -99,7 +99,8 @@ export const SurfaceRenderer = (() => {
                     const material = new THREE.MeshBasicMaterial({ map: texture });
                     const geometry = new THREE.PlaneGeometry(TILE_SIZE, TILE_SIZE);
                     const tileMesh = new THREE.Mesh(geometry, material);
-                    tileMesh.position.set(x * TILE_SIZE + TILE_SIZE / 2, y * TILE_SIZE + TILE_SIZE / 2, 0);
+                    // FIX: Set tile position to its center based on its coordinates
+                    tileMesh.position.set(x * TILE_SIZE, y * TILE_SIZE, 0);
                     scene.add(tileMesh);
                     activeTiles.set(tileKey, tileMesh);
                 }

@@ -360,6 +360,25 @@ export const SolarSystemRenderer = (() => {
 
         const totalElapsedTime = (now - simulationStartTime) / 1000; // Time in seconds
 
+        // Update planet positions first to eliminate camera lag
+        planetMeshes.forEach(mesh => {
+            const planet = mesh.userData;
+            
+            const orbitalAngularVelocity = planet.orbitalSpeed * 0.1 * moduleState.orbitSpeedMultiplier;
+            const newOrbitalAngle = planet.initialOrbitalAngle + (orbitalAngularVelocity * totalElapsedTime);
+            
+            const axialAngularVelocity = planet.axialSpeed * 2;
+            const newAxialAngle = planet.initialAxialAngle + (axialAngularVelocity * totalElapsedTime);
+
+            const x = planet.orbitalRadius * Math.cos(newOrbitalAngle);
+            const z = planet.orbitalRadius * Math.sin(newOrbitalAngle); 
+            mesh.position.set(x, 0, z);
+            mesh.rotation.y = newAxialAngle;
+            
+            mesh.material.uniforms.uLightDirection.value.copy(mesh.position).negate().normalize();
+        });
+
+        // Then, update camera and focus logic based on new planet positions
         if (focusAnimation) {
             const elapsedTime = performance.now() - focusAnimation.startTime;
             const progress = Math.min(elapsedTime / focusAnimation.duration, 1.0);
@@ -388,25 +407,6 @@ export const SolarSystemRenderer = (() => {
             controls.target.copy(newPlanetWorldPos);
         }
 
-        planetMeshes.forEach(mesh => {
-            const planet = mesh.userData;
-            
-            // Calculate angles based on total elapsed time for smooth motion
-            const orbitalAngularVelocity = planet.orbitalSpeed * 0.1 * moduleState.orbitSpeedMultiplier;
-            const newOrbitalAngle = planet.initialOrbitalAngle + (orbitalAngularVelocity * totalElapsedTime);
-            
-            const axialAngularVelocity = planet.axialSpeed * 2;
-            const newAxialAngle = planet.initialAxialAngle + (axialAngularVelocity * totalElapsedTime);
-
-            // Set position and rotation
-            const x = planet.orbitalRadius * Math.cos(newOrbitalAngle);
-            const z = planet.orbitalRadius * Math.sin(newOrbitalAngle); 
-            mesh.position.set(x, 0, z);
-            mesh.rotation.y = newAxialAngle;
-            
-            mesh.material.uniforms.uLightDirection.value.copy(mesh.position).negate().normalize();
-        });
-        
         controls.update();
         if (distantGalaxiesGroup) distantGalaxiesGroup.rotation.y += 0.00005;
         if (sunLOD) {

@@ -454,12 +454,18 @@ export const SolarSystemRenderer = (() => {
         }
     }
 
-    function _setupScene(container) {
+    function _setupScene(container, solarSystemData) {
         _cleanup();
         scene = new THREE.Scene();
         const aspect = container.offsetWidth / container.offsetHeight;
         camera = new THREE.PerspectiveCamera(60, aspect, 1, 1000000);
-        camera.position.set(0, 40000, 20000);
+
+        const sunVariation = sunVariations[solarSystemData.sun.type % sunVariations.length];
+        if (sunVariation.sizeCategory === 'hypergiant') {
+            camera.position.set(0, 65000, 35000);
+        } else {
+            camera.position.set(0, 40000, 20000);
+        }
         camera.lookAt(0, 0, 0);
         
         initialCameraState = {
@@ -573,6 +579,7 @@ export const SolarSystemRenderer = (() => {
         if (shipState.velocity.lengthSq() > 10) {
             const targetQuaternion = new THREE.Quaternion();
             const direction = shipState.velocity.clone().normalize();
+            
             const up = new THREE.Vector3(0, 1, 0); 
             
             const matrix = new THREE.Matrix4().lookAt(playerShip.position, playerShip.position.clone().add(direction), up);
@@ -661,9 +668,11 @@ export const SolarSystemRenderer = (() => {
             }
         });
 
+        const maxOrbitOpacity = 0.5;
         const orbitFadeStart = 120000;
         const orbitFadeEnd = 30000;
-        const orbitOpacity = THREE.MathUtils.smoothstep(zoomDistance, orbitFadeEnd, orbitFadeStart);
+        const fadeAmount = THREE.MathUtils.smoothstep(zoomDistance, orbitFadeEnd, orbitFadeStart);
+        const orbitOpacity = fadeAmount * maxOrbitOpacity;
         orbitLineMaterials.forEach(material => {
             material.opacity = orbitOpacity;
         });
@@ -771,7 +780,7 @@ export const SolarSystemRenderer = (() => {
             const container = document.getElementById('solar-system-content');
             if (!container) return console.error("SolarSystemRenderer: Container #solar-system-content not found.");
             container.innerHTML = '';
-            _setupScene(container);
+            _setupScene(container, solarSystemData);
             currentSystemData = solarSystemData;
 
             simulationStartTime = performance.now();

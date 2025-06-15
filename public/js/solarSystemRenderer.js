@@ -31,6 +31,20 @@ const sunVariations = [
     { baseColor: new THREE.Color(0xE65100), hotColor: new THREE.Color(0xFFAB40), coolColor: new THREE.Color(0xBF360C), glowColor: new THREE.Color(0xFFD740), coronaColor: new THREE.Color(0xFFC107), midColor: new THREE.Color(0xFF9800), peakColor: new THREE.Color(0xFFE0B2), valleyColor: new THREE.Color(0xBF360C), turbulence: 1.15, fireSpeed: 0.28, pulseSpeed: 0.002, sizeCategory: 'hypergiant', terrainScale: 1.5, fireIntensity: 1.9 }
 ];
 
+function addBarycentricCoordinates(geometry) {
+    const positions = geometry.attributes.position.array;
+    const vertexCount = positions.length / 3;
+    const barycentric = new Float32Array(vertexCount * 3);
+    
+    for (let i = 0; i < vertexCount; i += 3) {
+        barycentric[i * 3] = 1; barycentric[i * 3 + 1] = 0; barycentric[i * 3 + 2] = 0;
+        barycentric[(i + 1) * 3] = 0; barycentric[(i + 1) * 3 + 1] = 1; barycentric[(i + 1) * 3 + 2] = 0;
+        barycentric[(i + 2) * 3] = 0; barycentric[(i + 2) * 3 + 1] = 0; barycentric[(i + 2) * 3 + 2] = 1;
+    }
+    
+    geometry.setAttribute('barycentric', new THREE.BufferAttribute(barycentric, 3));
+}
+
 function _createSunMaterial(variation, finalSize, lodLevel) {
     return new THREE.ShaderMaterial({
         uniforms: { time: { value: 0 }, color: { value: variation.baseColor }, hotColor: { value: variation.hotColor }, coolColor: { value: variation.coolColor }, midColor: { value: variation.midColor }, peakColor: { value: variation.peakColor }, valleyColor: { value: variation.valleyColor }, glowColor: { value: variation.glowColor }, pulseSpeed: { value: variation.pulseSpeed }, turbulence: { value: variation.turbulence }, fireSpeed: { value: variation.fireSpeed }, colorIntensity: { value: 2.0 }, flowScale: { value: 2.0 }, flowSpeed: { value: 0.3 }, sunSize: { value: finalSize }, terrainScale: { value: variation.terrainScale }, fireIntensity: { value: variation.fireIntensity }, detailLevel: { value: lodLevel.noiseDetail }, textureDetail: { value: lodLevel.textureDetail }, cameraDistance: { value: 0.0 }, detailScaling: { value: 2.0 }, minDetailLevel: { value: 0.5 }, },
@@ -241,6 +255,57 @@ export const SolarSystemRenderer = (() => {
 
         return mesh;
     }
+    
+    function _createHexPlanetMeshLOD(planetData) {
+        const lod = new THREE.LOD();
+        
+        const { vertexShader, fragmentShader } = getHexPlanetShaders();
+        const hexPlanetMaterial = new THREE.ShaderMaterial({
+             uniforms: THREE.UniformsUtils.merge([
+                THREE.UniformsLib.common,
+                THREE.UniformsLib.lights,
+                {
+                    uWaterColor: { value: new THREE.Color(planetData.waterColor) },
+                    uLandColor: { value: new THREE.Color(planetData.landColor) },
+                    uContinentSeed: { value: planetData.continentSeed },
+                    uRiverBasin: { value: planetData.riverBasin },
+                    uForestDensity: { value: planetData.forestDensity },
+                    uTime: { value: 0.0 },
+                    uSphereRadius: { value: SPHERE_BASE_RADIUS },
+                    uDisplacementAmount: { value: 0.0 },
+                    uShowStrokes: { value: true },
+                    uOceanHeightLevel: { value: 0.0 },
+                    uMountainStrength: { value: 1.0 },
+                    uIslandStrength: { value: 1.0 },
+                    uPlanetType: { value: planetData.planetType || 0 }, 
+                }
+            ]),
+            vertexShader,
+            fragmentShader,
+            lights: true
+        });
+
+        const terrainRange = Math.max(0.1, planetData.maxTerrainHeight - planetData.minTerrainHeight);
+        const normalizedOceanLevel = (planetData.oceanHeightLevel - planetData.minTerrainHeight) / terrainRange;
+        hexPlanetMaterial.uniforms.uOceanHeightLevel.value = normalizedOceanLevel - 0.5;
+        hexPlanetMaterial.uniforms.uDisplacementAmount.value = terrainRange * DISPLACEMENT_SCALING_FACTOR;
+        
+        const numLevels = 12;
+        const maxSubdivision = 256;
+
+        for (let i = 0; i < numLevels; i++) {
+            const subdivision = Math.max(2, Math.floor(maxSubdivision / Math.pow(2.2, i)));
+            const distance = i === 0 ? 0 : planetData.size * 2 * Math.pow(1.5, i - 1);
+
+            const geometry = new THREE.IcosahedronGeometry(planetData.size, subdivision);
+            addBarycentricCoordinates(geometry);
+            
+            const mesh = new THREE.Mesh(geometry, hexPlanetMaterial.clone());
+            lod.addLevel(mesh, distance);
+        }
+        
+        return lod;
+    }
 
     function _createDistantStars() {
         const starCount = 60000;
@@ -376,6 +441,15 @@ export const SolarSystemRenderer = (() => {
             scene.remove(distantGalaxiesGroup);
         }
         planetMeshes.forEach(mesh => {
+            if (mesh.userData.hexMeshLOD) {
+                mesh.userData.hexMeshLOD.traverse(object => {
+                    if (object.isMesh) {
+                        object.geometry.dispose();
+                        if(object.material) object.material.dispose();
+                    }
+                });
+                scene.remove(mesh.userData.hexMeshLOD);
+            }
             if (mesh.geometry) mesh.geometry.dispose();
             if (mesh.material) mesh.material.dispose();
             scene.remove(mesh);
@@ -446,38 +520,29 @@ export const SolarSystemRenderer = (() => {
     function _onMovementRightClick(event) {
         event.preventDefault();
         
+        if (!playerShip) return;
+
         const rect = renderer.domElement.getBoundingClientRect();
         mouse.x = ((event.clientX - rect.left) / rect.width) * 2 - 1;
         mouse.y = -((event.clientY - rect.top) / rect.height) * 2 + 1;
         raycaster.setFromCamera(mouse, camera);
 
-        const intersects = raycaster.intersectObjects(planetMeshes);
+        const plane = new THREE.Plane(new THREE.Vector3(0, 1, 0), 0);
+        const targetPosition = new THREE.Vector3();
+        raycaster.ray.intersectPlane(plane, targetPosition);
 
-        if (intersects.length > 0 && followedPlanet && intersects[0].object.userData.id === followedPlanet.userData.id) {
-            const planetData = intersects[0].object.userData;
-            if (window.switchToHexPlanetView && window.switchToSolarSystemView && currentSystemData) {
-                window.switchToHexPlanetView(planetData, () => {
-                    window.switchToSolarSystemView(currentSystemData.id);
-                });
+        if (targetPosition) {
+            shipState.target = targetPosition;
+
+            if (!shipTargetSignifier) {
+                const ringGeometry = new THREE.RingGeometry(300, 400, 32);
+                const ringMaterial = new THREE.MeshBasicMaterial({ color: 0x00ffaa, side: THREE.DoubleSide, transparent: true });
+                shipTargetSignifier = new THREE.Mesh(ringGeometry, ringMaterial);
+                shipTargetSignifier.rotation.x = -Math.PI / 2;
+                scene.add(shipTargetSignifier);
             }
-        } else if (playerShip) {
-            const plane = new THREE.Plane(new THREE.Vector3(0, 1, 0), 0);
-            const targetPosition = new THREE.Vector3();
-            raycaster.ray.intersectPlane(plane, targetPosition);
-
-            if (targetPosition) {
-                shipState.target = targetPosition;
-
-                if (!shipTargetSignifier) {
-                    const ringGeometry = new THREE.RingGeometry(300, 400, 32);
-                    const ringMaterial = new THREE.MeshBasicMaterial({ color: 0x00ffaa, side: THREE.DoubleSide, transparent: true });
-                    shipTargetSignifier = new THREE.Mesh(ringGeometry, ringMaterial);
-                    shipTargetSignifier.rotation.x = -Math.PI / 2;
-                    scene.add(shipTargetSignifier);
-                }
-                shipTargetSignifier.position.copy(targetPosition);
-                shipTargetSignifier.visible = true;
-            }
+            shipTargetSignifier.position.copy(targetPosition);
+            shipTargetSignifier.visible = true;
         }
     }
 
@@ -697,6 +762,11 @@ export const SolarSystemRenderer = (() => {
             const newAxialAngle = planet.initialAxialAngle + (axialAngularVelocity * totalElapsedTime);
             mesh.rotation.y = newAxialAngle;
             mesh.material.uniforms.uLightDirection.value.copy(mesh.position).negate().normalize();
+            
+            if(mesh.userData.hexMeshLOD) {
+                mesh.userData.hexMeshLOD.position.copy(mesh.position);
+                mesh.userData.hexMeshLOD.rotation.copy(mesh.rotation);
+            }
         });
 
         if (unfocusAnimation) {
@@ -719,6 +789,17 @@ export const SolarSystemRenderer = (() => {
             const desiredCamPos = planetPos.clone().add(focusAnimation.cameraOffset);
             camera.position.lerpVectors(focusAnimation.startPosition, desiredCamPos, easedProgress);
             controls.target.lerpVectors(focusAnimation.startTarget, planetPos, easedProgress);
+            
+            const dist = camera.position.distanceTo(planetPos);
+            const swapDist = focusAnimation.targetPlanet.userData.size * 10;
+            if(dist < swapDist && !focusAnimation.swapped) {
+                focusAnimation.targetPlanet.visible = false;
+                if(focusAnimation.targetPlanet.userData.hexMeshLOD) {
+                    focusAnimation.targetPlanet.userData.hexMeshLOD.visible = true;
+                }
+                focusAnimation.swapped = true;
+            }
+
             if (progress >= 1.0) {
                 followedPlanet = focusAnimation.targetPlanet;
                 controls.target.copy(followedPlanet.getWorldPosition(new THREE.Vector3()));
@@ -826,6 +907,13 @@ export const SolarSystemRenderer = (() => {
             controls.mouseButtons.RIGHT = -1;
         }
 
+        planetMeshes.forEach(mesh => {
+            mesh.visible = true;
+            if (mesh.userData.hexMeshLOD) {
+                mesh.userData.hexMeshLOD.visible = false;
+            }
+        });
+
         if (followedPlanet) {
             followedPlanet = null;
         }
@@ -853,7 +941,8 @@ export const SolarSystemRenderer = (() => {
             duration: 1600,
             startPosition: camera.position.clone(),
             startTarget: controls.target.clone(),
-            cameraOffset: new THREE.Vector3(0, radius * 1.5, radius * 3.5)
+            cameraOffset: new THREE.Vector3(0, radius * 1.5, radius * 3.5),
+            swapped: false
         };
         controls.enabled = false;
     }
@@ -880,6 +969,11 @@ export const SolarSystemRenderer = (() => {
                 const planetMesh = _createPlanetMesh(planet);
                 planetMeshes.push(planetMesh);
                 scene.add(planetMesh);
+
+                const hexLOD = _createHexPlanetMeshLOD(planet);
+                hexLOD.visible = false;
+                planetMesh.userData.hexMeshLOD = hexLOD;
+                scene.add(hexLOD);
                 
                 const label = _createPlanetLabel(planet);
                 planetLabels.push(label);

@@ -213,7 +213,18 @@ document.addEventListener('DOMContentLoaded', () => {
 
         for (let i = 0; i < numPlanets; i++) {
             const planetData = generatePlanetInstanceFromBasis({});
-            const orbitalRadius = lastOrbitalRadius + MIN_ORBITAL_SEPARATION + Math.random() * 45000;
+            
+            let separation;
+            // 15% chance of a very distant orbit, but not for the first planet
+            if (i > 0 && Math.random() < 0.15) {
+                // Super far away orbit
+                separation = 60000 + Math.random() * 80000;
+            } else {
+                // Regular, but with more variance towards smaller gaps
+                separation = MIN_ORBITAL_SEPARATION + (Math.random() * Math.random()) * 55000;
+            }
+            
+            const orbitalRadius = lastOrbitalRadius + separation;
             const planetName = shuffledNames[i] || `Planet ${i + 1}`;
             
             solarSystemObject.planets.push({

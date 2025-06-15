@@ -132,7 +132,7 @@ export const SolarSystemRenderer = (() => {
 
     const moduleState = {
         orbitSpeedMultiplier: 1.0,
-        landingIconSizeMultiplier: 25
+        landingIconSizeMultiplier: 0.00125
     };
 
     const SPHERE_BASE_RADIUS = 0.8;
@@ -175,11 +175,12 @@ export const SolarSystemRenderer = (() => {
                 color: 0x00ff80,
                 transparent: true,
                 opacity: 0,
-                depthTest: false,
-                sizeAttenuation: false 
+                depthTest: true,
+                sizeAttenuation: true 
             });
     
             const sprite = new THREE.Sprite(material);
+            sprite.renderOrder = 1; // Draw after planets
             sprite.userData = { ...location, planetId: planetData.id };
             sprite.visible = false; 
             landingSiteIcons.push(sprite);
@@ -195,6 +196,7 @@ export const SolarSystemRenderer = (() => {
     
         const planetPos = followedPlanetLOD.getWorldPosition(new THREE.Vector3());
         const planetRadius = followedPlanetLOD.userData.size;
+        const camDist = camera.position.distanceTo(planetPos);
     
         landingSiteIcons.forEach(icon => {
             if (icon.userData.planetId === followedPlanetLOD.userData.id) {
@@ -210,7 +212,7 @@ export const SolarSystemRenderer = (() => {
                 icon.visible = true;
                 icon.material.opacity = 1.0;
                 
-                const scale = moduleState.landingIconSizeMultiplier;
+                const scale = camDist * moduleState.landingIconSizeMultiplier;
                 icon.scale.set(scale, scale, 1.0);
     
             } else {
@@ -989,9 +991,9 @@ export const SolarSystemRenderer = (() => {
 
     function setLandingIconSize(multiplier) {
         // The multiplier from the slider is 0.05 to 1.0.
-        // We will map this to a reasonable pixel size, e.g., 5px to 100px.
-        const pixelSize = multiplier * 100;
-        moduleState.landingIconSizeMultiplier = pixelSize;
+        // We will map this to a much smaller constant for world-space distance scaling.
+        const worldScaleConstant = multiplier * 0.005;
+        moduleState.landingIconSizeMultiplier = worldScaleConstant;
     }
 
     function unfocus(fromAnimation = false) {

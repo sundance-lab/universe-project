@@ -62,6 +62,7 @@ const noiseFunctions = glslRandom2to1 + glslSimpleValueNoise3D + glslLayeredNois
 
 export function getPlanetShaders() {
     const vertexShader = `
+        #include <common>
         #include <logdepthbuf_pars_vertex>
 
         uniform float uContinentSeed;
@@ -255,6 +256,7 @@ export function getPlanetShaders() {
 
 export function getHexPlanetShaders() {
  const hexVertexShader = `
+    #include <common>
     #include <logdepthbuf_pars_vertex>
     attribute vec3 barycentric;
 

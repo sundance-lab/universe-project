@@ -5,7 +5,7 @@ export const PlayerController = (() => {
     const player = {
         position: { x: 0, y: 0 },
         velocity: { x: 0, y: 0 },
-        speed: 200, // Player movement speed
+        speed: 100, // Player movement speed (decreased from 200)
         damping: 0.90 // Slower damping for a bit of slide
     };
 

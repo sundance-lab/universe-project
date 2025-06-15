@@ -213,7 +213,7 @@ export const SolarSystemRenderer = (() => {
     
                     icon.material.opacity = opacity;
                     icon.visible = true;
-                    const scale = planetRadius * 0.1;
+                    const scale = planetRadius * 0.25;
                     icon.scale.set(scale, scale, 1.0);
     
                 } else {

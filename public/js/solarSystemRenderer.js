@@ -319,7 +319,7 @@ export const SolarSystemRenderer = (() => {
         _createDistantStars();
         _createDistantGalaxies();
 
-        renderer = new THREE.WebGLRenderer({ antialias: true, alpha: false });
+        renderer = new THREE.WebGLRenderer({ antialias: true, alpha: false, logarithmicDepthBuffer: true });
         renderer.setPixelRatio(window.devicePixelRatio);
         renderer.setSize(container.offsetWidth, container.offsetHeight);
         container.appendChild(renderer.domElement);
@@ -467,7 +467,7 @@ export const SolarSystemRenderer = (() => {
 
             sunLOD = _createSun(solarSystemData.sun);
             scene.add(sunLOD);
-
+            
             solarSystemData.planets.forEach(planet => {
                 const planetMesh = _createPlanetMesh(planet);
                 planetMeshes.push(planetMesh);

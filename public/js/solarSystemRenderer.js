@@ -445,29 +445,39 @@ export const SolarSystemRenderer = (() => {
 
     function _onMovementRightClick(event) {
         event.preventDefault();
-        if (!playerShip) return;
-
+        
         const rect = renderer.domElement.getBoundingClientRect();
         mouse.x = ((event.clientX - rect.left) / rect.width) * 2 - 1;
         mouse.y = -((event.clientY - rect.top) / rect.height) * 2 + 1;
         raycaster.setFromCamera(mouse, camera);
 
-        const plane = new THREE.Plane(new THREE.Vector3(0, 1, 0), 0);
-        const targetPosition = new THREE.Vector3();
-        raycaster.ray.intersectPlane(plane, targetPosition);
+        const intersects = raycaster.intersectObjects(planetMeshes);
 
-        if (targetPosition) {
-            shipState.target = targetPosition;
-
-            if (!shipTargetSignifier) {
-                const ringGeometry = new THREE.RingGeometry(300, 400, 32);
-                const ringMaterial = new THREE.MeshBasicMaterial({ color: 0x00ffaa, side: THREE.DoubleSide, transparent: true });
-                shipTargetSignifier = new THREE.Mesh(ringGeometry, ringMaterial);
-                shipTargetSignifier.rotation.x = -Math.PI / 2;
-                scene.add(shipTargetSignifier);
+        if (intersects.length > 0 && followedPlanet && intersects[0].object.userData.id === followedPlanet.userData.id) {
+            const planetData = intersects[0].object.userData;
+            if (window.switchToHexPlanetView && window.switchToSolarSystemView && currentSystemData) {
+                window.switchToHexPlanetView(planetData, () => {
+                    window.switchToSolarSystemView(currentSystemData.id);
+                });
             }
-            shipTargetSignifier.position.copy(targetPosition);
-            shipTargetSignifier.visible = true;
+        } else if (playerShip) {
+            const plane = new THREE.Plane(new THREE.Vector3(0, 1, 0), 0);
+            const targetPosition = new THREE.Vector3();
+            raycaster.ray.intersectPlane(plane, targetPosition);
+
+            if (targetPosition) {
+                shipState.target = targetPosition;
+
+                if (!shipTargetSignifier) {
+                    const ringGeometry = new THREE.RingGeometry(300, 400, 32);
+                    const ringMaterial = new THREE.MeshBasicMaterial({ color: 0x00ffaa, side: THREE.DoubleSide, transparent: true });
+                    shipTargetSignifier = new THREE.Mesh(ringGeometry, ringMaterial);
+                    shipTargetSignifier.rotation.x = -Math.PI / 2;
+                    scene.add(shipTargetSignifier);
+                }
+                shipTargetSignifier.position.copy(targetPosition);
+                shipTargetSignifier.visible = true;
+            }
         }
     }
 
@@ -479,9 +489,9 @@ export const SolarSystemRenderer = (() => {
 
         const sunVariation = sunVariations[solarSystemData.sun.type % sunVariations.length];
         if (sunVariation.sizeCategory === 'hypergiant') {
-            camera.position.set(0, 65000, 35000);
+            camera.position.set(0, 80000, 25000);
         } else {
-            camera.position.set(0, 40000, 20000);
+            camera.position.set(0, 50000, 15000);
         }
         camera.lookAt(0, 0, 0);
         

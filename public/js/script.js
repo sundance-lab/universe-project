@@ -21,6 +21,16 @@ function initializeModules() {
     }
 }
 
+const planetNames = [
+    "Xylos", "Zephyria", "Cinderfall", "Aethel", "Boreas", "Erebus", "Tartarus",
+    "Elysium", "Arcadia", "Hyperion", "Iapetus", "Rhea", "Tethys", "Dione",
+    "Enceladus", "Mimas", "Oberon", "Titania", "Umbriel", "Ariel", "Miranda",
+    "Nereid", "Proteus", "Larissa", "Galatea", "Despina", "Thalassa", "Naiad",
+    "Halimede", "Sao", "Laomedeia", "Psamathe", "Neso", "Varda", "Ix", "Salusa",
+    "Caladan", "Giedi", "Kaitain", "Tleilax", "Risa", "Bajor", "Qo'noS",
+    "Cardassia", "Vulcan", "Andoria", "Kronos", "Ferenginar", "Trill", "Betazed"
+];
+
 document.addEventListener('DOMContentLoaded', () => {
 
     window.DEFAULT_MIN_TERRAIN_HEIGHT = 0.0;
@@ -190,24 +200,26 @@ document.addEventListener('DOMContentLoaded', () => {
         const variation = sunVariations[sunType % sunVariations.length];
         const baseSize = sizeTiers[variation.sizeCategory].size;
         
-        // Use max possible sun size for safety margin, as random variation is in renderer
         const sunRadius = baseSize * 2.0; 
         
         solarSystemObject.planets = [];
         const numPlanets = Math.floor(Math.random() * (devSettings.maxPlanets - devSettings.minPlanets + 1)) + devSettings.minPlanets;
         
+        const shuffledNames = [...planetNames].sort(() => 0.5 - Math.random());
+
         const MIN_ORBITAL_SEPARATION = 2000;
-        // Set minimum distance safely outside the sun's maximum possible radius
         const MIN_PLANET_DISTANCE = sunRadius * 1.5;
         let lastOrbitalRadius = MIN_PLANET_DISTANCE;
 
         for (let i = 0; i < numPlanets; i++) {
             const planetData = generatePlanetInstanceFromBasis({});
             const orbitalRadius = lastOrbitalRadius + MIN_ORBITAL_SEPARATION + Math.random() * 45000;
+            const planetName = shuffledNames[i] || `Planet ${i + 1}`;
             
             solarSystemObject.planets.push({
                 ...planetData,
                 id: `${solarSystemObject.id}-planet-${i}`,
+                name: planetName,
                 size: 50 + Math.random() * 100,
                 orbitalRadius: orbitalRadius,
                 orbitalSpeed: Math.sqrt(10000 / orbitalRadius),

@@ -337,14 +337,19 @@ export const SolarSystemRenderer = (() => {
         boundWheelHandler = (event) => {
             event.preventDefault();
 
-            const linearZoomAmount = 1000; 
-            let zoomFactor = event.deltaY < 0 ? -linearZoomAmount : linearZoomAmount;
-
             const camToTarget = new THREE.Vector3().subVectors(controls.target, camera.position);
             const dist = camToTarget.length();
+            
+            // Make zoom speed proportional to the distance from the target
+            const zoomScale = 0.1;
+            const proportionalZoomAmount = dist * zoomScale;
+            let zoomFactor = event.deltaY < 0 ? -proportionalZoomAmount : proportionalZoomAmount;
+
             const newDist = THREE.MathUtils.clamp(dist + zoomFactor, controls.minDistance, controls.maxDistance);
             
-            camera.position.copy(controls.target).addScaledVector(camToTarget.normalize(), -newDist);
+            if (newDist !== dist) {
+                camera.position.copy(controls.target).addScaledVector(camToTarget.normalize(), -newDist);
+            }
         };
         renderer.domElement.addEventListener('wheel', boundWheelHandler, { passive: false });
         raycaster = new THREE.Raycaster();
@@ -430,11 +435,16 @@ export const SolarSystemRenderer = (() => {
     }
 
     function unfocus() {
+        if (focusAnimation) {
+            focusAnimation = null;
+        }
         if (followedPlanet) {
             followedPlanet = null;
-            controls.enablePan = true;
-            controls.mouseButtons.RIGHT = THREE.MOUSE.PAN;
         }
+
+        controls.enabled = true;
+        controls.enablePan = true;
+        controls.mouseButtons.RIGHT = THREE.MOUSE.PAN;
     }
 
     function focusOnPlanet(planetId) {

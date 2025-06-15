@@ -189,8 +189,7 @@ export const SolarSystemRenderer = (() => {
                 color: 0x00ff80,
                 transparent: true,
                 opacity: 0,
-                depthTest: false,
-                depthWrite: false,
+                depthTest: true,
                 sizeAttenuation: true 
             });
     
@@ -736,9 +735,12 @@ export const SolarSystemRenderer = (() => {
     }
 
     function _createOrbitLine(planet) {
-        const a = planet.semiMajorAxis;
+        // Provide default values in case they are missing from saved data
+        const a = planet.semiMajorAxis ?? 10000; 
+        const e_raw = planet.orbitalEccentricity ?? 0.1;
+
         // Clamp eccentricity to a value slightly less than 1 to prevent Math.sqrt(negative)
-        const e = Math.min(planet.orbitalEccentricity, 0.999);
+        const e = Math.min(e_raw, 0.999);
         const b = a * Math.sqrt(1 - e * e);
         const focusOffset = a * e;
 
@@ -753,9 +755,9 @@ export const SolarSystemRenderer = (() => {
         const points2D = curve.getPoints(256);
         const points3D = points2D.map(p => new THREE.Vector3(p.x, p.y, 0));
 
-        const q_argP = new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(0, 0, 1), planet.argumentOfPeriapsis);
-        const q_inc = new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(1, 0, 0), planet.orbitalInclination);
-        const q_LAN = new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(0, 0, 1), planet.longitudeOfAscendingNode);
+        const q_argP = new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(0, 0, 1), planet.argumentOfPeriapsis ?? 0);
+        const q_inc = new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(1, 0, 0), planet.orbitalInclination ?? 0);
+        const q_LAN = new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(0, 0, 1), planet.longitudeOfAscendingNode ?? 0);
         const finalQuaternion = new THREE.Quaternion().multiply(q_LAN).multiply(q_inc).multiply(q_argP);
 
         points3D.forEach(p => p.applyQuaternion(finalQuaternion));
@@ -860,11 +862,11 @@ export const SolarSystemRenderer = (() => {
 
         planetLODs.forEach(lod => {
             const planet = lod.userData;
-            const orbitalAngularVelocity = planet.orbitalSpeed * 0.1 * moduleState.orbitSpeedMultiplier;
-            const angle = (planet.currentOrbitalAngle + orbitalAngularVelocity * totalElapsedTime) % (2 * Math.PI);
+            const orbitalAngularVelocity = (planet.orbitalSpeed ?? 0.1) * 0.1 * moduleState.orbitSpeedMultiplier;
+            const angle = ((planet.currentOrbitalAngle ?? 0) + orbitalAngularVelocity * totalElapsedTime) % (2 * Math.PI);
             
-            const a = planet.semiMajorAxis;
-            const e = planet.orbitalEccentricity;
+            const a = planet.semiMajorAxis ?? 10000;
+            const e = Math.min(planet.orbitalEccentricity ?? 0.1, 0.999);
             const b = a * Math.sqrt(1.0 - e * e);
             const focusOffset = a * e;
 
@@ -873,15 +875,15 @@ export const SolarSystemRenderer = (() => {
 
             const pos_orbital_plane = new THREE.Vector3(x_orbital, y_orbital, 0);
 
-            const q_argP = new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(0, 0, 1), planet.argumentOfPeriapsis);
-            const q_inc = new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(1, 0, 0), planet.orbitalInclination);
-            const q_LAN = new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(0, 0, 1), planet.longitudeOfAscendingNode);
+            const q_argP = new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(0, 0, 1), planet.argumentOfPeriapsis ?? 0);
+            const q_inc = new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(1, 0, 0), planet.orbitalInclination ?? 0);
+            const q_LAN = new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(0, 0, 1), planet.longitudeOfAscendingNode ?? 0);
             const finalQuaternion = new THREE.Quaternion().multiply(q_LAN).multiply(q_inc).multiply(q_argP);
             
             lod.position.copy(pos_orbital_plane).applyQuaternion(finalQuaternion);
 
-            const axialAngularVelocity = planet.axialSpeed * 2;
-            const newAxialAngle = planet.initialAxialAngle + (axialAngularVelocity * totalElapsedTime);
+            const axialAngularVelocity = (planet.axialSpeed ?? 0.01) * 2;
+            const newAxialAngle = (planet.initialAxialAngle ?? 0) + (axialAngularVelocity * totalElapsedTime);
             lod.rotation.y = newAxialAngle;
             
             if(lod.userData.hexMeshLOD) {
@@ -970,7 +972,7 @@ export const SolarSystemRenderer = (() => {
         _updatePlayerShip(deltaTime);
 
         if (backgroundStars) backgroundStars.position.copy(camera.position);
-        if (distantGalaxiesGroup) distantGalaxiesGroup.position.copy(camera.position);
+        if (distantGalaxiesGroup) distantGalaxiesGroup.rotation.y += 0.00005;
         
         const sunPosition = new THREE.Vector3(0, 0, 0);
         const distanceToSun = camera.position.distanceTo(sunPosition);

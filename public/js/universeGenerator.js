@@ -1,6 +1,7 @@
 // public/js/universeGenerator.js
 import { getNonOverlappingPositionInCircle, getDistance } from './utils.js';
-import GameStateManager from './gameStateManager.js'; // Import the state manager
+import GameStateManager from './gameStateManager.js';
+import { getPlanetElevation } from './noise.js'; // Import noise utility
 
 const SOLAR_SYSTEM_BASE_ICON_SIZE = 2.5;
 const MAX_CONNECTIONS_PER_SYSTEM = 3;
@@ -42,11 +43,12 @@ export function generatePlanetInstanceFromBasis(basis, isForDesignerPreview = fa
     const useCustomDesign = !isForDesignerPreview &&
         customDesigns && customDesigns.length > 0 &&
         Math.random() < 0.5;
+    
+    let planetData;
 
     if (useCustomDesign) {
         const randomDesign = customDesigns[Math.floor(Math.random() * customDesigns.length)];
-
-        return {
+        planetData = {
             waterColor: randomDesign.waterColor,
             landColor: randomDesign.landColor,
             continentSeed: Math.random(),
@@ -59,32 +61,66 @@ export function generatePlanetInstanceFromBasis(basis, isForDesignerPreview = fa
             isExplorable: true,
             planetType: randomDesign.planetType ?? Math.floor(Math.random() * 4),
         };
+    } else {
+        planetData = {
+            waterColor: basis.waterColor || '#0000FF',
+            landColor: basis.landColor || '#008000',
+            continentSeed: isForDesignerPreview ?
+                (basis.continentSeed !== undefined ? basis.continentSeed : Math.random()) :
+                Math.random(),
+            minTerrainHeight: (typeof basis.minTerrainHeight === 'number') ?
+                basis.minTerrainHeight : (window.DEFAULT_MIN_TERRAIN_HEIGHT ?? 0.0),
+            maxTerrainHeight: (typeof basis.maxTerrainHeight === 'number') ?
+                basis.maxTerrainHeight : (window.DEFAULT_MAX_TERRAIN_HEIGHT ?? 10.0),
+            oceanHeightLevel: (typeof basis.oceanHeightLevel === 'number') ?
+                basis.oceanHeightLevel : (window.DEFAULT_OCEAN_HEIGHT_LEVEL ?? 2.0),
+            riverBasin: basis.riverBasin || 0.05,
+            forestDensity: basis.forestDensity || 0.5,
+            sourceDesignId: null,
+            isExplorable: true,
+            planetType: basis.planetType ?? Math.floor(Math.random() * 4),
+            explorationData: {
+                surfaceDetail: basis.surfaceDetail || 1.0,
+                atmosphereColor: basis.atmosphereColor || '#87CEEB',
+                rotationSpeed: basis.rotationSpeed || (window.DEFAULT_PLANET_AXIAL_SPEED ?? 0.01)
+            }
+        };
     }
 
-    // Default generation
-    return {
-        waterColor: basis.waterColor || '#0000FF',
-        landColor: basis.landColor || '#008000',
-        continentSeed: isForDesignerPreview ?
-            (basis.continentSeed !== undefined ? basis.continentSeed : Math.random()) :
-            Math.random(),
-        minTerrainHeight: (typeof basis.minTerrainHeight === 'number') ?
-            basis.minTerrainHeight : (window.DEFAULT_MIN_TERRAIN_HEIGHT ?? 0.0),
-        maxTerrainHeight: (typeof basis.maxTerrainHeight === 'number') ?
-            basis.maxTerrainHeight : (window.DEFAULT_MAX_TERRAIN_HEIGHT ?? 10.0),
-        oceanHeightLevel: (typeof basis.oceanHeightLevel === 'number') ?
-            basis.oceanHeightLevel : (window.DEFAULT_OCEAN_HEIGHT_LEVEL ?? 2.0),
-        riverBasin: basis.riverBasin || 0.05,
-        forestDensity: basis.forestDensity || 0.5,
-        sourceDesignId: null,
-        isExplorable: true,
-        planetType: basis.planetType ?? Math.floor(Math.random() * 4),
-        explorationData: {
-            surfaceDetail: basis.surfaceDetail || 1.0,
-            atmosphereColor: basis.atmosphereColor || '#87CEEB',
-            rotationSpeed: basis.rotationSpeed || (window.DEFAULT_PLANET_AXIAL_SPEED ?? 0.01)
+    // Generate and add landing locations to every planet instance
+    if (!isForDesignerPreview) {
+        const landingLocationTypes = ['City', 'Military Outpost', 'Trading Hub', 'Mine', 'Science Facility'];
+        const numLocations = Math.floor(Math.random() * 4) + 1;
+        const locations = [];
+        let attempts = 0;
+
+        while(locations.length < numLocations && attempts < 50) {
+            const phi = Math.acos(2 * Math.random() - 1);
+            const theta = Math.random() * 2 * Math.PI;
+
+            const positionOnSphere = [
+                Math.sin(phi) * Math.cos(theta),
+                Math.sin(phi) * Math.sin(theta),
+                Math.cos(phi)
+            ];
+            
+            const elevation = getPlanetElevation(positionOnSphere, planetData);
+
+            if (elevation > planetData.oceanHeightLevel) {
+                const type = landingLocationTypes[Math.floor(Math.random() * landingLocationTypes.length)];
+                locations.push({
+                    type: type,
+                    name: `${type} #${locations.length + 1}`,
+                    phi: phi,
+                    theta: theta,
+                });
+            }
+            attempts++;
         }
-    };
+        planetData.landingLocations = locations;
+    }
+
+    return planetData;
 };
 
 export function generateUniverseLayout(universeCircle, gameState, fixedColors) {

@@ -154,7 +154,6 @@ export const SolarSystemRenderer = (() => {
         const mesh = new THREE.Mesh(geometry, material);
         mesh.userData = { ...planetData, lastPosition: new THREE.Vector3(), lastWorldPosition: new THREE.Vector3() };
         
-        // Store the initial random angles for time-based animation
         mesh.userData.initialOrbitalAngle = planetData.currentOrbitalAngle;
         mesh.userData.initialAxialAngle = planetData.currentAxialAngle;
 
@@ -189,8 +188,11 @@ export const SolarSystemRenderer = (() => {
         const colors = [];
         const sizes = [];
         const colorPalette = [
-            new THREE.Color(0xFF8C00), new THREE.Color(0xFFDAB9),
-            new THREE.Color(0x87CEEB), new THREE.Color(0xFFFFFF)
+            new THREE.Color(0x6B93D6), 
+            new THREE.Color(0xFFF078),
+            new THREE.Color(0xD6CADD),
+            new THREE.Color(0xFF7F50),
+            new THREE.Color(0xFFFFFF)
         ];
 
         for (let i = 0; i < starCount; i++) {
@@ -234,7 +236,7 @@ export const SolarSystemRenderer = (() => {
         const galaxyTexture = _createSimpleGalaxySpriteTexture();
         const config = {
             COUNT: 150, MIN_SCALE: 800, MAX_SCALE: 1500,
-            MIN_OPACITY: 0.2, MAX_OPACITY: 0.5,
+            MIN_OPACITY: 0.3, MAX_OPACITY: 0.6,
         };
 
         for (let i = 0; i < config.COUNT; i++) {
@@ -330,12 +332,12 @@ export const SolarSystemRenderer = (() => {
         controls = new OrbitControls(camera, renderer.domElement);
         Object.assign(controls, {
             enabled: true,
-            enableDamping: true, dampingFactor: 0.05, screenSpacePanning: true,
-            minDistance: DEFAULT_MIN_DISTANCE, maxDistance: 450000, enablePan: true, rotateSpeed: 0.4,
-            mouseButtons: { LEFT: THREE.MOUSE.PAN, MIDDLE: THREE.MOUSE.DOLLY, RIGHT: -1 },
-            enableZoom: false,
-            autoRotate: false,
-            autoRotateSpeed: 0.5
+            enableDamping: true,
+            dampingFactor: 0.05,
+            screenSpacePanning: true,
+            minDistance: DEFAULT_MIN_DISTANCE,
+            maxDistance: 450000,
+            enableZoom: false, // Use custom wheel handler
         });
 
         boundWheelHandler = (event) => {
@@ -362,7 +364,7 @@ export const SolarSystemRenderer = (() => {
         if (!renderer) return;
         animationFrameId = requestAnimationFrame(_animate);
 
-        const totalElapsedTime = (now - simulationStartTime) / 1000; // Time in seconds
+        const totalElapsedTime = (now - simulationStartTime) / 1000;
 
         planetMeshes.forEach(mesh => {
             const planet = mesh.userData;
@@ -399,6 +401,8 @@ export const SolarSystemRenderer = (() => {
                 controls.enabled = true;
                 
                 controls.enablePan = false;
+                controls.minPolarAngle = 0;
+                controls.maxPolarAngle = Math.PI;
                 controls.mouseButtons.LEFT = THREE.MOUSE.ROTATE;
                 controls.mouseButtons.RIGHT = THREE.MOUSE.ROTATE;
             }
@@ -412,9 +416,12 @@ export const SolarSystemRenderer = (() => {
 
         controls.update();
 
+        if (backgroundStars) backgroundStars.position.copy(camera.position);
+        if (distantGalaxiesGroup) distantGalaxiesGroup.position.copy(camera.position);
+        
         const sunPosition = new THREE.Vector3(0, 0, 0);
         const distanceToSun = camera.position.distanceTo(sunPosition);
-        if (sunRadius > 0 && distanceToSun < sunRadius * 1.1) {
+        if (!followedPlanet && sunRadius > 0 && distanceToSun < sunRadius * 1.1) {
             const direction = camera.position.clone().normalize();
             camera.position.copy(direction.multiplyScalar(sunRadius * 1.1));
         }
@@ -450,7 +457,10 @@ export const SolarSystemRenderer = (() => {
         controls.minDistance = DEFAULT_MIN_DISTANCE;
         controls.enabled = true;
         controls.enablePan = true;
+        controls.minPolarAngle = 0.1;
+        controls.maxPolarAngle = Math.PI / 2 - 0.1;
         controls.mouseButtons.LEFT = THREE.MOUSE.PAN;
+        controls.mouseButtons.MIDDLE = THREE.MOUSE.ROTATE;
         controls.mouseButtons.RIGHT = -1;
     }
 
@@ -465,7 +475,7 @@ export const SolarSystemRenderer = (() => {
         focusAnimation = {
             targetPlanet: targetPlanet,
             startTime: performance.now(),
-            duration: 1600, // ms
+            duration: 1600,
             startPosition: camera.position.clone(),
             startTarget: controls.target.clone(),
             cameraOffset: new THREE.Vector3(0, radius * 1.5, radius * 3.5)

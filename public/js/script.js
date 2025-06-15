@@ -72,6 +72,10 @@ document.addEventListener('DOMContentLoaded', () => {
         devShipSpeedValue: document.getElementById('dev-ship-speed-value'),
         devPanelSaveButton: document.getElementById('dev-panel-save'),
         devPanelCancelButton: document.getElementById('dev-panel-cancel'),
+        landingConfirmationPanel: document.getElementById('landing-confirmation-panel'),
+        landingQuestionText: document.getElementById('landing-question-text'),
+        landingBtnYes: document.getElementById('landing-btn-yes'),
+        landingBtnNo: document.getElementById('landing-btn-no'),
     };
 
     // --- FUNCTIONS ---
@@ -242,7 +246,7 @@ document.addEventListener('DOMContentLoaded', () => {
             const planetData = generatePlanetInstanceFromBasis({});
             
             let separation;
-            if (i > 0 && Math.random() < 0.20) { // Slightly increased chance
+            if (i > 0 && Math.random() < 0.20) {
                 separation = 60000 + Math.random() * 80000;
             } else {
                 separation = MIN_ORBITAL_SEPARATION + (Math.random() * Math.random()) * 55000;
@@ -251,14 +255,14 @@ document.addEventListener('DOMContentLoaded', () => {
             const semiMajorAxis = lastOrbitalRadius + separation;
             const planetName = shuffledNames[i] || `Planet ${i + 1}`;
             
-            let eccentricity = Math.pow(Math.random(), 2) * 0.4; // Most are near-circular
+            let eccentricity = Math.pow(Math.random(), 2) * 0.4;
             if (Math.random() < 0.1) {
                 eccentricity = 0.4 + Math.random() * 0.3;
             }
 
-            let inclination = Math.random() * 0.1; // Most are under ~5 degrees
-            if (Math.random() < 0.1) { // 10% chance for a wild orbit
-                inclination = Math.random() * Math.PI; // Any inclination is possible, for a "wonky" system
+            let inclination = Math.random() * 0.1;
+            if (Math.random() < 0.1) {
+                inclination = Math.random() * Math.PI;
             }
 
             solarSystemObject.planets.push({
@@ -266,13 +270,11 @@ document.addEventListener('DOMContentLoaded', () => {
                 id: `${solarSystemObject.id}-planet-${i}`,
                 name: planetName,
                 size: 50 + Math.random() * 100,
-                // Orbital elements
                 semiMajorAxis: semiMajorAxis,
                 orbitalEccentricity: eccentricity,
                 orbitalInclination: inclination,
                 longitudeOfAscendingNode: Math.random() * Math.PI * 2,
                 argumentOfPeriapsis: Math.random() * Math.PI * 2,
-                // Simulation state
                 orbitalSpeed: Math.sqrt(10000 / semiMajorAxis),
                 currentOrbitalAngle: Math.random() * 2 * Math.PI,
                 axialSpeed: (Math.random() - 0.5) * 0.05,

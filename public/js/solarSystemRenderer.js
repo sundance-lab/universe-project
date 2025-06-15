@@ -273,7 +273,7 @@ export const SolarSystemRenderer = (() => {
                     uTime: { value: 0.0 },
                     uSphereRadius: { value: SPHERE_BASE_RADIUS },
                     uDisplacementAmount: { value: 0.0 },
-                    uShowStrokes: { value: true },
+                    uShowStrokes: { value: false },
                     uOceanHeightLevel: { value: 0.0 },
                     uMountainStrength: { value: 1.0 },
                     uIslandStrength: { value: 1.0 },
@@ -290,13 +290,13 @@ export const SolarSystemRenderer = (() => {
         hexPlanetMaterial.uniforms.uOceanHeightLevel.value = normalizedOceanLevel - 0.5;
         hexPlanetMaterial.uniforms.uDisplacementAmount.value = terrainRange * DISPLACEMENT_SCALING_FACTOR;
         
-        const numLevels = 12;
-        const maxSubdivision = 256;
+        const numLevels = 16;
+        const maxSubdivision = 512;
 
         for (let i = 0; i < numLevels; i++) {
-            const subdivision = Math.max(2, Math.floor(maxSubdivision / Math.pow(2.2, i)));
-            const distance = i === 0 ? 0 : planetData.size * 2 * Math.pow(1.5, i - 1);
-
+            const subdivision = Math.max(2, Math.floor(maxSubdivision / Math.pow(1.8, i)));
+            const distance = i === 0 ? 0 : planetData.size * 1.5 * Math.pow(1.6, i - 1);
+            
             const geometry = new THREE.IcosahedronGeometry(planetData.size, subdivision);
             addBarycentricCoordinates(geometry);
             
@@ -520,29 +520,29 @@ export const SolarSystemRenderer = (() => {
     function _onMovementRightClick(event) {
         event.preventDefault();
         
-        if (!playerShip) return;
+        if (playerShip) {
+            const rect = renderer.domElement.getBoundingClientRect();
+            mouse.x = ((event.clientX - rect.left) / rect.width) * 2 - 1;
+            mouse.y = -((event.clientY - rect.top) / rect.height) * 2 + 1;
+            raycaster.setFromCamera(mouse, camera);
 
-        const rect = renderer.domElement.getBoundingClientRect();
-        mouse.x = ((event.clientX - rect.left) / rect.width) * 2 - 1;
-        mouse.y = -((event.clientY - rect.top) / rect.height) * 2 + 1;
-        raycaster.setFromCamera(mouse, camera);
+            const plane = new THREE.Plane(new THREE.Vector3(0, 1, 0), 0);
+            const targetPosition = new THREE.Vector3();
+            raycaster.ray.intersectPlane(plane, targetPosition);
 
-        const plane = new THREE.Plane(new THREE.Vector3(0, 1, 0), 0);
-        const targetPosition = new THREE.Vector3();
-        raycaster.ray.intersectPlane(plane, targetPosition);
+            if (targetPosition) {
+                shipState.target = targetPosition;
 
-        if (targetPosition) {
-            shipState.target = targetPosition;
-
-            if (!shipTargetSignifier) {
-                const ringGeometry = new THREE.RingGeometry(300, 400, 32);
-                const ringMaterial = new THREE.MeshBasicMaterial({ color: 0x00ffaa, side: THREE.DoubleSide, transparent: true });
-                shipTargetSignifier = new THREE.Mesh(ringGeometry, ringMaterial);
-                shipTargetSignifier.rotation.x = -Math.PI / 2;
-                scene.add(shipTargetSignifier);
+                if (!shipTargetSignifier) {
+                    const ringGeometry = new THREE.RingGeometry(300, 400, 32);
+                    const ringMaterial = new THREE.MeshBasicMaterial({ color: 0x00ffaa, side: THREE.DoubleSide, transparent: true });
+                    shipTargetSignifier = new THREE.Mesh(ringGeometry, ringMaterial);
+                    shipTargetSignifier.rotation.x = -Math.PI / 2;
+                    scene.add(shipTargetSignifier);
+                }
+                shipTargetSignifier.position.copy(targetPosition);
+                shipTargetSignifier.visible = true;
             }
-            shipTargetSignifier.position.copy(targetPosition);
-            shipTargetSignifier.visible = true;
         }
     }
 

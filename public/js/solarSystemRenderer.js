@@ -131,7 +131,8 @@ export const SolarSystemRenderer = (() => {
     let isSpawningMode = false;
 
     const moduleState = {
-        orbitSpeedMultiplier: 1.0
+        orbitSpeedMultiplier: 1.0,
+        landingIconSizeMultiplier: 0.25
     };
 
     const SPHERE_BASE_RADIUS = 0.8;
@@ -213,7 +214,7 @@ export const SolarSystemRenderer = (() => {
     
                     icon.material.opacity = opacity;
                     icon.visible = true;
-                    const scale = planetRadius * 0.25;
+                    const scale = planetRadius * moduleState.landingIconSizeMultiplier;
                     icon.scale.set(scale, scale, 1.0);
     
                 } else {
@@ -993,6 +994,10 @@ export const SolarSystemRenderer = (() => {
         });
     }
 
+    function setLandingIconSize(multiplier) {
+        moduleState.landingIconSizeMultiplier = Number(multiplier);
+    }
+
     function unfocus(fromAnimation = false) {
         if (focusAnimation) {
             focusAnimation = null;
@@ -1101,6 +1106,7 @@ export const SolarSystemRenderer = (() => {
                 setOrbitLinesVisible(initialDevSettings.orbitLinesVisible);
                 setOrbitSpeed(initialDevSettings.orbitSpeed);
                 setShipSpeed(initialDevSettings.shipSpeed);
+                setLandingIconSize(initialDevSettings.landingIconSize);
             }
 
             unfocus(true);
@@ -1114,6 +1120,7 @@ export const SolarSystemRenderer = (() => {
         setOrbitLinesVisible,
         setOrbitSpeed,
         setShipSpeed,
+        setLandingIconSize,
         focusOnPlanet,
         unfocus,
         getFollowedPlanetId,

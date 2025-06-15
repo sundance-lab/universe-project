@@ -5,38 +5,71 @@ import { PlayerController } from './playerController.js';
 
 export const SurfaceRenderer = (() => {
     let scene, camera, renderer;
-    let groundMesh, playerMesh;
+    let playerMesh;
     let animationFrameId;
+    let currentPlanetData;
 
-    function _createProceduralTexture(planetData) {
+    // Tile system state
+    const TILE_SIZE = 512;
+    const TILE_RESOLUTION = 256; // Texture resolution for each tile
+    const VIEW_DISTANCE = 2; // in tiles from center
+    const activeTiles = new Map();
+
+    function _createCharacterMesh() {
+        const shape = new THREE.Shape();
+        shape.moveTo(0, 10);
+        shape.lineTo(-5, -5);
+        shape.lineTo(5, -5);
+        shape.closePath();
+
+        const geometry = new THREE.ShapeGeometry(shape);
+        const material = new THREE.MeshBasicMaterial({ color: 0xffff00 });
+        const mesh = new THREE.Mesh(geometry, material);
+        mesh.position.z = 1; // Render on top of ground
+        return mesh;
+    }
+
+    function _createTileTexture(tileX, tileY, planetData) {
         const canvas = document.createElement('canvas');
-        const size = 512; // Texture resolution
-        canvas.width = size;
-        canvas.height = size;
+        canvas.width = TILE_RESOLUTION;
+        canvas.height = TILE_RESOLUTION;
         const context = canvas.getContext('2d');
-        const imageData = context.createImageData(size, size);
+        const imageData = context.createImageData(TILE_RESOLUTION, TILE_RESOLUTION);
 
+        // Define biome colors
+        const deepWater = new THREE.Color(planetData.waterColor).multiplyScalar(0.6);
         const water = new THREE.Color(planetData.waterColor);
-        const land = new THREE.Color(planetData.landColor);
+        const beach = new THREE.Color(planetData.landColor).lerp(new THREE.Color(0xFFE4B5), 0.5); // Sandy color
+        const plains = new THREE.Color(planetData.landColor);
+        const forest = new THREE.Color(planetData.landColor).multiplyScalar(0.5);
+        const mountain = new THREE.Color(0x8B8989); // Grayish rock
+        const snow = new THREE.Color(0xFFFAFA);
 
-        for (let x = 0; x < size; x++) {
-            for (let y = 0; y < size; y++) {
-                // Map canvas coords to a position on a sphere for noise sampling
-                const u = (x / size) * 2 - 1;
-                const v = (y / size) * 2 - 1;
-                if (u * u + v * v > 1) continue; // Outside the circle
+        const oceanLvl = planetData.oceanHeightLevel;
+        const terrainRange = planetData.maxTerrainHeight - planetData.minTerrainHeight;
 
+        for (let y = 0; y < TILE_RESOLUTION; y++) {
+            for (let x = 0; x < TILE_RESOLUTION; x++) {
+                
+                // Calculate world position for this pixel to pass to noise function
+                const u = ((tileX + x / TILE_RESOLUTION) / 10.0) * 2 - 1;
+                const v = ((tileY + y / TILE_RESOLUTION) / 10.0) * 2 - 1;
+                if (u * u + v * v > 1) continue; // Sample noise in a circular pattern
                 const posOnSphere = [u, v, Math.sqrt(1 - u*u - v*v)];
                 const elevation = getPlanetElevation(posOnSphere, planetData);
                 
                 let biomeColor;
-                if (elevation > planetData.oceanHeightLevel) {
-                    biomeColor = land;
-                } else {
-                    biomeColor = water;
+                if (elevation < oceanLvl - terrainRange * 0.1) biomeColor = deepWater;
+                else if (elevation < oceanLvl) biomeColor = water;
+                else if (elevation < oceanLvl + terrainRange * 0.05) biomeColor = beach;
+                else if (elevation < oceanLvl + terrainRange * 0.4) {
+                     const forestNoise = getPlanetElevation([u*5, v*5, posOnSphere[2]*5], planetData);
+                     biomeColor = forestNoise > planetData.oceanHeightLevel + terrainRange * 0.2 ? forest : plains;
                 }
+                else if (elevation < oceanLvl + terrainRange * 0.7) biomeColor = mountain;
+                else biomeColor = snow;
 
-                const index = (y * size + x) * 4;
+                const index = (y * TILE_RESOLUTION + x) * 4;
                 imageData.data[index] = biomeColor.r * 255;
                 imageData.data[index + 1] = biomeColor.g * 255;
                 imageData.data[index + 2] = biomeColor.b * 255;
@@ -44,42 +77,71 @@ export const SurfaceRenderer = (() => {
             }
         }
         context.putImageData(imageData, 0, 0);
-        return new THREE.CanvasTexture(canvas);
+        const texture = new THREE.CanvasTexture(canvas);
+        texture.needsUpdate = true;
+        return texture;
+    }
+
+    function _updateTiles() {
+        const player = PlayerController.getPlayer();
+        const currentTileX = Math.floor(player.position.x / TILE_SIZE);
+        const currentTileY = Math.floor(player.position.y / TILE_SIZE);
+
+        const requiredTiles = new Set();
+        for (let x = currentTileX - VIEW_DISTANCE; x <= currentTileX + VIEW_DISTANCE; x++) {
+            for (let y = currentTileY - VIEW_DISTANCE; y <= currentTileY + VIEW_DISTANCE; y++) {
+                const tileKey = `${x},${y}`;
+                requiredTiles.add(tileKey);
+
+                if (!activeTiles.has(tileKey)) {
+                    // Add new tile
+                    const texture = _createTileTexture(x, y, currentPlanetData);
+                    const material = new THREE.MeshBasicMaterial({ map: texture });
+                    const geometry = new THREE.PlaneGeometry(TILE_SIZE, TILE_SIZE);
+                    const tileMesh = new THREE.Mesh(geometry, material);
+                    tileMesh.position.set(x * TILE_SIZE + TILE_SIZE / 2, y * TILE_SIZE + TILE_SIZE / 2, 0);
+                    scene.add(tileMesh);
+                    activeTiles.set(tileKey, tileMesh);
+                }
+            }
+        }
+
+        // Remove old tiles
+        for (const [tileKey, tileMesh] of activeTiles.entries()) {
+            if (!requiredTiles.has(tileKey)) {
+                scene.remove(tileMesh);
+                tileMesh.geometry.dispose();
+                tileMesh.material.map.dispose();
+                tileMesh.material.dispose();
+                activeTiles.delete(tileKey);
+            }
+        }
     }
 
     function _initScene(canvas, planetData) {
+        currentPlanetData = planetData;
         scene = new THREE.Scene();
         scene.background = new THREE.Color(0x1a1a1a);
         
-        // Orthographic Camera for top-down view
         const aspect = canvas.offsetWidth / canvas.offsetHeight;
-        const frustumSize = 100;
+        const frustumSize = 400;
         camera = new THREE.OrthographicCamera(frustumSize * aspect / -2, frustumSize * aspect / 2, frustumSize / 2, frustumSize / -2, 1, 1000);
         camera.position.z = 100;
 
         renderer = new THREE.WebGLRenderer({ canvas, antialias: true });
         renderer.setSize(canvas.offsetWidth, canvas.offsetHeight);
         renderer.setPixelRatio(window.devicePixelRatio);
-
-        // Ground
-        const groundTexture = _createProceduralTexture(planetData);
-        const groundMaterial = new THREE.MeshBasicMaterial({ map: groundTexture });
-        const groundGeometry = new THREE.PlaneGeometry(2000, 2000);
-        groundMesh = new THREE.Mesh(groundGeometry, groundMaterial);
-        scene.add(groundMesh);
-
-        // Player
-        const playerGeometry = new THREE.CircleGeometry(2, 32);
-        const playerMaterial = new THREE.MeshBasicMaterial({ color: 0xffff00 });
-        playerMesh = new THREE.Mesh(playerGeometry, playerMaterial);
-        playerMesh.position.z = 1; // Render on top of ground
+        
+        // Player Character
+        playerMesh = _createCharacterMesh();
         scene.add(playerMesh);
 
         PlayerController.init();
+        _updateTiles(); // Initial tile load
         _animate();
     }
 
-    function _animate(now) {
+    function _animate() {
         animationFrameId = requestAnimationFrame(_animate);
         const deltaTime = 0.016; // Simple fixed delta time
 
@@ -88,10 +150,17 @@ export const SurfaceRenderer = (() => {
 
         playerMesh.position.x = player.position.x;
         playerMesh.position.y = player.position.y;
+        
+        // Rotate player to face velocity
+        const velocity = player.velocity;
+        if (velocity.x * velocity.x + velocity.y * velocity.y > 0.1) {
+             playerMesh.rotation.z = Math.atan2(velocity.y, velocity.x) - Math.PI / 2;
+        }
 
-        // Camera follows player
         camera.position.x = player.position.x;
         camera.position.y = player.position.y;
+
+        _updateTiles();
 
         renderer.render(scene, camera);
     }
@@ -107,15 +176,23 @@ export const SurfaceRenderer = (() => {
         dispose: () => {
             cancelAnimationFrame(animationFrameId);
             PlayerController.dispose();
-            if (scene) {
-                scene.traverse(object => {
-                    if (object.geometry) object.geometry.dispose();
-                    if (object.material) {
-                         if (object.material.map) object.material.map.dispose();
-                         object.material.dispose();
-                    }
-                });
+            
+            for (const [tileKey, tileMesh] of activeTiles.entries()) {
+                 scene.remove(tileMesh);
+                 if (tileMesh.geometry) tileMesh.geometry.dispose();
+                 if (tileMesh.material) {
+                     if (tileMesh.material.map) tileMesh.material.map.dispose();
+                     tileMesh.material.dispose();
+                 }
             }
+            activeTiles.clear();
+
+            if (scene) {
+                scene.remove(playerMesh);
+                if(playerMesh.geometry) playerMesh.geometry.dispose();
+                if(playerMesh.material) playerMesh.material.dispose();
+            }
+
             if(renderer) {
                 renderer.dispose();
             }

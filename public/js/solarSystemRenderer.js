@@ -4,7 +4,7 @@ File: sundance-lab/universe-project/universe-project-b044ce4d52b6181af39f9a6378c
 
 import * as THREE from 'three';
 import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls.js';
-import { getPlanetShaders } from './shaders.js';
+import { getPlanetShaders, getHexPlanetShaders } from './shaders.js';
 import { Line2 } from 'three/examples/jsm/lines/Line2.js';
 import { LineMaterial } from 'three/examples/jsm/lines/LineMaterial.js';
 import { LineGeometry } from 'three/examples/jsm/lines/LineGeometry.js';
@@ -725,7 +725,7 @@ export const SolarSystemRenderer = (() => {
                 focusAnimation = null;
                 controls.enabled = true;
                 controls.enablePan = false;
-                controls.minPolarAngle = 0;
+                controls.minPolarAngle = Math.PI / 2 - 0.1;
                 controls.maxPolarAngle = Math.PI / 2 - 0.1;
                 controls.mouseButtons.LEFT = THREE.MOUSE.ROTATE;
                 controls.mouseButtons.MIDDLE = THREE.MOUSE.DOLLY;

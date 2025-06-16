@@ -1,4 +1,3 @@
-// public/js/uiManager.js
 import * as THREE from 'three';
 import { GalaxyRenderer } from './galaxyRenderer.js';
 import { generateSolarSystemsForGalaxy } from './universeGenerator.js';
@@ -25,7 +24,6 @@ export const UIManager = (() => {
     let savedGalaxyDesignsUl;
     let boundGalaxyApplyHandler, boundGalaxyCancelHandler, boundGalaxyRandomizeAllHandler, boundGalaxyRandomizePaletteHandler, boundGalaxySaveDesignHandler, boundSavedGalaxyDesignsClickHandler;
     
-    // FIX: Keep a stable reference to the event handler to prevent memory leaks
     let boundSolarSystemClickHandler = null;
 
 
@@ -156,7 +154,6 @@ export const UIManager = (() => {
             currentGalaxyRenderer = null;
         }
 
-        // FIX: Ensure the old event listener is removed to prevent a memory leak
         if (boundSolarSystemClickHandler && elements.solarSystemContent) {
             elements.solarSystemContent.removeEventListener('click', boundSolarSystemClickHandler);
             boundSolarSystemClickHandler = null;
@@ -210,7 +207,6 @@ export const UIManager = (() => {
             window.activeSolarSystemRenderer = null;
         }
 
-        // FIX: Ensure the old event listener is removed to prevent a memory leak
         if (boundSolarSystemClickHandler && elements.solarSystemContent) {
             elements.solarSystemContent.removeEventListener('click', boundSolarSystemClickHandler);
             boundSolarSystemClickHandler = null;
@@ -225,7 +221,6 @@ export const UIManager = (() => {
             return;
         }
         
-        // FIX: Check if the 'planets' property exists, not if it's just falsy (like an empty array).
         if (!solarSystemObject.hasOwnProperty('planets')) {
             callbacks.generatePlanetsForSystem(solarSystemObject);
         }
@@ -241,7 +236,6 @@ export const UIManager = (() => {
         SolarSystemRenderer.init(solarSystemDataForRenderer, devSettings);
         window.activeSolarSystemRenderer = SolarSystemRenderer;
         
-        // FIX: Bind the click handler to a stable reference
         boundSolarSystemClickHandler = (event) => _onSolarSystemCanvasClick(event);
         elements.solarSystemContent.addEventListener('click', boundSolarSystemClickHandler);
 
@@ -324,15 +318,22 @@ export const UIManager = (() => {
         const intersects = raycaster.intersectObjects(planetMeshes);
 
         if (intersects.length > 0) {
-            const clickedPlanetId = intersects[0].object.userData.id;
-            const followedPlanetId = renderer.getFollowedPlanetId();
+            let clickedLOD = intersects[0].object;
+            while(clickedLOD && !clickedLOD.isLOD) {
+                clickedLOD = clickedLOD.parent;
+            }
 
-            if (clickedPlanetId !== followedPlanetId) {
-                renderer.focusOnPlanet(clickedPlanetId);
-                const allItems = elements.planetSidebarList.querySelectorAll('.planet-sidebar-item');
-                allItems.forEach(i => i.classList.remove('active-focus'));
-                const item = elements.planetSidebarList.querySelector(`.planet-sidebar-item[data-planet-id="${clickedPlanetId}"]`);
-                if(item) item.classList.add('active-focus');
+            if (clickedLOD) {
+                const clickedPlanetId = clickedLOD.userData.id;
+                const followedPlanetId = renderer.getFollowedPlanetId();
+
+                if (clickedPlanetId !== followedPlanetId) {
+                    renderer.focusOnPlanet(clickedPlanetId);
+                    const allItems = elements.planetSidebarList.querySelectorAll('.planet-sidebar-item');
+                    allItems.forEach(i => i.classList.remove('active-focus'));
+                    const item = elements.planetSidebarList.querySelector(`.planet-sidebar-item[data-planet-id="${clickedPlanetId}"]`);
+                    if(item) item.classList.add('active-focus');
+                }
             }
         }
     }
@@ -340,7 +341,6 @@ export const UIManager = (() => {
     function switchToHexPlanetView(planetData, onBackCallback) {
         if (!planetData) return;
         if (window.activeSolarSystemRenderer) {
-             // FIX: Ensure the old event listener is removed to prevent a memory leak
             if (boundSolarSystemClickHandler && elements.solarSystemContent) {
                 elements.solarSystemContent.removeEventListener('click', boundSolarSystemClickHandler);
                 boundSolarSystemClickHandler = null;
@@ -350,7 +350,6 @@ export const UIManager = (() => {
         HexPlanetViewController.activate(planetData, onBackCallback);
     }
 
-    // --- Galaxy Customization Functions ---
     function getGalaxyElements() {
         galaxyCustomizationModal = document.getElementById('galaxy-customization-modal');
         galaxyRadiusInput = document.getElementById('galaxy-radius');

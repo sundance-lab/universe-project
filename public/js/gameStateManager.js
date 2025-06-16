@@ -45,7 +45,7 @@ class GameStateManager {
 
     setActiveGalaxyId(id) {
         this._state.activeGalaxyId = id;
-        this._state.activeSolarSystemId = null; 
+        this._state.activeSolarSystemId = null;
     }
 
     setActiveSolarSystemId(id) {
@@ -55,10 +55,10 @@ class GameStateManager {
     setInitialized(isInitialized) {
         this._state.isInitialized = isInitialized;
     }
-    
+
     addCustomPlanetDesign(design) {
         this._state.customPlanetDesigns.push(design);
-        this.saveGameState(); 
+        this.saveGameState();
     }
 
     deleteCustomPlanetDesign(designId) {
@@ -81,7 +81,7 @@ class GameStateManager {
             this.saveGameState();
         }
     }
-    
+
     resetState(preserveCustomDesigns = true) {
         const designs = preserveCustomDesigns ? {
             customPlanetDesigns: this._state.customPlanetDesigns,
@@ -132,7 +132,7 @@ class GameStateManager {
                 activeSolarSystemId: this._state.activeSolarSystemId
             };
             localStorage.setItem('galaxyGameSaveData', JSON.stringify(stateToSave));
-            console.log("Game state saved via GameStateManager.");
+            // console.log("Game state saved via GameStateManager.");
         } catch (e) {
             console.error("Error saving game state:", e);
         }
@@ -144,11 +144,17 @@ class GameStateManager {
             if (!savedStateString) return false;
 
             const loadedState = JSON.parse(savedStateString);
+
+            // --- Data Validation ---
             if (!loadedState || typeof loadedState.universeDiameter !== 'number' || !Array.isArray(loadedState.galaxies)) {
+                console.warn("Saved data is invalid or corrupted. Starting a new game.");
+                localStorage.removeItem('galaxyGameSaveData');
                 return false;
             }
-            
+
+            // Sanitize and provide defaults for loaded galaxies and systems
             loadedState.galaxies.forEach(gal => {
+                if (typeof gal !== 'object' || gal === null) return;
                 gal.currentZoom = gal.currentZoom || 1.0;
                 gal.currentPanX = gal.currentPanX || 0;
                 gal.currentPanY = gal.currentPanY || 0;
@@ -159,6 +165,7 @@ class GameStateManager {
                 }
                 gal.solarSystems = gal.solarSystems || [];
                 gal.solarSystems.forEach(ss => {
+                    if (typeof ss !== 'object' || ss === null) return;
                     ss.customName = ss.customName || null;
                     ss.sunSizeFactor = ss.sunSizeFactor ?? (0.5 + Math.random() * 9.5);
                     if (ss.sunType === undefined || ss.sunType === null) {
@@ -168,19 +175,19 @@ class GameStateManager {
                 gal.lineConnections = gal.lineConnections || [];
                 gal.layoutGenerated = gal.layoutGenerated || false;
             });
-            
+
             this._state.universe.diameter = loadedState.universeDiameter;
             this._state.galaxies = loadedState.galaxies;
             this._state.activeGalaxyId = loadedState.activeGalaxyId || null;
             this._state.activeSolarSystemId = loadedState.activeSolarSystemId || null;
             this._state.customPlanetDesigns = loadedState.customPlanetDesigns || [];
             this._state.customGalaxyDesigns = loadedState.customGalaxyDesigns || [];
-            
+
             console.log("Game state loaded successfully via GameStateManager.");
             return true;
 
         } catch (error) {
-            console.error("Error loading game state:", error);
+            console.error("Error loading or parsing game state:", error);
             localStorage.removeItem('galaxyGameSaveData');
             return false;
         }

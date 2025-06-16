@@ -60,6 +60,90 @@ float ridgedRiverNoise(vec3 p, float seed) {
 
 const noiseFunctions = glslRandom2to1 + glslSimpleValueNoise3D + glslLayeredNoise + glslRidgedRiverNoise;
 
+// FIX: New shader for the 3D terrain surface
+export function getTerrainShaders() {
+    const vertexShader = `
+        uniform float uTime;
+        uniform float uElevationMultiplier;
+
+        varying vec2 vUv;
+        varying float vElevation;
+        varying vec3 vWorldPosition;
+        varying vec3 vNormal;
+
+        ${noiseFunctions}
+
+        float getElevation(vec2 pos) {
+            float baseElevation = layeredNoise(vec3(pos * 0.001, 0.0), 1.0, 8, 0.5, 2.0, 1.0);
+            float mountainNoise = layeredNoise(vec3(pos * 0.005, 0.0), 2.0, 6, 0.6, 2.5, 1.0);
+            float detailNoise = layeredNoise(vec3(pos * 0.05, 0.0), 3.0, 4, 0.4, 2.0, 1.0);
+            
+            float finalElevation = baseElevation * 0.7 + pow(mountainNoise, 2.0) * 0.25 + detailNoise * 0.05;
+            return finalElevation * uElevationMultiplier;
+        }
+
+        void main() {
+            vUv = uv;
+            vNormal = normal;
+
+            vec3 pos = position;
+            float elevation = getElevation(pos.xz);
+            pos.y = elevation;
+            vElevation = elevation;
+            
+            vec4 worldPosition = modelMatrix * vec4(pos, 1.0);
+            vWorldPosition = worldPosition.xyz;
+
+            gl_Position = projectionMatrix * viewMatrix * worldPosition;
+        }
+    `;
+
+    const fragmentShader = `
+        uniform vec3 uSunDirection;
+        uniform float uElevationMultiplier;
+
+        varying vec2 vUv;
+        varying float vElevation;
+        varying vec3 vWorldPosition;
+        
+        // From https://www.thebookofshaders.com/13/
+        vec3 HUEtoRGB(in float H) {
+            float R = abs(H * 6.0 - 3.0) - 1.0;
+            float G = 2.0 - abs(H * 6.0 - 2.0);
+            float B = 2.0 - abs(H * 6.0 - 4.0);
+            return clamp(vec3(R,G,B), 0.0, 1.0);
+        }
+
+        void main() {
+            vec3 norm = normalize(cross(dFdx(vWorldPosition), dFdy(vWorldPosition)));
+            float light = clamp(dot(norm, uSunDirection), 0.0, 1.0);
+            
+            vec3 biomeColor;
+            float waterLevel = uElevationMultiplier * 0.2;
+            float beachLevel = waterLevel + 5.0;
+            float grassLevel = uElevationMultiplier * 0.6;
+            float rockLevel = uElevationMultiplier * 0.8;
+
+            if (vElevation < waterLevel) {
+                biomeColor = vec3(0.1, 0.3, 0.6); // Deep Water
+            } else if (vElevation < beachLevel) {
+                biomeColor = vec3(0.76, 0.7, 0.5); // Sand
+            } else if (vElevation < grassLevel) {
+                biomeColor = vec3(0.3, 0.6, 0.2); // Grass
+            } else if (vElevation < rockLevel) {
+                biomeColor = vec3(0.5, 0.5, 0.5); // Rock
+            } else {
+                biomeColor = vec3(1.0, 1.0, 1.0); // Snow
+            }
+            
+            vec3 finalColor = biomeColor * (light * 0.7 + 0.3);
+            gl_FragColor = vec4(finalColor, 1.0);
+        }
+    `;
+    return { vertexShader, fragmentShader };
+}
+
+
 export function getPlanetShaders() {
     const vertexShader = `
         #include <common>

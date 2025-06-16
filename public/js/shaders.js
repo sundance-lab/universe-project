@@ -60,93 +60,6 @@ float ridgedRiverNoise(vec3 p, float seed) {
 
 const noiseFunctions = glslRandom2to1 + glslSimpleValueNoise3D + glslLayeredNoise + glslRidgedRiverNoise;
 
-export function getTerrainShaders() {
-    const vertexShader = `
-        uniform float uTime;
-        uniform float uElevationMultiplier;
-
-        varying vec2 vUv;
-        varying float vElevation;
-        varying vec3 vNormal;
-
-        ${noiseFunctions}
-
-        float getElevation(vec2 pos) {
-            float baseElevation = layeredNoise(vec3(pos * 0.001, 0.0), 1.0, 8, 0.5, 2.0, 1.0);
-            float mountainNoise = layeredNoise(vec3(pos * 0.005, 0.0), 2.0, 6, 0.6, 2.5, 1.0);
-            float detailNoise = layeredNoise(vec3(pos * 0.05, 0.0), 3.0, 4, 0.4, 2.0, 1.0);
-            
-            float finalElevation = baseElevation * 0.7 + pow(mountainNoise, 2.0) * 0.25 + detailNoise * 0.05;
-            return finalElevation * uElevationMultiplier;
-        }
-
-        void main() {
-            vUv = uv;
-            vec3 pos = position;
-            float elevation = getElevation(pos.xz);
-            pos.y = elevation;
-            vElevation = elevation;
-
-            float offset = 1.0;
-            float elev_x = getElevation(pos.xz + vec2(offset, 0.0));
-            float elev_z = getElevation(pos.xz + vec2(0.0, offset));
-            
-            vec3 tangent = normalize(vec3(offset, elev_x - elevation, 0.0));
-            vec3 bitangent = normalize(vec3(0.0, elev_z - elevation, offset));
-            vNormal = normalize(cross(bitangent, tangent));
-            
-            gl_Position = projectionMatrix * modelViewMatrix * vec4(pos, 1.0);
-        }
-    `;
-
-    const fragmentShader = `
-        uniform vec3 uSunDirection;
-        uniform float uElevationMultiplier;
-
-        varying vec2 vUv;
-        varying float vElevation;
-        varying vec3 vNormal;
-        
-        ${glslRandom2to1}
-
-        void main() {
-            vec3 norm = normalize(vNormal);
-            float light = 0.3 + 0.7 * clamp(dot(norm, uSunDirection), 0.0, 1.0);
-            
-            vec3 biomeColor;
-            float waterLevel = uElevationMultiplier * 0.2;
-            float beachLevel = waterLevel + 5.0;
-            float grassLevel = uElevationMultiplier * 0.6;
-            float rockLevel = uElevationMultiplier * 0.8;
-
-            if (vElevation < waterLevel) {
-                float foamLine = smoothstep(waterLevel - 2.0, waterLevel, vElevation);
-                vec3 waterColor = mix(vec3(0.1, 0.2, 0.5), vec3(0.2, 0.4, 0.7), 1.0 - foamLine);
-                biomeColor = mix(waterColor, vec3(1.0, 1.0, 1.0), foamLine * 0.5);
-            } else if (vElevation < beachLevel) {
-                biomeColor = vec3(0.76, 0.7, 0.5);
-            } else if (vElevation < grassLevel) {
-                float noise1 = random(vUv * 800.0);
-                float noise2 = random(vUv * 200.0);
-                vec3 grassColor1 = vec3(0.2, 0.5, 0.15);
-                vec3 grassColor2 = vec3(0.35, 0.7, 0.2);
-                biomeColor = mix(grassColor1, grassColor2, noise1 * 0.7 + noise2 * 0.3);
-            } else if (vElevation < rockLevel) {
-                float rockNoise = random(vUv * 150.0);
-                biomeColor = mix(vec3(0.4), vec3(0.55), rockNoise);
-            } else {
-                biomeColor = vec3(1.0, 1.0, 1.0);
-            }
-            
-            vec3 finalColor = biomeColor * light;
-
-            gl_FragColor = vec4(finalColor, 1.0);
-        }
-    `;
-    return { vertexShader, fragmentShader };
-}
-
-
 export function getPlanetShaders() {
     const vertexShader = `
         #include <common>
@@ -308,8 +221,11 @@ export function getPlanetShaders() {
                 if (vElevation < uOceanHeightLevel) {
                     finalColor = waterColor;
                 } else {
-                    const float BEACH_END = 0.02; const float PLAINS_END = 0.40;
-                    const float MOUNTAIN_START = 0.60; const float SNOW_START = 0.85;
+                    const float BEACH_END = 0.02;
+                    const float PLAINS_END = 0.40;
+                    const float MOUNTAIN_START = 0.60;
+                    const float SNOW_START = 0.85;
+
                     if (landRatio < BEACH_END) finalColor = mix(plainsColor, beachColor, smoothstep(BEACH_END, 0.0, landRatio));
                     else if (landRatio < PLAINS_END) finalColor = plainsColor;
                     else if (landRatio < MOUNTAIN_START) finalColor = mix(plainsColor, mountainColor, smoothstep(PLAINS_END, MOUNTAIN_START, landRatio));

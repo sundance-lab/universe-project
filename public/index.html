@@ -1,22 +1,22 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8"> 
-  
+  <meta charset="UTF-8">
+
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <link rel="stylesheet" href="styles.css">
   <title>Galaxies Reimagined</title>
 </head>
 <body>
     <div class="screen-container">
-      
+
 <div id="galaxy-detail-screen" class="screen active">
     <div id="galaxy-detail-title-container" class="editable-title-container">
         <span id="galaxy-detail-title-text" class="editable-title-text">Galaxy</span>
         <input type="text" id="galaxy-detail-title-input" class="editable-title-input">
     </div>
     <div id="galaxy-canvas-container" style="position: absolute; top: 0; left: 0; width: 100%; height: 100%;"></div>
-    
+
 </div>
 
 
@@ -29,7 +29,7 @@
 
   <div id="solar-system-content">
   </div>
-  
+
   <div id="planet-sidebar">
     <h4 id="planet-sidebar-title">Planets</h4>
     <ul id="planet-sidebar-list">
@@ -73,7 +73,7 @@
                   <span id="designer-forest-density-value" style="min-width: 30px; text-align: right;">0.5</span>
               </div>
           </div>
-                  
+
               <div id="designer-height-controls" style="display:flex; flex-direction:column; gap:0.5em;">
                 <label>
                   Terrain Min Height:
@@ -114,7 +114,7 @@
   </div>
 </div>
 </div>
-  
+
 <div class="controls-overlay">
     <button id="dev-panel-btn" class="control-button">Dev Panel</button>
     <button id="spawn-character-btn" class="control-button">Spawn Character</button>
@@ -266,7 +266,7 @@
             <input type="number" id="galaxy-sister-particle-size" class="galaxy-control" min="1" max="50" step="1">
             <label for="galaxy-sister-opacity">Opacity:</label>
             <input type="range" id="galaxy-sister-opacity" class="galaxy-control" min="0.0" max="1.0" step="0.05">
-            </div>
+        </div>
 
         <div class="control-group">
             <h3>Rendering & Camera</h3>
@@ -325,6 +325,6 @@
 </div>
 
 <script type="module" src="js/script.js"></script>
-  
+
 </body>
 </html>

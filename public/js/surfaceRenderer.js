@@ -14,14 +14,15 @@ export const SurfaceRenderer = (() => {
     function _initScene(canvas, planetData, locationData) {
         // --- Basic Scene Setup ---
         scene = new THREE.Scene();
-        scene.background = new THREE.Color(0x1a2a3a);
+        scene.fog = new THREE.Fog(0x87CEEB, 100, 1500);
+        scene.background = new THREE.Color(0x87CEEB);
 
-        // --- Camera: Switched back to Orthographic for a true top-down view ---
+        // --- Camera: Orthographic for a true top-down view ---
         const aspect = canvas.offsetWidth / canvas.offsetHeight;
-        const frustumSize = 150; // How "zoomed-in" the view is
+        const frustumSize = 150;
         camera = new THREE.OrthographicCamera(frustumSize * aspect / -2, frustumSize * aspect / 2, frustumSize / 2, frustumSize / -2, 1, 2000);
-        camera.position.set(0, 500, 0); // Position directly above
-        camera.lookAt(0, 0, 0); // Look straight down
+        camera.position.set(0, 500, 0); 
+        camera.lookAt(0, 0, 0);
 
         renderer = new THREE.WebGLRenderer({ canvas, antialias: true });
         renderer.setSize(canvas.offsetWidth, canvas.offsetHeight);
@@ -38,7 +39,6 @@ export const SurfaceRenderer = (() => {
         sunLight.castShadow = true;
         sunLight.shadow.mapSize.width = 2048;
         sunLight.shadow.mapSize.height = 2048;
-        // Adjust shadow camera for orthographic view
         sunLight.shadow.camera = new THREE.OrthographicCamera(-100, 100, 100, -100, 100, 800);
         scene.add(sunLight);
         scene.add(sunLight.target);
@@ -56,7 +56,6 @@ export const SurfaceRenderer = (() => {
             },
             vertexShader,
             fragmentShader,
-            side: THREE.DoubleSide // Important for seeing the mesh from below if camera glitches
         });
         
         terrainMesh = new THREE.Mesh(terrainGeometry, terrainMaterial);
@@ -64,23 +63,23 @@ export const SurfaceRenderer = (() => {
         scene.add(terrainMesh);
 
         // --- Player Character ---
-        const playerGeometry = new THREE.CapsuleGeometry(2, 4);
+        // FIX: Increased capsule size to make it more visible from a distance.
+        const playerGeometry = new THREE.CapsuleGeometry(4, 8, 4, 16);
         const playerMaterial = new THREE.MeshStandardMaterial({ color: 0xffff00, roughness: 0.4 });
         playerMesh = new THREE.Mesh(playerGeometry, playerMaterial);
         playerMesh.castShadow = true;
-        playerMesh.position.set(0, 250, 0); // Set high temporarily
+        playerMesh.position.set(0, 250, 0);
         scene.add(playerMesh);
         
         // --- Final Setup ---
         raycaster = new THREE.Raycaster();
         PlayerController.init();
 
-        // --- FIX: Ensure capsule spawns on the ground ---
-        // Perform an initial raycast to place the character correctly on the first frame.
+        // Ensure capsule spawns on the ground
         raycaster.set(playerMesh.position, new THREE.Vector3(0, -1, 0));
         const intersects = raycaster.intersectObject(terrainMesh);
         if (intersects.length > 0) {
-            playerMesh.position.y = intersects[0].point.y + 3.0; // Capsule height offset
+            playerMesh.position.y = intersects[0].point.y + 6.0; // Adjusted for new capsule size
         }
 
         _animate();
@@ -90,9 +89,8 @@ export const SurfaceRenderer = (() => {
         const playerState = PlayerController.getPlayer();
         const move = playerState.velocity;
         
-        // Use velocity directly for X and Z movement in a top-down view
         playerMesh.position.x += move.x * deltaTime;
-        playerMesh.position.z += move.y * deltaTime; // Map controller's Y to world's Z
+        playerMesh.position.z += move.y * deltaTime;
         
         // --- Ground Snapping with Raycaster ---
         const rayOrigin = new THREE.Vector3(playerMesh.position.x, 500, playerMesh.position.z);
@@ -101,13 +99,12 @@ export const SurfaceRenderer = (() => {
 
         if (intersects.length > 0) {
             const groundY = intersects[0].point.y;
-            // Use a slight lerp for smooth height transitions
-            playerMesh.position.y = THREE.MathUtils.lerp(playerMesh.position.y, groundY + 3.0, 0.5);
+            playerMesh.position.y = THREE.MathUtils.lerp(playerMesh.position.y, groundY + 6.0, 0.5); // Adjusted offset
         }
 
         // Make player face movement direction
         if (move.x * move.x + move.y * move.y > 0.01) {
-            const angle = Math.atan2(move.x, move.y);
+            const angle = Math.atan2(move.x, -move.y); // Use -move.y because -Z is "up"
             playerMesh.rotation.y = angle;
         }
     }

@@ -64,7 +64,6 @@ export const SurfaceRenderer = (() => {
 
         // --- Player Character ---
         const playerGeometry = new THREE.CapsuleGeometry(4, 8, 4, 16);
-        // FIX: Use a standard lit material for the player
         const playerMaterial = new THREE.MeshStandardMaterial({ color: 0xffff00, roughness: 0.4, metalness: 0.1 });
         playerMesh = new THREE.Mesh(playerGeometry, playerMaterial);
         playerMesh.castShadow = true;
@@ -109,7 +108,6 @@ export const SurfaceRenderer = (() => {
     function _updateCamera() {
         camera.position.x = playerMesh.position.x;
         camera.position.z = playerMesh.position.z;
-        // FIX: The camera should look at the player's actual position
         camera.lookAt(playerMesh.position);
         
         sunLight.position.set(playerMesh.position.x + 100, playerMesh.position.y + 300, playerMesh.position.z + 100);
@@ -126,6 +124,8 @@ export const SurfaceRenderer = (() => {
 
         if (terrainMesh) {
             terrainMesh.material.uniforms.uTime.value += deltaTime;
+            // FIX: Update the sun direction uniform in every frame for correct dynamic lighting
+            terrainMesh.material.uniforms.uSunDirection.value.copy(sunLight.position).normalize();
         }
 
         renderer.render(scene, camera);

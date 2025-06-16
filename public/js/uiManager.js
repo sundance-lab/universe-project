@@ -24,6 +24,9 @@ export const UIManager = (() => {
     let galaxyRandomizePaletteBtn, galaxyRandomizeAllBtn, galaxySaveDesignBtn, galaxyLoadDesignBtn, galaxyCancelBtn, galaxyApplyBtn;
     let savedGalaxyDesignsUl;
     let boundGalaxyApplyHandler, boundGalaxyCancelHandler, boundGalaxyRandomizeAllHandler, boundGalaxyRandomizePaletteHandler, boundGalaxySaveDesignHandler, boundSavedGalaxyDesignsClickHandler;
+    
+    // FIX: Keep a stable reference to the event handler to prevent memory leaks
+    let boundSolarSystemClickHandler = null;
 
 
     function _getPlanetTypeString(planetType) {
@@ -153,6 +156,12 @@ export const UIManager = (() => {
             currentGalaxyRenderer = null;
         }
 
+        // FIX: Ensure the old event listener is removed to prevent a memory leak
+        if (boundSolarSystemClickHandler && elements.solarSystemContent) {
+            elements.solarSystemContent.removeEventListener('click', boundSolarSystemClickHandler);
+            boundSolarSystemClickHandler = null;
+        }
+
         const galaxy = GameStateManager.getGalaxies().find(g => g.id === galaxyId);
         if (!galaxy) {
             console.error("Could not find galaxy to switch to:", galaxyId);
@@ -197,9 +206,14 @@ export const UIManager = (() => {
             currentGalaxyRenderer = null;
         }
         if (window.activeSolarSystemRenderer) {
-            elements.solarSystemContent.removeEventListener('click', _onSolarSystemCanvasClick);
             window.activeSolarSystemRenderer.dispose();
             window.activeSolarSystemRenderer = null;
+        }
+
+        // FIX: Ensure the old event listener is removed to prevent a memory leak
+        if (boundSolarSystemClickHandler && elements.solarSystemContent) {
+            elements.solarSystemContent.removeEventListener('click', boundSolarSystemClickHandler);
+            boundSolarSystemClickHandler = null;
         }
 
         GameStateManager.setActiveSolarSystemId(solarSystemId);
@@ -210,7 +224,9 @@ export const UIManager = (() => {
             switchToGalaxyDetailView(GameStateManager.getState().activeGalaxyId);
             return;
         }
-        if (!solarSystemObject.planets) {
+        
+        // FIX: Check if the 'planets' property exists, not if it's just falsy (like an empty array).
+        if (!solarSystemObject.hasOwnProperty('planets')) {
             callbacks.generatePlanetsForSystem(solarSystemObject);
         }
 
@@ -224,8 +240,10 @@ export const UIManager = (() => {
         const devSettings = callbacks.getDevSettings();
         SolarSystemRenderer.init(solarSystemDataForRenderer, devSettings);
         window.activeSolarSystemRenderer = SolarSystemRenderer;
-
-        elements.solarSystemContent.addEventListener('click', _onSolarSystemCanvasClick);
+        
+        // FIX: Bind the click handler to a stable reference
+        boundSolarSystemClickHandler = (event) => _onSolarSystemCanvasClick(event);
+        elements.solarSystemContent.addEventListener('click', boundSolarSystemClickHandler);
 
         _renderPlanetSidebar(solarSystemObject.planets);
 
@@ -322,7 +340,11 @@ export const UIManager = (() => {
     function switchToHexPlanetView(planetData, onBackCallback) {
         if (!planetData) return;
         if (window.activeSolarSystemRenderer) {
-            elements.solarSystemContent.removeEventListener('click', _onSolarSystemCanvasClick);
+             // FIX: Ensure the old event listener is removed to prevent a memory leak
+            if (boundSolarSystemClickHandler && elements.solarSystemContent) {
+                elements.solarSystemContent.removeEventListener('click', boundSolarSystemClickHandler);
+                boundSolarSystemClickHandler = null;
+            }
         }
         setActiveScreen(elements.hexPlanetScreen);
         HexPlanetViewController.activate(planetData, onBackCallback);

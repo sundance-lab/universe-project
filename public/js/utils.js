@@ -34,3 +34,17 @@ export function getNonOverlappingPositionInCircle(circleRadius, objectDiameter, 
 export function getDistance(system1, system2) {
     return Math.sqrt(Math.pow(system1.centerX - system2.centerX, 2) + Math.pow(system1.centerY - system2.centerY, 2));
 }
+
+export function addBarycentricCoordinates(geometry) {
+    const positions = geometry.attributes.position.array;
+    const vertexCount = positions.length / 3;
+    const barycentric = new Float32Array(vertexCount * 3);
+    
+    for (let i = 0; i < vertexCount; i += 3) {
+        barycentric[i * 3] = 1; barycentric[i * 3 + 1] = 0; barycentric[i * 3 + 2] = 0;
+        barycentric[(i + 1) * 3] = 0; barycentric[(i + 1) * 3 + 1] = 1; barycentric[(i + 1) * 3 + 2] = 0;
+        barycentric[(i + 2) * 3] = 0; barycentric[(i + 2) * 3 + 1] = 0; barycentric[(i + 2) * 3 + 2] = 1;
+    }
+    
+    geometry.setAttribute('barycentric', new THREE.BufferAttribute(barycentric, 3));
+}

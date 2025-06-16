@@ -23,149 +23,118 @@ export const SurfaceRenderer = (() => {
         return mesh;
     }
 
-    function _createThemedTacticalMap(planetData, locationData) {
-        const size = 2048; // High-resolution texture for detail
+    // Draws a semi-realistic rock or boulder
+    function _drawRock(context, x, y, size) {
+        context.fillStyle = `rgb(${100 + Math.random()*20}, ${100 + Math.random()*20}, ${105 + Math.random()*20})`;
+        context.beginPath();
+        context.moveTo(x + Math.random() * size - size/2, y + Math.random() * size - size/2);
+        for (let i = 0; i < 5; i++) {
+            context.lineTo(x + Math.random() * size - size/2, y + Math.random() * size - size/2);
+        }
+        context.closePath();
+        context.fill();
+    }
+
+    // Uses the tree drawing logic from the previous step
+    function _drawTree(context, x, y) {
+        const trunkWidth = 4 + Math.random() * 4;
+        const trunkHeight = 15 + Math.random() * 10;
+        context.fillStyle = '#5C3317';
+        context.fillRect(x - trunkWidth / 2, y, trunkWidth, trunkHeight);
+        const canopySize = 15 + Math.random() * 10;
+        for (let i = 0; i < 3 + Math.floor(Math.random()*3); i++) {
+            context.fillStyle = `rgba(0, ${100 + Math.random()*50}, 0, ${0.7 + Math.random() * 0.2})`;
+            context.beginPath();
+            context.arc(x + (Math.random() - 0.5) * canopySize, y - (trunkHeight * 0.2) + (Math.random() - 0.5) * canopySize, canopySize * (0.6 + Math.random() * 0.4), 0, Math.PI * 2);
+            context.fill();
+        }
+    }
+
+    function _createDetailedMapTexture(planetData, locationData) {
+        const size = 4096; // 1. Increased map size
         const canvas = document.createElement('canvas');
         canvas.width = size;
         canvas.height = size;
         const context = canvas.getContext('2d');
-        const imageData = context.createImageData(size, size);
 
+        // 2. Create a circular clipping region
+        context.beginPath();
+        context.arc(size / 2, size / 2, size / 2, 0, Math.PI * 2);
+        context.clip();
+
+        // --- 3. Add more generic detail ---
+        
+        // Base dirt layer
+        context.fillStyle = '#6B4F3D';
+        context.fillRect(0, 0, size, size);
+
+        // Procedural generation setup
         const oceanLvl = planetData.oceanHeightLevel;
         const terrainRange = planetData.maxTerrainHeight - planetData.minTerrainHeight;
         const centerPhi = locationData.phi;
         const centerTheta = locationData.theta;
-        const mapScale = 0.01;
+        const mapScale = 0.02; // Zoom out to see more features
 
-        // --- Thematic Palettes and Feature Functions ---
-        let landPainter, waterPainter, featurePainter;
-        
-        switch (planetData.planetType) {
-            case 1: // Volcanic
-                landPainter = (elevation) => {
-                    const heat = 1 - ((elevation - oceanLvl) / terrainRange); // 1 = hotter, 0 = cooler
-                    const r = 50 + heat * 150;
-                    const g = 20 + heat * 50;
-                    const b = 20;
-                    return { r, g, b, a: 255 };
-                };
-                waterPainter = () => ({ r: 255, g: 100, b: 20, a: 255 }); // Lava
-                featurePainter = (ctx, x, y) => {
-                    ctx.font = 'bold 14px monospace';
-                    ctx.fillStyle = 'rgba(255, 150, 50, 0.9)';
-                    ctx.save();
-                    ctx.translate(x, y);
-                    ctx.rotate(Math.PI / 4);
-                    ctx.fillText('X', 0, 0);
-                    ctx.restore();
-                };
-                break;
-            
-            case 2: // Icy
-                 landPainter = (elevation) => {
-                    const brightness = 200 + ((elevation - oceanLvl) / terrainRange) * 55;
-                    const contourInterval = terrainRange * 0.04;
-                    if (elevation % contourInterval < terrainRange * 0.005) {
-                        return { r: 150, g: 220, b: 255, a: 255 }; // Contour line
-                    }
-                    return { r: brightness, g: brightness, b: 255, a: 255 };
-                };
-                waterPainter = () => ({ r: 10, g: 20, b: 80, a: 255 }); // Deep ice
-                featurePainter = (ctx, x, y) => { // Crystalline fractures
-                    ctx.strokeStyle = `rgba(200, 220, 255, ${0.2 + Math.random() * 0.2})`;
-                    ctx.lineWidth = Math.random() * 2;
-                    ctx.beginPath();
-                    ctx.moveTo(x + (Math.random()-0.5)*10, y + (Math.random()-0.5)*10);
-                    ctx.lineTo(x + (Math.random()-0.5)*20, y + (Math.random()-0.5)*20);
-                    ctx.stroke();
-                };
-                break;
-
-            case 3: // Desert
-                landPainter = (elevation) => {
-                    const baseColor = new THREE.Color(planetData.landColor);
-                    const brightness = 0.8 + ((elevation - oceanLvl) / terrainRange) * 0.4;
-                    const noise = Math.random() * 0.1 - 0.05; // stippling effect for sand
-                    return { r: (baseColor.r + noise) * brightness * 255, g: (baseColor.g + noise) * brightness * 255, b: (baseColor.b + noise) * brightness * 255, a: 255};
-                };
-                waterPainter = () => ({ r: 60, g: 40, b: 30, a: 255 }); // Dry basin
-                featurePainter = (ctx, x, y) => { // Mineral deposits
-                    ctx.font = 'bold 12px monospace';
-                    ctx.fillStyle = `rgba(200, 200, 230, ${0.7 + Math.random() * 0.2})`;
-                    ctx.fillText('⬢', x, y);
-                };
-                break;
-
-            case 0: // Terran (Default)
-            default:
-                landPainter = (elevation) => {
-                    const baseColor = new THREE.Color(planetData.landColor);
-                    const brightness = 0.8 + ((elevation - oceanLvl) / terrainRange) * 0.2;
-                    const contourInterval = terrainRange * 0.05;
-                    if (elevation % contourInterval < terrainRange * 0.005) {
-                        return { r: 100, g: 255, b: 120, a: 255 };
-                    }
-                    return { r: baseColor.r * brightness * 255, g: baseColor.g * brightness * 255, b: baseColor.b * brightness * 255, a: 255 };
-                };
-                waterPainter = (elevation) => {
-                    const baseColor = new THREE.Color(planetData.waterColor);
-                    const brightness = 0.5 + ((elevation - (oceanLvl-terrainRange*0.1)) / (terrainRange*0.1)) * 0.5;
-                    if (elevation > oceanLvl - terrainRange * 0.01) { // Coastline
-                        return { r: 100, g: 200, b: 255, a: 255};
-                    }
-                    return { r: baseColor.r * brightness * 255, g: baseColor.g * brightness * 255, b: baseColor.b * brightness * 255, a: 255 };
-                };
-                featurePainter = (ctx, x, y) => { // Biosignatures
-                    ctx.font = 'bold 12px monospace';
-                    ctx.fillStyle = `rgba(50, 255, 100, ${0.5 + Math.random() * 0.4})`;
-                    ctx.fillText('+', x, y);
-                };
-                break;
-        }
-
-        // --- PIXEL-BY-PIXEL TERRAIN GENERATION ---
+        // Pre-calculate elevation map for performance
+        const elevationMap = new Float32Array(size * size);
         for (let y = 0; y < size; y++) {
             for (let x = 0; x < size; x++) {
                 const dx = (x / size - 0.5) * mapScale;
                 const dy = (y / size - 0.5) * mapScale;
                 const phi = centerPhi + dy;
                 const theta = centerTheta + dx;
-
                 const posOnSphere = [ Math.sin(phi) * Math.cos(theta), Math.sin(phi) * Math.sin(theta), Math.cos(phi) ];
-                const elevation = getPlanetElevation(posOnSphere, planetData);
+                elevationMap[y * size + x] = getPlanetElevation(posOnSphere, planetData);
+            }
+        }
 
-                const index = (y * size + x) * 4;
-                const pixelColor = elevation < oceanLvl ? waterPainter(elevation) : landPainter(elevation);
-                
-                imageData.data[index] = pixelColor.r;
-                imageData.data[index + 1] = pixelColor.g;
-                imageData.data[index + 2] = pixelColor.b;
-                imageData.data[index + 3] = pixelColor.a;
+        // Draw terrain based on elevation
+        const imageData = context.getImageData(0, 0, size, size);
+        const data = imageData.data;
+        for (let i = 0; i < elevationMap.length; i++) {
+            const elevation = elevationMap[i];
+            const idx = i * 4;
+
+            if (elevation < oceanLvl) { // Ocean
+                data[idx] = 30; data[idx+1] = 80; data[idx+2] = 160;
+            } else if (elevation < oceanLvl + terrainRange * 0.03) { // Beach
+                data[idx] = 210; data[idx+1] = 180; data[idx+2] = 140;
+            } else if (elevation < oceanLvl + terrainRange * 0.6) { // Grassland
+                const grassNoise = Math.random();
+                data[idx] = 80 + grassNoise*20; data[idx+1] = 140 + grassNoise*30; data[idx+2] = 70 + grassNoise*20;
+            } else if (elevation < oceanLvl + terrainRange * 0.8) { // Mountains
+                const rockNoise = Math.random();
+                data[idx] = 130 + rockNoise*20; data[idx+1] = 130 + rockNoise*20; data[idx+2] = 135 + rockNoise*20;
+            } else { // Snow caps
+                data[idx] = 240; data[idx+1] = 240; data[idx+2] = 250;
             }
         }
         context.putImageData(imageData, 0, 0);
 
-        // --- FEATURE & GRID OVERLAYS ---
-        const featureCount = planetData.planetType === 0 ? 3000 * (planetData.forestDensity || 0.5) : 1200;
-        for (let i = 0; i < featureCount; i++) {
-             const x = Math.random() * size;
-             const y = Math.random() * size;
-             const dx = (x / size - 0.5) * mapScale;
-             const dy = (y / size - 0.5) * mapScale;
-             const phi = centerPhi + dy;
-             const theta = centerTheta + dx;
-             const posOnSphere = [ Math.sin(phi) * Math.cos(theta), Math.sin(phi) * Math.sin(theta), Math.cos(phi) ];
-             if (getPlanetElevation(posOnSphere, planetData) > oceanLvl) {
-                 featurePainter(context, x, y);
+        // Draw rivers
+        // (This is a simplified algorithm for visuals, not true hydrological erosion)
+        context.strokeStyle = 'rgba(40, 90, 170, 0.8)';
+        context.lineWidth = 3 + Math.random() * 5;
+        for(let i=0; i < 15; i++) {
+             context.beginPath();
+             context.moveTo(Math.random()*size, 0);
+             context.bezierCurveTo(Math.random()*size, size*0.3, Math.random()*size, size*0.6, Math.random()*size, size);
+             context.stroke();
+        }
+
+        // Draw features like trees and rocks
+        for (let i = 0; i < 5000; i++) {
+             const x = Math.floor(Math.random() * size);
+             const y = Math.floor(Math.random() * size);
+             const elevation = elevationMap[y * size + x];
+
+             if (elevation > oceanLvl + terrainRange * 0.05 && elevation < oceanLvl + terrainRange * 0.5) {
+                 if(Math.random() > 0.5) _drawTree(context, x, y);
+             } else if (elevation > oceanLvl + terrainRange * 0.5 && elevation < oceanLvl + terrainRange * 0.8) {
+                 if(Math.random() > 0.9) _drawRock(context, x, y, 5 + Math.random() * 10);
              }
         }
 
-        context.strokeStyle = 'rgba(128, 128, 128, 0.15)';
-        context.lineWidth = 1;
-        for (let i = 0; i < size; i += 48) {
-            context.beginPath(); context.moveTo(i, 0); context.lineTo(i, size); context.stroke();
-            context.beginPath(); context.moveTo(0, i); context.lineTo(size, i); context.stroke();
-        }
 
         return new THREE.CanvasTexture(canvas);
     }
@@ -184,7 +153,7 @@ export const SurfaceRenderer = (() => {
 
     function _initScene(canvas, planetData, locationData) {
         scene = new THREE.Scene();
-        scene.background = new THREE.Color(0x000000);
+        scene.background = new THREE.Color(0x000000); // Black background for the circular map
         
         const aspect = canvas.offsetWidth / canvas.offsetHeight;
         const frustumSize = 800; 
@@ -197,9 +166,9 @@ export const SurfaceRenderer = (() => {
         renderer.setSize(canvas.offsetWidth, canvas.offsetHeight);
         renderer.setPixelRatio(window.devicePixelRatio);
 
-        const groundTexture = _createThemedTacticalMap(planetData, locationData);
+        const groundTexture = _createDetailedMapTexture(planetData, locationData);
         const groundMaterial = new THREE.MeshBasicMaterial({ map: groundTexture });
-        const groundGeometry = new THREE.PlaneGeometry(2048, 2048);
+        const groundGeometry = new THREE.PlaneGeometry(4096, 4096); // Match new map size
         groundMesh = new THREE.Mesh(groundGeometry, groundMaterial);
         scene.add(groundMesh);
 

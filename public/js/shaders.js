@@ -112,9 +112,9 @@ export function getTerrainShaders() {
         ${glslRandom2to1} // Add random function for grass detail
 
         void main() {
-            // FIX: Use the calculated normal from the vertex shader
             vec3 norm = normalize(vNormal);
-            float light = clamp(dot(norm, uSunDirection), 0.0, 1.0);
+            // Simple lighting: 0.3 ambient + 0.7 diffuse
+            float light = 0.3 + 0.7 * clamp(dot(norm, uSunDirection), 0.0, 1.0);
             
             vec3 biomeColor;
             float waterLevel = uElevationMultiplier * 0.2;
@@ -129,7 +129,6 @@ export function getTerrainShaders() {
             } else if (vElevation < beachLevel) {
                 biomeColor = vec3(0.76, 0.7, 0.5); // Sand
             } else if (vElevation < grassLevel) {
-                // FIX: Add multiple layers of noise for varied grass
                 float noise1 = random(vUv * 800.0);
                 float noise2 = random(vUv * 200.0);
                 vec3 grassColor1 = vec3(0.2, 0.5, 0.15);
@@ -142,9 +141,8 @@ export function getTerrainShaders() {
                 biomeColor = vec3(1.0, 1.0, 1.0); // Snow
             }
             
-            // Apply lighting, making shadows slightly blue
-            vec3 finalColor = biomeColor * (light * 0.6 + 0.4);
-            finalColor = mix(finalColor * 0.8 + vec3(0.0, 0.0, 0.1), finalColor, light);
+            // Apply simple lighting
+            vec3 finalColor = biomeColor * light;
 
             gl_FragColor = vec4(finalColor, 1.0);
         }

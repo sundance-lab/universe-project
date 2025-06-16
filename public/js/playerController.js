@@ -30,7 +30,6 @@ export const PlayerController = (() => {
         update: (deltaTime) => {
             const acceleration = { x: 0, y: 0 };
 
-            // FIX: Inverted up and down controls
             if (keyState['KeyW'] || keyState['ArrowUp']) {
                 acceleration.y = -1; // Move toward top of screen (negative Z)
             }
@@ -52,9 +51,9 @@ export const PlayerController = (() => {
             player.velocity.x *= player.damping;
             player.velocity.y *= player.damping;
 
-            // Update position
-            player.position.x += player.velocity.x;
-            player.position.y += player.velocity.y;
+            // Update position (FIX: Use deltaTime for frame-rate independence)
+            player.position.x += player.velocity.x * deltaTime;
+            player.position.y += player.velocity.y * deltaTime;
         },
 
         dispose: () => {

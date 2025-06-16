@@ -14,7 +14,7 @@ export const GalaxyRenderer = (() => {
     let onSystemClickCallback = null;
     let createdTextures = [];
     let _currentGalaxyData = null;
-    let resizeObserver = null; // For robust resizing
+    let resizeObserver = null; 
 
     // --- CONFIGURATION PARAMETERS ---
     let GALAXY_CONFIG = {
@@ -73,7 +73,7 @@ export const GalaxyRenderer = (() => {
             CONTROLS_MIN_DISTANCE: 100,
             CONTROLS_MAX_DISTANCE_MULTIPLIER: 4,
             RAYCASTER_THRESHOLD: 20,
-            ROTATION_SPEED: 0.0001, // Slower rotation
+            ROTATION_SPEED: 0.0001, 
         },
         COLORS: {
             STAR_TEXTURE_COLOR: 'rgba(224,140,62,1)',
@@ -108,11 +108,8 @@ export const GalaxyRenderer = (() => {
     const _defaultGalaxyConfig = JSON.parse(JSON.stringify(GALAXY_CONFIG));
     GALAXY_CONFIG.COLORS.PALETTE = GALAXY_CONFIG.COLORS.PALETTE.map(c => new THREE.Color(c.r, c.g, c.b));
 
-
-    // --- HELPER FUNCTIONS ---
     function _createAndCacheTexture(creationFunction) {
         const texture = creationFunction();
-        // FIX: Removed 'texture.flipY = false;' which was causing WebGL errors.
         createdTextures.push(texture);
         return texture;
     }
@@ -538,8 +535,6 @@ export const GalaxyRenderer = (() => {
         backgroundStars = _createParticleSystem(positions, [], 15, _createStarTexture(), 0.5, THREE.AdditiveBlending, false, true, false);
         scene.add(backgroundStars);
     }
-
-    // --- EVENT HANDLERS & LIFECYCLE ---
 
     function _onCanvasClick(event) {
         if (!onSystemClickCallback || !renderer || !clickableSystemParticles) return;

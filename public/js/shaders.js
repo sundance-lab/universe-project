@@ -150,6 +150,7 @@ export function getTerrainShaders() {
 export function getPlanetShaders() {
     const vertexShader = `
         #include <common>
+        #include <logdepthbuf_pars_vertex>
 
         uniform float uContinentSeed;
         uniform float uSphereRadius;
@@ -202,10 +203,14 @@ export function getPlanetShaders() {
             vNormal = normal;
             vWorldPosition = (modelMatrix * vec4(displacedPosition, 1.0)).xyz;
             gl_Position = projectionMatrix * modelViewMatrix * vec4(displacedPosition, 1.0);
+
+            #include <logdepthbuf_vertex>
         }
     `;
 
     const fragmentShader = `
+        #include <logdepthbuf_pars_fragment>
+
         uniform vec3 uLandColor;
         uniform vec3 uWaterColor;
         uniform float uOceanHeightLevel;
@@ -325,6 +330,8 @@ export function getPlanetShaders() {
             
             vec3 viewDirection = normalize(cameraPosition - vWorldPosition);
             gl_FragColor = vec4(calculateLighting(finalColor, vNormal, viewDirection), 1.0);
+
+            #include <logdepthbuf_fragment>
         }
     `;
 

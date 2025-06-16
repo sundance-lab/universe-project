@@ -60,7 +60,6 @@ float ridgedRiverNoise(vec3 p, float seed) {
 
 const noiseFunctions = glslRandom2to1 + glslSimpleValueNoise3D + glslLayeredNoise + glslRidgedRiverNoise;
 
-// FIX: New shader for the 3D terrain surface
 export function getTerrainShaders() {
     const vertexShader = `
         uniform float uTime;
@@ -88,7 +87,6 @@ export function getTerrainShaders() {
             pos.y = elevation;
             vElevation = elevation;
 
-            // FIX: Calculate normals in vertex shader for better performance and lighting
             float offset = 1.0;
             float elev_x = getElevation(pos.xz + vec2(offset, 0.0));
             float elev_z = getElevation(pos.xz + vec2(0.0, offset));
@@ -109,11 +107,10 @@ export function getTerrainShaders() {
         varying float vElevation;
         varying vec3 vNormal;
         
-        ${glslRandom2to1} // Add random function for grass detail
+        ${glslRandom2to1}
 
         void main() {
             vec3 norm = normalize(vNormal);
-            // Simple lighting: 0.3 ambient + 0.7 diffuse
             float light = 0.3 + 0.7 * clamp(dot(norm, uSunDirection), 0.0, 1.0);
             
             vec3 biomeColor;
@@ -125,9 +122,9 @@ export function getTerrainShaders() {
             if (vElevation < waterLevel) {
                 float foamLine = smoothstep(waterLevel - 2.0, waterLevel, vElevation);
                 vec3 waterColor = mix(vec3(0.1, 0.2, 0.5), vec3(0.2, 0.4, 0.7), 1.0 - foamLine);
-                biomeColor = mix(waterColor, vec3(1.0, 1.0, 1.0), foamLine * 0.5); // Foam
+                biomeColor = mix(waterColor, vec3(1.0, 1.0, 1.0), foamLine * 0.5);
             } else if (vElevation < beachLevel) {
-                biomeColor = vec3(0.76, 0.7, 0.5); // Sand
+                biomeColor = vec3(0.76, 0.7, 0.5);
             } else if (vElevation < grassLevel) {
                 float noise1 = random(vUv * 800.0);
                 float noise2 = random(vUv * 200.0);
@@ -136,12 +133,11 @@ export function getTerrainShaders() {
                 biomeColor = mix(grassColor1, grassColor2, noise1 * 0.7 + noise2 * 0.3);
             } else if (vElevation < rockLevel) {
                 float rockNoise = random(vUv * 150.0);
-                biomeColor = mix(vec3(0.4), vec3(0.55), rockNoise); // Rock
+                biomeColor = mix(vec3(0.4), vec3(0.55), rockNoise);
             } else {
-                biomeColor = vec3(1.0, 1.0, 1.0); // Snow
+                biomeColor = vec3(1.0, 1.0, 1.0);
             }
             
-            // Apply simple lighting
             vec3 finalColor = biomeColor * light;
 
             gl_FragColor = vec4(finalColor, 1.0);
@@ -335,7 +331,7 @@ export function getPlanetShaders() {
             vec3 viewDirection = normalize(cameraPosition - vWorldPosition);
             gl_FragColor = vec4(calculateLighting(finalColor, vNormal, viewDirection), 1.0);
 
-            #include <logdepthbuf_vertex>
+            #include <logdepthbuf_fragment>
         }
     `;
 

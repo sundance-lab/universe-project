@@ -60,7 +60,6 @@ float ridgedRiverNoise(vec3 p, float seed) {
 
 const noiseFunctions = glslRandom2to1 + glslSimpleValueNoise3D + glslLayeredNoise + glslRidgedRiverNoise;
 
-// FIX: New shader for the 3D terrain surface
 export function getTerrainShaders() {
     const vertexShader = `
         uniform float uTime;

@@ -34,23 +34,3 @@ export function getNonOverlappingPositionInCircle(circleRadius, objectDiameter, 
 export function getDistance(system1, system2) {
     return Math.sqrt(Math.pow(system1.centerX - system2.centerX, 2) + Math.pow(system1.centerY - system2.centerY, 2));
 }
-
-export function adjustColor(hex, amount) {
-    if (!hex || typeof hex !== 'string' || hex.charAt(0) !== '#' || hex.length !== 7) {
-        console.warn("adjustColor: Invalid hex input.", hex);
-        return hex;
-    }
-    try {
-        let r = parseInt(hex.slice(1, 3), 16);
-        let g = parseInt(hex.slice(3, 5), 16);
-        let b = parseInt(hex.slice(5, 7), 16);
-        r = Math.max(0, Math.min(255, r + amount));
-        g = Math.max(0, Math.min(255, g + amount));
-        b = Math.max(0, Math.min(255, b + amount));
-        const toHex = c => c.toString(16).padStart(2, '0');
-        return `#${toHex(r)}${toHex(g)}${toHex(b)}`;
-    } catch (e) {
-        console.error("Error in adjustColor:", e, "Input hex:", hex);
-        return hex;
-    }
-}

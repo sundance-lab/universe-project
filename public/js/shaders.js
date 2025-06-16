@@ -68,7 +68,6 @@ export function getTerrainShaders() {
 
         varying vec2 vUv;
         varying float vElevation;
-        varying vec3 vWorldPosition;
         varying vec3 vNormal;
 
         ${noiseFunctions}
@@ -84,17 +83,21 @@ export function getTerrainShaders() {
 
         void main() {
             vUv = uv;
-            vNormal = normal;
-
             vec3 pos = position;
             float elevation = getElevation(pos.xz);
             pos.y = elevation;
             vElevation = elevation;
-            
-            vec4 worldPosition = modelMatrix * vec4(pos, 1.0);
-            vWorldPosition = worldPosition.xyz;
 
-            gl_Position = projectionMatrix * viewMatrix * worldPosition;
+            // FIX: Calculate normals in vertex shader for better performance and lighting
+            float offset = 1.0;
+            float elev_x = getElevation(pos.xz + vec2(offset, 0.0));
+            float elev_z = getElevation(pos.xz + vec2(0.0, offset));
+            
+            vec3 tangent = normalize(vec3(offset, elev_x - elevation, 0.0));
+            vec3 bitangent = normalize(vec3(0.0, elev_z - elevation, offset));
+            vNormal = normalize(cross(bitangent, tangent));
+            
+            gl_Position = projectionMatrix * modelViewMatrix * vec4(pos, 1.0);
         }
     `;
 
@@ -104,18 +107,13 @@ export function getTerrainShaders() {
 
         varying vec2 vUv;
         varying float vElevation;
-        varying vec3 vWorldPosition;
+        varying vec3 vNormal;
         
-        // From https://www.thebookofshaders.com/13/
-        vec3 HUEtoRGB(in float H) {
-            float R = abs(H * 6.0 - 3.0) - 1.0;
-            float G = 2.0 - abs(H * 6.0 - 2.0);
-            float B = 2.0 - abs(H * 6.0 - 4.0);
-            return clamp(vec3(R,G,B), 0.0, 1.0);
-        }
+        ${glslRandom2to1} // Add random function for grass detail
 
         void main() {
-            vec3 norm = normalize(cross(dFdx(vWorldPosition), dFdy(vWorldPosition)));
+            // FIX: Use the calculated normal from the vertex shader
+            vec3 norm = normalize(vNormal);
             float light = clamp(dot(norm, uSunDirection), 0.0, 1.0);
             
             vec3 biomeColor;
@@ -129,14 +127,17 @@ export function getTerrainShaders() {
             } else if (vElevation < beachLevel) {
                 biomeColor = vec3(0.76, 0.7, 0.5); // Sand
             } else if (vElevation < grassLevel) {
-                biomeColor = vec3(0.3, 0.6, 0.2); // Grass
+                // FIX: Add noise to grass color for more variety
+                float grassNoise = random(vUv * 500.0);
+                biomeColor = mix(vec3(0.3, 0.6, 0.2), vec3(0.4, 0.7, 0.25), grassNoise); // Grass
             } else if (vElevation < rockLevel) {
                 biomeColor = vec3(0.5, 0.5, 0.5); // Rock
             } else {
                 biomeColor = vec3(1.0, 1.0, 1.0); // Snow
             }
             
-            vec3 finalColor = biomeColor * (light * 0.7 + 0.3);
+            // Apply lighting
+            vec3 finalColor = biomeColor * (light * 0.6 + 0.4);
             gl_FragColor = vec4(finalColor, 1.0);
         }
     `;
@@ -331,7 +332,7 @@ export function getPlanetShaders() {
             vec3 viewDirection = normalize(cameraPosition - vWorldPosition);
             gl_FragColor = vec4(calculateLighting(finalColor, vNormal, viewDirection), 1.0);
 
-            #include <logdepthbuf_fragment>
+            #include <logdepthbuf_vertex>
         }
     `;
 

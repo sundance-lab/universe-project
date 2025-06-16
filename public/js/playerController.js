@@ -30,11 +30,12 @@ export const PlayerController = (() => {
         update: (deltaTime) => {
             const acceleration = { x: 0, y: 0 };
 
+            // FIX: Inverted up and down controls
             if (keyState['KeyW'] || keyState['ArrowUp']) {
-                acceleration.y = 1;
+                acceleration.y = -1; // Move toward top of screen (negative Z)
             }
             if (keyState['KeyS'] || keyState['ArrowDown']) {
-                acceleration.y = -1;
+                acceleration.y = 1;  // Move toward bottom of screen (positive Z)
             }
             if (keyState['KeyA'] || keyState['ArrowLeft']) {
                 acceleration.x = -1;

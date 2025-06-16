@@ -5,8 +5,8 @@ export const PlayerController = (() => {
     const player = {
         position: { x: 0, y: 0 },
         velocity: { x: 0, y: 0 },
-        speed: 100, // Player movement speed (decreased from 200)
-        damping: 0.90 // Slower damping for a bit of slide
+        speed: 40, // FIX: Further decreased character speed
+        damping: 0.90 
     };
 
     function onKeyDown(event) {
@@ -30,7 +30,6 @@ export const PlayerController = (() => {
         update: (deltaTime) => {
             const acceleration = { x: 0, y: 0 };
 
-            // FIX: Inverted up and down controls
             if (keyState['KeyW'] || keyState['ArrowUp']) {
                 acceleration.y = 1;
             }

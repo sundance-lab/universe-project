@@ -8,6 +8,7 @@ export const SurfaceRenderer = (() => {
     let playerMesh, terrainMesh, sunLight;
     let animationFrameId;
     let raycaster;
+    let clock = new THREE.Clock(); // Use a clock for delta time
     const TERRAIN_SIZE = 4000;
     const TERRAIN_SEGMENTS = 256;
 
@@ -77,6 +78,7 @@ export const SurfaceRenderer = (() => {
         // --- Final Setup ---
         raycaster = new THREE.Raycaster();
         PlayerController.init();
+        clock.start(); // Start the clock
 
         // Place player on the ground
         raycaster.set(playerMesh.position, new THREE.Vector3(0, -1, 0));
@@ -121,7 +123,7 @@ export const SurfaceRenderer = (() => {
 
     function _animate() {
         animationFrameId = requestAnimationFrame(_animate);
-        const deltaTime = 0.016;
+        const deltaTime = clock.getDelta(); // Correctly get delta time
 
         PlayerController.update(deltaTime);
         _updatePlayer(deltaTime);
@@ -140,6 +142,7 @@ export const SurfaceRenderer = (() => {
         },
         dispose: () => {
             if(animationFrameId) cancelAnimationFrame(animationFrameId);
+            if(clock.running) clock.stop();
             PlayerController.dispose();
 
             if (scene) {

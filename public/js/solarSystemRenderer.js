@@ -169,8 +169,9 @@ export const SolarSystemRenderer = (() => {
         const defaultIconTexture = _createLandingSiteTexture();
 
         planetData.landingLocations.forEach(location => {
+            
             const material = new THREE.SpriteMaterial({
-                map: defaultIconTexture,
+                map: defaultIconTexture, 
                 color: 0x00ff80,
                 transparent: true,
                 opacity: 0,
@@ -673,7 +674,8 @@ export const SolarSystemRenderer = (() => {
         _createDistantStars();
         _createDistantGalaxies();
 
-        renderer = new THREE.WebGLRenderer({ antialias: true, alpha: false, logarithmicDepthBuffer: false });
+        // FIX: Enable logarithmicDepthBuffer to match the shaders
+        renderer = new THREE.WebGLRenderer({ antialias: true, alpha: false, logarithmicDepthBuffer: true });
         renderer.setPixelRatio(window.devicePixelRatio);
         renderer.setSize(container.offsetWidth, container.offsetHeight);
         container.appendChild(renderer.domElement);

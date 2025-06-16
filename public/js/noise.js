@@ -21,7 +21,7 @@ function valueNoise(p, seed) {
     const c111 = random([i[0] + 1, i[1] + 1].map(v => v + (i[2] + 1) * 0.37));
 
     const mix = (a, b, t) => a * (1 - t) + b * t;
-    
+
     const u00 = mix(c000, c100, f[0]);
     const u01 = mix(c001, c101, f[0]);
     const u10 = mix(c010, c110, f[0]);
@@ -48,25 +48,51 @@ function layeredNoise(p, seed, octaves, persistence, lacunarity, scale) {
     return maxValue === 0.0 ? 0.0 : total / maxValue;
 }
 
+function ridgedRiverNoise(p, seed) {
+    const n = layeredNoise(p, seed, 6, 0.5, 2.0, 1.0);
+    return Math.pow(1.0 - Math.abs(n), 3.0);
+}
+
+// Replicates the elevation logic from the planet vertex shader for logical consistency.
 export function getPlanetElevation(position, planetData) {
-    const { continentSeed, minTerrainHeight, maxTerrainHeight } = planetData;
-    const p_normalized = position; 
-    const noiseInputPosition = p_normalized.map((val, i) => val + (continentSeed * 10.0));
+    const { continentSeed, minTerrainHeight, maxTerrainHeight, riverBasin, planetType } = planetData;
+    const SPHERE_BASE_RADIUS = 0.8; // Must match shader
+
+    const p_normalized = position;
+    const noiseInputPosition = p_normalized.map(val => val / SPHERE_BASE_RADIUS + (continentSeed * 10.0));
+
+    // Match planet-type variations from shader
+    let mountainPersistence = 0.45;
+    let mountainLacunarity = 2.2;
+    let mountainScale = 8.0;
+    if (planetType === 2) { // Icy
+        mountainPersistence = 0.3;
+        mountainLacunarity = 2.0;
+        mountainScale = 4.0;
+    } else if (planetType === 1) { // Volcanic
+        mountainPersistence = 0.55;
+        mountainLacunarity = 2.5;
+        mountainScale = 12.0;
+    }
 
     const continentShape = (layeredNoise(noiseInputPosition, continentSeed, 5, 0.5, 2.0, 1.5) + 1.0) * 0.5;
-    const continentMask = continentShape > 0.5 ? 1.0 : 0.0;
-    
-    const mountainNoise = (layeredNoise(noiseInputPosition, continentSeed * 2.0, 6, 0.45, 2.2, 8.0) + 1.0) * 0.5;
-    const islandNoise = (layeredNoise(noiseInputPosition, continentSeed * 3.0, 7, 0.5, 2.5, 18.0) + 1.0) * 0.5;
+    const continentMask = continentShape > 0.5 ? 1.0 : 0.0; // Simplified smoothstep for logic
+    const riverRaw = ridgedRiverNoise(noiseInputPosition.map(v => v * 0.2), continentSeed * 5.0);
+    const riverBed = riverRaw > (1.0 - riverBasin) ? 1.0 : 0.0; // Simplified smoothstep
+    const riverMask = continentShape > 0.5 ? 1.0 : 0.0;
+    const riverValue = riverBed * riverMask;
 
+    const mountainNoise = (layeredNoise(noiseInputPosition, continentSeed * 2.0, 6, mountainPersistence, mountainLacunarity, mountainScale) + 1.0) * 0.5;
+    const islandNoise = (layeredNoise(noiseInputPosition, continentSeed * 3.0, 7, 0.5, 2.5, 18.0) + 1.0) * 0.5;
     const oceanMask = 1.0 - continentMask;
 
-    let finalElevation = continentShape 
-        + (mountainNoise * continentMask * 0.3) 
+    let finalElevation = continentShape
+        + (mountainNoise * continentMask * 0.3)
         + (islandNoise * oceanMask * 0.1);
+    finalElevation -= riverValue * 0.08;
+    finalElevation = finalElevation - 0.5; // Center around 0, as in the shader
 
-    finalElevation = finalElevation - 0.5; // Center around 0
-
+    // Scale to the min/max height range provided
     const terrainRange = maxTerrainHeight - minTerrainHeight;
     return finalElevation * terrainRange + minTerrainHeight;
 }

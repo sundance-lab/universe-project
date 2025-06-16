@@ -14,11 +14,15 @@ export const SurfaceRenderer = (() => {
     function _initScene(canvas, planetData, locationData) {
         // --- Basic Scene Setup ---
         scene = new THREE.Scene();
-        scene.fog = new THREE.Fog(0x87CEEB, 100, 1500); // Add fog for depth perception
-        scene.background = new THREE.Color(0x87CEEB);
+        scene.background = new THREE.Color(0x1a2a3a);
 
-        camera = new THREE.PerspectiveCamera(75, canvas.offsetWidth / canvas.offsetHeight, 0.1, 5000);
-        
+        // --- Camera: Switched back to Orthographic for a true top-down view ---
+        const aspect = canvas.offsetWidth / canvas.offsetHeight;
+        const frustumSize = 150; // How "zoomed-in" the view is
+        camera = new THREE.OrthographicCamera(frustumSize * aspect / -2, frustumSize * aspect / 2, frustumSize / 2, frustumSize / -2, 1, 2000);
+        camera.position.set(0, 500, 0); // Position directly above
+        camera.lookAt(0, 0, 0); // Look straight down
+
         renderer = new THREE.WebGLRenderer({ canvas, antialias: true });
         renderer.setSize(canvas.offsetWidth, canvas.offsetHeight);
         renderer.setPixelRatio(window.devicePixelRatio);
@@ -26,7 +30,7 @@ export const SurfaceRenderer = (() => {
         renderer.shadowMap.type = THREE.PCFSoftShadowMap;
 
         // --- Lighting ---
-        const ambientLight = new THREE.AmbientLight(0xffffff, 0.5);
+        const ambientLight = new THREE.AmbientLight(0xffffff, 0.6);
         scene.add(ambientLight);
 
         sunLight = new THREE.DirectionalLight(0xffffff, 1.0);
@@ -34,18 +38,14 @@ export const SurfaceRenderer = (() => {
         sunLight.castShadow = true;
         sunLight.shadow.mapSize.width = 2048;
         sunLight.shadow.mapSize.height = 2048;
-        sunLight.shadow.camera.near = 10;
-        sunLight.shadow.camera.far = 1000;
-        sunLight.shadow.camera.left = -1000;
-        sunLight.shadow.camera.right = 1000;
-        sunLight.shadow.camera.top = 1000;
-        sunLight.shadow.camera.bottom = -1000;
+        // Adjust shadow camera for orthographic view
+        sunLight.shadow.camera = new THREE.OrthographicCamera(-100, 100, 100, -100, 100, 800);
         scene.add(sunLight);
         scene.add(sunLight.target);
 
         // --- 3D Terrain ---
         const terrainGeometry = new THREE.PlaneGeometry(TERRAIN_SIZE, TERRAIN_SIZE, TERRAIN_SEGMENTS, TERRAIN_SEGMENTS);
-        terrainGeometry.rotateX(-Math.PI / 2); // Lay plane flat on XZ
+        terrainGeometry.rotateX(-Math.PI / 2);
 
         const { vertexShader, fragmentShader } = getTerrainShaders();
         const terrainMaterial = new THREE.ShaderMaterial({
@@ -55,7 +55,8 @@ export const SurfaceRenderer = (() => {
                 uSunDirection: { value: sunLight.position.clone().normalize() }
             },
             vertexShader,
-            fragmentShader
+            fragmentShader,
+            side: THREE.DoubleSide // Important for seeing the mesh from below if camera glitches
         });
         
         terrainMesh = new THREE.Mesh(terrainGeometry, terrainMaterial);
@@ -67,59 +68,57 @@ export const SurfaceRenderer = (() => {
         const playerMaterial = new THREE.MeshStandardMaterial({ color: 0xffff00, roughness: 0.4 });
         playerMesh = new THREE.Mesh(playerGeometry, playerMaterial);
         playerMesh.castShadow = true;
-        playerMesh.position.set(0, 50, 0); // Start high and drop to ground
+        playerMesh.position.set(0, 250, 0); // Set high temporarily
         scene.add(playerMesh);
         
         // --- Final Setup ---
         raycaster = new THREE.Raycaster();
         PlayerController.init();
+
+        // --- FIX: Ensure capsule spawns on the ground ---
+        // Perform an initial raycast to place the character correctly on the first frame.
+        raycaster.set(playerMesh.position, new THREE.Vector3(0, -1, 0));
+        const intersects = raycaster.intersectObject(terrainMesh);
+        if (intersects.length > 0) {
+            playerMesh.position.y = intersects[0].point.y + 3.0; // Capsule height offset
+        }
+
         _animate();
     }
-
+    
     function _updatePlayer(deltaTime) {
-        const move = PlayerController.getPlayer().velocity;
-        const speed = PlayerController.getPlayer().speed;
-
-        const forward = new THREE.Vector3();
-        camera.getWorldDirection(forward);
-        forward.y = 0;
-        forward.normalize();
+        const playerState = PlayerController.getPlayer();
+        const move = playerState.velocity;
         
-        const right = new THREE.Vector3().crossVectors(new THREE.Vector3(0,1,0), forward);
-
-        const moveDirection = new THREE.Vector3();
-        moveDirection.add(forward.multiplyScalar(move.y * speed * deltaTime));
-        moveDirection.add(right.multiplyScalar(move.x * speed * deltaTime));
-
-        playerMesh.position.add(moveDirection);
+        // Use velocity directly for X and Z movement in a top-down view
+        playerMesh.position.x += move.x * deltaTime;
+        playerMesh.position.z += move.y * deltaTime; // Map controller's Y to world's Z
         
         // --- Ground Snapping with Raycaster ---
-        raycaster.set(playerMesh.position, new THREE.Vector3(0, -1, 0));
+        const rayOrigin = new THREE.Vector3(playerMesh.position.x, 500, playerMesh.position.z);
+        raycaster.set(rayOrigin, new THREE.Vector3(0, -1, 0));
         const intersects = raycaster.intersectObject(terrainMesh);
 
         if (intersects.length > 0) {
             const groundY = intersects[0].point.y;
-            playerMesh.position.y = groundY + 4.0; // Capsule height offset
+            // Use a slight lerp for smooth height transitions
+            playerMesh.position.y = THREE.MathUtils.lerp(playerMesh.position.y, groundY + 3.0, 0.5);
         }
 
         // Make player face movement direction
-        if (moveDirection.lengthSq() > 0.001) {
-            const targetQuaternion = new THREE.Quaternion().setFromUnitVectors(new THREE.Vector3(0, 0, 1), moveDirection);
-            playerMesh.quaternion.slerp(targetQuaternion, 0.1);
+        if (move.x * move.x + move.y * move.y > 0.01) {
+            const angle = Math.atan2(move.x, move.y);
+            playerMesh.rotation.y = angle;
         }
     }
 
     function _updateCamera() {
-        // Third-person chase camera
-        const offset = new THREE.Vector3(0, 10, 20);
-        offset.applyQuaternion(playerMesh.quaternion);
-        offset.add(playerMesh.position);
+        // Camera follows the player on the XZ plane
+        camera.position.x = playerMesh.position.x;
+        camera.position.z = playerMesh.position.z;
         
-        camera.position.lerp(offset, 0.1);
-        camera.lookAt(playerMesh.position.clone().add(new THREE.Vector3(0, 3, 0)));
-
         // Update sun to follow player for consistent shadows
-        sunLight.position.set(playerMesh.position.x + 300, playerMesh.position.y + 400, playerMesh.position.z + 200);
+        sunLight.position.set(playerMesh.position.x + 100, playerMesh.position.y + 300, playerMesh.position.z + 100);
         sunLight.target.position.copy(playerMesh.position);
     }
 
@@ -131,7 +130,6 @@ export const SurfaceRenderer = (() => {
         _updatePlayer(deltaTime);
         _updateCamera();
 
-        // Animate shader time for potential water effects etc.
         if (terrainMesh) {
             terrainMesh.material.uniforms.uTime.value += deltaTime;
         }

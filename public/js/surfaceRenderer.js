@@ -21,7 +21,7 @@ export const SurfaceRenderer = (() => {
         const aspect = canvas.offsetWidth / canvas.offsetHeight;
         const frustumSize = 150;
         camera = new THREE.OrthographicCamera(frustumSize * aspect / -2, frustumSize * aspect / 2, frustumSize / 2, frustumSize / -2, 1, 2000);
-        camera.position.set(0, 500, 0); 
+        camera.position.set(0, 500, 0);
         camera.lookAt(0, 0, 0);
 
         renderer = new THREE.WebGLRenderer({ canvas, antialias: true });
@@ -57,7 +57,7 @@ export const SurfaceRenderer = (() => {
             vertexShader,
             fragmentShader,
         });
-        
+
         terrainMesh = new THREE.Mesh(terrainGeometry, terrainMaterial);
         terrainMesh.receiveShadow = true;
         scene.add(terrainMesh);
@@ -67,13 +67,18 @@ export const SurfaceRenderer = (() => {
         const playerMaterial = new THREE.MeshBasicMaterial({ color: 0xffff00 });
         playerMesh = new THREE.Mesh(playerGeometry, playerMaterial);
         playerMesh.castShadow = true;
-        playerMesh.position.set(0, 250, 0);
+
+        const hashString = (s) => s.split('').reduce((a, b) => { a = ((a << 5) - a) + b.charCodeAt(0); return a & a; }, 0);
+        const startX = (hashString(locationData.name) % (TERRAIN_SIZE / 4)) - (TERRAIN_SIZE / 8);
+        const startZ = (hashString(locationData.type) % (TERRAIN_SIZE / 4)) - (TERRAIN_SIZE / 8);
+        playerMesh.position.set(startX, 250, startZ);
         scene.add(playerMesh);
-        
+
         // --- Final Setup ---
         raycaster = new THREE.Raycaster();
         PlayerController.init();
 
+        // Place player on the ground
         raycaster.set(playerMesh.position, new THREE.Vector3(0, -1, 0));
         const intersects = raycaster.intersectObject(terrainMesh);
         if (intersects.length > 0) {
@@ -82,14 +87,14 @@ export const SurfaceRenderer = (() => {
 
         _animate();
     }
-    
+
     function _updatePlayer(deltaTime) {
         const playerState = PlayerController.getPlayer();
         const move = playerState.velocity;
-        
+
         playerMesh.position.x += move.x * deltaTime;
         playerMesh.position.z += move.y * deltaTime;
-        
+
         const rayOrigin = new THREE.Vector3(playerMesh.position.x, 500, playerMesh.position.z);
         raycaster.set(rayOrigin, new THREE.Vector3(0, -1, 0));
         const intersects = raycaster.intersectObject(terrainMesh);
@@ -109,7 +114,7 @@ export const SurfaceRenderer = (() => {
         camera.position.x = playerMesh.position.x;
         camera.position.z = playerMesh.position.z;
         camera.lookAt(playerMesh.position.x, 0, playerMesh.position.z);
-        
+
         sunLight.position.set(playerMesh.position.x + 100, playerMesh.position.y + 300, playerMesh.position.z + 100);
         sunLight.target.position.copy(playerMesh.position);
     }
@@ -136,7 +141,7 @@ export const SurfaceRenderer = (() => {
         dispose: () => {
             if(animationFrameId) cancelAnimationFrame(animationFrameId);
             PlayerController.dispose();
-            
+
             if (scene) {
                 scene.traverse(object => {
                     if (object.geometry) object.geometry.dispose();

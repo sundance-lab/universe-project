@@ -170,14 +170,21 @@ controls.maxPolarAngle = Math.PI;
             initScene(canvas, planetBasis);
 
             const handleBackClick = () => {
-                cleanup();
+                // --- FIX: Make the UI transition feel instant, then cleanup ---
 
+                // 1. Immediately call the callback to show the previous screen.
                 if (typeof onBackCallback === 'function') {
                     onBackCallback();
                 }
-
+                
+                // 2. Remove the event listeners immediately.
                 backButton.removeEventListener('click', handleBackClick);
                 window.removeEventListener('resize', onResize);
+
+                // 3. Defer the heavy cleanup task to the next frame.
+                requestAnimationFrame(() => {
+                    cleanup();
+                });
             };
 
             backButton.addEventListener('click', handleBackClick);

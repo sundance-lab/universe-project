@@ -369,29 +369,31 @@ export function getHexPlanetShaders() {
 		vec3 p_normalized = normalize(position);
 		vec3 noiseInputPosition = p_normalized + (uContinentSeed * 10.0);
 
+        // --- UNIFIED TERRAIN LOGIC ---
         float mountainPersistence = 0.45;
         float mountainLacunarity = 2.2;
-        float mountainScale = 14.0;
+        float mountainScale = 8.0; // Matched from getPlanetShaders
         if (uPlanetType == 2) { mountainPersistence = 0.3; mountainLacunarity = 2.0; mountainScale = 4.0; } 
         else if (uPlanetType == 1) { mountainPersistence = 0.55; mountainLacunarity = 2.5; mountainScale = 12.0; }
 
-		float continentShape = (layeredNoise(noiseInputPosition, uContinentSeed, 6, 0.5, 2.0, 1.5) + 1.0) * 0.5;
-		float mountainNoise_01 = (layeredNoise(noiseInputPosition, uContinentSeed * 2.0, 7, mountainPersistence, mountainLacunarity, mountainScale) + 1.0) * 0.5;
-		float islandNoise_01 = (layeredNoise(noiseInputPosition, uContinentSeed * 3.0, 8, 0.5, 2.5, 18.0) + 1.0) * 0.5;
-		
+		float continentShape = (layeredNoise(noiseInputPosition, uContinentSeed, 5, 0.5, 2.0, 1.5) + 1.0) * 0.5; // Matched (5 octaves)
 		float continentMask = smoothstep(0.49, 0.51, continentShape);
-		float oceanMask = 1.0 - continentMask;
-
-		float finalElevation = continentShape;
-		finalElevation += (mountainNoise_01 - 0.5) * continentMask * 0.6 * uMountainStrength;
-		finalElevation += (islandNoise_01 - 0.5) * oceanMask * 0.2 * uIslandStrength;
 
 		float riverRaw = ridgedRiverNoise(noiseInputPosition * 0.2, uContinentSeed * 5.0);
 		float riverBed = smoothstep(1.0 - uRiverBasin, 1.0, riverRaw);
 		float riverMask = smoothstep(0.50, 0.55, continentShape);
 		vRiverValue = riverBed * riverMask;
+        
+        float mountainNoise = (layeredNoise(noiseInputPosition, uContinentSeed*2.0, 6, mountainPersistence, mountainLacunarity, mountainScale) + 1.0) * 0.5; // Matched (6 octaves)
+        float islandNoise = (layeredNoise(noiseInputPosition, uContinentSeed * 3.0, 7, 0.5, 2.5, 18.0) + 1.0) * 0.5; // Matched (7 octaves)
+		float oceanMask = 1.0 - continentMask;
+
+		float finalElevation = continentShape
+            + (mountainNoise * continentMask * 0.3)
+            + (islandNoise * oceanMask * 0.1); // Matched formula
 		finalElevation -= vRiverValue * 0.08;
 		finalElevation = finalElevation - 0.5;
+        // --- END UNIFIED LOGIC ---
 
 		vElevation = finalElevation;
 		float displacement = vElevation * uDisplacementAmount;

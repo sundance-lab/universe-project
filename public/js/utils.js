@@ -1,4 +1,5 @@
 // public/js/utils.js
+import * as THREE from 'three';
 
 const MAX_PLACEMENT_ATTEMPTS = 150;
 

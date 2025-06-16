@@ -87,7 +87,7 @@ export function getTerrainShaders() {
             pos.y = elevation;
             vElevation = elevation;
 
-            // FIX: Calculate normals in vertex shader for better performance and lighting
+            // Calculate normals by sampling the height of neighboring points
             float offset = 1.0;
             float elev_x = getElevation(pos.xz + vec2(offset, 0.0));
             float elev_z = getElevation(pos.xz + vec2(0.0, offset));
@@ -127,7 +127,6 @@ export function getTerrainShaders() {
             } else if (vElevation < beachLevel) {
                 biomeColor = vec3(0.76, 0.7, 0.5); // Sand
             } else if (vElevation < grassLevel) {
-                // FIX: Add multiple layers of noise for varied grass
                 float noise1 = random(vUv * 800.0);
                 float noise2 = random(vUv * 200.0);
                 vec3 grassColor1 = vec3(0.2, 0.5, 0.15);

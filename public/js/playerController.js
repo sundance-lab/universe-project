@@ -35,7 +35,7 @@ export const PlayerController = (() => {
                 acceleration.y = -1; // Move toward top of screen (negative Z)
             }
             if (keyState['KeyS'] || keyState['ArrowDown']) {
-                acceleration.y = 1; // Move toward bottom of screen (positive Z)
+                acceleration.y = 1;  // Move toward bottom of screen (positive Z)
             }
             if (keyState['KeyA'] || keyState['ArrowLeft']) {
                 acceleration.x = -1;

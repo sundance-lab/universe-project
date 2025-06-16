@@ -5,8 +5,9 @@ export const PlayerController = (() => {
     const player = {
         position: { x: 0, y: 0 },
         velocity: { x: 0, y: 0 },
-        speed: 40, 
-        damping: 0.90 
+        acceleration: 3000, // Force applied when moving
+        damping: 0.98, // Damping factor to simulate friction
+        maxSpeed: 400 // Maximum speed clamp
     };
 
     function onKeyDown(event) {
@@ -21,36 +22,55 @@ export const PlayerController = (() => {
         init: () => {
             window.addEventListener('keydown', onKeyDown);
             window.addEventListener('keyup', onKeyUp);
+            // Reset state
             player.position = { x: 0, y: 0 };
             player.velocity = { x: 0, y: 0 };
+            for (const key in keyState) {
+                delete keyState[key];
+            }
         },
 
         getPlayer: () => player,
 
         update: (deltaTime) => {
-            const acceleration = { x: 0, y: 0 };
+            const moveDirection = { x: 0, y: 0 };
 
             if (keyState['KeyW'] || keyState['ArrowUp']) {
-                acceleration.y = -1;
+                moveDirection.y = -1;
             }
             if (keyState['KeyS'] || keyState['ArrowDown']) {
-                acceleration.y = 1; 
+                moveDirection.y = 1;
             }
             if (keyState['KeyA'] || keyState['ArrowLeft']) {
-                acceleration.x = -1;
+                moveDirection.x = -1;
             }
             if (keyState['KeyD'] || keyState['ArrowRight']) {
-                acceleration.x = 1;
+                moveDirection.x = 1;
             }
 
-            player.velocity.x += acceleration.x * player.speed * deltaTime;
-            player.velocity.y += acceleration.y * player.speed * deltaTime;
+            // Normalize direction to prevent faster diagonal movement
+            const length = Math.sqrt(moveDirection.x * moveDirection.x + moveDirection.y * moveDirection.y);
+            if (length > 0) {
+                moveDirection.x /= length;
+                moveDirection.y /= length;
+            }
 
-            player.velocity.x *= player.damping;
-            player.velocity.y *= player.damping;
+            // Apply acceleration based on input
+            player.velocity.x += moveDirection.x * player.acceleration * deltaTime;
+            player.velocity.y += moveDirection.y * player.acceleration * deltaTime;
 
-            player.position.x += player.velocity.x;
-            player.position.y += player.velocity.y;
+            // Apply frame-rate independent damping
+            player.velocity.x *= Math.pow(player.damping, deltaTime * 60);
+            player.velocity.y *= Math.pow(player.damping, deltaTime * 60);
+            
+            // Clamp to max speed
+            const speed = Math.sqrt(player.velocity.x * player.velocity.x + player.velocity.y * player.velocity.y);
+            if (speed > player.maxSpeed) {
+                player.velocity.x = (player.velocity.x / speed) * player.maxSpeed;
+                player.velocity.y = (player.velocity.y / speed) * player.maxSpeed;
+            }
+
+            // The renderer will update the mesh position based on this velocity
         },
 
         dispose: () => {

@@ -1,186 +1,126 @@
 // public/js/surfaceRenderer.js
 import * as THREE from 'three';
-import { getPlanetElevation } from './noise.js';
 import { PlayerController } from './playerController.js';
+import { getTerrainShaders } from './shaders.js';
 
 export const SurfaceRenderer = (() => {
     let scene, camera, renderer;
-    let playerMesh, groundMesh;
+    let playerMesh, terrainMesh, sunLight;
     let animationFrameId;
-    let boundOnMouseWheel;
-
-    function _createCharacterMesh() {
-        const shape = new THREE.Shape();
-        shape.moveTo(0, 10);
-        shape.lineTo(-5, -5);
-        shape.lineTo(5, -5);
-        shape.closePath();
-
-        const geometry = new THREE.ShapeGeometry(shape);
-        const material = new THREE.MeshBasicMaterial({ color: 0xffff00 });
-        const mesh = new THREE.Mesh(geometry, material);
-        mesh.position.z = 1;
-        return mesh;
-    }
-
-    // Draws a semi-realistic rock or boulder
-    function _drawRock(context, x, y, size) {
-        context.fillStyle = `rgb(${100 + Math.random()*20}, ${100 + Math.random()*20}, ${105 + Math.random()*20})`;
-        context.beginPath();
-        context.moveTo(x + Math.random() * size - size/2, y + Math.random() * size - size/2);
-        for (let i = 0; i < 5; i++) {
-            context.lineTo(x + Math.random() * size - size/2, y + Math.random() * size - size/2);
-        }
-        context.closePath();
-        context.fill();
-    }
-
-    // Uses the tree drawing logic from the previous step
-    function _drawTree(context, x, y) {
-        const trunkWidth = 4 + Math.random() * 4;
-        const trunkHeight = 15 + Math.random() * 10;
-        context.fillStyle = '#5C3317';
-        context.fillRect(x - trunkWidth / 2, y, trunkWidth, trunkHeight);
-        const canopySize = 15 + Math.random() * 10;
-        for (let i = 0; i < 3 + Math.floor(Math.random()*3); i++) {
-            context.fillStyle = `rgba(0, ${100 + Math.random()*50}, 0, ${0.7 + Math.random() * 0.2})`;
-            context.beginPath();
-            context.arc(x + (Math.random() - 0.5) * canopySize, y - (trunkHeight * 0.2) + (Math.random() - 0.5) * canopySize, canopySize * (0.6 + Math.random() * 0.4), 0, Math.PI * 2);
-            context.fill();
-        }
-    }
-
-    function _createDetailedMapTexture(planetData, locationData) {
-        const size = 4096; // 1. Increased map size
-        const canvas = document.createElement('canvas');
-        canvas.width = size;
-        canvas.height = size;
-        const context = canvas.getContext('2d');
-
-        // 2. Create a circular clipping region
-        context.beginPath();
-        context.arc(size / 2, size / 2, size / 2, 0, Math.PI * 2);
-        context.clip();
-
-        // --- 3. Add more generic detail ---
-        
-        // Base dirt layer
-        context.fillStyle = '#6B4F3D';
-        context.fillRect(0, 0, size, size);
-
-        // Procedural generation setup
-        const oceanLvl = planetData.oceanHeightLevel;
-        const terrainRange = planetData.maxTerrainHeight - planetData.minTerrainHeight;
-        const centerPhi = locationData.phi;
-        const centerTheta = locationData.theta;
-        const mapScale = 0.02; // Zoom out to see more features
-
-        // Pre-calculate elevation map for performance
-        const elevationMap = new Float32Array(size * size);
-        for (let y = 0; y < size; y++) {
-            for (let x = 0; x < size; x++) {
-                const dx = (x / size - 0.5) * mapScale;
-                const dy = (y / size - 0.5) * mapScale;
-                const phi = centerPhi + dy;
-                const theta = centerTheta + dx;
-                const posOnSphere = [ Math.sin(phi) * Math.cos(theta), Math.sin(phi) * Math.sin(theta), Math.cos(phi) ];
-                elevationMap[y * size + x] = getPlanetElevation(posOnSphere, planetData);
-            }
-        }
-
-        // Draw terrain based on elevation
-        const imageData = context.getImageData(0, 0, size, size);
-        const data = imageData.data;
-        for (let i = 0; i < elevationMap.length; i++) {
-            const elevation = elevationMap[i];
-            const idx = i * 4;
-
-            if (elevation < oceanLvl) { // Ocean
-                data[idx] = 30; data[idx+1] = 80; data[idx+2] = 160;
-            } else if (elevation < oceanLvl + terrainRange * 0.03) { // Beach
-                data[idx] = 210; data[idx+1] = 180; data[idx+2] = 140;
-            } else if (elevation < oceanLvl + terrainRange * 0.6) { // Grassland
-                const grassNoise = Math.random();
-                data[idx] = 80 + grassNoise*20; data[idx+1] = 140 + grassNoise*30; data[idx+2] = 70 + grassNoise*20;
-            } else if (elevation < oceanLvl + terrainRange * 0.8) { // Mountains
-                const rockNoise = Math.random();
-                data[idx] = 130 + rockNoise*20; data[idx+1] = 130 + rockNoise*20; data[idx+2] = 135 + rockNoise*20;
-            } else { // Snow caps
-                data[idx] = 240; data[idx+1] = 240; data[idx+2] = 250;
-            }
-        }
-        context.putImageData(imageData, 0, 0);
-
-        // Draw rivers
-        // (This is a simplified algorithm for visuals, not true hydrological erosion)
-        context.strokeStyle = 'rgba(40, 90, 170, 0.8)';
-        context.lineWidth = 3 + Math.random() * 5;
-        for(let i=0; i < 15; i++) {
-             context.beginPath();
-             context.moveTo(Math.random()*size, 0);
-             context.bezierCurveTo(Math.random()*size, size*0.3, Math.random()*size, size*0.6, Math.random()*size, size);
-             context.stroke();
-        }
-
-        // Draw features like trees and rocks
-        for (let i = 0; i < 5000; i++) {
-             const x = Math.floor(Math.random() * size);
-             const y = Math.floor(Math.random() * size);
-             const elevation = elevationMap[y * size + x];
-
-             if (elevation > oceanLvl + terrainRange * 0.05 && elevation < oceanLvl + terrainRange * 0.5) {
-                 if(Math.random() > 0.5) _drawTree(context, x, y);
-             } else if (elevation > oceanLvl + terrainRange * 0.5 && elevation < oceanLvl + terrainRange * 0.8) {
-                 if(Math.random() > 0.9) _drawRock(context, x, y, 5 + Math.random() * 10);
-             }
-        }
-
-
-        return new THREE.CanvasTexture(canvas);
-    }
-
-    function _onMouseWheel(event) {
-        event.preventDefault();
-        const zoomAmount = 0.1;
-        if (event.deltaY < 0) {
-            camera.zoom += zoomAmount;
-        } else {
-            camera.zoom -= zoomAmount;
-        }
-        camera.zoom = Math.max(0.2, Math.min(camera.zoom, 5.0));
-        camera.updateProjectionMatrix();
-    }
+    let raycaster;
+    const TERRAIN_SIZE = 4000;
+    const TERRAIN_SEGMENTS = 256;
 
     function _initScene(canvas, planetData, locationData) {
+        // --- Basic Scene Setup ---
         scene = new THREE.Scene();
-        scene.background = new THREE.Color(0x000000); // Black background for the circular map
-        
-        const aspect = canvas.offsetWidth / canvas.offsetHeight;
-        const frustumSize = 800; 
-        camera = new THREE.OrthographicCamera(frustumSize * aspect / -2, frustumSize * aspect / 2, frustumSize / 2, frustumSize / -2, 1, 1000);
-        camera.position.z = 100;
-        camera.zoom = 1.0; 
-        camera.updateProjectionMatrix();
+        scene.fog = new THREE.Fog(0x87CEEB, 100, 1500); // Add fog for depth perception
+        scene.background = new THREE.Color(0x87CEEB);
 
+        camera = new THREE.PerspectiveCamera(75, canvas.offsetWidth / canvas.offsetHeight, 0.1, 5000);
+        
         renderer = new THREE.WebGLRenderer({ canvas, antialias: true });
         renderer.setSize(canvas.offsetWidth, canvas.offsetHeight);
         renderer.setPixelRatio(window.devicePixelRatio);
+        renderer.shadowMap.enabled = true;
+        renderer.shadowMap.type = THREE.PCFSoftShadowMap;
 
-        const groundTexture = _createDetailedMapTexture(planetData, locationData);
-        const groundMaterial = new THREE.MeshBasicMaterial({ map: groundTexture });
-        const groundGeometry = new THREE.PlaneGeometry(4096, 4096); // Match new map size
-        groundMesh = new THREE.Mesh(groundGeometry, groundMaterial);
-        scene.add(groundMesh);
+        // --- Lighting ---
+        const ambientLight = new THREE.AmbientLight(0xffffff, 0.5);
+        scene.add(ambientLight);
 
-        playerMesh = _createCharacterMesh();
+        sunLight = new THREE.DirectionalLight(0xffffff, 1.0);
+        sunLight.position.set(300, 400, 200);
+        sunLight.castShadow = true;
+        sunLight.shadow.mapSize.width = 2048;
+        sunLight.shadow.mapSize.height = 2048;
+        sunLight.shadow.camera.near = 10;
+        sunLight.shadow.camera.far = 1000;
+        sunLight.shadow.camera.left = -1000;
+        sunLight.shadow.camera.right = 1000;
+        sunLight.shadow.camera.top = 1000;
+        sunLight.shadow.camera.bottom = -1000;
+        scene.add(sunLight);
+        scene.add(sunLight.target);
+
+        // --- 3D Terrain ---
+        const terrainGeometry = new THREE.PlaneGeometry(TERRAIN_SIZE, TERRAIN_SIZE, TERRAIN_SEGMENTS, TERRAIN_SEGMENTS);
+        terrainGeometry.rotateX(-Math.PI / 2); // Lay plane flat on XZ
+
+        const { vertexShader, fragmentShader } = getTerrainShaders();
+        const terrainMaterial = new THREE.ShaderMaterial({
+            uniforms: {
+                uTime: { value: 0.0 },
+                uElevationMultiplier: { value: 200.0 },
+                uSunDirection: { value: sunLight.position.clone().normalize() }
+            },
+            vertexShader,
+            fragmentShader
+        });
+        
+        terrainMesh = new THREE.Mesh(terrainGeometry, terrainMaterial);
+        terrainMesh.receiveShadow = true;
+        scene.add(terrainMesh);
+
+        // --- Player Character ---
+        const playerGeometry = new THREE.CapsuleGeometry(2, 4);
+        const playerMaterial = new THREE.MeshStandardMaterial({ color: 0xffff00, roughness: 0.4 });
+        playerMesh = new THREE.Mesh(playerGeometry, playerMaterial);
+        playerMesh.castShadow = true;
+        playerMesh.position.set(0, 50, 0); // Start high and drop to ground
         scene.add(playerMesh);
-
+        
+        // --- Final Setup ---
+        raycaster = new THREE.Raycaster();
         PlayerController.init();
-
-        boundOnMouseWheel = _onMouseWheel.bind(this);
-        renderer.domElement.addEventListener('wheel', boundOnMouseWheel, { passive: false });
-
         _animate();
+    }
+
+    function _updatePlayer(deltaTime) {
+        const move = PlayerController.getPlayer().velocity;
+        const speed = PlayerController.getPlayer().speed;
+
+        const forward = new THREE.Vector3();
+        camera.getWorldDirection(forward);
+        forward.y = 0;
+        forward.normalize();
+        
+        const right = new THREE.Vector3().crossVectors(new THREE.Vector3(0,1,0), forward);
+
+        const moveDirection = new THREE.Vector3();
+        moveDirection.add(forward.multiplyScalar(move.y * speed * deltaTime));
+        moveDirection.add(right.multiplyScalar(move.x * speed * deltaTime));
+
+        playerMesh.position.add(moveDirection);
+        
+        // --- Ground Snapping with Raycaster ---
+        raycaster.set(playerMesh.position, new THREE.Vector3(0, -1, 0));
+        const intersects = raycaster.intersectObject(terrainMesh);
+
+        if (intersects.length > 0) {
+            const groundY = intersects[0].point.y;
+            playerMesh.position.y = groundY + 4.0; // Capsule height offset
+        }
+
+        // Make player face movement direction
+        if (moveDirection.lengthSq() > 0.001) {
+            const targetQuaternion = new THREE.Quaternion().setFromUnitVectors(new THREE.Vector3(0, 0, 1), moveDirection);
+            playerMesh.quaternion.slerp(targetQuaternion, 0.1);
+        }
+    }
+
+    function _updateCamera() {
+        // Third-person chase camera
+        const offset = new THREE.Vector3(0, 10, 20);
+        offset.applyQuaternion(playerMesh.quaternion);
+        offset.add(playerMesh.position);
+        
+        camera.position.lerp(offset, 0.1);
+        camera.lookAt(playerMesh.position.clone().add(new THREE.Vector3(0, 3, 0)));
+
+        // Update sun to follow player for consistent shadows
+        sunLight.position.set(playerMesh.position.x + 300, playerMesh.position.y + 400, playerMesh.position.z + 200);
+        sunLight.target.position.copy(playerMesh.position);
     }
 
     function _animate() {
@@ -188,54 +128,44 @@ export const SurfaceRenderer = (() => {
         const deltaTime = 0.016;
 
         PlayerController.update(deltaTime);
-        const player = PlayerController.getPlayer();
+        _updatePlayer(deltaTime);
+        _updateCamera();
 
-        playerMesh.position.x = player.position.x;
-        playerMesh.position.y = player.position.y;
-        
-        const velocity = player.velocity;
-        if (velocity.x * velocity.x + velocity.y * velocity.y > 0.1) {
-             playerMesh.rotation.z = Math.atan2(velocity.y, velocity.x) - Math.PI / 2;
+        // Animate shader time for potential water effects etc.
+        if (terrainMesh) {
+            terrainMesh.material.uniforms.uTime.value += deltaTime;
         }
-
-        camera.position.x = player.position.x;
-        camera.position.y = player.position.y;
 
         renderer.render(scene, camera);
     }
 
     return {
         init: (canvas, planetData, locationData) => {
-            if (!canvas || !planetData || !locationData) {
-                console.error("SurfaceRenderer: Canvas, planetData, or locationData not provided.");
-                return;
-            }
             _initScene(canvas, planetData, locationData);
         },
         dispose: () => {
             if(animationFrameId) cancelAnimationFrame(animationFrameId);
             PlayerController.dispose();
             
-            if (renderer && boundOnMouseWheel) {
-                renderer.domElement.removeEventListener('wheel', boundOnMouseWheel);
-            }
-            
             if (scene) {
-                 if (groundMesh) {
-                    scene.remove(groundMesh);
-                    if(groundMesh.material.map) groundMesh.material.map.dispose();
-                    groundMesh.material.dispose();
-                    groundMesh.geometry.dispose();
-                 }
-                scene.remove(playerMesh);
-                if(playerMesh.geometry) playerMesh.geometry.dispose();
-                if(playerMesh.material) playerMesh.material.dispose();
+                scene.traverse(object => {
+                    if (object.geometry) object.geometry.dispose();
+                    if (object.material) {
+                         if (Array.isArray(object.material)) {
+                            object.material.forEach(m => {
+                                if (m.map) m.map.dispose();
+                                m.dispose();
+                            });
+                         } else {
+                            if (object.material.map) object.material.map.dispose();
+                            object.material.dispose();
+                         }
+                    }
+                });
             }
 
-            if(renderer) {
-                renderer.dispose();
-            }
-            scene = camera = renderer = groundMesh = playerMesh = null;
+            if(renderer) renderer.dispose();
+            scene = camera = renderer = playerMesh = terrainMesh = sunLight = null;
         }
     };
 })();

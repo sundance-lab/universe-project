@@ -109,9 +109,10 @@ export function getTerrainShaders() {
         varying float vElevation;
         varying vec3 vNormal;
         
-        ${glslRandom2to1}
+        ${glslRandom2to1} // Add random function for grass detail
 
         void main() {
+            // FIX: Use the calculated normal from the vertex shader
             vec3 norm = normalize(vNormal);
             float light = clamp(dot(norm, uSunDirection), 0.0, 1.0);
             
@@ -142,7 +143,7 @@ export function getTerrainShaders() {
             }
             
             // Apply lighting, making shadows slightly blue
-            vec3 finalColor = biomeColor * (light * 0.7 + 0.3);
+            vec3 finalColor = biomeColor * (light * 0.6 + 0.4);
             finalColor = mix(finalColor * 0.8 + vec3(0.0, 0.0, 0.1), finalColor, light);
 
             gl_FragColor = vec4(finalColor, 1.0);
@@ -493,18 +494,20 @@ export function getHexPlanetShaders() {
             else {
                 const float BEACH_END = 0.02; const float PLAINS_END = 0.40;
                 const float MOUNTAIN_START = 0.60; const float SNOW_START = 0.85;
-                if (landRatio < BEACH_END) biomeColor = mix(plainsColor, beachColor, smoothstep(BEACH_END, 0.0, landRatio));
-                else if (landRatio < PLAINS_END) biomeColor = plainsColor;
-                else if (landRatio < MOUNTAIN_START) biomeColor = mix(plainsColor, mountainColor, smoothstep(PLAINS_END, MOUNTAIN_START, landRatio));
-                else if (landRatio < SNOW_START) biomeColor = mountainColor;
-                else biomeColor = mix(mountainColor, snowColor, smoothstep(SNOW_START, 1.0, landRatio));
+                if (landRatio < BEACH_END) finalColor = mix(plainsColor, beachColor, smoothstep(BEACH_END, 0.0, landRatio));
+                else if (landRatio < PLAINS_END) finalColor = plainsColor;
+                else if (landRatio < MOUNTAIN_START) finalColor = mix(plainsColor, mountainColor, smoothstep(PLAINS_END, MOUNTAIN_START, landRatio));
+                else if (landRatio < SNOW_START) finalColor = mountainColor;
+                else finalColor = mix(mountainColor, snowColor, smoothstep(SNOW_START, 1.0, landRatio));
 
                 if (landRatio > BEACH_END && landRatio < SNOW_START) {
                     float forestNoise = valueNoise((vWorldPosition / uSphereRadius) * 25.0, uContinentSeed * 4.0);
                     float forestMask = smoothstep(1.0 - uForestDensity, 1.0 - uForestDensity + 0.1, forestNoise);
-                    biomeColor = mix(biomeColor, forestColor, forestMask);
+                    finalColor = mix(finalColor, forestColor, forestMask);
                 }
-                if (vRiverValue > 0.1) biomeColor = mix(biomeColor, waterColor * 0.9, vRiverValue);
+                if (vRiverValue > 0.1) {
+                    finalColor = mix(finalColor, waterColor * 0.9, vRiverValue);
+                }
             }
         }
 

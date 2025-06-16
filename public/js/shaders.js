@@ -54,7 +54,7 @@ const glslRidgedRiverNoise = `
 // Depends on: layeredNoise
 float ridgedRiverNoise(vec3 p, float seed) {
  float n = layeredNoise(p, seed, 6, 0.5, 2.0, 1.0);
- return pow(1.0 - abs(n), 3.0); 
+ return pow(1.0 - abs(n), 3.0);
 }
 `;
 
@@ -75,7 +75,7 @@ export function getTerrainShaders() {
             float baseElevation = layeredNoise(vec3(pos * 0.001, 0.0), 1.0, 8, 0.5, 2.0, 1.0);
             float mountainNoise = layeredNoise(vec3(pos * 0.005, 0.0), 2.0, 6, 0.6, 2.5, 1.0);
             float detailNoise = layeredNoise(vec3(pos * 0.05, 0.0), 3.0, 4, 0.4, 2.0, 1.0);
-            
+
             float finalElevation = baseElevation * 0.7 + pow(mountainNoise, 2.0) * 0.25 + detailNoise * 0.05;
             return finalElevation * uElevationMultiplier;
         }
@@ -87,15 +87,15 @@ export function getTerrainShaders() {
             pos.y = elevation;
             vElevation = elevation;
 
-            // FIX: Calculate normals in vertex shader for better performance and lighting
+            // Calculate normals in vertex shader for better performance and lighting
             float offset = 1.0;
             float elev_x = getElevation(pos.xz + vec2(offset, 0.0));
             float elev_z = getElevation(pos.xz + vec2(0.0, offset));
-            
+
             vec3 tangent = normalize(vec3(offset, elev_x - elevation, 0.0));
             vec3 bitangent = normalize(vec3(0.0, elev_z - elevation, offset));
             vNormal = normalize(cross(bitangent, tangent));
-            
+
             gl_Position = projectionMatrix * modelViewMatrix * vec4(pos, 1.0);
         }
     `;
@@ -107,13 +107,13 @@ export function getTerrainShaders() {
         varying vec2 vUv;
         varying float vElevation;
         varying vec3 vNormal;
-        
+
         ${glslRandom2to1}
 
         void main() {
             vec3 norm = normalize(vNormal);
             float light = clamp(dot(norm, uSunDirection), 0.0, 1.0);
-            
+
             vec3 biomeColor;
             float waterLevel = uElevationMultiplier * 0.2;
             float beachLevel = waterLevel + 5.0;
@@ -127,22 +127,21 @@ export function getTerrainShaders() {
             } else if (vElevation < beachLevel) {
                 biomeColor = vec3(0.76, 0.7, 0.5); // Sand
             } else if (vElevation < grassLevel) {
-                // FIX: Add multiple layers of noise for varied grass
-                float noise1 = random(vUv * 800.0);
-                float noise2 = random(vUv * 200.0);
+                float noise = random(vUv * 500.0);
                 vec3 grassColor1 = vec3(0.2, 0.5, 0.15);
                 vec3 grassColor2 = vec3(0.35, 0.7, 0.2);
-                biomeColor = mix(grassColor1, grassColor2, noise1 * 0.7 + noise2 * 0.3);
+                biomeColor = mix(grassColor1, grassColor2, noise);
             } else if (vElevation < rockLevel) {
                 float rockNoise = random(vUv * 150.0);
                 biomeColor = mix(vec3(0.4), vec3(0.55), rockNoise); // Rock
             } else {
                 biomeColor = vec3(1.0, 1.0, 1.0); // Snow
             }
-            
-            // Apply lighting, making shadows slightly blue
-            vec3 finalColor = biomeColor * (light * 0.7 + 0.3);
-            finalColor = mix(finalColor * 0.8 + vec3(0.0, 0.0, 0.1), finalColor, light);
+
+            // Apply lighting
+            vec3 finalColor = biomeColor * (light * 0.8 + 0.2); // Ambient and diffuse
+            vec3 shadowColor = biomeColor * vec3(0.1, 0.1, 0.2); // A dark, slightly blue shadow
+            finalColor = mix(shadowColor, finalColor, light);
 
             gl_FragColor = vec4(finalColor, 1.0);
         }
@@ -257,7 +256,7 @@ export function getPlanetShaders() {
                 vec3 lavaColor = vec3(1.0, 0.3, 0.0);
                 vec3 rockColor = vec3(0.1, 0.1, 0.15);
                 vec3 ashColor = vec3(0.3, 0.3, 0.3);
-                
+
                 if (vElevation < uOceanHeightLevel) {
                     finalColor = mix(rockColor * 0.8, lavaColor, smoothstep(uOceanHeightLevel - 0.1, uOceanHeightLevel, vElevation));
                 } else {
@@ -319,19 +318,19 @@ export function getPlanetShaders() {
                     else if (landRatio < MOUNTAIN_START) finalColor = mix(plainsColor, mountainColor, smoothstep(PLAINS_END, MOUNTAIN_START, landRatio));
                     else if (landRatio < SNOW_START) finalColor = mountainColor;
                     else finalColor = mix(mountainColor, snowColor, smoothstep(SNOW_START, 1.0, landRatio));
-                    
+
                     if (landRatio > BEACH_END && landRatio < SNOW_START) {
                         float forestNoise = valueNoise(vWorldPosition * 25.0, uContinentSeed * 4.0);
                         float forestMask = smoothstep(1.0 - uForestDensity, 1.0 - uForestDensity + 0.1, forestNoise);
                         finalColor = mix(finalColor, forestColor, forestMask);
                     }
-                    
+
                     if (vRiverValue > 0.1) {
                         finalColor = mix(finalColor, waterColor * 0.9, vRiverValue);
                     }
                 }
             }
-            
+
             vec3 viewDirection = normalize(cameraPosition - vWorldPosition);
             gl_FragColor = vec4(calculateLighting(finalColor, vNormal, viewDirection), 1.0);
 
@@ -372,13 +371,13 @@ export function getHexPlanetShaders() {
         float mountainPersistence = 0.45;
         float mountainLacunarity = 2.2;
         float mountainScale = 14.0;
-        if (uPlanetType == 2) { mountainPersistence = 0.3; mountainLacunarity = 2.0; mountainScale = 4.0; } 
+        if (uPlanetType == 2) { mountainPersistence = 0.3; mountainLacunarity = 2.0; mountainScale = 4.0; }
         else if (uPlanetType == 1) { mountainPersistence = 0.55; mountainLacunarity = 2.5; mountainScale = 12.0; }
 
 		float continentShape = (layeredNoise(noiseInputPosition, uContinentSeed, 6, 0.5, 2.0, 1.5) + 1.0) * 0.5;
 		float mountainNoise_01 = (layeredNoise(noiseInputPosition, uContinentSeed * 2.0, 7, mountainPersistence, mountainLacunarity, mountainScale) + 1.0) * 0.5;
 		float islandNoise_01 = (layeredNoise(noiseInputPosition, uContinentSeed * 3.0, 8, 0.5, 2.5, 18.0) + 1.0) * 0.5;
-		
+
 		float continentMask = smoothstep(0.49, 0.51, continentShape);
 		float oceanMask = 1.0 - continentMask;
 
@@ -413,7 +412,7 @@ export function getHexPlanetShaders() {
     uniform float uContinentSeed;
     uniform float uForestDensity;
     uniform float uSphereRadius;
-    uniform bool uShowStrokes; 
+    uniform bool uShowStrokes;
     uniform int uPlanetType;
 
     varying vec3 vNormal;
@@ -500,7 +499,7 @@ export function getHexPlanetShaders() {
 
                 if (landRatio > BEACH_END && landRatio < SNOW_START) {
                     float forestNoise = valueNoise((vWorldPosition / uSphereRadius) * 25.0, uContinentSeed * 4.0);
-                    float forestMask = smoothstep(1.0 - uForestDensity, 1.0 - uForestDensity + 0.1, forestNoise);
+                    float forestMask = smoothstep(1.0 - uForestDensity, 1.0 - uForestDensity + 0.1, forestMask);
                     biomeColor = mix(biomeColor, forestColor, forestMask);
                 }
                 if (vRiverValue > 0.1) biomeColor = mix(biomeColor, waterColor * 0.9, vRiverValue);
@@ -515,7 +514,7 @@ export function getHexPlanetShaders() {
         } else {
             finalColor = biomeColor;
         }
-        
+
         vec3 viewDirection = normalize(cameraPosition - vWorldPosition);
         gl_FragColor = vec4(calculateLighting(finalColor, vNormal, viewDirection), 1.0);
 

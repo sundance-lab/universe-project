@@ -1,7 +1,3 @@
-/*
-File: sundance-lab/universe-project/universe-project-b044ce4d52b6181af39f9a6378ca10b19a7c04d4/public/js/solarSystemRenderer.js
-*/
-
 import * as THREE from 'three';
 import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls.js';
 import { getPlanetShaders, getHexPlanetShaders } from './shaders.js';
@@ -9,7 +5,6 @@ import { Line2 } from 'three/examples/jsm/lines/Line2.js';
 import { LineMaterial } from 'three/examples/jsm/lines/LineMaterial.js';
 import { LineGeometry } from 'three/examples/jsm/lines/LineGeometry.js';
 
-// --- Sun Creation Logic ---
 const LOD_LEVELS = {
     ULTRA_CLOSE: { distance: 150, segments: 1024, noiseDetail: 12.0, textureDetail: 12.0 },
     CLOSE: { distance: 300, segments: 512, noiseDetail: 4.0, textureDetail: 4.0 },
@@ -167,13 +162,11 @@ export const SolarSystemRenderer = (() => {
         const planetData = planetLOD.userData;
         if (!planetData.landingLocations) return;
     
-        // --- CUSTOM ICONS STEP 2: Load Textures (add this part) ---
         const textureLoader = new THREE.TextureLoader();
         const iconTextureMap = {
-            'City': textureLoader.load('./assets/icons/city.png'),
-            'Mine': textureLoader.load('./assets/icons/mine.png'),
-            // Add other types and their paths
-            'Default': _createLandingSiteTexture() // Fallback
+            'City': textureLoader.load('/assets/icons/city.png'),
+            'Mine': textureLoader.load('/assets/icons/mine.png'),
+            'Default': _createLandingSiteTexture()
         };
         Object.values(iconTextureMap).forEach(tex => createdTextures.push(tex));
 
@@ -181,11 +174,10 @@ export const SolarSystemRenderer = (() => {
 
         planetData.landingLocations.forEach(location => {
             
-            // --- CUSTOM ICONS STEP 3: Apply the correct texture ---
             let iconTexture = iconTextureMap[location.type] || iconTextureMap['Default'];
             
             const material = new THREE.SpriteMaterial({
-                map: iconTexture, // Replace with iconTexture variable from Step 3
+                map: iconTexture,
                 color: 0x00ff80,
                 transparent: true,
                 opacity: 0,
@@ -194,7 +186,7 @@ export const SolarSystemRenderer = (() => {
             });
     
             const sprite = new THREE.Sprite(material);
-            sprite.renderOrder = 1; // Draw after planets
+            sprite.renderOrder = 1;
             sprite.userData = { ...location, planetId: planetData.id };
             sprite.visible = false; 
             landingSiteIcons.push(sprite);
@@ -225,7 +217,6 @@ export const SolarSystemRenderer = (() => {
                 icon.visible = true;
                 icon.material.opacity = 1.0;
                 
-                // Scale is now relative to the planet's radius, adjusted by the dev slider
                 const scale = planetRadius * moduleState.landingIconSizeMultiplier;
                 icon.scale.set(scale, scale, 1.0);
     
@@ -734,11 +725,9 @@ export const SolarSystemRenderer = (() => {
     }
 
     function _createOrbitLine(planet) {
-        // Provide default values in case they are missing from saved data
         const a = planet.semiMajorAxis ?? 10000; 
         const e_raw = planet.orbitalEccentricity ?? 0.1;
 
-        // Clamp eccentricity to a value slightly less than 1 to prevent Math.sqrt(negative)
         const e = Math.min(e_raw, 0.999);
         const b = a * Math.sqrt(1 - e * e);
         const focusOffset = a * e;

@@ -251,25 +251,17 @@ export const PlanetDesigner = (() => {
         }
     }
 
-    function _handleExploreButtonClick(fromSolarSystem = false) {
+    function _handleExploreButtonClick() {
+        // Deactivate the current designer view to show the hex view
         const planetScreen = document.getElementById('planet-designer-screen');
-        const hexScreen = document.getElementById('hex-planet-screen');
+        planetScreen.classList.remove('active');
 
+        // The HexPlanetViewController will handle activating its own screen.
+        // We provide a callback for what to do when the hex view is closed.
         HexPlanetViewController.activate(currentDesignerBasis, () => {
-            if (fromSolarSystem) {
-                if (window.switchToSolarSystemView) {
-                    window.switchToSolarSystemView();
-                }
-            } else {
-                planetScreen.classList.add('active');
-                hexScreen.classList.remove('active');
-            }
+            // When returning from hex view, reactivate the designer screen
+            planetScreen.classList.add('active');
         });
-
-        if (!fromSolarSystem) {
-            planetScreen.classList.remove('active');
-        }
-        hexScreen.classList.add('active');
     }
 
     function _deleteCustomPlanetDesign(designId) {
@@ -339,7 +331,7 @@ export const PlanetDesigner = (() => {
 
             handleControlChangeRef = (e) => _handleControlChange(e);
             randomizeDesignerPlanetRef = () => _randomizeDesignerPlanet();
-            handleExploreButtonClickRef = () => _handleExploreButtonClick(false);
+            handleExploreButtonClickRef = () => _handleExploreButtonClick();
             saveCustomPlanetDesignRef = () => _saveCustomPlanetDesign();
             cancelDesignerRef = () => PlanetDesigner.deactivate();
             savedDesignsClickHandlerRef = (e) => {

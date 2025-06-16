@@ -31,10 +31,10 @@ export const PlayerController = (() => {
             const acceleration = { x: 0, y: 0 };
 
             if (keyState['KeyW'] || keyState['ArrowUp']) {
-                acceleration.y = -1; // Move toward top of screen (negative Z)
+                acceleration.y = 1;
             }
             if (keyState['KeyS'] || keyState['ArrowDown']) {
-                acceleration.y = 1;  // Move toward bottom of screen (positive Z)
+                acceleration.y = -1;
             }
             if (keyState['KeyA'] || keyState['ArrowLeft']) {
                 acceleration.x = -1;
@@ -51,9 +51,9 @@ export const PlayerController = (() => {
             player.velocity.x *= player.damping;
             player.velocity.y *= player.damping;
 
-            // Update position (FIX: Use deltaTime for frame-rate independence)
-            player.position.x += player.velocity.x * deltaTime;
-            player.position.y += player.velocity.y * deltaTime;
+            // Update position
+            player.position.x += player.velocity.x;
+            player.position.y += player.velocity.y;
         },
 
         dispose: () => {

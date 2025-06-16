@@ -415,6 +415,7 @@ export function getHexPlanetShaders() {
     uniform float uSphereRadius;
     uniform bool uShowStrokes; 
     uniform int uPlanetType;
+    uniform vec3 uLightDirection;
 
     varying vec3 vNormal;
     varying float vElevation;
@@ -430,7 +431,7 @@ export function getHexPlanetShaders() {
         float diffuseStrength = 0.7;
         float specularStrength = 0.3;
         float shininess = 16.0;
-        vec3 lightDirection = normalize(vec3(0.8, 0.6, 1.0));
+        vec3 lightDirection = normalize(uLightDirection);
         vec3 ambient = ambientStrength * lightColor;
         vec3 norm = normalize(normalVec);
         float diff = max(dot(norm, lightDirection), 0.0);

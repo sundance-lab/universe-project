@@ -64,7 +64,6 @@ export const SurfaceRenderer = (() => {
 
         // --- Player Character ---
         const playerGeometry = new THREE.CapsuleGeometry(4, 8, 4, 16);
-        // FIX: Use MeshBasicMaterial to ensure visibility regardless of lighting
         const playerMaterial = new THREE.MeshBasicMaterial({ color: 0xffff00 });
         playerMesh = new THREE.Mesh(playerGeometry, playerMaterial);
         playerMesh.castShadow = true;
@@ -109,7 +108,6 @@ export const SurfaceRenderer = (() => {
     function _updateCamera() {
         camera.position.x = playerMesh.position.x;
         camera.position.z = playerMesh.position.z;
-        // FIX: Ensure the camera continues to look at the player's XZ plane
         camera.lookAt(playerMesh.position.x, 0, playerMesh.position.z);
         
         sunLight.position.set(playerMesh.position.x + 100, playerMesh.position.y + 300, playerMesh.position.z + 100);

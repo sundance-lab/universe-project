@@ -246,7 +246,8 @@ export const UIManager = (() => {
             const activeSystem = GameStateManager.getActiveSolarSystem();
             const activePlanet = activeSystem?.planets.find(p => p.id === locationData.planetId);
             if (activePlanet) {
-                switchToSurfaceView(activePlanet);
+                // FIX: Pass the location data to the surface view
+                switchToSurfaceView(activePlanet, locationData);
             }
             landingConfirmationPanel.classList.remove('visible');
             cleanupHandlers();
@@ -268,13 +269,14 @@ export const UIManager = (() => {
         landingConfirmationPanel.classList.add('visible');
     }
 
-    function switchToSurfaceView(planetData) {
+    // FIX: Accept location data to pass to the renderer
+    function switchToSurfaceView(planetData, locationData) {
         if (window.activeSolarSystemRenderer) {
             window.activeSolarSystemRenderer.dispose();
             window.activeSolarSystemRenderer = null;
         }
         setActiveScreen(elements.surfaceScreen);
-        SurfaceRenderer.init(elements.surfaceCanvas, planetData);
+        SurfaceRenderer.init(elements.surfaceCanvas, planetData, locationData);
     }
 
    function _onSolarSystemCanvasClick(event) {

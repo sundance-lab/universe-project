@@ -257,7 +257,6 @@ export const PlanetDesigner = (() => {
 
         HexPlanetViewController.activate(currentDesignerBasis, () => {
             if (fromSolarSystem) {
-                // This case is for future expansion if you can explore from the solar system view
                 if (window.switchToSolarSystemView) {
                     window.switchToSolarSystemView();
                 }

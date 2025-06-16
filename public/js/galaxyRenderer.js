@@ -14,7 +14,7 @@ export const GalaxyRenderer = (() => {
     let onSystemClickCallback = null;
     let createdTextures = [];
     let _currentGalaxyData = null;
-    let resizeObserver = null; 
+    let resizeObserver = null;
 
     // --- CONFIGURATION PARAMETERS ---
     let GALAXY_CONFIG = {
@@ -73,7 +73,7 @@ export const GalaxyRenderer = (() => {
             CONTROLS_MIN_DISTANCE: 100,
             CONTROLS_MAX_DISTANCE_MULTIPLIER: 4,
             RAYCASTER_THRESHOLD: 20,
-            ROTATION_SPEED: 0.0001, 
+            ROTATION_SPEED: 0.0001,
         },
         COLORS: {
             STAR_TEXTURE_COLOR: 'rgba(224,140,62,1)',
@@ -596,12 +596,12 @@ export const GalaxyRenderer = (() => {
 
  function _dispose() {
         if (animationFrameId) cancelAnimationFrame(animationFrameId);
-        
+
         if (resizeObserver) {
             resizeObserver.disconnect();
             resizeObserver = null;
         }
-        
+
         if (renderer) renderer.domElement.removeEventListener('click', _onCanvasClick);
 
         if (controls) controls.dispose();
@@ -633,7 +633,7 @@ export const GalaxyRenderer = (() => {
         }
 
         if (renderer) {
-            
+
             renderer.dispose();
             if (renderer.domElement && renderer.domElement.parentNode) {
                  renderer.domElement.parentNode.removeChild(renderer.domElement);
@@ -649,14 +649,14 @@ export const GalaxyRenderer = (() => {
             _dispose();
             onSystemClickCallback = callback;
             _currentGalaxyData = galaxyData;
-            
+
             resizeObserver = new ResizeObserver(() => {
                 _onResize();
             });
             if (container) {
                 resizeObserver.observe(container);
             }
-            
+
             _initScene(container, galaxyData);
             _animate();
         },

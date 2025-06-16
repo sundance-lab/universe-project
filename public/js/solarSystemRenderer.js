@@ -57,6 +57,7 @@ function _createSunMaterial(variation, finalSize, lodLevel) {
 let createdTextures = [];
 function _createAndCacheTexture(creationFunction) {
     const texture = creationFunction();
+    texture.flipY = false;
     createdTextures.push(texture);
     return texture;
 }
@@ -166,12 +167,25 @@ export const SolarSystemRenderer = (() => {
         const planetData = planetLOD.userData;
         if (!planetData.landingLocations) return;
     
+        // --- CUSTOM ICONS STEP 2: Load Textures (add this part) ---
+        // const textureLoader = new THREE.TextureLoader();
+        // const iconTextureMap = {
+        //     'City': textureLoader.load('./assets/icons/city.png'),
+        //     'Mine': textureLoader.load('./assets/icons/mine.png'),
+        //     // Add other types and their paths
+        //     'Default': _createLandingSiteTexture() // Fallback
+        // };
+        // Object.values(iconTextureMap).forEach(tex => createdTextures.push(tex));
+
         const defaultIconTexture = _createLandingSiteTexture();
 
         planetData.landingLocations.forEach(location => {
             
+            // --- CUSTOM ICONS STEP 3: Apply the correct texture ---
+            // let iconTexture = iconTextureMap[location.type] || iconTextureMap['Default'];
+            
             const material = new THREE.SpriteMaterial({
-                map: defaultIconTexture, 
+                map: defaultIconTexture, // Replace with iconTexture variable from Step 3
                 color: 0x00ff80,
                 transparent: true,
                 opacity: 0,
@@ -180,7 +194,7 @@ export const SolarSystemRenderer = (() => {
             });
     
             const sprite = new THREE.Sprite(material);
-            sprite.renderOrder = 1; 
+            sprite.renderOrder = 1; // Draw after planets
             sprite.userData = { ...location, planetId: planetData.id };
             sprite.visible = false; 
             landingSiteIcons.push(sprite);
@@ -211,6 +225,7 @@ export const SolarSystemRenderer = (() => {
                 icon.visible = true;
                 icon.material.opacity = 1.0;
                 
+                // Scale is now relative to the planet's radius, adjusted by the dev slider
                 const scale = planetRadius * moduleState.landingIconSizeMultiplier;
                 icon.scale.set(scale, scale, 1.0);
     
@@ -674,8 +689,7 @@ export const SolarSystemRenderer = (() => {
         _createDistantStars();
         _createDistantGalaxies();
 
-        // FIX: Enable logarithmicDepthBuffer to match the shaders
-        renderer = new THREE.WebGLRenderer({ antialias: true, alpha: false, logarithmicDepthBuffer: true });
+        renderer = new THREE.WebGLRenderer({ antialias: true, alpha: false, logarithmicDepthBuffer: false });
         renderer.setPixelRatio(window.devicePixelRatio);
         renderer.setSize(container.offsetWidth, container.offsetHeight);
         container.appendChild(renderer.domElement);
@@ -721,9 +735,11 @@ export const SolarSystemRenderer = (() => {
     }
 
     function _createOrbitLine(planet) {
+        // Provide default values in case they are missing from saved data
         const a = planet.semiMajorAxis ?? 10000; 
         const e_raw = planet.orbitalEccentricity ?? 0.1;
 
+        // Clamp eccentricity to a value slightly less than 1 to prevent Math.sqrt(negative)
         const e = Math.min(e_raw, 0.999);
         const b = a * Math.sqrt(1 - e * e);
         const focusOffset = a * e;

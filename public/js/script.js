@@ -121,10 +121,10 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     function loadDevSettings() {
-        const defaults = { 
-            minPlanets: 2, 
-            maxPlanets: 8, 
-            orbitLinesVisible: false, 
+        const defaults = {
+            minPlanets: 2,
+            maxPlanets: 8,
+            orbitLinesVisible: false,
             orbitSpeed: 9.0,
             shipSpeed: 7500,
             landingIconSize: 0.25
@@ -156,7 +156,7 @@ document.addEventListener('DOMContentLoaded', () => {
             landingIconSize: parseFloat(domElements.devLandingIconSizeInput.value)
         };
         localStorage.setItem(DEV_SETTINGS_KEY, JSON.stringify(devSettings));
-        
+
         domElements.devPanelModal.classList.remove('visible');
 
         if (needsRegen) {
@@ -210,7 +210,7 @@ document.addEventListener('DOMContentLoaded', () => {
         // Dev Panel Listeners
         domElements.devPanelCancelButton.addEventListener('click', () => domElements.devPanelModal.classList.remove('visible'));
         domElements.devPanelSaveButton.addEventListener('click', saveDevSettings);
-        
+
         domElements.devOrbitSpeedInput.addEventListener('input', (e) => {
             domElements.devOrbitSpeedValue.textContent = Number(e.target.value).toFixed(1);
         });
@@ -242,39 +242,41 @@ document.addEventListener('DOMContentLoaded', () => {
     function generatePlanetsForSystem(solarSystemObject){
         const sunType = solarSystemObject.sunType;
         const variation = sunVariations[sunType % sunVariations.length];
-        const baseSize = sizeTiers[variation.sizeCategory].size;
-        
-        const sunRadius = baseSize * 2.0; 
-        
+        const sunBaseSize = sizeTiers[variation.sizeCategory].size;
+        const sunFinalSize = sunBaseSize * (0.5 + Math.random() * 1.5); // From solarSystemRenderer
+
         solarSystemObject.planets = [];
-        const numPlanets = Math.floor(Math.random() * (devSettings.maxPlanets - devSettings.minPlanets + 1)) + devSettings.minPlanets;
-        
+        const minPlanets = Math.max(1, devSettings.minPlanets);
+        const maxPlanets = Math.max(minPlanets, devSettings.maxPlanets);
+        const numPlanets = Math.floor(Math.random() * (maxPlanets - minPlanets + 1)) + minPlanets;
+
         const shuffledNames = [...planetNames].sort(() => 0.5 - Math.random());
 
         const MIN_ORBITAL_SEPARATION = 2000;
-        const MIN_PLANET_DISTANCE = sunRadius * 1.5;
-        let lastOrbitalRadius = MIN_PLANET_DISTANCE;
+        const MIN_PLANET_DISTANCE_FROM_SUN_SURFACE = 5000;
+        let lastOrbitalRadius = sunFinalSize + MIN_PLANET_DISTANCE_FROM_SUN_SURFACE;
 
         for (let i = 0; i < numPlanets; i++) {
             const planetData = generatePlanetInstanceFromBasis({});
-            
+
             let separation;
+            // Introduce a chance for a large gap, like an asteroid belt
             if (i > 0 && Math.random() < 0.20) {
                 separation = 60000 + Math.random() * 80000;
             } else {
                 separation = MIN_ORBITAL_SEPARATION + (Math.random() * Math.random()) * 55000;
             }
-            
+
             const semiMajorAxis = lastOrbitalRadius + separation;
             const planetName = shuffledNames[i] || `Planet ${i + 1}`;
-            
+
             let eccentricity = Math.pow(Math.random(), 2) * 0.4;
-            if (Math.random() < 0.1) {
+            if (Math.random() < 0.1) { // 10% chance of a highly eccentric orbit
                 eccentricity = 0.4 + Math.random() * 0.3;
             }
 
-            let inclination = Math.random() * 0.1;
-            if (Math.random() < 0.1) {
+            let inclination = Math.random() * 0.1; // Most planets on a similar plane
+            if (Math.random() < 0.1) { // 10% chance of a highly inclined orbit
                 inclination = Math.random() * Math.PI;
             }
 
@@ -297,7 +299,7 @@ document.addEventListener('DOMContentLoaded', () => {
         }
         GameStateManager.saveGameState();
     }
-    
+
     async function initializeGame(isForcedRegeneration = false) {
         console.log("Initializing game...");
         loadDevSettings();
@@ -315,9 +317,9 @@ document.addEventListener('DOMContentLoaded', () => {
             generateGalaxies(state);
             GameStateManager.saveGameState();
         }
-        
+
         await preGenerateAllGalaxyContents(GameStateManager.getState(), domElements.galaxyDetailScreen, { min: 80, max: 120 });
-        
+
         if (!galaxyToLoadId && GameStateManager.getGalaxies().length > 0) {
             galaxyToLoadId = GameStateManager.getGalaxies()[0].id;
         }
@@ -329,11 +331,11 @@ document.addEventListener('DOMContentLoaded', () => {
         } else {
             console.error("No galaxy found to load. Cannot start game.");
         }
-        
+
         GameStateManager.setInitialized(true);
         console.log("Game initialization complete.");
     }
-    
+
     const callbacks = {
         saveGameState: () => GameStateManager.saveGameState(),
         regenerateUniverseState: () => regenerateCurrentUniverseState(
@@ -346,8 +348,11 @@ document.addEventListener('DOMContentLoaded', () => {
             const state = GameStateManager.getState();
             if (state.activeSolarSystemId) {
                 onBack = () => window.switchToSolarSystemView(state.activeSolarSystemId);
-            } else {
+            } else if (state.activeGalaxyId) {
                 onBack = () => window.switchToGalaxyDetailView(state.activeGalaxyId);
+            } else {
+                // Fallback if no active context
+                onBack = () => initializeGame(true);
             }
 
             UIManager.setActiveScreen(domElements.planetDesignerScreen);
@@ -371,7 +376,7 @@ document.addEventListener('DOMContentLoaded', () => {
     };
 
     UIManager.init(domElements, callbacks);
-    
+
     // --- STARTUP ---
     initializeModules();
     setupActionListeners();

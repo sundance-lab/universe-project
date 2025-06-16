@@ -1,8 +1,5 @@
 // public/js/noise.js
 
-// This file contains JavaScript versions of the GLSL noise functions
-// from shaders.js, allowing us to calculate terrain elevation on the CPU.
-
 function random(st) {
     const x = Math.sin(st[0] * 12.9898 + st[1] * 78.233) * 43758.5453123;
     return x - Math.floor(x);

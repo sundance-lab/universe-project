@@ -1,7 +1,3 @@
-// public/js/shaders.js
-
-// --- Reusable GLSL Noise Functions ---
-
 const glslRandom2to1 = `
 float random(vec2 st) {
  return fract(sin(dot(st.xy, vec2(12.9898, 78.233))) * 43758.5453123);
@@ -9,11 +5,10 @@ float random(vec2 st) {
 `;
 
 const glslSimpleValueNoise3D = `
-// Depends on: glslRandom2to1
 float valueNoise(vec3 p, float seed) {
  vec3 i = floor(p + seed * 0.123);
  vec3 f = fract(p + seed * 0.123);
- f = f * f * (3.0 - 2.0 * f); // Smoothstep interpolation
+ f = f * f * (3.0 - 2.0 * f);
  float c000 = random(i.xy + i.z * 0.37);
  float c100 = random(i.xy + vec2(1.0, 0.0) + i.z * 0.37);
  float c010 = random(i.xy + vec2(0.0, 1.0) + i.z * 0.37);
@@ -33,7 +28,6 @@ float valueNoise(vec3 p, float seed) {
 `;
 
 const glslLayeredNoise = `
-// Depends on: valueNoise
 float layeredNoise(vec3 p, float seed, int octaves, float persistence, float lacunarity, float scale) {
  float total = 0.0;
  float frequency = scale;
@@ -51,7 +45,6 @@ float layeredNoise(vec3 p, float seed, int octaves, float persistence, float lac
 `;
 
 const glslRidgedRiverNoise = `
-// Depends on: layeredNoise
 float ridgedRiverNoise(vec3 p, float seed) {
  float n = layeredNoise(p, seed, 6, 0.5, 2.0, 1.0);
  return pow(1.0 - abs(n), 3.0); 
@@ -59,6 +52,112 @@ float ridgedRiverNoise(vec3 p, float seed) {
 `;
 
 const noiseFunctions = glslRandom2to1 + glslSimpleValueNoise3D + glslLayeredNoise + glslRidgedRiverNoise;
+
+const glslLightingFunction = `
+vec3 calculateLighting(vec3 surfaceColor, vec3 normalVec, vec3 viewDir, vec3 lightDir) {
+    vec3 lightColor = vec3(1.0, 1.0, 0.95);
+    float ambientStrength = 0.25;
+    float diffuseStrength = 0.7;
+    float specularStrength = 0.3;
+    float shininess = 16.0;
+
+    vec3 ambient = ambientStrength * lightColor;
+    vec3 norm = normalize(normalVec);
+    float diff = max(dot(norm, lightDir), 0.0);
+    vec3 diffuse = diffuseStrength * diff * lightColor;
+    vec3 reflectDir = reflect(-lightDir, norm);
+    float spec = pow(max(dot(viewDir, reflectDir), 0.0), shininess);
+    vec3 specular = specularStrength * spec * lightColor;
+    return (ambient + diffuse + specular) * surfaceColor;
+}
+`;
+
+const glslBiomeColorLogic = `
+vec3 getBiomeColor(float elevation, float oceanHeightLevel, int planetType, vec3 landColor, vec3 waterColor, float riverValue, float forestDensity, float continentSeed, vec3 worldPosition) {
+    vec3 finalColor;
+    float landMassRange = 1.0 - oceanHeightLevel;
+    float landRatio = max(0.0, (elevation - oceanHeightLevel) / landMassRange);
+
+    if (planetType == 1) { // Volcanic
+        vec3 lavaColor = vec3(1.0, 0.3, 0.0);
+        vec3 rockColor = vec3(0.1, 0.1, 0.15);
+        vec3 ashColor = vec3(0.3, 0.3, 0.3);
+        
+        if (elevation < oceanHeightLevel) {
+            finalColor = mix(rockColor * 0.8, lavaColor, smoothstep(oceanHeightLevel - 0.1, oceanHeightLevel, elevation));
+        } else {
+            if (landRatio < 0.6) {
+                finalColor = mix(rockColor, ashColor, landRatio / 0.6);
+            } else {
+                finalColor = mix(ashColor, rockColor * 1.5, (landRatio - 0.6) / 0.4);
+            }
+        }
+        if (riverValue > 0.1) {
+            finalColor = mix(finalColor, lavaColor, riverValue * 2.0);
+        }
+    } else if (planetType == 2) { // Icy
+        vec3 iceColor = vec3(0.9, 0.95, 1.0);
+        vec3 deepIceColor = vec3(0.4, 0.6, 1.0);
+        vec3 snowColor = vec3(1.0, 1.0, 1.0);
+
+        if (elevation < oceanHeightLevel) {
+            finalColor = deepIceColor;
+        } else {
+            finalColor = mix(iceColor, snowColor, landRatio);
+        }
+        if (riverValue > 0.1) {
+            finalColor = mix(finalColor, deepIceColor * 0.9, riverValue);
+        }
+    } else if (planetType == 3) { // Desert
+        vec3 sandColor = vec3(0.85, 0.7, 0.45);
+        vec3 rockColor = vec3(0.5, 0.3, 0.2);
+        vec3 dryPlainsColor = vec3(0.6, 0.5, 0.3);
+
+        if (elevation < oceanHeightLevel) {
+            finalColor = rockColor * 0.8;
+        } else {
+            if (landRatio < 0.5) {
+                finalColor = mix(dryPlainsColor, sandColor, landRatio / 0.5);
+            } else {
+                finalColor = mix(sandColor, rockColor, (landRatio - 0.5) / 0.5);
+            }
+        }
+        if (riverValue > 0.1) {
+            vec3 canyonColor = rockColor * 0.5;
+            finalColor = mix(finalColor, canyonColor, riverValue);
+        }
+    } else { // Terran (Default)
+        vec3 beachColor = landColor * 1.1 + vec3(0.1, 0.1, 0.0);
+        vec3 plainsColor = landColor;
+        vec3 forestColor = landColor * 0.65;
+        vec3 mountainColor = landColor * 0.9 + vec3(0.05);
+        vec3 snowColor = vec3(0.9, 0.9, 1.0);
+
+        if (elevation < oceanHeightLevel) {
+            finalColor = waterColor;
+        } else {
+            const float BEACH_END = 0.02; const float PLAINS_END = 0.40;
+            const float MOUNTAIN_START = 0.60; const float SNOW_START = 0.85;
+            if (landRatio < BEACH_END) finalColor = mix(plainsColor, beachColor, smoothstep(BEACH_END, 0.0, landRatio));
+            else if (landRatio < PLAINS_END) finalColor = plainsColor;
+            else if (landRatio < MOUNTAIN_START) finalColor = mix(plainsColor, mountainColor, smoothstep(PLAINS_END, MOUNTAIN_START, landRatio));
+            else if (landRatio < SNOW_START) finalColor = mountainColor;
+            else finalColor = mix(mountainColor, snowColor, smoothstep(SNOW_START, 1.0, landRatio));
+            
+            if (landRatio > BEACH_END && landRatio < SNOW_START) {
+                float forestNoise = valueNoise(worldPosition * 25.0, continentSeed * 4.0);
+                float forestMask = smoothstep(1.0 - forestDensity, 1.0 - forestDensity + 0.1, forestNoise);
+                finalColor = mix(finalColor, forestColor, forestMask);
+            }
+            
+            if (riverValue > 0.1) {
+                finalColor = mix(finalColor, waterColor * 0.9, riverValue);
+            }
+        }
+    }
+    return finalColor;
+}
+`;
 
 export function getTerrainShaders() {
     const vertexShader = `
@@ -87,7 +186,6 @@ export function getTerrainShaders() {
             pos.y = elevation;
             vElevation = elevation;
 
-            // Calculate normals by sampling the height of neighboring points
             float offset = 1.0;
             float elev_x = getElevation(pos.xz + vec2(offset, 0.0));
             float elev_z = getElevation(pos.xz + vec2(0.0, offset));
@@ -123,9 +221,9 @@ export function getTerrainShaders() {
             if (vElevation < waterLevel) {
                 float foamLine = smoothstep(waterLevel - 2.0, waterLevel, vElevation);
                 vec3 waterColor = mix(vec3(0.1, 0.2, 0.5), vec3(0.2, 0.4, 0.7), 1.0 - foamLine);
-                biomeColor = mix(waterColor, vec3(1.0, 1.0, 1.0), foamLine * 0.5); // Foam
+                biomeColor = mix(waterColor, vec3(1.0, 1.0, 1.0), foamLine * 0.5);
             } else if (vElevation < beachLevel) {
-                biomeColor = vec3(0.76, 0.7, 0.5); // Sand
+                biomeColor = vec3(0.76, 0.7, 0.5);
             } else if (vElevation < grassLevel) {
                 float noise1 = random(vUv * 800.0);
                 float noise2 = random(vUv * 200.0);
@@ -134,12 +232,11 @@ export function getTerrainShaders() {
                 biomeColor = mix(grassColor1, grassColor2, noise1 * 0.7 + noise2 * 0.3);
             } else if (vElevation < rockLevel) {
                 float rockNoise = random(vUv * 150.0);
-                biomeColor = mix(vec3(0.4), vec3(0.55), rockNoise); // Rock
+                biomeColor = mix(vec3(0.4), vec3(0.55), rockNoise);
             } else {
-                biomeColor = vec3(1.0, 1.0, 1.0); // Snow
+                biomeColor = vec3(1.0, 1.0, 1.0);
             }
             
-            // Apply lighting, making shadows slightly blue
             vec3 finalColor = biomeColor * (light * 0.7 + 0.3);
             finalColor = mix(finalColor * 0.8 + vec3(0.0, 0.0, 0.1), finalColor, light);
 
@@ -175,11 +272,11 @@ export function getPlanetShaders() {
             float mountainPersistence = 0.45;
             float mountainLacunarity = 2.2;
             float mountainScale = 8.0;
-            if (uPlanetType == 2) { // Icy Planet
+            if (uPlanetType == 2) {
                 mountainPersistence = 0.3;
                 mountainLacunarity = 2.0;
                 mountainScale = 4.0;
-            } else if (uPlanetType == 1) { // Volcanic Planet
+            } else if (uPlanetType == 1) {
                 mountainPersistence = 0.55;
                 mountainLacunarity = 2.5;
                 mountainScale = 12.0;
@@ -228,111 +325,15 @@ export function getPlanetShaders() {
         varying float vRiverValue;
 
         ${noiseFunctions}
-
-        vec3 calculateLighting(vec3 surfaceColor, vec3 normalVec, vec3 viewDir) {
-            vec3 lightColor = vec3(1.0, 1.0, 0.95);
-            float ambientStrength = 0.25;
-            float diffuseStrength = 0.7;
-            float specularStrength = 0.3;
-            float shininess = 16.0;
-            vec3 lightDirection = normalize(uLightDirection);
-
-            vec3 ambient = ambientStrength * lightColor;
-            vec3 norm = normalize(normalVec);
-            float diff = max(dot(norm, lightDirection), 0.0);
-            vec3 diffuse = diffuseStrength * diff * lightColor;
-            vec3 reflectDir = reflect(-lightDirection, norm);
-            float spec = pow(max(dot(viewDir, reflectDir), 0.0), shininess);
-            vec3 specular = specularStrength * spec * lightColor;
-            return (ambient + diffuse + specular) * surfaceColor;
-        }
+        ${glslLightingFunction}
+        ${glslBiomeColorLogic}
 
         void main() {
-            vec3 finalColor;
-            float landMassRange = 1.0 - uOceanHeightLevel;
-            float landRatio = max(0.0, (vElevation - uOceanHeightLevel) / landMassRange);
-
-            if (uPlanetType == 1) { // Volcanic
-                vec3 lavaColor = vec3(1.0, 0.3, 0.0);
-                vec3 rockColor = vec3(0.1, 0.1, 0.15);
-                vec3 ashColor = vec3(0.3, 0.3, 0.3);
-                
-                if (vElevation < uOceanHeightLevel) {
-                    finalColor = mix(rockColor * 0.8, lavaColor, smoothstep(uOceanHeightLevel - 0.1, uOceanHeightLevel, vElevation));
-                } else {
-                    if (landRatio < 0.6) {
-                        finalColor = mix(rockColor, ashColor, landRatio / 0.6);
-                    } else {
-                        finalColor = mix(ashColor, rockColor * 1.5, (landRatio - 0.6) / 0.4);
-                    }
-                }
-                if (vRiverValue > 0.1) {
-                    finalColor = mix(finalColor, lavaColor, vRiverValue * 2.0);
-                }
-            } else if (uPlanetType == 2) { // Icy
-                vec3 iceColor = vec3(0.9, 0.95, 1.0);
-                vec3 deepIceColor = vec3(0.4, 0.6, 1.0);
-                vec3 snowColor = vec3(1.0, 1.0, 1.0);
-
-                if (vElevation < uOceanHeightLevel) {
-                    finalColor = deepIceColor;
-                } else {
-                    finalColor = mix(iceColor, snowColor, landRatio);
-                }
-                if (vRiverValue > 0.1) {
-                    finalColor = mix(finalColor, deepIceColor * 0.9, vRiverValue);
-                }
-            } else if (uPlanetType == 3) { // Desert
-                vec3 sandColor = vec3(0.85, 0.7, 0.45);
-                vec3 rockColor = vec3(0.5, 0.3, 0.2);
-                vec3 dryPlainsColor = vec3(0.6, 0.5, 0.3);
-
-                if (vElevation < uOceanHeightLevel) { // Oases / Canyons
-                    finalColor = rockColor * 0.8;
-                } else {
-                    if (landRatio < 0.5) {
-                        finalColor = mix(dryPlainsColor, sandColor, landRatio / 0.5);
-                    } else {
-                        finalColor = mix(sandColor, rockColor, (landRatio - 0.5) / 0.5);
-                    }
-                }
-                if (vRiverValue > 0.1) {
-                    vec3 canyonColor = rockColor * 0.5;
-                    finalColor = mix(finalColor, canyonColor, vRiverValue);
-                }
-            } else { // Terran (Default)
-                vec3 waterColor = uWaterColor;
-                vec3 beachColor = uLandColor * 1.1 + vec3(0.1, 0.1, 0.0);
-                vec3 plainsColor = uLandColor;
-                vec3 forestColor = uLandColor * 0.65;
-                vec3 mountainColor = uLandColor * 0.9 + vec3(0.05);
-                vec3 snowColor = vec3(0.9, 0.9, 1.0);
-
-                if (vElevation < uOceanHeightLevel) {
-                    finalColor = waterColor;
-                } else {
-                    const float BEACH_END = 0.02; const float PLAINS_END = 0.40;
-                    const float MOUNTAIN_START = 0.60; const float SNOW_START = 0.85;
-                    if (landRatio < BEACH_END) finalColor = mix(plainsColor, beachColor, smoothstep(BEACH_END, 0.0, landRatio));
-                    else if (landRatio < PLAINS_END) finalColor = plainsColor;
-                    else if (landRatio < MOUNTAIN_START) finalColor = mix(plainsColor, mountainColor, smoothstep(PLAINS_END, MOUNTAIN_START, landRatio));
-                    else if (landRatio < SNOW_START) finalColor = mountainColor;
-                    else finalColor = mix(mountainColor, snowColor, smoothstep(SNOW_START, 1.0, landRatio));
-                    
-                    if (landRatio > BEACH_END && landRatio < SNOW_START) {
-                        float forestNoise = valueNoise(vWorldPosition * 25.0, uContinentSeed * 4.0);
-                        float forestMask = smoothstep(1.0 - uForestDensity, 1.0 - uForestDensity + 0.1, forestNoise);
-                        finalColor = mix(finalColor, forestColor, forestMask);
-                    }
-                    
-                    if (vRiverValue > 0.1) {
-                        finalColor = mix(finalColor, waterColor * 0.9, vRiverValue);
-                    }
-                }
-            }
+            vec3 biomeColor = getBiomeColor(vElevation, uOceanHeightLevel, uPlanetType, uLandColor, uWaterColor, vRiverValue, uForestDensity, uContinentSeed, vWorldPosition);
             
             vec3 viewDirection = normalize(cameraPosition - vWorldPosition);
-            gl_FragColor = vec4(calculateLighting(finalColor, vNormal, viewDirection), 1.0);
+            vec3 lightDirection = normalize(uLightDirection);
+            gl_FragColor = vec4(calculateLighting(biomeColor, vNormal, viewDirection, lightDirection), 1.0);
 
             #include <logdepthbuf_fragment>
         }
@@ -423,23 +424,8 @@ export function getHexPlanetShaders() {
     varying vec3 vBarycentric;
 
     ${noiseFunctions}
-
-    vec3 calculateLighting(vec3 surfaceColor, vec3 normalVec, vec3 viewDir) {
-        vec3 lightColor = vec3(1.0, 1.0, 0.95);
-        float ambientStrength = 0.25;
-        float diffuseStrength = 0.7;
-        float specularStrength = 0.3;
-        float shininess = 16.0;
-        vec3 lightDirection = normalize(uLightDirection);
-        vec3 ambient = ambientStrength * lightColor;
-        vec3 norm = normalize(normalVec);
-        float diff = max(dot(norm, lightDirection), 0.0);
-        vec3 diffuse = diffuseStrength * diff * lightColor;
-        vec3 reflectDir = reflect(-lightDirection, norm);
-        float spec = pow(max(dot(viewDir, reflectDir), 0.0), shininess);
-        vec3 specular = specularStrength * spec * lightColor;
-        return (ambient + diffuse + specular) * surfaceColor;
-    }
+    ${glslLightingFunction}
+    ${glslBiomeColorLogic}
 
     float getWireframe(float width) {
         float minBary = min(vBarycentric.x, min(vBarycentric.y, vBarycentric.z));
@@ -447,66 +433,8 @@ export function getHexPlanetShaders() {
     }
 
     void main() {
-        vec3 biomeColor;
-        float landMassRange = 1.0 - uOceanHeightLevel;
-        float landRatio = max(0.0, (vElevation - uOceanHeightLevel) / landMassRange);
-
-        if (uPlanetType == 1) { // Volcanic
-            vec3 lavaColor = vec3(1.0, 0.3, 0.0);
-            vec3 rockColor = vec3(0.1, 0.1, 0.15);
-            vec3 ashColor = vec3(0.3, 0.3, 0.3);
-            if (vElevation < uOceanHeightLevel) biomeColor = mix(rockColor*0.8, lavaColor, smoothstep(uOceanHeightLevel-0.1, uOceanHeightLevel, vElevation));
-            else {
-                if (landRatio < 0.6) biomeColor = mix(rockColor, ashColor, landRatio / 0.6);
-                else biomeColor = mix(ashColor, rockColor*1.5, (landRatio - 0.6)/0.4);
-            }
-            if (vRiverValue > 0.1) biomeColor = mix(biomeColor, lavaColor, vRiverValue * 2.0);
-        } else if (uPlanetType == 2) { // Icy
-            vec3 iceColor = vec3(0.9, 0.95, 1.0);
-            vec3 deepIceColor = vec3(0.4, 0.6, 1.0);
-            vec3 snowColor = vec3(1.0, 1.0, 1.0);
-            if (vElevation < uOceanHeightLevel) biomeColor = deepIceColor;
-            else biomeColor = mix(iceColor, snowColor, landRatio);
-            if (vRiverValue > 0.1) biomeColor = mix(biomeColor, deepIceColor * 0.9, vRiverValue);
-        } else if (uPlanetType == 3) { // Desert
-            vec3 sandColor = vec3(0.85, 0.7, 0.45);
-            vec3 rockColor = vec3(0.5, 0.3, 0.2);
-            vec3 dryPlainsColor = vec3(0.6, 0.5, 0.3);
-            if (vElevation < uOceanHeightLevel) biomeColor = rockColor * 0.8;
-            else {
-                if (landRatio < 0.5) biomeColor = mix(dryPlainsColor, sandColor, landRatio / 0.5);
-                else biomeColor = mix(sandColor, rockColor, (landRatio-0.5)/0.5);
-            }
-            if (vRiverValue > 0.1) {
-                vec3 canyonColor = rockColor * 0.5;
-                biomeColor = mix(biomeColor, canyonColor, vRiverValue);
-            }
-        } else { // Terran
-            vec3 waterColor = uWaterColor;
-            vec3 beachColor = uLandColor * 1.1 + vec3(0.1, 0.1, 0.0);
-            vec3 plainsColor = uLandColor;
-            vec3 forestColor = uLandColor * 0.65;
-            vec3 mountainColor = uLandColor * 0.9 + vec3(0.05);
-            vec3 snowColor = vec3(0.9, 0.9, 1.0);
-            if (vElevation < uOceanHeightLevel) biomeColor = waterColor;
-            else {
-                const float BEACH_END = 0.02; const float PLAINS_END = 0.40;
-                const float MOUNTAIN_START = 0.60; const float SNOW_START = 0.85;
-                if (landRatio < BEACH_END) biomeColor = mix(plainsColor, beachColor, smoothstep(BEACH_END, 0.0, landRatio));
-                else if (landRatio < PLAINS_END) biomeColor = plainsColor;
-                else if (landRatio < MOUNTAIN_START) biomeColor = mix(plainsColor, mountainColor, smoothstep(PLAINS_END, MOUNTAIN_START, landRatio));
-                else if (landRatio < SNOW_START) biomeColor = mountainColor;
-                else biomeColor = mix(mountainColor, snowColor, smoothstep(SNOW_START, 1.0, landRatio));
-
-                if (landRatio > BEACH_END && landRatio < SNOW_START) {
-                    float forestNoise = valueNoise((vWorldPosition / uSphereRadius) * 25.0, uContinentSeed * 4.0);
-                    float forestMask = smoothstep(1.0 - uForestDensity, 1.0 - uForestDensity + 0.1, forestNoise);
-                    biomeColor = mix(biomeColor, forestColor, forestMask);
-                }
-                if (vRiverValue > 0.1) biomeColor = mix(biomeColor, waterColor * 0.9, vRiverValue);
-            }
-        }
-
+        vec3 biomeColor = getBiomeColor(vElevation, uOceanHeightLevel, uPlanetType, uLandColor, uWaterColor, vRiverValue, uForestDensity, uContinentSeed, vWorldPosition);
+        
         vec3 finalColor;
         if (uShowStrokes) {
             float wire = getWireframe(0.005);
@@ -517,7 +445,8 @@ export function getHexPlanetShaders() {
         }
         
         vec3 viewDirection = normalize(cameraPosition - vWorldPosition);
-        gl_FragColor = vec4(calculateLighting(finalColor, vNormal, viewDirection), 1.0);
+        vec3 lightDirection = normalize(uLightDirection);
+        gl_FragColor = vec4(calculateLighting(finalColor, vNormal, viewDirection, lightDirection), 1.0);
 
         #include <logdepthbuf_fragment>
     }

@@ -16,13 +16,13 @@ export const HexPlanetViewController = (() => {
         const positions = geometry.attributes.position.array;
         const vertexCount = positions.length / 3;
         const barycentric = new Float32Array(vertexCount * 3);
-        
+
         for (let i = 0; i < vertexCount; i += 3) {
             barycentric[i * 3] = 1; barycentric[i * 3 + 1] = 0; barycentric[i * 3 + 2] = 0;
             barycentric[(i + 1) * 3] = 0; barycentric[(i + 1) * 3 + 1] = 1; barycentric[(i + 1) * 3 + 2] = 0;
             barycentric[(i + 2) * 3] = 0; barycentric[(i + 2) * 3 + 1] = 0; barycentric[(i + 2) * 3 + 2] = 1;
         }
-        
+
         geometry.setAttribute('barycentric', new THREE.BufferAttribute(barycentric, 3));
     }
 
@@ -36,12 +36,12 @@ export const HexPlanetViewController = (() => {
         renderer = new THREE.WebGLRenderer({ canvas, antialias: true, logarithmicDepthBuffer: true });
         renderer.setSize(canvas.offsetWidth, canvas.offsetHeight);
         renderer.setPixelRatio(window.devicePixelRatio);
-      
+
    controls = new OrbitControls(camera, renderer.domElement);
 controls.enableDamping = true;
-controls.dampingFactor = 0.08;    
-controls.rotateSpeed = 1.0;     
-controls.zoomSpeed = 0.8;        
+controls.dampingFactor = 0.08;
+controls.rotateSpeed = 1.0;
+controls.zoomSpeed = 0.8;
 controls.minDistance = 1.2;
 controls.maxDistance = 40.0;
 controls.enablePan = false;
@@ -67,7 +67,7 @@ controls.maxPolarAngle = Math.PI;
                     uOceanHeightLevel: { value: 0.0 },
                     uMountainStrength: { value: 1.0 },
                     uIslandStrength: { value: 1.0 },
-                    uPlanetType: { value: planetBasis.planetType || 0 }, 
+                    uPlanetType: { value: planetBasis.planetType || 0 },
                 }
             ]),
             vertexShader,
@@ -84,17 +84,18 @@ controls.maxPolarAngle = Math.PI;
         scene.add(lod);
 
         const detailLevels = [
-            { subdivision: 256, distance: 0.0, strengths: [1.0, 1.0] },
-            // ... other levels
-            { subdivision: 6,   distance: 18.0, strengths: [1.0, 1.0] }
+            { subdivision: 256, distance: 0.0 },
+            { subdivision: 128, distance: 3.0 },
+            { subdivision: 64, distance: 6.0 },
+            { subdivision: 32, distance: 10.0 },
+            { subdivision: 16, distance: 14.0 },
+            { subdivision: 8, distance: 18.0 }
         ];
 
         detailLevels.forEach(level => {
             const geometry = new THREE.IcosahedronGeometry(SPHERE_BASE_RADIUS, level.subdivision);
             addBarycentricCoordinates(geometry);
             const materialForLevel = baseMaterial.clone();
-            materialForLevel.uniforms.uMountainStrength.value = level.strengths[0];
-            materialForLevel.uniforms.uIslandStrength.value = level.strengths[1];
             const mesh = new THREE.Mesh(geometry, materialForLevel);
             lod.addLevel(mesh, level.distance);
         });
@@ -107,7 +108,7 @@ controls.maxPolarAngle = Math.PI;
 
         animate();
     }
-        
+
     function animate(now) {
         animationId = requestAnimationFrame(animate);
         if (lod) {
@@ -164,7 +165,7 @@ controls.maxPolarAngle = Math.PI;
             renderer.setSize(width, height);
         }
     }
-    
+
     return {
         init: () => { /* ... */ },
 
@@ -180,10 +181,10 @@ controls.maxPolarAngle = Math.PI;
 
             cleanup();
             initScene(canvas, planetBasis);
-            
+
             const handleBackClick = () => {
-                cleanup(); 
-                
+                cleanup();
+
                 if (typeof onBackCallback === 'function') {
                     onBackCallback();
                 }

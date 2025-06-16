@@ -43,7 +43,7 @@ export function generatePlanetInstanceFromBasis(basis, isForDesignerPreview = fa
     const useCustomDesign = !isForDesignerPreview &&
         customDesigns && customDesigns.length > 0 &&
         Math.random() < 0.5;
-    
+
     let planetData;
 
     if (useCustomDesign) {
@@ -103,7 +103,7 @@ export function generatePlanetInstanceFromBasis(basis, isForDesignerPreview = fa
                 Math.sin(phi) * Math.sin(theta),
                 Math.cos(phi)
             ];
-            
+
             const elevation = getPlanetElevation(positionOnSphere, planetData);
 
             if (elevation > planetData.oceanHeightLevel) {
@@ -140,7 +140,7 @@ export function generateGalaxies(gameState) {
         console.warn("generateGalaxies: Universe diameter not set.");
         return;
     }
-    
+
     const newGalaxies = [];
     const galaxyId = `galaxy-1`;
 

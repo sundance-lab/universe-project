@@ -228,7 +228,7 @@ export const PlanetDesigner = (() => {
             maxTerrainHeight: maxH,
             oceanHeightLevel: _getRandomFloat(minH, maxH),
             volcanicActivity: _getRandomFloat(0.0, 1.0, 2),
-            snowCapLevel: _getRandomFloat(0.0, 1.0, 2),
+            snowCapLevel: _getRandomFloat(0.0, 0.4, 2), // Start with smaller snow caps on average
             planetType: 0
         };
 

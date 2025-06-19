@@ -1,5 +1,3 @@
-// public/js/planetDesigner.js
-
 import * as THREE from 'three';
 import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls';
 import { getPlanetShaders } from './shaders.js';
@@ -69,7 +67,7 @@ export const PlanetDesigner = (() => {
             }
         }
     }
-
+    
     function _initDesignerThreeJSView() {
         _stopAndCleanupDesignerThreeJSView();
         if (!designerPlanetCanvas) return;
@@ -86,25 +84,35 @@ export const PlanetDesigner = (() => {
         designerThreeRenderer.setSize(designerPlanetCanvas.offsetWidth, designerPlanetCanvas.offsetHeight);
         designerThreeRenderer.setPixelRatio(window.devicePixelRatio);
 
-        const geometry = new THREE.IcosahedronGeometry(SPHERE_BASE_RADIUS, 32);
+        // --- Standard Lighting ---
+        const ambientLight = new THREE.AmbientLight(0xffffff, 0.5);
+        designerThreeScene.add(ambientLight);
+        const directionalLight = new THREE.DirectionalLight(0xffffff, 0.8);
+        directionalLight.position.set(5, 5, 5);
+        designerThreeScene.add(directionalLight);
+
+        const geometry = new THREE.IcosahedronGeometry(SPHERE_BASE_RADIUS, 64); // Increased detail for designer
 
         designerShaderMaterial = new THREE.ShaderMaterial({
-            uniforms: {
-                uWaterColor: { value: new THREE.Color() },
-                uLandColor: { value: new THREE.Color() },
-                uOceanHeightLevel: { value: 0.5 },
-                uContinentSeed: { value: Math.random() },
-                uRiverBasin: { value: 0.05 },
-                uForestDensity: { value: 0.5 },
-                uTime: { value: 0.0 },
-                uSphereRadius: { value: SPHERE_BASE_RADIUS },
-                uDisplacementAmount: { value: 0.0 },
-                uPlanetType: { value: 0 },
-                uLightDirection: { value: new THREE.Vector3(0.8, 0.6, 1.0).normalize() },
-                cameraPosition: { value: designerThreeCamera.position }
-            },
-            vertexShader: vertexShader,
-            fragmentShader: fragmentShader,
+            uniforms: THREE.UniformsUtils.merge([
+                THREE.UniformsLib.common,
+                THREE.UniformsLib.lights,
+                {
+                    uLandColor: { value: new THREE.Color() },
+                    uWaterColor: { value: new THREE.Color() },
+                    uOceanHeightLevel: { value: 0.5 },
+                    uContinentSeed: { value: Math.random() },
+                    uRiverBasin: { value: 0.05 },
+                    uForestDensity: { value: 0.5 },
+                    uTime: { value: 0.0 },
+                    uSphereRadius: { value: SPHERE_BASE_RADIUS },
+                    uDisplacementAmount: { value: 0.0 },
+                    uPlanetType: { value: 0 }
+                }
+            ]),
+            vertexShader,
+            fragmentShader,
+            lights: true
         });
 
         designerThreePlanetMesh = new THREE.Mesh(geometry, designerShaderMaterial);
@@ -119,7 +127,7 @@ export const PlanetDesigner = (() => {
 
         _animateDesignerThreeJSView();
     }
-    
+
     function _animateDesignerThreeJSView() {
         if (!designerThreeRenderer) return;
         designerThreeAnimationId = requestAnimationFrame(_animateDesignerThreeJSView);
@@ -131,13 +139,16 @@ export const PlanetDesigner = (() => {
             designerThreeRenderer.render(designerThreeScene, designerThreeCamera);
         }
     }
-
+    
     function _stopAndCleanupDesignerThreeJSView() {
         if (designerThreeAnimationId) cancelAnimationFrame(designerThreeAnimationId);
         if (designerThreeControls) designerThreeControls.dispose();
-        if (designerShaderMaterial) designerShaderMaterial.dispose();
-        if (designerThreePlanetMesh?.geometry) designerThreePlanetMesh.geometry.dispose();
+        if (designerThreePlanetMesh) {
+            designerThreePlanetMesh.geometry?.dispose();
+            designerThreePlanetMesh.material?.dispose();
+        }
         if (designerThreeRenderer) designerThreeRenderer.dispose();
+        
         designerThreeAnimationId = null;
         designerThreeControls = null;
         designerShaderMaterial = null;
@@ -258,29 +269,17 @@ export const PlanetDesigner = (() => {
 
     function _saveCustomPlanetDesign() {
         const designName = `My Planet ${GameStateManager.getCustomPlanetDesigns().length + 1}`;
-
-        const newDesign = {
-            ...currentDesignerBasis,
-            designId: _generateUUID(),
-            designName: designName
-        };
-
+        const newDesign = { ...currentDesignerBasis, designId: _generateUUID(), designName: designName };
         GameStateManager.addCustomPlanetDesign(newDesign);
-        console.log(`Planet design '${designName}' saved.`);
-
         _populateSavedDesignsList();
     }
 
     function _loadAndPreviewDesign(designId) {
         const designToLoad = GameStateManager.getCustomPlanetDesigns().find(d => d.designId === designId);
         if (designToLoad) {
-            currentDesignerBasis = {
-                ...currentDesignerBasis,
-                ...designToLoad
-            };
+            currentDesignerBasis = { ...currentDesignerBasis, ...designToLoad };
             delete currentDesignerBasis.designId;
             delete currentDesignerBasis.designName;
-
             _populateDesignerInputsFromBasis();
             _refreshDesignerPreview();
         }
@@ -288,16 +287,13 @@ export const PlanetDesigner = (() => {
 
     function _deleteCustomPlanetDesign(designId) {
         GameStateManager.deleteCustomPlanetDesign(designId);
-        console.log(`Planet design with ID '${designId}' deleted.`);
         _populateSavedDesignsList();
     }
 
     function _populateSavedDesignsList() {
         if (!savedDesignsUl) return;
         savedDesignsUl.innerHTML = '';
-
         const designs = GameStateManager.getCustomPlanetDesigns();
-
         if (designs.length === 0) {
             const li = document.createElement('li');
             li.textContent = "No saved designs yet.";
@@ -306,25 +302,21 @@ export const PlanetDesigner = (() => {
             savedDesignsUl.appendChild(li);
             return;
         }
-
         designs.forEach(design => {
             const li = document.createElement('li');
             const nameSpan = document.createElement('span');
             nameSpan.className = 'design-item-name';
             nameSpan.textContent = design.designName;
-
             const buttonsDiv = document.createElement('div');
             const loadBtn = document.createElement('button');
             loadBtn.textContent = 'Load';
             loadBtn.className = 'design-item-load modal-button-apply';
             loadBtn.dataset.id = design.designId;
-
             const deleteBtn = document.createElement('button');
             deleteBtn.innerHTML = '×';
             deleteBtn.className = 'design-item-delete';
             deleteBtn.dataset.id = design.designId;
             deleteBtn.title = `Delete ${design.designName}`;
-
             buttonsDiv.appendChild(loadBtn);
             buttonsDiv.appendChild(deleteBtn);
             li.appendChild(nameSpan);
@@ -361,7 +353,6 @@ export const PlanetDesigner = (() => {
                 if (!targetButton) return;
                 const id = targetButton.dataset.id;
                 if (!id) return;
-
                 if (targetButton.classList.contains('design-item-load')) {
                     _loadAndPreviewDesign(id);
                 } else if (targetButton.classList.contains('design-item-delete')) {
@@ -373,12 +364,9 @@ export const PlanetDesigner = (() => {
 
         activate: (onBack) => {
             onBackCallback = onBack;
-            
             _addEventListeners();
-
             _populateDesignerInputsFromBasis();
             _populateSavedDesignsList();
-
             requestAnimationFrame(() => {
                 _initDesignerThreeJSView();
                 _refreshDesignerPreview();

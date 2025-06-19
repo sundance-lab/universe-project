@@ -1,3 +1,5 @@
+// public/js/shaders.js
+
 const glslRandom2to1 = `
 float random(vec2 st) {
  return fract(sin(dot(st.xy, vec2(12.9898, 78.233))) * 43758.5453123);
@@ -52,6 +54,25 @@ float ridgedRiverNoise(vec3 p, float seed) {
 `;
 
 const noiseFunctions = glslRandom2to1 + glslSimpleValueNoise3D + glslLayeredNoise + glslRidgedRiverNoise;
+
+const glslLightingFunction = `
+vec3 calculateLighting(vec3 surfaceColor, vec3 normalVec, vec3 viewDir, vec3 lightDir) {
+    vec3 lightColor = vec3(1.0, 1.0, 0.95);
+    float ambientStrength = 0.35;
+    float diffuseStrength = 0.8;
+    float specularStrength = 0.2;
+    float shininess = 16.0;
+
+    vec3 ambient = ambientStrength * lightColor;
+    vec3 norm = normalize(normalVec);
+    float diff = max(dot(norm, lightDir), 0.0);
+    vec3 diffuse = diffuseStrength * diff * lightColor;
+    vec3 reflectDir = reflect(-lightDir, norm);
+    float spec = pow(max(dot(viewDir, reflectDir), 0.0), shininess);
+    vec3 specular = specularStrength * spec * lightColor;
+    return (ambient + diffuse + specular) * surfaceColor;
+}
+`;
 
 const glslBiomeColorLogic = `
 vec3 getBiomeColor(float elevation, float oceanHeightLevel, int planetType, vec3 landColor, vec3 waterColor, float riverValue, float forestDensity, float continentSeed, vec3 worldPosition) {
@@ -141,6 +162,7 @@ vec3 getBiomeColor(float elevation, float oceanHeightLevel, int planetType, vec3
 `;
 
 export function getTerrainShaders() {
+    // This function remains unchanged as it was not part of the issue.
     const vertexShader = `
         uniform float uTime;
         uniform float uElevationMultiplier;
@@ -211,138 +233,95 @@ export function getTerrainShaders() {
     return { vertexShader, fragmentShader };
 }
 
-function getBasePlanetVertexShader() {
-    return `
-        #include <common>
-        #include <logdepthbuf_pars_vertex>
+// Rewritten base vertex shader logic used by both planets
+const basePlanetVertexShader = `
+    uniform float uContinentSeed;
+    uniform float uDisplacementAmount;
+    uniform float uRiverBasin;
+    uniform int uPlanetType;
+
+    varying vec3 vNormal;
+    varying float vElevation;
+    varying vec3 vWorldPosition;
+    varying float vRiverValue;
+
+    ${noiseFunctions}
+
+    void main() {
+        vec3 p_normalized = normalize(position);
+        vec3 noiseInputPosition = p_normalized + (uContinentSeed * 10.0);
+
+        float mountainPersistence = 0.45;
+        float mountainLacunarity = 2.2;
+        float mountainScale = 8.0;
+        if (uPlanetType == 2) { mountainPersistence = 0.3; mountainLacunarity = 2.0; mountainScale = 4.0; } 
+        else if (uPlanetType == 1) { mountainPersistence = 0.55; mountainLacunarity = 2.5; mountainScale = 12.0; }
+
+        float continentShape = (layeredNoise(noiseInputPosition, uContinentSeed, 5, 0.5, 2.0, 1.5) + 1.0) * 0.5;
+        float continentMask = smoothstep(0.49, 0.51, continentShape);
+        float riverRaw = ridgedRiverNoise(noiseInputPosition * 0.2, uContinentSeed * 5.0);
+        float riverBed = smoothstep(1.0 - uRiverBasin, 1.0, riverRaw);
+        float riverMask = smoothstep(0.50, 0.55, continentShape);
+        vRiverValue = riverBed * riverMask;
+        float mountainNoise = (layeredNoise(noiseInputPosition, uContinentSeed*2.0, 6, mountainPersistence, mountainLacunarity, mountainScale) + 1.0) * 0.5;
+        float islandNoise = (layeredNoise(noiseInputPosition, uContinentSeed * 3.0, 7, 0.5, 2.5, 18.0) + 1.0) * 0.5;
+        float oceanMask = 1.0 - continentMask;
+        float finalElevation = continentShape + (mountainNoise * continentMask * 0.3) + (islandNoise * oceanMask * 0.1);
+        finalElevation -= vRiverValue * 0.08;
+        finalElevation = finalElevation - 0.5;
+
+        vElevation = finalElevation;
+        float displacement = vElevation * uDisplacementAmount;
+        vec3 displacedPosition = position + p_normalized * displacement;
         
-        uniform float uContinentSeed;
-        uniform float uSphereRadius;
-        uniform float uDisplacementAmount;
-        uniform float uRiverBasin;
-        uniform int uPlanetType;
-
-        varying float vElevation;
-        varying vec3 vWorldPosition;
-        varying float vRiverValue;
-        varying vec3 vNormal; // Use the standard varying name for normals
-
-        ${noiseFunctions}
-
-        void main() {
-            vec3 p_normalized = normalize(position);
-            vec3 noiseInputPosition = p_normalized + (uContinentSeed * 10.0);
-
-            float mountainPersistence = 0.45;
-            float mountainLacunarity = 2.2;
-            float mountainScale = 8.0;
-            if (uPlanetType == 2) { mountainPersistence = 0.3; mountainLacunarity = 2.0; mountainScale = 4.0; } 
-            else if (uPlanetType == 1) { mountainPersistence = 0.55; mountainLacunarity = 2.5; mountainScale = 12.0; }
-
-            float continentShape = (layeredNoise(noiseInputPosition, uContinentSeed, 5, 0.5, 2.0, 1.5) + 1.0) * 0.5;
-            float continentMask = smoothstep(0.49, 0.51, continentShape);
-            float riverRaw = ridgedRiverNoise(noiseInputPosition * 0.2, uContinentSeed * 5.0);
-            float riverBed = smoothstep(1.0 - uRiverBasin, 1.0, riverRaw);
-            float riverMask = smoothstep(0.50, 0.55, continentShape);
-            vRiverValue = riverBed * riverMask;
-            float mountainNoise = (layeredNoise(noiseInputPosition, uContinentSeed*2.0, 6, mountainPersistence, mountainLacunarity, mountainScale) + 1.0) * 0.5;
-            float islandNoise = (layeredNoise(noiseInputPosition, uContinentSeed * 3.0, 7, 0.5, 2.5, 18.0) + 1.0) * 0.5;
-            float oceanMask = 1.0 - continentMask;
-            float finalElevation = continentShape + (mountainNoise * continentMask * 0.3) + (islandNoise * oceanMask * 0.1);
-            finalElevation -= vRiverValue * 0.08;
-            finalElevation = finalElevation - 0.5;
-
-            vElevation = finalElevation;
-            float displacement = vElevation * uDisplacementAmount;
-            vec3 displacedPosition = position + p_normalized * displacement;
-
-            #include <beginnormal_vertex>
-            #include <defaultnormal_vertex>
-            vNormal = normalize(transformedNormal); // Pass view-space normal to fragment shader
-
-            #include <begin_vertex>
-            transform = displacedPosition;
-            #include <project_vertex>
-            #include <logdepthbuf_vertex>
-
-            vWorldPosition = (modelMatrix * vec4(displacedPosition, 1.0)).xyz;
-        }
-    `;
-}
-
-function getBasePlanetFragmentShader() {
-    return `
-        #include <logdepthbuf_pars_fragment>
+        vNormal = normalize( mat3( modelMatrix ) * p_normalized );
+        vWorldPosition = (modelMatrix * vec4(displacedPosition, 1.0)).xyz;
         
-        uniform vec3 uLandColor;
-        uniform vec3 uWaterColor;
-        uniform float uOceanHeightLevel;
-        uniform float uContinentSeed;
-        uniform float uForestDensity;
-        uniform int uPlanetType;
-        
-        varying float vElevation;
-        varying vec3 vWorldPosition;
-        varying float vRiverValue;
+        gl_Position = projectionMatrix * modelViewMatrix * vec4(displacedPosition, 1.0);
+    }
+`;
 
-        // Removed varying vNormal because we use Three.js's standard lighting varyings
+// Rewritten base fragment shader logic used by both planets
+const basePlanetFragmentShader = `
+    uniform vec3 uLandColor;
+    uniform vec3 uWaterColor;
+    uniform float uOceanHeightLevel;
+    uniform float uContinentSeed;
+    uniform float uForestDensity;
+    uniform int uPlanetType;
+    uniform vec3 uLightDirection;
+    uniform vec3 cameraPosition;
 
-        ${noiseFunctions}
-        ${glslBiomeColorLogic}
+    varying vec3 vNormal;
+    varying float vElevation;
+    varying vec3 vWorldPosition;
+    varying float vRiverValue;
 
-        void main() {
-            vec3 biomeColor = getBiomeColor(vElevation, uOceanHeightLevel, uPlanetType, uLandColor, uWaterColor, vRiverValue, uForestDensity, uContinentSeed, vWorldPosition);
-            
-            // Start with the calculated biome color
-            vec4 diffuseColor = vec4(biomeColor, 1.0);
-            
-            // Let Three.js handle the lighting calculation
-            #include <logdepthbuf_fragment>
-            #include <common>
-            #include <packing>
-            #include <dithering_pars_fragment>
-            #include <color_pars_fragment>
-            #include <uv_pars_fragment>
-            #include <map_pars_fragment>
-            #include <alphamap_pars_fragment>
-            #include <alphatest_pars_fragment>
-            #include <specularmap_pars_fragment>
-            #include <logdepthbuf_pars_fragment>
-            #include <clipping_planes_pars_fragment>
-            #include <lights_pars_begin>
-            #include <fog_pars_fragment>
-            #include <bsdfs>
-            #include <lights_physical_pars_fragment>
-            #include <lights_fragment_begin>
-            #include <lights_fragment_maps>
-            #include <lights_fragment_end>
-            
-            // Combine our color with the calculated lighting
-            vec3 outgoingLight = diffuseColor.rgb * totalDiffuse + totalSpecular;
-            gl_FragColor = vec4(outgoingLight, 1.0);
-            
-            #include <tonemapping_fragment>
-            #include <encodings_fragment>
-            #include <fog_fragment>
-        }
-    `;
-}
+    ${noiseFunctions}
+    ${glslLightingFunction}
+    ${glslBiomeColorLogic}
+
+    void main() {
+        vec3 biomeColor = getBiomeColor(vElevation, uOceanHeightLevel, uPlanetType, uLandColor, uWaterColor, vRiverValue, uForestDensity, uContinentSeed, vWorldPosition);
+        vec3 viewDirection = normalize(cameraPosition - vWorldPosition);
+        vec3 lightDirection = normalize(uLightDirection);
+        gl_FragColor = vec4(calculateLighting(biomeColor, vNormal, viewDirection, lightDirection), 1.0);
+    }
+`;
 
 
 export function getPlanetShaders() {
-    const vertexShader = getBasePlanetVertexShader();
-    const fragmentShader = getBasePlanetFragmentShader();
-    return { vertexShader, fragmentShader };
+    return {
+        vertexShader: basePlanetVertexShader,
+        fragmentShader: basePlanetFragmentShader
+    };
 }
 
 export function getHexPlanetShaders() {
     const hexVertexShader = `
         attribute vec3 barycentric;
         varying vec3 vBarycentric;
-        ${getBasePlanetVertexShader().replace(
-            'void main() {',
-            'void main() { vBarycentric = barycentric;'
-        )}
+        ${basePlanetVertexShader.replace('void main() {', 'void main() { vBarycentric = barycentric;')}
     `;
 
     const hexFragmentShader = `
@@ -354,16 +333,22 @@ export function getHexPlanetShaders() {
             return smoothstep(width - 0.005, width + 0.005, minBary);
         }
 
-        ${getBasePlanetFragmentShader().replace(
-            'vec4 diffuseColor = vec4(biomeColor, 1.0);',
+        ${basePlanetFragmentShader.replace(
+            'vec3 biomeColor =',
             `
-            vec3 finalColor = biomeColor;
+            vec3 finalColor;
+            vec3 biomeColor =`
+        ).replace(
+            'gl_FragColor = vec4(calculateLighting(biomeColor, vNormal, viewDirection, lightDirection), 1.0);',
+            `
             if (uShowStrokes) {
                 float wire = getWireframe(0.005);
                 vec3 strokeColor = vec3(1.0, 1.0, 1.0);
                 finalColor = mix(strokeColor, biomeColor, wire);
+            } else {
+                finalColor = biomeColor;
             }
-            vec4 diffuseColor = vec4(finalColor, 1.0);
+            gl_FragColor = vec4(calculateLighting(finalColor, vNormal, viewDirection, lightDirection), 1.0);
             `
         )}
     `;

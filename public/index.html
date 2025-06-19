@@ -41,62 +41,106 @@
 <div id="planet-designer-screen" class="screen">
             <div class="designer-panel">
                 <div class="designer-controls">
-                    <h3>Planet Colors</h3>
-                    <div class="color-control">
-                        <label for="designer-water-color">Water Color:</label>
-                        <input type="color" id="designer-water-color" class="designer-control" value="#000080">
+                    <h3>Planet Designer</h3>
+                    <label class="checkbox-label" style="margin-bottom: 20px;">
+                        <input type="checkbox" id="designer-is-gas-giant"> Is this a Gas Giant?
+                    </label>
+
+                    <div id="terrestrial-controls">
+                        <h4>Terrestrial Planet</h4>
+                        <div class="color-control">
+                            <label for="designer-water-color">Water Color:</label>
+                            <input type="color" id="designer-water-color" class="designer-control" value="#000080">
+                        </div>
+                        <div class="color-control">
+                            <label for="designer-land-color">Land Color:</label>
+                            <input type="color" id="designer-land-color" class="designer-control" value="#006400">
+                        </div>
+                        <div class="designer-range-control">
+                          <label for="designer-river-basin">River Basin Width</label>
+                          <div class="input-row">
+                              <input type="range" id="designer-river-basin" class="designer-control" min="0.00" max="0.15" step="0.01" value="0.05" style="width: 100%;">
+                              <span id="designer-river-basin-value" style="min-width: 30px; text-align: right;">0.05</span>
+                          </div>
+                        </div>
+                        <div class="designer-range-control">
+                            <label for="designer-forest-density">Forest Density</label>
+                            <div class="input-row">
+                                <input type="range" id="designer-forest-density" class="designer-control" min="0.1" max="0.9" step="0.05" value="0.5" style="width: 100%;">
+                                <span id="designer-forest-density-value" style="min-width: 30px; text-align: right;">0.5</span>
+                            </div>
+                        </div>
+                        <div class="designer-range-control">
+                          <label for="designer-snow-caps">Snow Caps</label>
+                          <div class="input-row">
+                              <input type="range" id="designer-snow-caps" class="designer-control" min="0.0" max="1.0" step="0.01" value="0.0" style="width: 100%;">
+                              <span id="designer-snow-caps-value" style="min-width: 30px; text-align: right;">0.00</span>
+                          </div>
+                        </div>
+                        <div class="designer-range-control">
+                            <label for="designer-volcanic-activity">Volcanic Activity</label>
+                            <div class="input-row">
+                                <input type="range" id="designer-volcanic-activity" class="designer-control" min="0.0" max="1.0" step="0.01" value="0.0" style="width: 100%;">
+                                <span id="designer-volcanic-activity-value" style="min-width: 30px; text-align: right;">0.00</span>
+                            </div>
+                        </div>
+                        <div id="designer-height-controls" style="display:flex; flex-direction:column; gap:0.5em;">
+                          <label>
+                            Terrain Min Height:
+                            <input type="number" id="designer-min-height" class="designer-control" value="0.0" step="0.1" min="-100" max="100">
+                          </label>
+                          <label>
+                            Terrain Max Height:
+                            <input type="number" id="designer-max-height" class="designer-control" value="10.0" step="0.1" min="-100" max="100">
+                          </label>
+                          <label>
+                            Ocean Height:
+                            <input type="number" id="designer-ocean-height" class="designer-control" value="2.0" step="0.1" min="-100" max="100">
+                          </label>
+                        </div>
                     </div>
-                    <div class="color-control">
-                        <label for="designer-land-color">Land Color:</label>
-                        <input type="color" id="designer-land-color" class="designer-control" value="#006400">
+
+                    <div id="gas-giant-controls" style="display: none;">
+                        <h4>Gas Giant</h4>
+                        <div class="color-control">
+                            <label for="designer-gg-color1">Band Color 1:</label>
+                            <input type="color" id="designer-gg-color1" class="designer-control" value="#D2B48C">
+                        </div>
+                        <div class="color-control">
+                            <label for="designer-gg-color2">Band Color 2:</label>
+                            <input type="color" id="designer-gg-color2" class="designer-control" value="#8B4513">
+                        </div>
+                        <div class="color-control">
+                            <label for="designer-gg-pole-color">Pole Color:</label>
+                            <input type="color" id="designer-gg-pole-color" class="designer-control" value="#ADD8E6">
+                        </div>
+                        <div class="designer-range-control">
+                            <label for="designer-gg-bands">Number of Bands</label>
+                            <div class="input-row">
+                                <input type="range" id="designer-gg-bands" class="designer-control" min="2" max="30" step="1" value="10" style="width: 100%;">
+                                <span id="designer-gg-bands-value">10</span>
+                            </div>
+                        </div>
+                        <div class="designer-range-control">
+                            <label for="designer-gg-turbulence">Band Turbulence</label>
+                            <div class="input-row">
+                                <input type="range" id="designer-gg-turbulence" class="designer-control" min="0.0" max="1.0" step="0.01" value="0.2" style="width: 100%;">
+                                <span id="designer-gg-turbulence-value">0.20</span>
+                            </div>
+                        </div>
+                        <div class="designer-range-control">
+                            <label for="designer-gg-storm-size">Great Storm Size</label>
+                            <div class="input-row">
+                                <input type="range" id="designer-gg-storm-size" class="designer-control" min="0.0" max="0.5" step="0.01" value="0.1" style="width: 100%;">
+                                <span id="designer-gg-storm-size-value">0.10</span>
+                            </div>
+                        </div>
+                         <div class="designer-range-control">
+                            <label for="designer-gg-storm-color">Great Storm Color:</label>
+                            <input type="color" id="designer-gg-storm-color" class="designer-control" value="#A52A2A">
+                        </div>
                     </div>
 
-          <div class="designer-range-control">
-              <label for="designer-river-basin">River Basin Width</label>
-              <div class="input-row">
-                  <input type="range" id="designer-river-basin" class="designer-control" min="0.00" max="0.15" step="0.01" value="0.05" style="width: 100%;">
-                  <span id="designer-river-basin-value" style="min-width: 30px; text-align: right;">0.05</span>
-              </div>
-          </div>
-
-          <div class="designer-range-control">
-              <label for="designer-forest-density">Forest Density</label>
-              <div class="input-row">
-                 <input type="range" id="designer-forest-density" class="designer-control" min="0.1" max="0.9" step="0.05" value="0.5" style="width: 100%;">
-                  <span id="designer-forest-density-value" style="min-width: 30px; text-align: right;">0.5</span>
-              </div>
-          </div>
-                  
-          <div class="designer-range-control">
-            <label for="designer-snow-caps">Snow Caps</label>
-            <div class="input-row">
-                <input type="range" id="designer-snow-caps" class="designer-control" min="0.0" max="1.0" step="0.01" value="0.0" style="width: 100%;">
-                <span id="designer-snow-caps-value" style="min-width: 30px; text-align: right;">0.00</span>
-            </div>
-          </div>
-
-          <div class="designer-range-control">
-              <label for="designer-volcanic-activity">Volcanic Activity</label>
-              <div class="input-row">
-                  <input type="range" id="designer-volcanic-activity" class="designer-control" min="0.0" max="1.0" step="0.01" value="0.0" style="width: 100%;">
-                  <span id="designer-volcanic-activity-value" style="min-width: 30px; text-align: right;">0.00</span>
-              </div>
-          </div>
-
-              <div id="designer-height-controls" style="display:flex; flex-direction:column; gap:0.5em;">
-                <label>
-                  Terrain Min Height:
-                  <input type="number" id="designer-min-height" class="designer-control" value="0.0" step="0.1" min="-100" max="100">
-                </label>
-                <label>
-                  Terrain Max Height:
-                  <input type="number" id="designer-max-height" class="designer-control" value="10.0" step="0.1" min="-100" max="100">
-                </label>
-                <label>
-                  Ocean Height:
-                  <input type="number" id="designer-ocean-height" class="designer-control" value="2.0" step="0.1" min="-100" max="100">
-                </label>
-              </div>
                     <div class="saved-designs-list">
                         <h4>Saved Designs:</h4>
                         <ul id="saved-designs-ul">

@@ -162,7 +162,6 @@ vec3 getBiomeColor(float elevation, float oceanHeightLevel, int planetType, vec3
 `;
 
 export function getTerrainShaders() {
-    // This function remains unchanged as it was not part of the issue.
     const vertexShader = `
         uniform float uTime;
         uniform float uElevationMultiplier;
@@ -233,7 +232,6 @@ export function getTerrainShaders() {
     return { vertexShader, fragmentShader };
 }
 
-// Rewritten base vertex shader logic used by both planets
 const basePlanetVertexShader = `
     uniform float uContinentSeed;
     uniform float uDisplacementAmount;
@@ -274,14 +272,13 @@ const basePlanetVertexShader = `
         float displacement = vElevation * uDisplacementAmount;
         vec3 displacedPosition = position + p_normalized * displacement;
         
-        vNormal = normalize( mat3( modelMatrix ) * p_normalized );
+        vNormal = normalize( normalMatrix * normal );
         vWorldPosition = (modelMatrix * vec4(displacedPosition, 1.0)).xyz;
         
         gl_Position = projectionMatrix * modelViewMatrix * vec4(displacedPosition, 1.0);
     }
 `;
 
-// Rewritten base fragment shader logic used by both planets
 const basePlanetFragmentShader = `
     uniform vec3 uLandColor;
     uniform vec3 uWaterColor;

@@ -5,6 +5,8 @@ import { generateSolarSystemsForGalaxy } from './universeGenerator.js';
 import { SolarSystemRenderer } from './solarSystemRenderer.js';
 import { HexPlanetViewController } from './hexPlanetViewController.js';
 import GameStateManager from './gameStateManager.js';
+// --- NEW ---
+import { SurfaceViewController } from './surfaceViewController.js';
 
 export const UIManager = (() => {
     let elements = {};
@@ -130,11 +132,13 @@ export const UIManager = (() => {
         currentStarfieldCleanup = () => { if (animationFrame) cancelAnimationFrame(animationFrame); };
     }
 
+    // --- MODIFIED ---
     function setActiveScreen(screenToShow) {
-        const screens = [elements.mainScreen, elements.galaxyDetailScreen, elements.solarSystemScreen, elements.planetDesignerScreen, elements.hexPlanetScreen, galaxyCustomizationModal].filter(s => s);
+        const screens = [elements.mainScreen, elements.galaxyDetailScreen, elements.solarSystemScreen, elements.planetDesignerScreen, elements.hexPlanetScreen, elements.surfaceScreen, galaxyCustomizationModal].filter(s => s);
         screens.forEach(s => s.classList.remove('active', 'panning-active', 'visible'));
         if (screenToShow) screenToShow.classList.add('active');
         if (elements.planetSidebar) elements.planetSidebar.style.display = (screenToShow === elements.solarSystemScreen) ? 'block' : 'none';
+        
         const isOnOverlayScreen = (screenToShow === elements.planetDesignerScreen || screenToShow === elements.hexPlanetScreen || screenToShow === galaxyCustomizationModal);
         
         if (elements.devPanelButton) {
@@ -234,6 +238,26 @@ export const UIManager = (() => {
         });
     }
 
+    // --- NEW ---
+    function switchToSurfaceView(planetData) {
+        // Clean up the previous view (solar system)
+        if (window.activeSolarSystemRenderer) {
+            window.activeSolarSystemRenderer.dispose();
+            window.activeSolarSystemRenderer = null;
+        }
+        
+        setActiveScreen(elements.surfaceScreen);
+
+        // Activate the new surface view controller
+        SurfaceViewController.activate(planetData, () => {
+            // This is the callback for what to do when "Return to Orbit" is clicked
+            const solarSystemId = GameStateManager.getState().activeSolarSystemId;
+            if (solarSystemId) {
+                switchToSolarSystemView(solarSystemId);
+            }
+        });
+    }
+
     function showLandingConfirmation(locationData) {
         const { landingConfirmationPanel, landingQuestionText, landingBtnYes, landingBtnNo } = elements;
     
@@ -264,6 +288,7 @@ export const UIManager = (() => {
         landingConfirmationPanel.classList.add('visible');
     }
 
+    // --- MODIFIED ---
     function _onSolarSystemCanvasClick(event) {
         const renderer = window.activeSolarSystemRenderer;
         if (!renderer) return;
@@ -272,9 +297,8 @@ export const UIManager = (() => {
         const mouse = renderer.getMouse();
         const camera = renderer.getCamera();
         const planetMeshes = renderer.getPlanetMeshes();
-        const landingSiteIcons = renderer.getLandingSiteIcons();
         
-        if (!raycaster || !mouse || !camera || !planetMeshes || !landingSiteIcons) return;
+        if (!raycaster || !mouse || !camera || !planetMeshes) return;
     
         const rect = elements.solarSystemContent.getBoundingClientRect();
         mouse.x = ((event.clientX - rect.left) / rect.width) * 2 - 1;
@@ -282,26 +306,20 @@ export const UIManager = (() => {
     
         raycaster.setFromCamera(mouse, camera);
 
-        const iconIntersects = raycaster.intersectObjects(landingSiteIcons.filter(i => i.visible));
-
-        if (iconIntersects.length > 0) {
-            const clickedIcon = iconIntersects[0].object;
-            showLandingConfirmation(clickedIcon.userData);
-            return; 
-        }
-
         const intersects = raycaster.intersectObjects(planetMeshes);
     
         if (intersects.length > 0) {
             const clickedPlanetId = intersects[0].object.userData.id;
-            const followedPlanetId = renderer.getFollowedPlanetId();
-            
-            if (clickedPlanetId !== followedPlanetId) {
+            const solarSystemObject = GameStateManager.getActiveSolarSystem();
+            const planetData = solarSystemObject.planets.find(p => p.id === clickedPlanetId);
+
+            if (planetData && !planetData.isGasGiant) {
+                // Instead of focusing, we now switch to the surface view
+                switchToSurfaceView(planetData);
+            } else if (planetData && planetData.isGasGiant) {
+                // Optionally, keep the focus logic for gas giants or show a message
                 renderer.focusOnPlanet(clickedPlanetId);
-                const allItems = elements.planetSidebarList.querySelectorAll('.planet-sidebar-item');
-                allItems.forEach(i => i.classList.remove('active-focus'));
-                const item = elements.planetSidebarList.querySelector(`.planet-sidebar-item[data-planet-id="${clickedPlanetId}"]`);
-                if(item) item.classList.add('active-focus');
+                console.log("Cannot land on a Gas Giant. Focusing instead.");
             }
         }
     }
@@ -315,7 +333,7 @@ export const UIManager = (() => {
         HexPlanetViewController.activate(planetData, onBackCallback);
     }
 
-    // --- Galaxy Customization Functions ---
+    // --- Galaxy Customization Functions (Kept as is) ---
     function getGalaxyElements() {
         galaxyCustomizationModal = document.getElementById('galaxy-customization-modal');
         galaxyRadiusInput = document.getElementById('galaxy-radius');
@@ -716,33 +734,48 @@ export const UIManager = (() => {
                 callbacks.showDevPanel();
             });
 
+            // --- MODIFIED ---
+            // The logic for handling clicks on the planet sidebar is now simplified,
+            // as the main click action is to land, not just focus. We can leave this
+            // for future implementation if focus-only is needed again.
             elements.planetSidebarList.addEventListener('click', (event) => {
                 const item = event.target.closest('.planet-sidebar-item');
                 if (!item) return;
             
                 const planetId = item.dataset.planetId;
-                if (!planetId || !window.activeSolarSystemRenderer) return;
+                if (!planetId) return;
 
-                const isCurrentlyFocused = item.classList.contains('active-focus');
+                const solarSystemObject = GameStateManager.getActiveSolarSystem();
+                const planetData = solarSystemObject.planets.find(p => p.id === planetId);
 
-                if (isCurrentlyFocused) {
-                    window.activeSolarSystemRenderer.unfocus();
-                    item.classList.remove('active-focus');
+                if (planetData && !planetData.isGasGiant) {
+                    switchToSurfaceView(planetData);
                 } else {
-                    window.activeSolarSystemRenderer.focusOnPlanet(planetId);
-            
-                    const allItems = elements.planetSidebarList.querySelectorAll('.planet-sidebar-item');
-                    allItems.forEach(i => i.classList.remove('active-focus'));
-                    item.classList.add('active-focus');
+                    console.log("Cannot land on this object from the sidebar.");
                 }
             });
 
             elements.backToGalaxyButton.addEventListener('click', () => {
                 const activeGalaxyId = GameStateManager.getState().activeGalaxyId;
                 if (activeGalaxyId) {
+                    // This needs to also clean up the surface view if it's active
+                    if (document.getElementById('surface-screen').classList.contains('active')) {
+                        SurfaceViewController.cleanup();
+                    }
                     switchToGalaxyDetailView(activeGalaxyId);
                 }
             });
+            
+            // --- NEW ---
+            // Add listener for the new return button from the surface view
+            elements.returnToOrbitButton?.addEventListener('click', () => {
+                 SurfaceViewController.cleanup(); // Clean up the surface view
+                 const solarSystemId = GameStateManager.getState().activeSolarSystemId;
+                 if (solarSystemId) {
+                     switchToSolarSystemView(solarSystemId);
+                 }
+            });
+
 
             getGalaxyElements(); 
             

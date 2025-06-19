@@ -272,15 +272,8 @@ export function getPlanetShaders() {
             float mountainPersistence = 0.45;
             float mountainLacunarity = 2.2;
             float mountainScale = 8.0;
-            if (uPlanetType == 2) {
-                mountainPersistence = 0.3;
-                mountainLacunarity = 2.0;
-                mountainScale = 4.0;
-            } else if (uPlanetType == 1) {
-                mountainPersistence = 0.55;
-                mountainLacunarity = 2.5;
-                mountainScale = 12.0;
-            }
+            if (uPlanetType == 2) { mountainPersistence = 0.3; mountainLacunarity = 2.0; mountainScale = 4.0; } 
+            else if (uPlanetType == 1) { mountainPersistence = 0.55; mountainLacunarity = 2.5; mountainScale = 12.0; }
 
             float continentShape = (layeredNoise(noiseInputPosition, uContinentSeed, 5, 0.5, 2.0, 1.5) + 1.0) * 0.5;
             float continentMask = smoothstep(0.49, 0.51, continentShape);
@@ -291,17 +284,19 @@ export function getPlanetShaders() {
             float mountainNoise = (layeredNoise(noiseInputPosition, uContinentSeed*2.0, 6, mountainPersistence, mountainLacunarity, mountainScale) + 1.0) * 0.5;
             float islandNoise = (layeredNoise(noiseInputPosition, uContinentSeed * 3.0, 7, 0.5, 2.5, 18.0) + 1.0) * 0.5;
             float oceanMask = 1.0 - continentMask;
-            float finalElevation = continentShape
-                + (mountainNoise * continentMask * 0.3)
-                + (islandNoise * oceanMask * 0.1);
+            float finalElevation = continentShape + (mountainNoise * continentMask * 0.3) + (islandNoise * oceanMask * 0.1);
             finalElevation -= vRiverValue * 0.08;
             finalElevation = finalElevation - 0.5;
 
             vElevation = finalElevation;
             float displacement = vElevation * uDisplacementAmount;
             vec3 displacedPosition = position + p_normalized * displacement;
-            vNormal = p_normalized;
-            vWorldPosition = (modelMatrix * vec4(displacedPosition, 1.0)).xyz;
+            
+            vNormal = normalize(normalMatrix * p_normalized);
+            
+            vec4 worldPos = modelMatrix * vec4(displacedPosition, 1.0);
+            vWorldPosition = worldPos.xyz;
+            
             gl_Position = projectionMatrix * modelViewMatrix * vec4(displacedPosition, 1.0);
 
             #include <logdepthbuf_vertex>
@@ -318,6 +313,7 @@ export function getPlanetShaders() {
         uniform float uForestDensity;
         uniform int uPlanetType;
         uniform vec3 uLightDirection;
+        uniform vec3 cameraPosition;
 
         varying vec3 vNormal;
         varying float vElevation;
@@ -333,6 +329,7 @@ export function getPlanetShaders() {
             
             vec3 viewDirection = normalize(cameraPosition - vWorldPosition);
             vec3 lightDirection = normalize(uLightDirection);
+            
             gl_FragColor = vec4(calculateLighting(biomeColor, vNormal, viewDirection, lightDirection), 1.0);
 
             #include <logdepthbuf_fragment>
@@ -352,8 +349,6 @@ export function getHexPlanetShaders() {
     uniform float uSphereRadius;
     uniform float uDisplacementAmount;
     uniform float uRiverBasin;
-    uniform float uMountainStrength;
-    uniform float uIslandStrength;
     uniform int uPlanetType;
 
     varying vec3 vBarycentric;
@@ -369,14 +364,13 @@ export function getHexPlanetShaders() {
 		vec3 p_normalized = normalize(position);
 		vec3 noiseInputPosition = p_normalized + (uContinentSeed * 10.0);
 
-        // --- UNIFIED TERRAIN LOGIC ---
         float mountainPersistence = 0.45;
         float mountainLacunarity = 2.2;
-        float mountainScale = 8.0; // Matched from getPlanetShaders
+        float mountainScale = 8.0;
         if (uPlanetType == 2) { mountainPersistence = 0.3; mountainLacunarity = 2.0; mountainScale = 4.0; } 
         else if (uPlanetType == 1) { mountainPersistence = 0.55; mountainLacunarity = 2.5; mountainScale = 12.0; }
 
-		float continentShape = (layeredNoise(noiseInputPosition, uContinentSeed, 5, 0.5, 2.0, 1.5) + 1.0) * 0.5; // Matched (5 octaves)
+		float continentShape = (layeredNoise(noiseInputPosition, uContinentSeed, 5, 0.5, 2.0, 1.5) + 1.0) * 0.5;
 		float continentMask = smoothstep(0.49, 0.51, continentShape);
 
 		float riverRaw = ridgedRiverNoise(noiseInputPosition * 0.2, uContinentSeed * 5.0);
@@ -384,23 +378,22 @@ export function getHexPlanetShaders() {
 		float riverMask = smoothstep(0.50, 0.55, continentShape);
 		vRiverValue = riverBed * riverMask;
         
-        float mountainNoise = (layeredNoise(noiseInputPosition, uContinentSeed*2.0, 6, mountainPersistence, mountainLacunarity, mountainScale) + 1.0) * 0.5; // Matched (6 octaves)
-        float islandNoise = (layeredNoise(noiseInputPosition, uContinentSeed * 3.0, 7, 0.5, 2.5, 18.0) + 1.0) * 0.5; // Matched (7 octaves)
+        float mountainNoise = (layeredNoise(noiseInputPosition, uContinentSeed*2.0, 6, mountainPersistence, mountainLacunarity, mountainScale) + 1.0) * 0.5;
+        float islandNoise = (layeredNoise(noiseInputPosition, uContinentSeed * 3.0, 7, 0.5, 2.5, 18.0) + 1.0) * 0.5;
 		float oceanMask = 1.0 - continentMask;
 
-		float finalElevation = continentShape
-            + (mountainNoise * continentMask * 0.3)
-            + (islandNoise * oceanMask * 0.1); // Matched formula
+		float finalElevation = continentShape + (mountainNoise * continentMask * 0.3) + (islandNoise * oceanMask * 0.1);
 		finalElevation -= vRiverValue * 0.08;
 		finalElevation = finalElevation - 0.5;
-        // --- END UNIFIED LOGIC ---
 
 		vElevation = finalElevation;
 		float displacement = vElevation * uDisplacementAmount;
 		vec3 displacedPosition = position + p_normalized * displacement;
 
-		vNormal = p_normalized;
-		vWorldPosition = (modelMatrix * vec4(displacedPosition, 1.0)).xyz;
+		vNormal = normalize(normalMatrix * p_normalized);
+		vec4 worldPos = modelMatrix * vec4(displacedPosition, 1.0);
+        vWorldPosition = worldPos.xyz;
+        
 		gl_Position = projectionMatrix * modelViewMatrix * vec4(displacedPosition, 1.0);
         #include <logdepthbuf_vertex>
   }
@@ -414,10 +407,10 @@ export function getHexPlanetShaders() {
     uniform float uOceanHeightLevel;
     uniform float uContinentSeed;
     uniform float uForestDensity;
-    uniform float uSphereRadius;
     uniform bool uShowStrokes; 
     uniform int uPlanetType;
     uniform vec3 uLightDirection;
+    uniform vec3 cameraPosition;
 
     varying vec3 vNormal;
     varying float vElevation;
@@ -448,6 +441,7 @@ export function getHexPlanetShaders() {
         
         vec3 viewDirection = normalize(cameraPosition - vWorldPosition);
         vec3 lightDirection = normalize(uLightDirection);
+        
         gl_FragColor = vec4(calculateLighting(finalColor, vNormal, viewDirection, lightDirection), 1.0);
 
         #include <logdepthbuf_fragment>

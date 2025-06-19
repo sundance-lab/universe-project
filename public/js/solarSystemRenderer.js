@@ -1,12 +1,15 @@
-// public/js/solarSystemRenderer.js
+/*
+File: sundance-lab/universe-project/universe-project-b044ce4d52b6181af39f9a6378ca10b19a7c04d4/public/js/solarSystemRenderer.js
+*/
+
 import * as THREE from 'three';
 import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls.js';
 import { getPlanetShaders, getHexPlanetShaders } from './shaders.js';
 import { Line2 } from 'three/examples/jsm/lines/Line2.js';
 import { LineMaterial } from 'three/examples/jsm/lines/LineMaterial.js';
 import { LineGeometry } from 'three/examples/jsm/lines/LineGeometry.js';
-import { addBarycentricCoordinates } from './utils.js';
 
+// --- Sun Creation Logic ---
 const LOD_LEVELS = {
     ULTRA_CLOSE: { distance: 150, segments: 1024, noiseDetail: 12.0, textureDetail: 12.0 },
     CLOSE: { distance: 300, segments: 512, noiseDetail: 4.0, textureDetail: 4.0 },
@@ -27,6 +30,20 @@ const sunVariations = [
     { baseColor: new THREE.Color(0xE0E0E0), hotColor: new THREE.Color(0xFFFFFF), coolColor: new THREE.Color(0x9E9E9E), glowColor: new THREE.Color(0x82B1FF), coronaColor: new THREE.Color(0xBBDEFB), midColor: new THREE.Color(0xF5F5F5), peakColor: new THREE.Color(0xFFFFFF), valleyColor: new THREE.Color(0x757575), turbulence: 1.5, fireSpeed: 0.5, pulseSpeed: 0.01, sizeCategory: 'dwarf', terrainScale: 3.0, fireIntensity: 2.5 },
     { baseColor: new THREE.Color(0xE65100), hotColor: new THREE.Color(0xFFAB40), coolColor: new THREE.Color(0xBF360C), glowColor: new THREE.Color(0xFFD740), coronaColor: new THREE.Color(0xFFC107), midColor: new THREE.Color(0xFF9800), peakColor: new THREE.Color(0xFFE0B2), valleyColor: new THREE.Color(0xBF360C), turbulence: 1.15, fireSpeed: 0.28, pulseSpeed: 0.002, sizeCategory: 'hypergiant', terrainScale: 1.5, fireIntensity: 1.9 }
 ];
+
+function addBarycentricCoordinates(geometry) {
+    const positions = geometry.attributes.position.array;
+    const vertexCount = positions.length / 3;
+    const barycentric = new Float32Array(vertexCount * 3);
+    
+    for (let i = 0; i < vertexCount; i += 3) {
+        barycentric[i * 3] = 1; barycentric[i * 3 + 1] = 0; barycentric[i * 3 + 2] = 0;
+        barycentric[(i + 1) * 3] = 0; barycentric[(i + 1) * 3 + 1] = 1; barycentric[(i + 1) * 3 + 2] = 0;
+        barycentric[(i + 2) * 3] = 0; barycentric[(i + 2) * 3 + 1] = 0; barycentric[(i + 2) * 3 + 2] = 1;
+    }
+    
+    geometry.setAttribute('barycentric', new THREE.BufferAttribute(barycentric, 3));
+}
 
 function _createSunMaterial(variation, finalSize, lodLevel) {
     return new THREE.ShaderMaterial({
@@ -150,18 +167,9 @@ export const SolarSystemRenderer = (() => {
         const planetData = planetLOD.userData;
         if (!planetData.landingLocations) return;
     
-        const textureLoader = new THREE.TextureLoader();
-        const iconTextureMap = {
-            'City': textureLoader.load('/assets/icons/city.png'),
-            'Mine': textureLoader.load('/assets/icons/mine.png'),
-            'Default': _createLandingSiteTexture()
-        };
-        Object.values(iconTextureMap).forEach(tex => createdTextures.push(tex));
-
+        const iconTexture = _createLandingSiteTexture();
+    
         planetData.landingLocations.forEach(location => {
-            
-            let iconTexture = iconTextureMap[location.type] || iconTextureMap['Default'];
-            
             const material = new THREE.SpriteMaterial({
                 map: iconTexture,
                 color: 0x00ff80,
@@ -172,7 +180,7 @@ export const SolarSystemRenderer = (() => {
             });
     
             const sprite = new THREE.Sprite(material);
-            sprite.renderOrder = 1;
+            sprite.renderOrder = 1; // Draw after planets
             sprite.userData = { ...location, planetId: planetData.id };
             sprite.visible = false; 
             landingSiteIcons.push(sprite);
@@ -310,11 +318,7 @@ export const SolarSystemRenderer = (() => {
                     uDisplacementAmount: { value: displacementAmount },
                     uTime: { value: 0.0 },
                     uPlanetType: { value: planetData.planetType || 0 },
-                    uLightDirection: { value: new THREE.Vector3(0.8, 0.6, 1.0) },
-                    // *** FIX STARTS HERE ***
-                    // Added the missing cameraPosition uniform required by the fragment shader.
-                    cameraPosition: { value: camera.position }
-                    // *** FIX ENDS HERE ***
+                    uLightDirection: { value: new THREE.Vector3(0.8, 0.6, 1.0) }
                 }
             ]),
             vertexShader,
@@ -354,6 +358,7 @@ export const SolarSystemRenderer = (() => {
         const hexPlanetMaterial = new THREE.ShaderMaterial({
              uniforms: THREE.UniformsUtils.merge([
                 THREE.UniformsLib.common,
+                THREE.UniformsLib.lights,
                 {
                     uWaterColor: { value: new THREE.Color(planetData.waterColor) },
                     uLandColor: { value: new THREE.Color(planetData.landColor) },
@@ -367,19 +372,18 @@ export const SolarSystemRenderer = (() => {
                     uOceanHeightLevel: { value: 0.0 },
                     uMountainStrength: { value: 1.0 },
                     uIslandStrength: { value: 1.0 },
-                    uPlanetType: { value: planetData.planetType || 0 },
-                    uLightDirection: { value: new THREE.Vector3(0.8, 0.6, 1.0) },
-                    cameraPosition: { value: camera.position }
+                    uPlanetType: { value: planetData.planetType || 0 }, 
                 }
             ]),
             vertexShader,
-            fragmentShader
+            fragmentShader,
+            lights: true
         });
 
         const terrainRange = Math.max(0.1, planetData.maxTerrainHeight - planetData.minTerrainHeight);
         const normalizedOceanLevel = (planetData.oceanHeightLevel - planetData.minTerrainHeight) / terrainRange;
         hexPlanetMaterial.uniforms.uOceanHeightLevel.value = normalizedOceanLevel - 0.5;
-        hexPlanetMaterial.uniforms.uDisplacementAmount.value = terrainRange * DISPLACEMENT_SCALING_FACTOR * 40;
+        hexPlanetMaterial.uniforms.uDisplacementAmount.value = terrainRange * DISPLACEMENT_SCALING_FACTOR;
         
         const numLevels = 16;
         const maxSubdivision = 512;
@@ -391,8 +395,7 @@ export const SolarSystemRenderer = (() => {
             const geometry = new THREE.IcosahedronGeometry(planetData.size, subdivision);
             addBarycentricCoordinates(geometry);
             
-            // PERFORMANCE FIX: Use the same material instance for all LOD levels.
-            const mesh = new THREE.Mesh(geometry, hexPlanetMaterial);
+            const mesh = new THREE.Mesh(geometry, hexPlanetMaterial.clone());
             lod.addLevel(mesh, distance);
         }
         
@@ -717,10 +720,9 @@ export const SolarSystemRenderer = (() => {
     }
 
     function _createOrbitLine(planet) {
-        const a = planet.semiMajorAxis ?? 10000; 
-        const e_raw = planet.orbitalEccentricity ?? 0.1;
-
-        const e = Math.min(e_raw, 0.999);
+        const a = planet.semiMajorAxis;
+        // Clamp eccentricity to a value slightly less than 1 to prevent Math.sqrt(negative)
+        const e = Math.min(planet.orbitalEccentricity, 0.999);
         const b = a * Math.sqrt(1 - e * e);
         const focusOffset = a * e;
 
@@ -735,9 +737,9 @@ export const SolarSystemRenderer = (() => {
         const points2D = curve.getPoints(256);
         const points3D = points2D.map(p => new THREE.Vector3(p.x, p.y, 0));
 
-        const q_argP = new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(0, 0, 1), planet.argumentOfPeriapsis ?? 0);
-        const q_inc = new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(1, 0, 0), planet.orbitalInclination ?? 0);
-        const q_LAN = new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(0, 0, 1), planet.longitudeOfAscendingNode ?? 0);
+        const q_argP = new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(0, 0, 1), planet.argumentOfPeriapsis);
+        const q_inc = new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(1, 0, 0), planet.orbitalInclination);
+        const q_LAN = new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(0, 0, 1), planet.longitudeOfAscendingNode);
         const finalQuaternion = new THREE.Quaternion().multiply(q_LAN).multiply(q_inc).multiply(q_argP);
 
         points3D.forEach(p => p.applyQuaternion(finalQuaternion));
@@ -842,11 +844,11 @@ export const SolarSystemRenderer = (() => {
 
         planetLODs.forEach(lod => {
             const planet = lod.userData;
-            const orbitalAngularVelocity = (planet.orbitalSpeed ?? 0.1) * 0.1 * moduleState.orbitSpeedMultiplier;
-            const angle = ((planet.currentOrbitalAngle ?? 0) + orbitalAngularVelocity * totalElapsedTime) % (2 * Math.PI);
+            const orbitalAngularVelocity = planet.orbitalSpeed * 0.1 * moduleState.orbitSpeedMultiplier;
+            const angle = (planet.currentOrbitalAngle + orbitalAngularVelocity * totalElapsedTime) % (2 * Math.PI);
             
-            const a = planet.semiMajorAxis ?? 10000;
-            const e = Math.min(planet.orbitalEccentricity ?? 0.1, 0.999);
+            const a = planet.semiMajorAxis;
+            const e = planet.orbitalEccentricity;
             const b = a * Math.sqrt(1.0 - e * e);
             const focusOffset = a * e;
 
@@ -855,15 +857,15 @@ export const SolarSystemRenderer = (() => {
 
             const pos_orbital_plane = new THREE.Vector3(x_orbital, y_orbital, 0);
 
-            const q_argP = new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(0, 0, 1), planet.argumentOfPeriapsis ?? 0);
-            const q_inc = new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(1, 0, 0), planet.orbitalInclination ?? 0);
-            const q_LAN = new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(0, 0, 1), planet.longitudeOfAscendingNode ?? 0);
+            const q_argP = new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(0, 0, 1), planet.argumentOfPeriapsis);
+            const q_inc = new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(1, 0, 0), planet.orbitalInclination);
+            const q_LAN = new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(0, 0, 1), planet.longitudeOfAscendingNode);
             const finalQuaternion = new THREE.Quaternion().multiply(q_LAN).multiply(q_inc).multiply(q_argP);
             
             lod.position.copy(pos_orbital_plane).applyQuaternion(finalQuaternion);
 
-            const axialAngularVelocity = (planet.axialSpeed ?? 0.01) * 2;
-            const newAxialAngle = (planet.initialAxialAngle ?? 0) + (axialAngularVelocity * totalElapsedTime);
+            const axialAngularVelocity = planet.axialSpeed * 2;
+            const newAxialAngle = planet.initialAxialAngle + (axialAngularVelocity * totalElapsedTime);
             lod.rotation.y = newAxialAngle;
             
             if(lod.userData.hexMeshLOD) {
@@ -952,7 +954,7 @@ export const SolarSystemRenderer = (() => {
         _updatePlayerShip(deltaTime);
 
         if (backgroundStars) backgroundStars.position.copy(camera.position);
-        if (distantGalaxiesGroup) distantGalaxiesGroup.rotation.y += 0.00005;
+        if (distantGalaxiesGroup) distantGalaxiesGroup.position.copy(camera.position);
         
         const sunPosition = new THREE.Vector3(0, 0, 0);
         const distanceToSun = camera.position.distanceTo(sunPosition);

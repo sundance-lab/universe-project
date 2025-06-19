@@ -206,7 +206,7 @@ export const PlanetDesigner = (() => {
             minTerrainHeight: minH,
             maxTerrainHeight: maxH,
             oceanHeightLevel: _getRandomFloat(minH, maxH),
-            planetType: Math.floor(Math.random() * 4) // Also randomize planet type
+            planetType: Math.floor(Math.random() * 4) 
         };
 
         _populateDesignerInputsFromBasis();
@@ -252,14 +252,9 @@ export const PlanetDesigner = (() => {
     }
 
     function _handleExploreButtonClick() {
-        // Deactivate the current designer view to show the hex view
         const planetScreen = document.getElementById('planet-designer-screen');
         planetScreen.classList.remove('active');
-
-        // The HexPlanetViewController will handle activating its own screen.
-        // We provide a callback for what to do when the hex view is closed.
         HexPlanetViewController.activate(currentDesignerBasis, () => {
-            // When returning from hex view, reactivate the designer screen
             planetScreen.classList.add('active');
         });
     }
@@ -375,13 +370,12 @@ export const PlanetDesigner = (() => {
 
         deactivate: () => {
             console.log("PlanetDesigner.deactivate called.");
-            _stopAndCleanupDesignerThreeJSView();
-
             if (typeof onBackCallback === 'function') {
                 onBackCallback();
             } else {
                 console.error("No onBack callback provided to PlanetDesigner.");
             }
+            requestAnimationFrame(_stopAndCleanupDesignerThreeJSView);
         },
 
         destroy: () => {

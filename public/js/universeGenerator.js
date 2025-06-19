@@ -34,14 +34,10 @@ function tryAddConnection(fromSystemId, toSystemId, currentConnectionsArray, con
     return true;
 }
 
-
-// --- EXPORTED GENERATION FUNCTIONS ---
-
 export function generatePlanetInstanceFromBasis(basis, isForDesignerPreview = false) {
     const customDesigns = GameStateManager.getCustomPlanetDesigns();
     const useCustomDesign = !isForDesignerPreview &&
-        customDesigns && customDesigns.length > 0 &&
-        Math.random() < 0.5;
+        customDesigns && customDesigns.length > 0;
 
     if (useCustomDesign) {
         const randomDesign = customDesigns[Math.floor(Math.random() * customDesigns.length)];
@@ -57,7 +53,7 @@ export function generatePlanetInstanceFromBasis(basis, isForDesignerPreview = fa
             forestDensity: randomDesign.forestDensity,
             sourceDesignId: randomDesign.designId,
             isExplorable: true,
-            planetType: randomDesign.planetType ?? Math.floor(Math.random() * 4),
+            planetType: 0, // Always default to 0
         };
     }
 
@@ -78,7 +74,7 @@ export function generatePlanetInstanceFromBasis(basis, isForDesignerPreview = fa
         forestDensity: basis.forestDensity || 0.5,
         sourceDesignId: null,
         isExplorable: true,
-        planetType: basis.planetType ?? Math.floor(Math.random() * 4),
+        planetType: 0, // Always default to 0
         explorationData: {
             surfaceDetail: basis.surfaceDetail || 1.0,
             atmosphereColor: basis.atmosphereColor || '#87CEEB',

@@ -4,7 +4,7 @@ import * as THREE from 'three';
 import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls';
 import { getPlanetShaders } from './shaders.js';
 import { HexPlanetViewController } from './hexPlanetViewController.js';
-import GameStateManager from './gameStateManager.js'; // Import the state manager
+import GameStateManager from './gameStateManager.js';
 
 export const PlanetDesigner = (() => {
     let savedDesignsUl, designerPlanetCanvas, designerWaterColorInput, designerLandColorInput, designerMinHeightInput, designerMaxHeightInput, designerOceanHeightInput,
@@ -206,7 +206,7 @@ export const PlanetDesigner = (() => {
             minTerrainHeight: minH,
             maxTerrainHeight: maxH,
             oceanHeightLevel: _getRandomFloat(minH, maxH),
-            planetType: Math.floor(Math.random() * 4) 
+            planetType: Math.floor(Math.random() * 4) // Also randomize planet type
         };
 
         _populateDesignerInputsFromBasis();
@@ -252,9 +252,14 @@ export const PlanetDesigner = (() => {
     }
 
     function _handleExploreButtonClick() {
+        // Deactivate the current designer view to show the hex view
         const planetScreen = document.getElementById('planet-designer-screen');
         planetScreen.classList.remove('active');
+
+        // The HexPlanetViewController will handle activating its own screen.
+        // We provide a callback for what to do when the hex view is closed.
         HexPlanetViewController.activate(currentDesignerBasis, () => {
+            // When returning from hex view, reactivate the designer screen
             planetScreen.classList.add('active');
         });
     }
@@ -370,11 +375,13 @@ export const PlanetDesigner = (() => {
 
         deactivate: () => {
             console.log("PlanetDesigner.deactivate called.");
+            // Call the callback FIRST to switch to the new screen.
             if (typeof onBackCallback === 'function') {
                 onBackCallback();
             } else {
                 console.error("No onBack callback provided to PlanetDesigner.");
             }
+            // Defer the heavy 3D cleanup until the next animation frame.
             requestAnimationFrame(_stopAndCleanupDesignerThreeJSView);
         },
 

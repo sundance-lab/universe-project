@@ -14,7 +14,7 @@ export const GalaxyRenderer = (() => {
     let onSystemClickCallback = null;
     let createdTextures = [];
     let _currentGalaxyData = null;
-    let resizeObserver = null;
+    let resizeObserver = null; // For robust resizing
 
     // --- CONFIGURATION PARAMETERS ---
     let GALAXY_CONFIG = {
@@ -73,7 +73,7 @@ export const GalaxyRenderer = (() => {
             CONTROLS_MIN_DISTANCE: 100,
             CONTROLS_MAX_DISTANCE_MULTIPLIER: 4,
             RAYCASTER_THRESHOLD: 20,
-            ROTATION_SPEED: 0.0001,
+            ROTATION_SPEED: 0.0001, // Slower rotation
         },
         COLORS: {
             STAR_TEXTURE_COLOR: 'rgba(224,140,62,1)',
@@ -108,8 +108,11 @@ export const GalaxyRenderer = (() => {
     const _defaultGalaxyConfig = JSON.parse(JSON.stringify(GALAXY_CONFIG));
     GALAXY_CONFIG.COLORS.PALETTE = GALAXY_CONFIG.COLORS.PALETTE.map(c => new THREE.Color(c.r, c.g, c.b));
 
+
+    // --- HELPER FUNCTIONS ---
     function _createAndCacheTexture(creationFunction) {
         const texture = creationFunction();
+        texture.flipY = false;
         createdTextures.push(texture);
         return texture;
     }
@@ -536,6 +539,8 @@ export const GalaxyRenderer = (() => {
         scene.add(backgroundStars);
     }
 
+    // --- EVENT HANDLERS & LIFECYCLE ---
+
     function _onCanvasClick(event) {
         if (!onSystemClickCallback || !renderer || !clickableSystemParticles) return;
         const rect = renderer.domElement.getBoundingClientRect();
@@ -596,12 +601,12 @@ export const GalaxyRenderer = (() => {
 
  function _dispose() {
         if (animationFrameId) cancelAnimationFrame(animationFrameId);
-
+        
         if (resizeObserver) {
             resizeObserver.disconnect();
             resizeObserver = null;
         }
-
+        
         if (renderer) renderer.domElement.removeEventListener('click', _onCanvasClick);
 
         if (controls) controls.dispose();
@@ -633,7 +638,7 @@ export const GalaxyRenderer = (() => {
         }
 
         if (renderer) {
-
+            
             renderer.dispose();
             if (renderer.domElement && renderer.domElement.parentNode) {
                  renderer.domElement.parentNode.removeChild(renderer.domElement);
@@ -649,14 +654,14 @@ export const GalaxyRenderer = (() => {
             _dispose();
             onSystemClickCallback = callback;
             _currentGalaxyData = galaxyData;
-
+            
             resizeObserver = new ResizeObserver(() => {
                 _onResize();
             });
             if (container) {
                 resizeObserver.observe(container);
             }
-
+            
             _initScene(container, galaxyData);
             _animate();
         },

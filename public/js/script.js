@@ -11,6 +11,9 @@ import {
 } from './universeGenerator.js';
 import { UIManager } from './uiManager.js';
 
+// --- CONSTANTS ---
+const GRAVITATIONAL_PARAMETER = 10000; // Used for orbital speed calculation
+
 // --- INITIALIZATION ---
 function initializeModules() {
     window.PlanetDesigner = PlanetDesigner;
@@ -290,7 +293,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 orbitalInclination: inclination,
                 longitudeOfAscendingNode: Math.random() * Math.PI * 2,
                 argumentOfPeriapsis: Math.random() * Math.PI * 2,
-                orbitalSpeed: Math.sqrt(10000 / semiMajorAxis),
+                orbitalSpeed: Math.sqrt(GRAVITATIONAL_PARAMETER / semiMajorAxis),
                 currentOrbitalAngle: Math.random() * 2 * Math.PI,
                 axialSpeed: (Math.random() - 0.5) * 0.05,
                 currentAxialAngle: Math.random() * 2 * Math.PI,
@@ -344,18 +347,13 @@ document.addEventListener('DOMContentLoaded', () => {
             GameStateManager
         ),
         switchToPlanetDesignerScreen: () => {
-            // Hide the dev panel modal before switching.
             domElements.devPanelModal.classList.remove('visible');
     
             const onBack = () => {
-                // This is the new lightweight callback.
-                // 1. Activate our simple, blank background screen. This is instant.
                 UIManager.setActiveScreen(domElements.devPanelBackgroundScreen);
-                // 2. Show the Dev Panel modal on top of it.
                 showDevPanel();
             };
     
-            // Activate the planet designer screen and pass it the new lightweight callback.
             UIManager.setActiveScreen(domElements.planetDesignerScreen);
             if (window.PlanetDesigner?.activate) {
                 window.PlanetDesigner.activate(onBack);

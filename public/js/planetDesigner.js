@@ -9,7 +9,8 @@ import GameStateManager from './gameStateManager.js'; // Import the state manage
 export const PlanetDesigner = (() => {
     let savedDesignsUl, designerPlanetCanvas, designerWaterColorInput, designerLandColorInput, designerMinHeightInput, designerMaxHeightInput, designerOceanHeightInput,
         designerSaveBtn, designerCancelBtn, designerRiverBasinInput, designerRiverBasinValue,
-        designerForestDensityInput, designerForestDensityValue, designerRandomizeBtn, boundResizeHandler, designerExploreBtn;
+        designerForestDensityInput, designerForestDensityValue, designerRandomizeBtn, boundResizeHandler, designerExploreBtn,
+        designerVolcanicActivityInput, designerVolcanicActivityValue, designerSnowCapsInput, designerSnowCapsValue;
 
     let onBackCallback = null;
 
@@ -28,6 +29,8 @@ export const PlanetDesigner = (() => {
         minTerrainHeight: 0.0,
         maxTerrainHeight: 10.0,
         oceanHeightLevel: 1.0,
+        volcanicActivity: 0.0,
+        snowCapLevel: 0.0,
         planetType: 0
     };
 
@@ -75,6 +78,8 @@ export const PlanetDesigner = (() => {
                 uSphereRadius: { value: SPHERE_BASE_RADIUS },
                 uDisplacementAmount: { value: 0.0 },
                 uLightDirection: { value: new THREE.Vector3(0.8, 0.6, 1.0) },
+                uVolcanicActivity: { value: 0.0 },
+                uSnowCapLevel: { value: 0.0 },
                 uPlanetType: { value: 0 }
             }
         ]);
@@ -142,6 +147,16 @@ export const PlanetDesigner = (() => {
                 currentDesignerBasis.forestDensity = forestDensity;
                 designerForestDensityValue.textContent = forestDensity.toFixed(2);
                 break;
+            case 'designer-volcanic-activity':
+                const volcanicActivity = parseFloat(input.value);
+                currentDesignerBasis.volcanicActivity = volcanicActivity;
+                designerVolcanicActivityValue.textContent = volcanicActivity.toFixed(2);
+                break;
+            case 'designer-snow-caps':
+                const snowCapLevel = parseFloat(input.value);
+                currentDesignerBasis.snowCapLevel = snowCapLevel;
+                designerSnowCapsValue.textContent = snowCapLevel.toFixed(2);
+                break;
             case 'designer-min-height':
                 currentDesignerBasis.minTerrainHeight = parseFloat(input.value);
                 break;
@@ -161,7 +176,7 @@ export const PlanetDesigner = (() => {
         if (!designerShaderMaterial) return;
         const {
             waterColor, landColor, continentSeed, riverBasin, forestDensity,
-            minTerrainHeight, maxTerrainHeight, oceanHeightLevel
+            minTerrainHeight, maxTerrainHeight, oceanHeightLevel, volcanicActivity, snowCapLevel
         } = currentDesignerBasis;
         const terrainRange = Math.max(0.1, maxTerrainHeight - minTerrainHeight);
         const normalizedOceanLevel = (oceanHeightLevel - minTerrainHeight) / terrainRange;
@@ -172,6 +187,8 @@ export const PlanetDesigner = (() => {
         uniforms.uRiverBasin.value = riverBasin;
         uniforms.uForestDensity.value = forestDensity;
         uniforms.uOceanHeightLevel.value = normalizedOceanLevel - 0.5;
+        uniforms.uVolcanicActivity.value = volcanicActivity;
+        uniforms.uSnowCapLevel.value = snowCapLevel;
         const displacementAmount = terrainRange * DISPLACEMENT_SCALING_FACTOR;
         uniforms.uDisplacementAmount.value = displacementAmount;
     }
@@ -185,6 +202,10 @@ export const PlanetDesigner = (() => {
         designerRiverBasinValue.textContent = Number(basis.riverBasin).toFixed(2);
         designerForestDensityInput.value = basis.forestDensity;
         designerForestDensityValue.textContent = Number(basis.forestDensity).toFixed(2);
+        designerVolcanicActivityInput.value = basis.volcanicActivity;
+        designerVolcanicActivityValue.textContent = Number(basis.volcanicActivity).toFixed(2);
+        designerSnowCapsInput.value = basis.snowCapLevel;
+        designerSnowCapsValue.textContent = Number(basis.snowCapLevel).toFixed(2);
         designerMinHeightInput.value = basis.minTerrainHeight;
         designerMaxHeightInput.value = basis.maxTerrainHeight;
         designerOceanHeightInput.value = basis.oceanHeightLevel;
@@ -206,7 +227,9 @@ export const PlanetDesigner = (() => {
             minTerrainHeight: minH,
             maxTerrainHeight: maxH,
             oceanHeightLevel: _getRandomFloat(minH, maxH),
-            planetType: Math.floor(Math.random() * 4) // Also randomize planet type
+            volcanicActivity: _getRandomFloat(0.0, 1.0, 2),
+            snowCapLevel: _getRandomFloat(0.0, 1.0, 2),
+            planetType: 0
         };
 
         _populateDesignerInputsFromBasis();
@@ -337,6 +360,11 @@ export const PlanetDesigner = (() => {
             designerExploreBtn = document.getElementById('designer-explore-btn');
             designerSaveBtn = document.getElementById('designer-save-btn');
             designerCancelBtn = document.getElementById('designer-cancel-btn');
+
+            designerVolcanicActivityInput = document.getElementById('designer-volcanic-activity');
+            designerVolcanicActivityValue = document.getElementById('designer-volcanic-activity-value');
+            designerSnowCapsInput = document.getElementById('designer-snow-caps');
+            designerSnowCapsValue = document.getElementById('designer-snow-caps-value');
 
             handleControlChangeRef = (e) => _handleControlChange(e);
             randomizeDesignerPlanetRef = () => _randomizeDesignerPlanet();

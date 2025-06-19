@@ -37,65 +37,77 @@ export const HexPlanetViewController = (() => {
         renderer.setSize(canvas.offsetWidth, canvas.offsetHeight);
         renderer.setPixelRatio(window.devicePixelRatio);
       
-   controls = new OrbitControls(camera, renderer.domElement);
-controls.enableDamping = true;
-controls.dampingFactor = 0.08;    
-controls.rotateSpeed = 1.0;     
-controls.zoomSpeed = 0.8;        
-controls.minDistance = 1.2;
-controls.maxDistance = 40.0;
-controls.enablePan = false;
-controls.minPolarAngle = 0;
-controls.maxPolarAngle = Math.PI;
+        controls = new OrbitControls(camera, renderer.domElement);
+        controls.enableDamping = true;
+        controls.dampingFactor = 0.08;    
+        controls.rotateSpeed = 1.0;     
+        controls.zoomSpeed = 0.8;        
+        controls.minDistance = 1.2;
+        controls.maxDistance = 40.0;
+        controls.enablePan = false;
 
         const { vertexShader, fragmentShader } = getHexPlanetShaders();
 
+        const uniforms = THREE.UniformsUtils.merge([
+            THREE.UniformsLib.common,
+            THREE.UniformsLib.lights,
+            {
+                // Shared
+                uTime: { value: 0.0 },
+                uSphereRadius: { value: SPHERE_BASE_RADIUS },
+                uContinentSeed: { value: planetBasis.continentSeed },
+                uLightDirection: { value: new THREE.Vector3(0.8, 0.6, 1.0) },
+                // Planet Type
+                uIsGasGiant: { value: planetBasis.isGasGiant },
+                // Terrestrial
+                uLandColor: { value: new THREE.Color(planetBasis.landColor) },
+                uWaterColor: { value: new THREE.Color(planetBasis.waterColor) },
+                uOceanHeightLevel: { value: 0.0 }, // Calculated below
+                uForestDensity: { value: planetBasis.forestDensity },
+                uDisplacementAmount: { value: 0.0 }, // Calculated below
+                uVolcanicActivity: { value: planetBasis.volcanicActivity },
+                uSnowCapLevel: { value: planetBasis.snowCapLevel },
+                // Gas Giant
+                uGgBandColor1: { value: new THREE.Color(planetBasis.ggBandColor1) },
+                uGgBandColor2: { value: new THREE.Color(planetBasis.ggBandColor2) },
+                uGgPoleColor: { value: new THREE.Color(planetBasis.ggPoleColor) },
+                uGgPoleSize: { value: planetBasis.ggPoleSize },
+                uGgAtmosphereStyle: { value: planetBasis.ggAtmosphereStyle },
+                uGgTurbulence: { value: planetBasis.ggTurbulence },
+                uGgStormIntensity: { value: planetBasis.ggStormIntensity },
+                // Hex specific
+                uShowStrokes: { value: true },
+            }
+        ]);
+
+        if (!planetBasis.isGasGiant) {
+            const terrainRange = Math.max(0.1, planetBasis.maxTerrainHeight - planetBasis.minTerrainHeight);
+            const normalizedOceanLevel = (planetBasis.oceanHeightLevel - planetBasis.minTerrainHeight) / terrainRange;
+            uniforms.uOceanHeightLevel.value = normalizedOceanLevel - 0.5;
+            uniforms.uDisplacementAmount.value = terrainRange * DISPLACEMENT_SCALING_FACTOR;
+        }
+
         const baseMaterial = new THREE.ShaderMaterial({
-            uniforms: THREE.UniformsUtils.merge([
-                THREE.UniformsLib.common,
-                THREE.UniformsLib.lights,
-                {
-                    uWaterColor: { value: new THREE.Color(planetBasis.waterColor) },
-                    uLandColor: { value: new THREE.Color(planetBasis.landColor) },
-                    uContinentSeed: { value: planetBasis.continentSeed },
-                    uRiverBasin: { value: planetBasis.riverBasin },
-                    uForestDensity: { value: planetBasis.forestDensity },
-                    uTime: { value: 0.0 },
-                    uSphereRadius: { value: SPHERE_BASE_RADIUS },
-                    uDisplacementAmount: { value: 0.0 },
-                    uShowStrokes: { value: false },
-                    uOceanHeightLevel: { value: 0.0 },
-                    uMountainStrength: { value: 1.0 },
-                    uIslandStrength: { value: 1.0 },
-                    uPlanetType: { value: planetBasis.planetType || 0 }, 
-                }
-            ]),
+            uniforms: uniforms,
             vertexShader,
             fragmentShader,
             lights: true
         });
 
-        const terrainRange = Math.max(0.1, planetBasis.maxTerrainHeight - planetBasis.minTerrainHeight);
-        const normalizedOceanLevel = (planetBasis.oceanHeightLevel - planetBasis.minTerrainHeight) / terrainRange;
-        baseMaterial.uniforms.uOceanHeightLevel.value = normalizedOceanLevel - 0.5;
-        baseMaterial.uniforms.uDisplacementAmount.value = terrainRange * DISPLACEMENT_SCALING_FACTOR;
-
         lod = new THREE.LOD();
         scene.add(lod);
 
         const detailLevels = [
-            { subdivision: 256, distance: 0.0, strengths: [1.0, 1.0] },
-            // ... other levels
-            { subdivision: 6,   distance: 18.0, strengths: [1.0, 1.0] }
+            { subdivision: 128, distance: 0.0 },
+            { subdivision: 64, distance: 4.0 },
+            { subdivision: 32, distance: 8.0 },
+            { subdivision: 16, distance: 15.0 }
         ];
 
         detailLevels.forEach(level => {
             const geometry = new THREE.IcosahedronGeometry(SPHERE_BASE_RADIUS, level.subdivision);
             addBarycentricCoordinates(geometry);
-            const materialForLevel = baseMaterial.clone();
-            materialForLevel.uniforms.uMountainStrength.value = level.strengths[0];
-            materialForLevel.uniforms.uIslandStrength.value = level.strengths[1];
-            const mesh = new THREE.Mesh(geometry, materialForLevel);
+            const mesh = new THREE.Mesh(geometry, baseMaterial);
             lod.addLevel(mesh, level.distance);
         });
 

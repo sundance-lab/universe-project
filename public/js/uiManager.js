@@ -5,7 +5,6 @@ import { generateSolarSystemsForGalaxy } from './universeGenerator.js';
 import { SolarSystemRenderer } from './solarSystemRenderer.js';
 import { HexPlanetViewController } from './hexPlanetViewController.js';
 import GameStateManager from './gameStateManager.js';
-import { SurfaceRenderer } from './surfaceRenderer.js';
 
 export const UIManager = (() => {
     let elements = {};
@@ -24,8 +23,6 @@ export const UIManager = (() => {
     let galaxyRandomizePaletteBtn, galaxyRandomizeAllBtn, galaxySaveDesignBtn, galaxyLoadDesignBtn, galaxyCancelBtn, galaxyApplyBtn;
     let savedGalaxyDesignsUl;
     let boundGalaxyApplyHandler, boundGalaxyCancelHandler, boundGalaxyRandomizeAllHandler, boundGalaxyRandomizePaletteHandler, boundGalaxySaveDesignHandler, boundSavedGalaxyDesignsClickHandler;
-    
-    let boundSolarSystemClickHandler = null;
 
 
     function _getPlanetTypeString(planetType) {
@@ -134,12 +131,12 @@ export const UIManager = (() => {
     }
 
     function setActiveScreen(screenToShow) {
-        const screens = [elements.mainScreen, elements.galaxyDetailScreen, elements.solarSystemScreen, elements.planetDesignerScreen, elements.hexPlanetScreen, elements.surfaceScreen, galaxyCustomizationModal, elements.devPanelBackgroundScreen].filter(s => s);
+        const screens = [elements.mainScreen, elements.galaxyDetailScreen, elements.solarSystemScreen, elements.planetDesignerScreen, elements.hexPlanetScreen, galaxyCustomizationModal].filter(s => s);
         screens.forEach(s => s.classList.remove('active', 'panning-active', 'visible'));
         if (screenToShow) screenToShow.classList.add('active');
         if (elements.planetSidebar) elements.planetSidebar.style.display = (screenToShow === elements.solarSystemScreen) ? 'block' : 'none';
         const isOnOverlayScreen = (screenToShow === elements.planetDesignerScreen || screenToShow === elements.hexPlanetScreen || screenToShow === galaxyCustomizationModal);
-
+        
         if (elements.devPanelButton) {
             elements.devPanelButton.style.display = isOnOverlayScreen ? 'none' : 'block';
         }
@@ -155,11 +152,6 @@ export const UIManager = (() => {
             currentGalaxyRenderer = null;
         }
 
-        if (boundSolarSystemClickHandler && elements.solarSystemContent) {
-            elements.solarSystemContent.removeEventListener('click', boundSolarSystemClickHandler);
-            boundSolarSystemClickHandler = null;
-        }
-
         const galaxy = GameStateManager.getGalaxies().find(g => g.id === galaxyId);
         if (!galaxy) {
             console.error("Could not find galaxy to switch to:", galaxyId);
@@ -173,21 +165,21 @@ export const UIManager = (() => {
         }
 
         setActiveScreen(elements.galaxyDetailScreen);
-
+        
         const onSystemClick = (solarSystemId) => {
             switchToSolarSystemView(solarSystemId);
         };
 
         currentGalaxyRenderer = GalaxyRenderer;
         currentGalaxyRenderer.resetConfig();
-
+        
         const galaxyConfig = galaxy.generationParams?.galaxyConfig;
         if (galaxyConfig) {
             currentGalaxyRenderer.updateConfig(galaxyConfig);
         }
-
+        
         currentGalaxyRenderer.init(elements.galaxyCanvasContainer, galaxy, onSystemClick);
-
+        
         const galaxyNumDisplay = galaxy.id.split('-').pop();
         if (elements.galaxyDetailTitleText) {
             elements.galaxyDetailTitleText.textContent = galaxy.customName || `Galaxy ${galaxyNumDisplay}`;
@@ -204,15 +196,11 @@ export const UIManager = (() => {
             currentGalaxyRenderer = null;
         }
         if (window.activeSolarSystemRenderer) {
+            elements.solarSystemContent.removeEventListener('click', _onSolarSystemCanvasClick);
             window.activeSolarSystemRenderer.dispose();
             window.activeSolarSystemRenderer = null;
         }
-
-        if (boundSolarSystemClickHandler && elements.solarSystemContent) {
-            elements.solarSystemContent.removeEventListener('click', boundSolarSystemClickHandler);
-            boundSolarSystemClickHandler = null;
-        }
-
+        
         GameStateManager.setActiveSolarSystemId(solarSystemId);
         const solarSystemObject = GameStateManager.getActiveSolarSystem();
 
@@ -221,10 +209,7 @@ export const UIManager = (() => {
             switchToGalaxyDetailView(GameStateManager.getState().activeGalaxyId);
             return;
         }
-        
-        // *** FIX STARTS HERE ***
-        // Ensure planets are generated if they don't exist *before* creating renderer data.
-        if (!solarSystemObject.hasOwnProperty('planets')) {
+        if (!solarSystemObject.planets) {
             callbacks.generatePlanetsForSystem(solarSystemObject);
         }
 
@@ -233,17 +218,14 @@ export const UIManager = (() => {
             sun: { size: solarSystemObject.sunSizeFactor, type: solarSystemObject.sunType },
             planets: solarSystemObject.planets.map(p => ({ ...p }))
         };
-        // *** FIX ENDS HERE ***
-
         setActiveScreen(elements.solarSystemScreen);
-
+        
         const devSettings = callbacks.getDevSettings();
         SolarSystemRenderer.init(solarSystemDataForRenderer, devSettings);
         window.activeSolarSystemRenderer = SolarSystemRenderer;
         
-        boundSolarSystemClickHandler = (event) => _onSolarSystemCanvasClick(event);
-        elements.solarSystemContent.addEventListener('click', boundSolarSystemClickHandler);
-
+        elements.solarSystemContent.addEventListener('click', _onSolarSystemCanvasClick);
+        
         _renderPlanetSidebar(solarSystemObject.planets);
 
         makeTitleEditable(elements.solarSystemTitleText, elements.solarSystemTitleInput, (newName) => {
@@ -254,62 +236,50 @@ export const UIManager = (() => {
 
     function showLandingConfirmation(locationData) {
         const { landingConfirmationPanel, landingQuestionText, landingBtnYes, landingBtnNo } = elements;
-
+    
         if (!landingConfirmationPanel || !landingQuestionText || !landingBtnYes || !landingBtnNo) return;
-
+    
         landingQuestionText.textContent = `Land at ${locationData.name} (${locationData.type})?`;
-
+    
         const yesHandler = () => {
-            const activeSystem = GameStateManager.getActiveSolarSystem();
-            const activePlanet = activeSystem?.planets.find(p => p.id === locationData.planetId);
-            if (activePlanet) {
-                switchToSurfaceView(activePlanet, locationData);
-            }
+            console.log(`Landing at ${locationData.name} on planet ${locationData.planetId}!`);
+            // Future logic: Transition to a surface view for this location.
             landingConfirmationPanel.classList.remove('visible');
             cleanupHandlers();
         };
-
+    
         const noHandler = () => {
             landingConfirmationPanel.classList.remove('visible');
             cleanupHandlers();
         };
-
+    
         const cleanupHandlers = () => {
             landingBtnYes.removeEventListener('click', yesHandler);
             landingBtnNo.removeEventListener('click', noHandler);
         };
-
+    
         landingBtnYes.addEventListener('click', yesHandler, { once: true });
         landingBtnNo.addEventListener('click', noHandler, { once: true });
-
+    
         landingConfirmationPanel.classList.add('visible');
     }
 
-    function switchToSurfaceView(planetData, locationData) {
-        if (window.activeSolarSystemRenderer) {
-            window.activeSolarSystemRenderer.dispose();
-            window.activeSolarSystemRenderer = null;
-        }
-        setActiveScreen(elements.surfaceScreen);
-        SurfaceRenderer.init(elements.surfaceCanvas, planetData, locationData);
-    }
-
-   function _onSolarSystemCanvasClick(event) {
+    function _onSolarSystemCanvasClick(event) {
         const renderer = window.activeSolarSystemRenderer;
         if (!renderer) return;
-
+    
         const raycaster = renderer.getRaycaster();
         const mouse = renderer.getMouse();
         const camera = renderer.getCamera();
         const planetMeshes = renderer.getPlanetMeshes();
         const landingSiteIcons = renderer.getLandingSiteIcons();
-
+        
         if (!raycaster || !mouse || !camera || !planetMeshes || !landingSiteIcons) return;
-
+    
         const rect = elements.solarSystemContent.getBoundingClientRect();
         mouse.x = ((event.clientX - rect.left) / rect.width) * 2 - 1;
         mouse.y = -((event.clientY - rect.top) / rect.height) * 2 + 1;
-
+    
         raycaster.setFromCamera(mouse, camera);
 
         const iconIntersects = raycaster.intersectObjects(landingSiteIcons.filter(i => i.visible));
@@ -317,28 +287,21 @@ export const UIManager = (() => {
         if (iconIntersects.length > 0) {
             const clickedIcon = iconIntersects[0].object;
             showLandingConfirmation(clickedIcon.userData);
-            return;
+            return; 
         }
 
         const intersects = raycaster.intersectObjects(planetMeshes);
-
+    
         if (intersects.length > 0) {
-            let clickedLOD = intersects[0].object;
-            while(clickedLOD && !clickedLOD.isLOD) {
-                clickedLOD = clickedLOD.parent;
-            }
-
-            if (clickedLOD) {
-                const clickedPlanetId = clickedLOD.userData.id;
-                const followedPlanetId = renderer.getFollowedPlanetId();
-
-                if (clickedPlanetId !== followedPlanetId) {
-                    renderer.focusOnPlanet(clickedPlanetId);
-                    const allItems = elements.planetSidebarList.querySelectorAll('.planet-sidebar-item');
-                    allItems.forEach(i => i.classList.remove('active-focus'));
-                    const item = elements.planetSidebarList.querySelector(`.planet-sidebar-item[data-planet-id="${clickedPlanetId}"]`);
-                    if(item) item.classList.add('active-focus');
-                }
+            const clickedPlanetId = intersects[0].object.userData.id;
+            const followedPlanetId = renderer.getFollowedPlanetId();
+            
+            if (clickedPlanetId !== followedPlanetId) {
+                renderer.focusOnPlanet(clickedPlanetId);
+                const allItems = elements.planetSidebarList.querySelectorAll('.planet-sidebar-item');
+                allItems.forEach(i => i.classList.remove('active-focus'));
+                const item = elements.planetSidebarList.querySelector(`.planet-sidebar-item[data-planet-id="${clickedPlanetId}"]`);
+                if(item) item.classList.add('active-focus');
             }
         }
     }
@@ -346,15 +309,13 @@ export const UIManager = (() => {
     function switchToHexPlanetView(planetData, onBackCallback) {
         if (!planetData) return;
         if (window.activeSolarSystemRenderer) {
-            if (boundSolarSystemClickHandler && elements.solarSystemContent) {
-                elements.solarSystemContent.removeEventListener('click', boundSolarSystemClickHandler);
-                boundSolarSystemClickHandler = null;
-            }
+            elements.solarSystemContent.removeEventListener('click', _onSolarSystemCanvasClick);
         }
         setActiveScreen(elements.hexPlanetScreen);
         HexPlanetViewController.activate(planetData, onBackCallback);
     }
 
+    // --- Galaxy Customization Functions ---
     function getGalaxyElements() {
         galaxyCustomizationModal = document.getElementById('galaxy-customization-modal');
         galaxyRadiusInput = document.getElementById('galaxy-radius');
@@ -428,7 +389,7 @@ export const UIManager = (() => {
             callbacks.regenerateUniverseState();
         }
     }
-
+    
     function _toHex(c) {
         const hex = Math.round(c * 255).toString(16);
         return hex.length === 1 ? '0' + hex : hex;
@@ -579,7 +540,7 @@ export const UIManager = (() => {
             };
             GameStateManager.updateGalaxyProperty(activeGalaxy.id, 'generationParams', newGenerationParams);
         }
-
+        
         GalaxyRenderer.updateConfig(newConfig);
         hideGalaxyCustomizationModal();
     }
@@ -703,7 +664,7 @@ export const UIManager = (() => {
     function populateSavedGalaxyDesignsList() {
         if (!savedGalaxyDesignsUl) return;
         savedGalaxyDesignsUl.innerHTML = '';
-
+        
         const designs = GameStateManager.getCustomGalaxyDesigns();
 
         if (designs.length === 0) {
@@ -714,25 +675,25 @@ export const UIManager = (() => {
             savedGalaxyDesignsUl.appendChild(li);
             return;
         }
-
+        
         designs.forEach(design => {
             const li = document.createElement('li');
             const nameSpan = document.createElement('span');
             nameSpan.className = 'design-item-name';
             nameSpan.textContent = design.designName;
-
+            
             const buttonsDiv = document.createElement('div');
             const loadBtn = document.createElement('button');
             loadBtn.textContent = 'Load';
             loadBtn.className = 'design-item-load';
             loadBtn.dataset.id = design.designId;
-
+            
             const deleteBtn = document.createElement('button');
-            deleteBtn.innerHTML = '×';
+            deleteBtn.innerHTML = '×'; 
             deleteBtn.className = 'design-item-delete';
             deleteBtn.dataset.id = design.designId;
             deleteBtn.title = `Delete ${design.designName}`;
-
+            
             buttonsDiv.appendChild(loadBtn);
             buttonsDiv.appendChild(deleteBtn);
             li.appendChild(nameSpan);
@@ -750,8 +711,7 @@ export const UIManager = (() => {
             window.switchToHexPlanetView = switchToHexPlanetView;
 
             elements.galaxyCanvasContainer = document.getElementById('galaxy-canvas-container');
-            elements.surfaceCanvas = document.getElementById('surface-canvas');
-
+            
             elements.devPanelButton?.addEventListener('click', () => {
                 callbacks.showDevPanel();
             });
@@ -759,7 +719,7 @@ export const UIManager = (() => {
             elements.planetSidebarList.addEventListener('click', (event) => {
                 const item = event.target.closest('.planet-sidebar-item');
                 if (!item) return;
-
+            
                 const planetId = item.dataset.planetId;
                 if (!planetId || !window.activeSolarSystemRenderer) return;
 
@@ -770,7 +730,7 @@ export const UIManager = (() => {
                     item.classList.remove('active-focus');
                 } else {
                     window.activeSolarSystemRenderer.focusOnPlanet(planetId);
-
+            
                     const allItems = elements.planetSidebarList.querySelectorAll('.planet-sidebar-item');
                     allItems.forEach(i => i.classList.remove('active-focus'));
                     item.classList.add('active-focus');
@@ -784,16 +744,8 @@ export const UIManager = (() => {
                 }
             });
 
-            elements.backToSystemButton.addEventListener('click', () => {
-                SurfaceRenderer.dispose();
-                const activeSystemId = GameStateManager.getState().activeSolarSystemId;
-                if(activeSystemId) {
-                    switchToSolarSystemView(activeSystemId);
-                }
-            });
-
-            getGalaxyElements();
-
+            getGalaxyElements(); 
+            
             boundGalaxyApplyHandler = () => _applyGalaxySettings();
             boundGalaxyCancelHandler = () => hideGalaxyCustomizationModal();
             boundGalaxyRandomizeAllHandler = () => _randomizeAllGalaxySettings();
@@ -814,7 +766,7 @@ export const UIManager = (() => {
 
             galaxyApplyBtn?.addEventListener('click', boundGalaxyApplyHandler);
             galaxyCancelBtn?.addEventListener('click', boundGalaxyCancelHandler);
-            galaxyRandomizeAllBtn?.addEventListener('click', boundGalaxyRandomizeAllHandler);
+            galaxyRandomizeAllBtn?.addEventListener('click', boundGalaxyRandomizePaletteHandler);
             galaxyRandomizePaletteBtn?.addEventListener('click', boundGalaxyRandomizePaletteHandler);
             galaxySaveDesignBtn?.addEventListener('click', boundGalaxySaveDesignHandler);
             savedGalaxyDesignsUl?.addEventListener('click', boundSavedGalaxyDesignsClickHandler);

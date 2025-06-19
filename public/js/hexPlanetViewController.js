@@ -4,61 +4,54 @@ import { getHexPlanetShaders } from './shaders.js';
 import { addBarycentricCoordinates } from './utils.js';
 
 export const HexPlanetViewController = (() => {
+    // Module-level variables to manage state
     let scene, camera, renderer, controls, lod;
     let animationId = null;
-    let backButton = null;
-    let isTransitioning = false;
+    let onBackCallback = null;
 
     const SPHERE_BASE_RADIUS = 1.0;
     const DISPLACEMENT_SCALING_FACTOR = 0.005;
 
     function initScene(canvas, planetBasis) {
+        // Scene and camera
         scene = new THREE.Scene();
         scene.background = new THREE.Color(0x000000);
-
         camera = new THREE.PerspectiveCamera(60, canvas.offsetWidth / canvas.offsetHeight, 0.1, 1000);
         camera.position.z = 2.4;
 
-        renderer = new THREE.WebGLRenderer({ canvas, antialias: true, logarithmicDepthBuffer: true });
+        // Renderer
+        renderer = new THREE.WebGLRenderer({ canvas, antialias: true });
         renderer.setSize(canvas.offsetWidth, canvas.offsetHeight);
         renderer.setPixelRatio(window.devicePixelRatio);
 
+        // Controls
         controls = new OrbitControls(camera, renderer.domElement);
         controls.enableDamping = true;
         controls.dampingFactor = 0.08;
-        controls.rotateSpeed = 1.0;
-        controls.zoomSpeed = 0.8;
         controls.minDistance = 1.2;
         controls.maxDistance = 40.0;
         controls.enablePan = false;
-        controls.minPolarAngle = 0;
-        controls.maxPolarAngle = Math.PI;
 
+        // Planet Material and Shaders
         const { vertexShader, fragmentShader } = getHexPlanetShaders();
-
         const baseMaterial = new THREE.ShaderMaterial({
-            uniforms: THREE.UniformsUtils.merge([
-                THREE.UniformsLib.common,
-                THREE.UniformsLib.lights,
-                {
-                    uWaterColor: { value: new THREE.Color(planetBasis.waterColor) },
-                    uLandColor: { value: new THREE.Color(planetBasis.landColor) },
-                    uContinentSeed: { value: planetBasis.continentSeed },
-                    uRiverBasin: { value: planetBasis.riverBasin },
-                    uForestDensity: { value: planetBasis.forestDensity },
-                    uTime: { value: 0.0 },
-                    uSphereRadius: { value: SPHERE_BASE_RADIUS },
-                    uDisplacementAmount: { value: 0.0 },
-                    uShowStrokes: { value: false },
-                    uOceanHeightLevel: { value: 0.0 },
-                    uMountainStrength: { value: 1.0 },
-                    uIslandStrength: { value: 1.0 },
-                    uPlanetType: { value: planetBasis.planetType || 0 },
-                }
-            ]),
+            uniforms: {
+                uWaterColor: { value: new THREE.Color(planetBasis.waterColor) },
+                uLandColor: { value: new THREE.Color(planetBasis.landColor) },
+                uContinentSeed: { value: planetBasis.continentSeed },
+                uRiverBasin: { value: planetBasis.riverBasin },
+                uForestDensity: { value: planetBasis.forestDensity },
+                uTime: { value: 0.0 },
+                uSphereRadius: { value: SPHERE_BASE_RADIUS },
+                uDisplacementAmount: { value: 0.0 },
+                uShowStrokes: { value: false },
+                uOceanHeightLevel: { value: 0.0 },
+                uPlanetType: { value: planetBasis.planetType || 0 },
+                uLightDirection: { value: new THREE.Vector3(0.8, 0.6, 1.0).normalize() },
+                cameraPosition: { value: camera.position }
+            },
             vertexShader,
             fragmentShader,
-            lights: true
         });
 
         const terrainRange = Math.max(0.1, planetBasis.maxTerrainHeight - planetBasis.minTerrainHeight);
@@ -67,46 +60,34 @@ export const HexPlanetViewController = (() => {
         baseMaterial.uniforms.uDisplacementAmount.value = terrainRange * DISPLACEMENT_SCALING_FACTOR;
 
         lod = new THREE.LOD();
-        scene.add(lod);
-
         const detailLevels = [
-            { subdivision: 256, distance: 0.0 },
-            { subdivision: 128, distance: 3.0 },
-            { subdivision: 64, distance: 6.0 },
-            { subdivision: 32, distance: 10.0 },
-            { subdivision: 16, distance: 14.0 },
-            { subdivision: 8, distance: 18.0 }
+            { subdivision: 256, distance: 0.0 }, { subdivision: 128, distance: 3.0 },
+            { subdivision: 64, distance: 6.0 },  { subdivision: 32, distance: 10.0 },
+            { subdivision: 16, distance: 14.0 }, { subdivision: 8, distance: 18.0 }
         ];
 
         detailLevels.forEach(level => {
             const geometry = new THREE.IcosahedronGeometry(SPHERE_BASE_RADIUS, level.subdivision);
             addBarycentricCoordinates(geometry);
-            const materialForLevel = baseMaterial.clone();
-            const mesh = new THREE.Mesh(geometry, materialForLevel);
+            const mesh = new THREE.Mesh(geometry, baseMaterial);
             lod.addLevel(mesh, level.distance);
         });
+        scene.add(lod);
 
-        const ambientLight = new THREE.AmbientLight(0xffffff, 0.7);
-        scene.add(ambientLight);
-        const directionalLight = new THREE.DirectionalLight(0xffffff, 0.5);
-        directionalLight.position.set(5, 5, 5);
-        scene.add(directionalLight);
-
+        // Start animation
         animate();
     }
 
-    function animate(now) {
+    function animate() {
         animationId = requestAnimationFrame(animate);
-        if (lod) {
-            lod.children.forEach(mesh => {
-                if (mesh.material && mesh.material.uniforms.uTime) {
-                    mesh.material.uniforms.uTime.value = now / 1000;
-                }
-            });
+        if (renderer && scene && camera) {
+            if (lod?.children[0]?.material) {
+                lod.children[0].material.uniforms.uTime.value += 0.015;
+            }
+            controls.update();
+            lod.update(camera);
+            renderer.render(scene, camera);
         }
-        if (controls) controls.update();
-        if (lod) lod.update(camera);
-        if (scene && camera) renderer.render(scene, camera);
     }
 
     function cleanup() {
@@ -114,109 +95,47 @@ export const HexPlanetViewController = (() => {
             cancelAnimationFrame(animationId);
             animationId = null;
         }
-        
         if (controls) {
             controls.dispose();
             controls = null;
         }
-
-        if (lod) {
-            lod.traverse((object) => {
+        if (scene) {
+            scene.traverse(object => {
                 if (object.isMesh) {
-                    if (object.geometry) {
-                        object.geometry.dispose();
-                    }
-                    if (Array.isArray(object.material)) {
-                        object.material.forEach(m => {
-                            if (m.uniforms) {
-                                Object.values(m.uniforms).forEach(uniform => {
-                                    if (uniform.value instanceof THREE.Texture) {
-                                        uniform.value.dispose();
-                                    }
-                                });
-                            }
-                            m.dispose();
-                        });
-                    } else if (object.material) {
-                        if (object.material.uniforms) {
-                            Object.values(object.material.uniforms).forEach(uniform => {
-                                if (uniform.value instanceof THREE.Texture) {
-                                    uniform.value.dispose();
-                                }
-                            });
-                        }
-                        object.material.dispose();
-                    }
+                    object.geometry?.dispose();
+                    object.material?.dispose();
                 }
             });
-            scene.remove(lod);
-            lod = null;
+            scene = null;
         }
-
         if (renderer) {
             renderer.dispose();
-            renderer.domElement = null;
             renderer = null;
         }
-
-        scene = null;
-        camera = null;
-    }
-
-    function onResize() {
-        if (!renderer || !camera) return;
-        const canvas = renderer.domElement;
-        const width = canvas.offsetWidth;
-        const height = canvas.offsetHeight;
-        if (width > 0 && height > 0) {
-            camera.aspect = width / height;
-            camera.updateProjectionMatrix();
-            renderer.setSize(width, height);
-        }
+        onBackCallback = null;
     }
 
     return {
-        init: () => { /* ... */ },
-
-        activate: (planetBasis, onBackCallback) => {
-            const canvas = document.getElementById('hex-planet-canvas');
+        activate: (planetData, backCb) => {
             const screen = document.getElementById('hex-planet-screen');
-            backButton = document.getElementById('back-from-hex-view');
+            const canvas = document.getElementById('hex-planet-canvas');
+            const backButton = document.getElementById('back-from-hex-view');
+            
+            if (!screen || !canvas || !backButton) return;
 
-            if (!canvas || !screen || !backButton) {
-                console.error("HexPlanetViewController: Missing required elements...");
-                return;
-            }
-
-            cleanup();
-            initScene(canvas, planetBasis);
+            onBackCallback = backCb;
+            initScene(canvas, planetData);
 
             const handleBackClick = () => {
-                if (isTransitioning) return;
-                isTransitioning = true;
-
-                if (animationId) {
-                    cancelAnimationFrame(animationId);
-                    animationId = null;
-                }
                 backButton.removeEventListener('click', handleBackClick);
-                window.removeEventListener('resize', onResize);
-
                 if (typeof onBackCallback === 'function') {
                     onBackCallback();
                 }
-
-                requestAnimationFrame(() => {
-                    cleanup();
-                    isTransitioning = false;
-                });
+                requestAnimationFrame(cleanup);
             };
 
             backButton.addEventListener('click', handleBackClick);
-            window.addEventListener('resize', onResize);
             screen.classList.add('active');
-        },
-
-        cleanup: cleanup
+        }
     };
 })();

@@ -34,6 +34,30 @@ export const PlanetDesigner = (() => {
     let designerThreeScene, designerThreeCamera, designerThreeRenderer,
         designerThreePlanetMesh, designerThreeControls, designerThreeAnimationId, designerShaderMaterial;
 
+    function _addEventListeners() {
+        document.querySelectorAll('.designer-controls input').forEach(input => {
+            input.addEventListener('input', handleControlChangeRef);
+        });
+        designerRandomizeBtn?.addEventListener('click', randomizeDesignerPlanetRef);
+        designerExploreBtn?.addEventListener('click', handleExploreButtonClickRef);
+        designerSaveBtn?.addEventListener('click', saveCustomPlanetDesignRef);
+        designerCancelBtn?.addEventListener('click', cancelDesignerRef);
+        savedDesignsUl?.addEventListener('click', savedDesignsClickHandlerRef);
+        window.addEventListener('resize', boundResizeHandler);
+    }
+
+    function _removeEventListeners() {
+        document.querySelectorAll('.designer-controls input').forEach(input => {
+            input.removeEventListener('input', handleControlChangeRef);
+        });
+        designerRandomizeBtn?.removeEventListener('click', randomizeDesignerPlanetRef);
+        designerExploreBtn?.removeEventListener('click', handleExploreButtonClickRef);
+        designerSaveBtn?.removeEventListener('click', saveCustomPlanetDesignRef);
+        designerCancelBtn?.removeEventListener('click', cancelDesignerRef);
+        savedDesignsUl?.removeEventListener('click', savedDesignsClickHandlerRef);
+        window.removeEventListener('resize', boundResizeHandler);
+    }
+
     function _onDesignerResize() {
         if (designerThreeRenderer && document.getElementById('planet-designer-screen')?.classList.contains('active')) {
             const newWidth = designerPlanetCanvas.offsetWidth;
@@ -252,14 +276,9 @@ export const PlanetDesigner = (() => {
     }
 
     function _handleExploreButtonClick() {
-        // Deactivate the current designer view to show the hex view
         const planetScreen = document.getElementById('planet-designer-screen');
         planetScreen.classList.remove('active');
-
-        // The HexPlanetViewController will handle activating its own screen.
-        // We provide a callback for what to do when the hex view is closed.
         HexPlanetViewController.activate(currentDesignerBasis, () => {
-            // When returning from hex view, reactivate the designer screen
             planetScreen.classList.add('active');
         });
     }
@@ -313,6 +332,7 @@ export const PlanetDesigner = (() => {
 
     return {
         init: () => {
+            // Get all DOM element references
             designerPlanetCanvas = document.getElementById('designer-planet-canvas');
             designerWaterColorInput = document.getElementById('designer-water-color');
             designerLandColorInput = document.getElementById('designer-land-color');
@@ -329,6 +349,7 @@ export const PlanetDesigner = (() => {
             designerSaveBtn = document.getElementById('designer-save-btn');
             designerCancelBtn = document.getElementById('designer-cancel-btn');
 
+            // Create bound function references once
             handleControlChangeRef = (e) => _handleControlChange(e);
             randomizeDesignerPlanetRef = () => _randomizeDesignerPlanet();
             handleExploreButtonClickRef = () => _handleExploreButtonClick();
@@ -347,22 +368,14 @@ export const PlanetDesigner = (() => {
                 }
             };
             boundResizeHandler = _onDesignerResize.bind(this);
-
-            document.querySelectorAll('.designer-controls input').forEach(input => {
-                input.addEventListener('input', handleControlChangeRef);
-            });
-
-            designerRandomizeBtn?.addEventListener('click', randomizeDesignerPlanetRef);
-            designerExploreBtn?.addEventListener('click', handleExploreButtonClickRef);
-            designerSaveBtn?.addEventListener('click', saveCustomPlanetDesignRef);
-            designerCancelBtn?.addEventListener('click', cancelDesignerRef);
-            savedDesignsUl?.addEventListener('click', savedDesignsClickHandlerRef);
-            window.addEventListener('resize', boundResizeHandler);
         },
 
         activate: (onBack) => {
             console.log("PlanetDesigner.activate called.");
             onBackCallback = onBack;
+            
+            _addEventListeners(); // Add listeners when the view becomes active
+
             _populateDesignerInputsFromBasis();
             _populateSavedDesignsList();
 
@@ -375,27 +388,20 @@ export const PlanetDesigner = (() => {
 
         deactivate: () => {
             console.log("PlanetDesigner.deactivate called.");
-            // Call the callback FIRST to switch to the new screen.
+            _removeEventListeners(); // Remove listeners when the view becomes inactive
+
             if (typeof onBackCallback === 'function') {
                 onBackCallback();
             } else {
                 console.error("No onBack callback provided to PlanetDesigner.");
             }
-            // Defer the heavy 3D cleanup until the next animation frame.
+            
             requestAnimationFrame(_stopAndCleanupDesignerThreeJSView);
         },
 
         destroy: () => {
-            console.log("PlanetDesigner: Removing event listeners.");
-            document.querySelectorAll('.designer-controls input').forEach(input => {
-                input.removeEventListener('input', handleControlChangeRef);
-            });
-            designerRandomizeBtn?.removeEventListener('click', randomizeDesignerPlanetRef);
-            designerExploreBtn?.removeEventListener('click', handleExploreButtonClickRef);
-            designerSaveBtn?.removeEventListener('click', saveCustomPlanetDesignRef);
-            designerCancelBtn?.removeEventListener('click', cancelDesignerRef);
-            savedDesignsUl?.removeEventListener('click', savedDesignsClickHandlerRef);
-            window.removeEventListener('resize', boundResizeHandler);
+            console.log("PlanetDesigner: Destroying module.");
+            _removeEventListeners(); // Ensure listeners are removed if the module is ever fully destroyed
         }
     };
 })();

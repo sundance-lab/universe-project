@@ -9,7 +9,7 @@ import GameStateManager from './gameStateManager.js'; // Import the state manage
 export const PlanetDesigner = (() => {
     // --- Terrestrial Controls ---
     let terrestrialControls, designerWaterColorInput, designerLandColorInput, designerMinHeightInput, designerMaxHeightInput, designerOceanHeightInput,
-        designerRiverBasinInput, designerRiverBasinValue, designerForestDensityInput, designerForestDensityValue,
+        designerForestDensityInput, designerForestDensityValue,
         designerVolcanicActivityInput, designerVolcanicActivityValue, designerSnowCapsInput, designerSnowCapsValue;
 
     // --- Gas Giant Controls ---
@@ -35,7 +35,7 @@ export const PlanetDesigner = (() => {
             isGasGiant: isGasGiant,
             continentSeed: Math.random(),
             // Terrestrial Defaults
-            waterColor: '#1E90FF', landColor: '#556B2F', riverBasin: 0.05, forestDensity: 0.5,
+            waterColor: '#1E90FF', landColor: '#556B2F', forestDensity: 0.5,
             minTerrainHeight: 0.0, maxTerrainHeight: 10.0, oceanHeightLevel: 1.0,
             volcanicActivity: 0.0, snowCapLevel: 0.0,
             // Gas Giant Defaults
@@ -89,7 +89,6 @@ export const PlanetDesigner = (() => {
                 uLandColor: { value: new THREE.Color() },
                 uWaterColor: { value: new THREE.Color() },
                 uOceanHeightLevel: { value: 0.5 },
-                uRiverBasin: { value: 0.05 },
                 uForestDensity: { value: 0.5 },
                 uDisplacementAmount: { value: 0.0 },
                 uVolcanicActivity: { value: 0.0 },
@@ -166,7 +165,6 @@ export const PlanetDesigner = (() => {
             // Terrestrial
             case 'designer-water-color': basis.waterColor = input.value; break;
             case 'designer-land-color': basis.landColor = input.value; break;
-            case 'designer-river-basin': basis.riverBasin = parseFloat(input.value); designerRiverBasinValue.textContent = basis.riverBasin.toFixed(2); break;
             case 'designer-forest-density': basis.forestDensity = parseFloat(input.value); designerForestDensityValue.textContent = basis.forestDensity.toFixed(2); break;
             case 'designer-volcanic-activity': basis.volcanicActivity = parseFloat(input.value); designerVolcanicActivityValue.textContent = basis.volcanicActivity.toFixed(2); break;
             case 'designer-snow-caps': basis.snowCapLevel = parseFloat(input.value); designerSnowCapsValue.textContent = basis.snowCapLevel.toFixed(2); break;
@@ -210,7 +208,6 @@ export const PlanetDesigner = (() => {
             
             uniforms.uWaterColor.value.set(basis.waterColor);
             uniforms.uLandColor.value.set(basis.landColor);
-            uniforms.uRiverBasin.value = basis.riverBasin;
             uniforms.uForestDensity.value = basis.forestDensity;
             uniforms.uOceanHeightLevel.value = normalizedOceanLevel - 0.5;
             uniforms.uDisplacementAmount.value = terrainRange * DISPLACEMENT_SCALING_FACTOR;
@@ -228,8 +225,6 @@ export const PlanetDesigner = (() => {
         // Terrestrial
         designerWaterColorInput.value = basis.waterColor;
         designerLandColorInput.value = basis.landColor;
-        designerRiverBasinInput.value = basis.riverBasin;
-        designerRiverBasinValue.textContent = Number(basis.riverBasin).toFixed(2);
         designerForestDensityInput.value = basis.forestDensity;
         designerForestDensityValue.textContent = Number(basis.forestDensity).toFixed(2);
         designerVolcanicActivityInput.value = basis.volcanicActivity;
@@ -278,7 +273,6 @@ export const PlanetDesigner = (() => {
             const maxH = _getRandomFloat(minH + 1.0, minH + 10.0);
             basis.waterColor = _getRandomHexColor();
             basis.landColor = _getRandomHexColor();
-            basis.riverBasin = _getRandomFloat(0.01, 0.15, 2);
             basis.forestDensity = _getRandomFloat(0.1, 0.9, 2);
             basis.minTerrainHeight = minH;
             basis.maxTerrainHeight = maxH;
@@ -389,8 +383,6 @@ export const PlanetDesigner = (() => {
             // Terrestrial
             designerWaterColorInput = document.getElementById('designer-water-color');
             designerLandColorInput = document.getElementById('designer-land-color');
-            designerRiverBasinInput = document.getElementById('designer-river-basin');
-            designerRiverBasinValue = document.getElementById('designer-river-basin-value');
             designerForestDensityInput = document.getElementById('designer-forest-density');
             designerForestDensityValue = document.getElementById('designer-forest-density-value');
             designerMinHeightInput = document.getElementById('designer-min-height');

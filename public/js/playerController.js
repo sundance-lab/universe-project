@@ -70,7 +70,6 @@ export const PlayerController = (() => {
                 player.velocity.y = (player.velocity.y / speed) * player.maxSpeed;
             }
 
-            // The renderer will update the mesh position based on this velocity
         },
 
         dispose: () => {

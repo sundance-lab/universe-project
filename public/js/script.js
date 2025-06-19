@@ -80,6 +80,7 @@ document.addEventListener('DOMContentLoaded', () => {
         landingBtnNo: document.getElementById('landing-btn-no'),
         surfaceScreen: document.getElementById('surface-screen'),
         backToSystemButton: document.getElementById('back-to-system'),
+        devPanelBackgroundScreen: document.getElementById('dev-panel-background-screen'),
     };
 
     // --- FUNCTIONS ---
@@ -229,7 +230,6 @@ document.addEventListener('DOMContentLoaded', () => {
         });
 
         domElements.panelOpenPlanetDesignerButton.addEventListener('click', () => {
-            domElements.devPanelModal.classList.remove('visible');
             callbacks.switchToPlanetDesignerScreen();
         });
 
@@ -344,17 +344,18 @@ document.addEventListener('DOMContentLoaded', () => {
             GameStateManager
         ),
         switchToPlanetDesignerScreen: () => {
-            let onBack;
-            const state = GameStateManager.getState();
-            if (state.activeSolarSystemId) {
-                onBack = () => window.switchToSolarSystemView(state.activeSolarSystemId);
-            } else if (state.activeGalaxyId) {
-                onBack = () => window.switchToGalaxyDetailView(state.activeGalaxyId);
-            } else {
-                // Fallback if no active context
-                onBack = () => initializeGame(true);
-            }
-
+            // Hide the dev panel modal before switching.
+            domElements.devPanelModal.classList.remove('visible');
+    
+            const onBack = () => {
+                // This is the new lightweight callback.
+                // 1. Activate our simple, blank background screen. This is instant.
+                UIManager.setActiveScreen(domElements.devPanelBackgroundScreen);
+                // 2. Show the Dev Panel modal on top of it.
+                showDevPanel();
+            };
+    
+            // Activate the planet designer screen and pass it the new lightweight callback.
             UIManager.setActiveScreen(domElements.planetDesignerScreen);
             if (window.PlanetDesigner?.activate) {
                 window.PlanetDesigner.activate(onBack);

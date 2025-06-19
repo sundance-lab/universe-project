@@ -69,6 +69,14 @@ export const PlanetDesigner = (() => {
         designerThreeCamera = new THREE.PerspectiveCamera(60, designerPlanetCanvas.offsetWidth / designerPlanetCanvas.offsetHeight, 0.001, 100);
         designerThreeCamera.position.z = 2.5;
 
+        // Add lighting to the scene
+        const ambientLight = new THREE.AmbientLight(0xffffff, 0.5);
+        designerThreeScene.add(ambientLight);
+        const directionalLight = new THREE.DirectionalLight(0xffffff, 0.8);
+        directionalLight.position.set(5, 5, 5);
+        designerThreeScene.add(directionalLight);
+
+
         designerThreeRenderer = new THREE.WebGLRenderer({ canvas: designerPlanetCanvas, antialias: true });
         designerThreeRenderer.setSize(designerPlanetCanvas.offsetWidth, designerPlanetCanvas.offsetHeight);
         designerThreeRenderer.setPixelRatio(window.devicePixelRatio);
@@ -314,10 +322,6 @@ export const PlanetDesigner = (() => {
     }
 
     function _handleExploreButtonClick(fromSolarSystem = false) {
-        if (currentDesignerBasis.isGasGiant) {
-            alert("Exploration view is not available for Gas Giants yet.");
-            return;
-        }
         const planetScreen = document.getElementById('planet-designer-screen');
         const hexScreen = document.getElementById('hex-planet-screen');
         HexPlanetViewController.activate(currentDesignerBasis, () => {

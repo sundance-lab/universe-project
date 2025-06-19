@@ -317,8 +317,9 @@ export const SolarSystemRenderer = (() => {
                     uSphereRadius: { value: SPHERE_BASE_RADIUS },
                     uDisplacementAmount: { value: displacementAmount },
                     uTime: { value: 0.0 },
-                    uPlanetType: { value: planetData.planetType || 0 },
-                    uLightDirection: { value: new THREE.Vector3(0.8, 0.6, 1.0) }
+                    uLightDirection: { value: new THREE.Vector3(0.8, 0.6, 1.0) },
+                    uVolcanicActivity: { value: planetData.volcanicActivity ?? 0.0 },
+                    uSnowCapLevel: { value: planetData.snowCapLevel ?? 0.0 },
                 }
             ]),
             vertexShader,
@@ -337,7 +338,7 @@ export const SolarSystemRenderer = (() => {
         ];
 
         levels.forEach(level => {
-            const geometry = new THREE.SphereGeometry(planetData.size, level.subdivision, level.subdivision);
+            const geometry = new THREE.IcosahedronGeometry(planetData.size, level.subdivision);
             const mesh = new THREE.Mesh(geometry, material);
             lod.addLevel(mesh, level.distance);
         });
@@ -872,6 +873,12 @@ export const SolarSystemRenderer = (() => {
                 lod.userData.hexMeshLOD.position.copy(lod.position);
                 lod.userData.hexMeshLOD.rotation.copy(lod.rotation);
             }
+            // Update time uniform for shaders
+            lod.children.forEach(mesh => {
+                if (mesh.material && mesh.material.uniforms.uTime) {
+                    mesh.material.uniforms.uTime.value = totalElapsedTime;
+                }
+            });
         });
 
         if (unfocusAnimation) {

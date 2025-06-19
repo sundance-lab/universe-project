@@ -155,7 +155,6 @@ export const HexPlanetViewController = (() => {
 
         if (renderer) {
             renderer.dispose();
-            // renderer.forceContextLoss(); // <-- FIX: This line was removed.
             renderer.domElement = null;
             renderer = null;
         }
@@ -192,36 +191,28 @@ export const HexPlanetViewController = (() => {
             cleanup();
             initScene(canvas, planetBasis);
 
-            const handleBackClick = async () => {
+            // FIX: Replaced the complex async handler with a simpler, more reliable one.
+            const handleBackClick = () => {
                 if (isTransitioning) return;
                 isTransitioning = true;
 
-                // 1. First stop the animation loop
+                // Stop rendering and remove listeners.
                 if (animationId) {
                     cancelAnimationFrame(animationId);
                     animationId = null;
                 }
-
-                // 2. Remove event listeners
                 backButton.removeEventListener('click', handleBackClick);
                 window.removeEventListener('resize', onResize);
 
-                try {
-                    // 3. Perform cleanup in a non-blocking way
-                    await new Promise(resolve => {
-                        setTimeout(() => {
-                            cleanup();
-                            resolve();
-                        }, 50);
-                    });
-
-                    // 4. Finally transition the UI
-                    if (typeof onBackCallback === 'function') {
-                        onBackCallback();
-                    }
-                } finally {
-                    isTransitioning = false;
+                // Immediately switch the screen back to the designer.
+                if (typeof onBackCallback === 'function') {
+                    onBackCallback();
                 }
+
+                // Clean up the Three.js resources for the hex view.
+                cleanup();
+
+                isTransitioning = false;
             };
 
             backButton.addEventListener('click', handleBackClick);

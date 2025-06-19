@@ -70,88 +70,81 @@ export const PlanetDesigner = (() => {
         }
     }
 
-function _initDesignerThreeJSView() {
-    if (!designerPlanetCanvas) return;
+    function _initDesignerThreeJSView() {
+        _stopAndCleanupDesignerThreeJSView();
+        if (!designerPlanetCanvas) return;
 
-    const { vertexShader, fragmentShader } = getPlanetShaders();
+        const { vertexShader, fragmentShader } = getPlanetShaders();
 
-    designerThreeScene = new THREE.Scene();
-    designerThreeScene.background = new THREE.Color(0x0d0d0d);
-    designerThreeCamera = new THREE.PerspectiveCamera(60, designerPlanetCanvas.offsetWidth / designerPlanetCanvas.offsetHeight, 0.001, 100);
-    designerThreeCamera.position.z = 2.5;
+        designerThreeScene = new THREE.Scene();
+        designerThreeScene.background = new THREE.Color(0x0d0d0d);
 
-    designerThreeRenderer = new THREE.WebGLRenderer({ canvas: designerPlanetCanvas, antialias: true });
-    designerThreeRenderer.setSize(designerPlanetCanvas.offsetWidth, designerPlanetCanvas.offsetHeight);
-    designerThreeRenderer.setPixelRatio(window.devicePixelRatio);
+        designerThreeCamera = new THREE.PerspectiveCamera(60, designerPlanetCanvas.offsetWidth / designerPlanetCanvas.offsetHeight, 0.1, 100);
+        designerThreeCamera.position.z = 2.5;
 
-    const ambientLight = new THREE.AmbientLight(0xffffff, 0.7);
-    designerThreeScene.add(ambientLight);
-    const directionalLight = new THREE.DirectionalLight(0xffffff, 0.5);
-    directionalLight.position.set(5, 5, 5);
-    designerThreeScene.add(directionalLight);
+        designerThreeRenderer = new THREE.WebGLRenderer({ canvas: designerPlanetCanvas, antialias: true });
+        designerThreeRenderer.setSize(designerPlanetCanvas.offsetWidth, designerPlanetCanvas.offsetHeight);
+        designerThreeRenderer.setPixelRatio(window.devicePixelRatio);
 
-    const geometry = new THREE.IcosahedronGeometry(SPHERE_BASE_RADIUS, 32);
+        const geometry = new THREE.IcosahedronGeometry(SPHERE_BASE_RADIUS, 32);
 
-    const uniforms = THREE.UniformsUtils.merge([
-        THREE.UniformsLib.common,
-        THREE.UniformsLib.lights, 
-        {
-            uLandColor: { value: new THREE.Color() },
-            uWaterColor: { value: new THREE.Color() },
-            uOceanHeightLevel: { value: 0.5 },
-            uContinentSeed: { value: Math.random() },
-            uRiverBasin: { value: 0.05 },
-            uForestDensity: { value: 0.5 },
-            uTime: { value: 0.0 },
-            uSphereRadius: { value: SPHERE_BASE_RADIUS },
-            uDisplacementAmount: { value: 0.0 },
-            uPlanetType: { value: 0 }
-        }
-    ]);
+        designerShaderMaterial = new THREE.ShaderMaterial({
+            uniforms: {
+                uWaterColor: { value: new THREE.Color() },
+                uLandColor: { value: new THREE.Color() },
+                uOceanHeightLevel: { value: 0.5 },
+                uContinentSeed: { value: Math.random() },
+                uRiverBasin: { value: 0.05 },
+                uForestDensity: { value: 0.5 },
+                uTime: { value: 0.0 },
+                uSphereRadius: { value: SPHERE_BASE_RADIUS },
+                uDisplacementAmount: { value: 0.0 },
+                uPlanetType: { value: 0 },
+                uLightDirection: { value: new THREE.Vector3(0.8, 0.6, 1.0).normalize() },
+                cameraPosition: { value: designerThreeCamera.position }
+            },
+            vertexShader: vertexShader,
+            fragmentShader: fragmentShader,
+        });
 
-    designerShaderMaterial = new THREE.ShaderMaterial({
-        uniforms: uniforms,
-        vertexShader: vertexShader,
-        fragmentShader: fragmentShader,
-        lights: true 
-    });
+        designerThreePlanetMesh = new THREE.Mesh(geometry, designerShaderMaterial);
+        designerThreeScene.add(designerThreePlanetMesh);
 
-    designerThreePlanetMesh = new THREE.Mesh(geometry, designerShaderMaterial);
-    designerThreeScene.add(designerThreePlanetMesh);
+        designerThreeControls = new OrbitControls(designerThreeCamera, designerThreeRenderer.domElement);
+        designerThreeControls.enableDamping = true;
+        designerThreeControls.dampingFactor = 0.1;
+        designerThreeControls.rotateSpeed = 0.5;
+        designerThreeControls.minDistance = 0.9;
+        designerThreeControls.maxDistance = 4;
 
-    designerThreeControls = new OrbitControls(designerThreeCamera, designerThreeRenderer.domElement);
-    designerThreeControls.enableDamping = true;
-    designerThreeControls.dampingFactor = 0.1;
-    designerThreeControls.rotateSpeed = 0.5;
-    designerThreeControls.minDistance = 0.9;
-    designerThreeControls.maxDistance = 4;
-    designerThreeControls.minAzimuthAngle = -Infinity;
-    designerThreeControls.maxAzimuthAngle = Infinity;
-    designerThreeControls.minPolarAngle = 0;
-    designerThreeControls.maxPolarAngle = Math.PI;
-
-    _animateDesignerThreeJSView();
-}
-
+        _animateDesignerThreeJSView();
+    }
+    
     function _animateDesignerThreeJSView() {
         if (!designerThreeRenderer) return;
         designerThreeAnimationId = requestAnimationFrame(_animateDesignerThreeJSView);
-        if (designerShaderMaterial?.uniforms.uTime) designerShaderMaterial.uniforms.uTime.value += 0.015;
+        if (designerShaderMaterial?.uniforms.uTime) {
+            designerShaderMaterial.uniforms.uTime.value += 0.015;
+        }
         if (designerThreeControls) designerThreeControls.update();
-        if (designerThreeScene && designerThreeCamera) designerThreeRenderer.render(designerThreeScene, designerThreeCamera);
+        if (designerThreeScene && designerThreeCamera) {
+            designerThreeRenderer.render(designerThreeScene, designerThreeCamera);
+        }
     }
 
     function _stopAndCleanupDesignerThreeJSView() {
         if (designerThreeAnimationId) cancelAnimationFrame(designerThreeAnimationId);
         if (designerThreeControls) designerThreeControls.dispose();
         if (designerShaderMaterial) designerShaderMaterial.dispose();
-        if (designerThreePlanetMesh) {
-            if (designerThreePlanetMesh.geometry) designerThreePlanetMesh.geometry.dispose();
-            if (designerThreeScene) designerThreeScene.remove(designerThreePlanetMesh);
-        }
+        if (designerThreePlanetMesh?.geometry) designerThreePlanetMesh.geometry.dispose();
         if (designerThreeRenderer) designerThreeRenderer.dispose();
-        designerThreeAnimationId = null; designerThreeControls = null; designerShaderMaterial = null;
-        designerThreePlanetMesh = null; designerThreeRenderer = null; designerThreeScene = null; designerThreeCamera = null;
+        designerThreeAnimationId = null;
+        designerThreeControls = null;
+        designerShaderMaterial = null;
+        designerThreePlanetMesh = null;
+        designerThreeRenderer = null;
+        designerThreeScene = null;
+        designerThreeCamera = null;
     }
 
     function _handleControlChange(event) {
@@ -237,11 +230,22 @@ function _initDesignerThreeJSView() {
             minTerrainHeight: minH,
             maxTerrainHeight: maxH,
             oceanHeightLevel: _getRandomFloat(minH, maxH),
-            planetType: Math.floor(Math.random() * 4) // Also randomize planet type
+            planetType: Math.floor(Math.random() * 4)
         };
 
         _populateDesignerInputsFromBasis();
         _refreshDesignerPreview();
+    }
+    
+    function _handleExploreButtonClick() {
+        const planetScreen = document.getElementById('planet-designer-screen');
+        const hexScreen = document.getElementById('hex-planet-screen');
+        const onBackFromHex = () => {
+            hexScreen.classList.remove('active');
+            planetScreen.classList.add('active');
+        };
+        planetScreen.classList.remove('active');
+        HexPlanetViewController.activate(currentDesignerBasis, onBackFromHex);
     }
 
     function _generateUUID() {
@@ -280,14 +284,6 @@ function _initDesignerThreeJSView() {
             _populateDesignerInputsFromBasis();
             _refreshDesignerPreview();
         }
-    }
-
-    function _handleExploreButtonClick() {
-        const planetScreen = document.getElementById('planet-designer-screen');
-        planetScreen.classList.remove('active');
-        HexPlanetViewController.activate(currentDesignerBasis, () => {
-            planetScreen.classList.add('active');
-        });
     }
 
     function _deleteCustomPlanetDesign(designId) {
@@ -339,7 +335,6 @@ function _initDesignerThreeJSView() {
 
     return {
         init: () => {
-            // Get all DOM element references
             designerPlanetCanvas = document.getElementById('designer-planet-canvas');
             designerWaterColorInput = document.getElementById('designer-water-color');
             designerLandColorInput = document.getElementById('designer-land-color');
@@ -356,7 +351,6 @@ function _initDesignerThreeJSView() {
             designerSaveBtn = document.getElementById('designer-save-btn');
             designerCancelBtn = document.getElementById('designer-cancel-btn');
 
-            // Create bound function references once
             handleControlChangeRef = (e) => _handleControlChange(e);
             randomizeDesignerPlanetRef = () => _randomizeDesignerPlanet();
             handleExploreButtonClickRef = () => _handleExploreButtonClick();
@@ -378,37 +372,29 @@ function _initDesignerThreeJSView() {
         },
 
         activate: (onBack) => {
-            console.log("PlanetDesigner.activate called.");
             onBackCallback = onBack;
             
-            _addEventListeners(); // Add listeners when the view becomes active
+            _addEventListeners();
 
             _populateDesignerInputsFromBasis();
             _populateSavedDesignsList();
 
             requestAnimationFrame(() => {
-                _stopAndCleanupDesignerThreeJSView();
                 _initDesignerThreeJSView();
                 _refreshDesignerPreview();
             });
         },
 
         deactivate: () => {
-            console.log("PlanetDesigner.deactivate called.");
-            _removeEventListeners(); // Remove listeners when the view becomes inactive
-
+            _removeEventListeners(); 
             if (typeof onBackCallback === 'function') {
                 onBackCallback();
-            } else {
-                console.error("No onBack callback provided to PlanetDesigner.");
             }
-            
             requestAnimationFrame(_stopAndCleanupDesignerThreeJSView);
         },
 
         destroy: () => {
-            console.log("PlanetDesigner: Destroying module.");
-            _removeEventListeners(); // Ensure listeners are removed if the module is ever fully destroyed
+            _removeEventListeners();
         }
     };
 })();

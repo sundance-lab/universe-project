@@ -238,7 +238,7 @@ export function getPlanetShaders() {
                 float lavaMix = smoothstep(lavaThreshold - 0.1, lavaThreshold, vLavaNoise);
                 
                 float slowGlow = layeredNoise(normalizedPos * 20.0 + uTime * 0.1, 102.0, 4, 0.5, 2.0, 1.0);
-                vec3 glowingLava = lavaColor * (0.5 + 0.5 * slowGlow);
+                vec3 glowingLava = lavaColor * (0.6 + 0.4 * slowGlow);
 
                 finalColor = mix(finalColor, rockColor, lavaMix);
                 finalColor = mix(finalColor, glowingLava, lavaMix * smoothstep(0.5, 0.55, vLavaNoise));
@@ -247,9 +247,9 @@ export function getPlanetShaders() {
             // Apply natural snow caps
             if (uSnowCapLevel > 0.0) {
                 float latitude = abs(normalizedPos.y);
-                float iceEdgeNoise = layeredNoise(normalizedPos * 4.0, 103.0, 4, 0.6, 2.5, 1.0) * 0.2;
+                float iceEdgeNoise = layeredNoise(normalizedPos * 5.0, 103.0, 5, 0.5, 2.5, 1.0) * 0.25;
                 float snowStart = 1.0 - uSnowCapLevel;
-                float snowFactor = smoothstep(snowStart - iceEdgeNoise, snowStart + 0.1 - iceEdgeNoise, latitude);
+                float snowFactor = smoothstep(snowStart - iceEdgeNoise, snowStart + 0.05 - iceEdgeNoise, latitude);
                 finalColor = mix(finalColor, vec3(0.9, 0.9, 1.0), snowFactor);
             }
             

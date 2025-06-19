@@ -194,7 +194,7 @@ export function getHexPlanetShaders() {
     const vertexShader = `
         #include <common>
         #include <logdepthbuf_pars_vertex>
-        attribute vec3 barycentric; 
+        attribute vec3 barycentric; // Specific to Hex View
 
         uniform bool uIsGasGiant;
         uniform float uContinentSeed;
@@ -202,7 +202,7 @@ export function getHexPlanetShaders() {
         uniform float uDisplacementAmount;
         uniform float uVolcanicActivity;
 
-        varying vec3 vBarycentric; 
+        varying vec3 vBarycentric; // Specific to Hex View
         varying vec3 vNormal;
         varying float vElevation;
         varying vec3 vWorldPosition;
@@ -212,7 +212,7 @@ export function getHexPlanetShaders() {
         ${noiseFunctions}
 
         void main() {
-            vBarycentric = barycentric; 
+            vBarycentric = barycentric; // Specific to Hex View
             vec3 p = position;
             vPosition = position;
             vec3 p_normalized = normalize(p);
@@ -260,7 +260,7 @@ export function getHexPlanetShaders() {
         uniform vec3 uLandColor, uWaterColor, uGgBandColor1, uGgBandColor2, uGgPoleColor;
         uniform float uOceanHeightLevel, uContinentSeed, uForestDensity, uTime, uSnowCapLevel, uVolcanicActivity;
         uniform float uGgPoleSize, uGgAtmosphereStyle, uGgTurbulence, uGgStormIntensity;
-        uniform bool uShowStrokes; 
+        uniform bool uShowStrokes; // Specific to Hex View
 
         varying vec3 vNormal, vWorldPosition, vPosition, vBarycentric;
         varying float vElevation, vLavaNoise;

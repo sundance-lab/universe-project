@@ -206,9 +206,10 @@ export const HexPlanetViewController = (() => {
                     onBackCallback();
                 }
 
-                cleanup();
-
-                isTransitioning = false;
+                requestAnimationFrame(() => {
+                    cleanup();
+                    isTransitioning = false;
+                });
             };
 
             backButton.addEventListener('click', handleBackClick);

@@ -191,12 +191,10 @@ export const HexPlanetViewController = (() => {
             cleanup();
             initScene(canvas, planetBasis);
 
-            // FIX: Replaced the complex async handler with a simpler, more reliable one.
             const handleBackClick = () => {
                 if (isTransitioning) return;
                 isTransitioning = true;
 
-                // Stop rendering and remove listeners.
                 if (animationId) {
                     cancelAnimationFrame(animationId);
                     animationId = null;
@@ -204,12 +202,10 @@ export const HexPlanetViewController = (() => {
                 backButton.removeEventListener('click', handleBackClick);
                 window.removeEventListener('resize', onResize);
 
-                // Immediately switch the screen back to the designer.
                 if (typeof onBackCallback === 'function') {
                     onBackCallback();
                 }
 
-                // Clean up the Three.js resources for the hex view.
                 cleanup();
 
                 isTransitioning = false;

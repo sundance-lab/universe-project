@@ -121,6 +121,21 @@ class GameStateManager {
         }
     }
 
+    addLandingLocation(planetId, locationData) {
+        const system = this.getActiveSolarSystem();
+        if (!system) return;
+
+        const planet = system.planets.find(p => p.id === planetId);
+        if (planet) {
+            if (!planet.landingLocations) {
+                planet.landingLocations = [];
+            }
+            planet.landingLocations.push(locationData);
+            this.saveGameState();
+            console.log(`Added location to ${planet.name}`, locationData);
+        }
+    }
+
     saveGameState() {
         try {
             const stateToSave = {

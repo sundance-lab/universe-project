@@ -97,11 +97,14 @@ export function getPlanetShaders() {
                 float islandNoise = (layeredNoise(noiseInputPosition, uContinentSeed * 3.0, 7, 0.5, 2.5, 18.0) + 1.0) * 0.5;
                 float oceanMask = 1.0 - continentMask;
                 float finalElevation = continentShape + (mountainNoise * continentMask * 0.3) + (islandNoise * oceanMask * 0.1);
+                
+                // Increase river depth and lower threshold for visibility
                 float riverRaw = ridgedRiverNoise(noiseInputPosition * 0.2, uContinentSeed * 5.0);
                 float riverBed = smoothstep(1.0 - uRiverBasin, 1.0, riverRaw);
                 float riverMask = smoothstep(0.50, 0.55, continentShape);
                 vRiverValue = riverBed * riverMask;
-                finalElevation -= vRiverValue * 0.08;
+                finalElevation -= vRiverValue * 0.2; // Increased river carving depth
+
                 vLavaNoise = 0.0;
                 if (uVolcanicActivity > 0.0) {
                     vLavaNoise = layeredNoise(noiseInputPosition * 2.0, uContinentSeed * 7.0, 5, 0.5, 2.0, 1.0);
@@ -112,11 +115,10 @@ export function getPlanetShaders() {
                 vElevation = finalElevation;
                 float displacement = vElevation * uDisplacementAmount;
                 vec3 displacedPosition = p + p_normalized * displacement;
-                vec3 tangent = normalize(cross(p_normalized, vec3(0.0, 1.0, 0.0)));
-                vec3 bitangent = normalize(cross(p_normalized, tangent));
-                vec3 neighbor1 = p + tangent * 0.01;
-                vec3 neighbor2 = p + bitangent * 0.01;
-                vNormal = normalize(cross(neighbor1 - displacedPosition, neighbor2 - displacedPosition));
+                
+                // FIX: Use the pre-displacement normal to prevent artifacts at the poles.
+                vNormal = p_normalized;
+
                 vWorldPosition = (modelMatrix * vec4(displacedPosition, 1.0)).xyz;
                 gl_Position = projectionMatrix * modelViewMatrix * vec4(displacedPosition, 1.0);
             } else {
@@ -176,26 +178,26 @@ export function getPlanetShaders() {
                 vec3 flowDistortion = vec3(flowMap * 2.0, layeredNoise(normalizedPos * 0.5 - flowSpeed, 305.0, 4, 0.5, 2.0, 1.0) - 0.5);
                 
                 float turbulence = 1.0 + uGgTurbulence * 8.0;
-                vec3 baseCoords = normalizedPos * vec3(1.0, 3.0, 1.0) + flowDistortion * 0.1 * turbulence;
+                vec3 baseCoords = normalizedPos * vec3(1.0, 6.0, 1.0) + flowDistortion * 0.15 * turbulence;
                 
                 // Base patterns
                 float bandPattern = (layeredNoise(baseCoords, 302.0, 5, 0.4, 2.5, 1.0) + 1.0) * 0.5;
-                float swirlPattern = layeredNoise(normalizedPos * 4.0 + flowDistortion * 0.2 * turbulence, 303.0, 6, 0.5, 2.2, 1.0);
+                float swirlPattern = layeredNoise(normalizedPos * 6.0 + flowDistortion * 0.4 * turbulence, 303.0, 6, 0.4, 2.8, 1.0);
                 
-                float pattern = mix(bandPattern, swirlPattern, uGgAtmosphereStyle);
+                float pattern = mix(bandPattern, swirlPattern, uGgAtmosphereStyle * uGgAtmosphereStyle);
                 vec3 atmosphereColor = mix(uGgBandColor1, uGgBandColor2, pattern);
                 
                 // Add storms
                 if (uGgStormIntensity > 0.0) {
-                    float stormNoise = ridgedRiverNoise(normalizedPos * 8.0 + flowDistortion * 0.5 * turbulence, 304.0);
-                    float stormMask = smoothstep(0.6, 1.0, stormNoise);
-                    vec3 stormColor = mix(uGgBandColor1, uGgBandColor2, 1.0 - pattern) * 1.2; // Inverted color for contrast
+                    float stormNoise = ridgedRiverNoise(normalizedPos * 12.0 + flowDistortion * 0.8 * turbulence, 304.0);
+                    float stormMask = smoothstep(0.65, 1.0, stormNoise);
+                    vec3 stormColor = mix(uGgBandColor1, uGgBandColor2, 1.0 - pattern) * 1.3; // Inverted color for contrast
                     atmosphereColor = mix(atmosphereColor, stormColor, stormMask * uGgStormIntensity);
                 }
                 
                 // Polar coloring
-                float poleFactor = 1.0 - pow(1.0 - abs(normalizedPos.y), 1.5 - pow(uGgPoleSize, 2.0) * 1.4);
-                finalColor = mix(atmosphereColor, uGgPoleColor, smoothstep(0.2, 0.9, poleFactor));
+                float poleFactor = 1.0 - pow(1.0 - abs(normalizedPos.y), 2.0 - pow(uGgPoleSize, 0.5) * 1.9);
+                finalColor = mix(atmosphereColor, uGgPoleColor, smoothstep(0.4, 1.0, poleFactor));
 
             } else {
                 // --- Terrestrial Planet Rendering ---
@@ -216,10 +218,16 @@ export function getPlanetShaders() {
                     vec3 beachColor=uLandColor*1.1+vec3(0.1,0.1,0.0), plainsColor=uLandColor, forestColor=uLandColor*0.65, deepForestColor=forestColor*0.8, mountainColor=uLandColor*0.9+vec3(0.05), snowColor=vec3(0.9,0.9,1.0);
                     if(landRatio<BEACH_END)finalColor=mix(plainsColor,beachColor,smoothstep(BEACH_END,0.0,landRatio));else if(landRatio<PLAINS_END)finalColor=plainsColor;else if(landRatio<MOUNTAIN_START)finalColor=mix(plainsColor,mountainColor,smoothstep(PLAINS_END,MOUNTAIN_START,landRatio));else if(landRatio<SNOW_START)finalColor=mountainColor;else finalColor=mix(mountainColor,snowColor,smoothstep(SNOW_START,1.0,landRatio));
                     if(landRatio>BEACH_END&&landRatio<SNOW_START){float forestShapeNoise=layeredNoise(normalizedPos*2.0,uContinentSeed*4.0,4,0.5,2.5,1.0);float forestEdgeMask=smoothstep(0.4,0.6,forestShapeNoise);float forestDensityNoise=valueNoise(normalizedPos*25.0,uContinentSeed*5.0);float forestDensityMask=smoothstep(1.0-uForestDensity,1.0,forestDensityNoise);float finalForestMask=forestEdgeMask*forestDensityMask;float forestColorVariation=valueNoise(normalizedPos*50.0,uContinentSeed*6.0);vec3 mixedForestColor=mix(forestColor,deepForestColor,forestColorVariation);finalColor=mix(finalColor,mixedForestColor,finalForestMask);}
-                    if(vRiverValue>0.1)finalColor=mix(finalColor,uWaterColor*0.9,vRiverValue);
+                    
+                    if (vRiverValue > 0.05) { // Lowered threshold to make rivers appear more easily
+                        vec3 riverColor = mix(finalColor, uWaterColor * 0.7, 0.75); // Mix with land color for a more natural look
+                        finalColor = mix(finalColor, riverColor, vRiverValue);
+                    }
                 }
                 if(uVolcanicActivity>0.0){vec3 rockColor=vec3(0.08,0.05,0.05);vec3 lavaColor=vec3(1.0,0.15,0.0);float lavaThreshold=1.0-uVolcanicActivity;float lavaMix=smoothstep(lavaThreshold-0.1,lavaThreshold,vLavaNoise);float slowGlow=layeredNoise(normalizedPos*20.0+uTime*0.1,102.0,4,0.5,2.0,1.0);vec3 glowingLava=lavaColor*(0.6+0.4*slowGlow);finalColor=mix(finalColor,rockColor,lavaMix);finalColor=mix(finalColor,glowingLava,lavaMix*smoothstep(0.5,0.55,vLavaNoise));}
-                if(uSnowCapLevel>0.0){float latitude=abs(normalizedPos.y);float iceEdgeNoise=layeredNoise(normalizedPos*5.0,103.0,5,0.5,2.5,1.0)*0.25;float snowStart=1.0-uSnowCapLevel;float snowFactor=smoothstep(snowStart-iceEdgeNoise,snowStart+0.05-iceEdgeNoise,latitude);finalColor=mix(finalColor,vec3(0.9,0.9,1.0),snowFactor);}
+                
+                // Non-linear control for snow caps
+                if(uSnowCapLevel>0.0){float latitude=abs(normalizedPos.y);float iceEdgeNoise=layeredNoise(normalizedPos*5.0,103.0,5,0.5,2.5,1.0)*0.25;float snowStart=1.0-pow(uSnowCapLevel, 2.0);float snowFactor=smoothstep(snowStart-iceEdgeNoise,snowStart+0.05-iceEdgeNoise,latitude);finalColor=mix(finalColor,vec3(0.9,0.9,1.0),snowFactor);}
             }
             
             vec3 viewDirection = normalize(cameraPosition - vWorldPosition);

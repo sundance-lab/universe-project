@@ -1,5 +1,3 @@
-// hexPlanetViewController.js
-
 import * as THREE from 'three';
 import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls';
 import { getHexPlanetShaders } from './shaders.js';
@@ -9,6 +7,7 @@ export const HexPlanetViewController = (() => {
     let scene, camera, renderer, controls, lod;
     let animationId = null;
     let backButton = null;
+    let isTransitioning = false;
 
     const SPHERE_BASE_RADIUS = 1.0;
     const DISPLACEMENT_SCALING_FACTOR = 0.005;
@@ -24,16 +23,16 @@ export const HexPlanetViewController = (() => {
         renderer.setSize(canvas.offsetWidth, canvas.offsetHeight);
         renderer.setPixelRatio(window.devicePixelRatio);
 
-   controls = new OrbitControls(camera, renderer.domElement);
-controls.enableDamping = true;
-controls.dampingFactor = 0.08;
-controls.rotateSpeed = 1.0;
-controls.zoomSpeed = 0.8;
-controls.minDistance = 1.2;
-controls.maxDistance = 40.0;
-controls.enablePan = false;
-controls.minPolarAngle = 0;
-controls.maxPolarAngle = Math.PI;
+        controls = new OrbitControls(camera, renderer.domElement);
+        controls.enableDamping = true;
+        controls.dampingFactor = 0.08;
+        controls.rotateSpeed = 1.0;
+        controls.zoomSpeed = 0.8;
+        controls.minDistance = 1.2;
+        controls.maxDistance = 40.0;
+        controls.enablePan = false;
+        controls.minPolarAngle = 0;
+        controls.maxPolarAngle = Math.PI;
 
         const { vertexShader, fragmentShader } = getHexPlanetShaders();
 
@@ -115,17 +114,37 @@ controls.maxPolarAngle = Math.PI;
             cancelAnimationFrame(animationId);
             animationId = null;
         }
+        
         if (controls) {
             controls.dispose();
             controls = null;
         }
+
         if (lod) {
             lod.traverse((object) => {
                 if (object.isMesh) {
-                    object.geometry.dispose();
+                    if (object.geometry) {
+                        object.geometry.dispose();
+                    }
                     if (Array.isArray(object.material)) {
-                        object.material.forEach(m => m.dispose());
+                        object.material.forEach(m => {
+                            if (m.uniforms) {
+                                Object.values(m.uniforms).forEach(uniform => {
+                                    if (uniform.value instanceof THREE.Texture) {
+                                        uniform.value.dispose();
+                                    }
+                                });
+                            }
+                            m.dispose();
+                        });
                     } else if (object.material) {
+                        if (object.material.uniforms) {
+                            Object.values(object.material.uniforms).forEach(uniform => {
+                                if (uniform.value instanceof THREE.Texture) {
+                                    uniform.value.dispose();
+                                }
+                            });
+                        }
                         object.material.dispose();
                     }
                 }
@@ -133,10 +152,14 @@ controls.maxPolarAngle = Math.PI;
             scene.remove(lod);
             lod = null;
         }
+
         if (renderer) {
             renderer.dispose();
+            renderer.forceContextLoss();
+            renderer.domElement = null;
             renderer = null;
         }
+
         scene = null;
         camera = null;
     }
@@ -169,22 +192,36 @@ controls.maxPolarAngle = Math.PI;
             cleanup();
             initScene(canvas, planetBasis);
 
-            const handleBackClick = () => {
-                // --- FIX: Make the UI transition feel instant, then cleanup ---
+            const handleBackClick = async () => {
+                if (isTransitioning) return;
+                isTransitioning = true;
 
-                // 1. Immediately call the callback to show the previous screen.
-                if (typeof onBackCallback === 'function') {
-                    onBackCallback();
+                // 1. First stop the animation loop
+                if (animationId) {
+                    cancelAnimationFrame(animationId);
+                    animationId = null;
                 }
-                
-                // 2. Remove the event listeners immediately.
+
+                // 2. Remove event listeners
                 backButton.removeEventListener('click', handleBackClick);
                 window.removeEventListener('resize', onResize);
 
-                // 3. Defer the heavy cleanup task to the next frame.
-                requestAnimationFrame(() => {
-                    cleanup();
-                });
+                try {
+                    // 3. Perform cleanup in a non-blocking way
+                    await new Promise(resolve => {
+                        setTimeout(() => {
+                            cleanup();
+                            resolve();
+                        }, 50);
+                    });
+
+                    // 4. Finally transition the UI
+                    if (typeof onBackCallback === 'function') {
+                        onBackCallback();
+                    }
+                } finally {
+                    isTransitioning = false;
+                }
             };
 
             backButton.addEventListener('click', handleBackClick);

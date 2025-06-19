@@ -155,7 +155,7 @@ export const HexPlanetViewController = (() => {
 
         if (renderer) {
             renderer.dispose();
-            renderer.forceContextLoss();
+            // renderer.forceContextLoss(); // <-- FIX: This line was removed.
             renderer.domElement = null;
             renderer = null;
         }

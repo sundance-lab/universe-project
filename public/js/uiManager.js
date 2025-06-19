@@ -1,3 +1,4 @@
+// public/js/uiManager.js
 import * as THREE from 'three';
 import { GalaxyRenderer } from './galaxyRenderer.js';
 import { generateSolarSystemsForGalaxy } from './universeGenerator.js';
@@ -221,6 +222,8 @@ export const UIManager = (() => {
             return;
         }
         
+        // *** FIX STARTS HERE ***
+        // Ensure planets are generated if they don't exist *before* creating renderer data.
         if (!solarSystemObject.hasOwnProperty('planets')) {
             callbacks.generatePlanetsForSystem(solarSystemObject);
         }
@@ -230,6 +233,8 @@ export const UIManager = (() => {
             sun: { size: solarSystemObject.sunSizeFactor, type: solarSystemObject.sunType },
             planets: solarSystemObject.planets.map(p => ({ ...p }))
         };
+        // *** FIX ENDS HERE ***
+
         setActiveScreen(elements.solarSystemScreen);
 
         const devSettings = callbacks.getDevSettings();

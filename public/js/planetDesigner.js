@@ -69,7 +69,6 @@ export const PlanetDesigner = (() => {
         designerThreeCamera = new THREE.PerspectiveCamera(60, designerPlanetCanvas.offsetWidth / designerPlanetCanvas.offsetHeight, 0.001, 100);
         designerThreeCamera.position.z = 2.5;
 
-        // Add lighting to the scene
         const ambientLight = new THREE.AmbientLight(0xffffff, 0.5);
         designerThreeScene.add(ambientLight);
         const directionalLight = new THREE.DirectionalLight(0xffffff, 0.8);
@@ -218,7 +217,6 @@ export const PlanetDesigner = (() => {
             uniforms.uLandColor.value.set(basis.landColor);
             uniforms.uForestDensity.value = basis.forestDensity;
             uniforms.uOceanHeightLevel.value = normalizedOceanLevel - 0.5;
-            // FIX: Ensure displacement calculation matches solarSystemRenderer
             uniforms.uDisplacementAmount.value = terrainRange * DISPLACEMENT_SCALING_FACTOR * 40;
             uniforms.uVolcanicActivity.value = basis.volcanicActivity;
             uniforms.uSnowCapLevel.value = basis.snowCapLevel;

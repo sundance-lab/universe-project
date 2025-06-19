@@ -188,8 +188,8 @@ export function getPlanetShaders() {
             
             if (vElevation < uOceanHeightLevel) {
                 // Animated oceans
-                float-A flowingNoise = layeredNoise(normalizedPos * 5.0 + uTime * 0.1, 99.0, 3, 0.5, 2.0, 1.0);
-                float-B foamNoise = layeredNoise(normalizedPos * 10.0 - uTime * 0.2, 100.0, 4, 0.5, 2.5, 1.0);
+                float flowingNoise = layeredNoise(normalizedPos * 5.0 + uTime * 0.1, 99.0, 3, 0.5, 2.0, 1.0);
+                float foamNoise = layeredNoise(normalizedPos * 10.0 - uTime * 0.2, 100.0, 4, 0.5, 2.5, 1.0);
                 vec3 deepWater = uWaterColor * 0.7;
                 vec3 shallowWater = uWaterColor;
                 finalColor = mix(deepWater, shallowWater, flowingNoise);

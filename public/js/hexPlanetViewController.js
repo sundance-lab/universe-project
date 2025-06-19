@@ -32,33 +32,45 @@ export const HexPlanetViewController = (() => {
         controls.maxDistance = 40.0;
         controls.enablePan = false;
 
+        // --- Standard Lighting ---
+        const ambientLight = new THREE.AmbientLight(0xffffff, 0.5);
+        scene.add(ambientLight);
+        const directionalLight = new THREE.DirectionalLight(0xffffff, 0.8);
+        directionalLight.position.set(5, 5, 5);
+        scene.add(directionalLight);
+
         // Planet Material and Shaders
         const { vertexShader, fragmentShader } = getHexPlanetShaders();
         const baseMaterial = new THREE.ShaderMaterial({
-            uniforms: {
-                uWaterColor: { value: new THREE.Color(planetBasis.waterColor) },
-                uLandColor: { value: new THREE.Color(planetBasis.landColor) },
-                uContinentSeed: { value: planetBasis.continentSeed },
-                uRiverBasin: { value: planetBasis.riverBasin },
-                uForestDensity: { value: planetBasis.forestDensity },
-                uTime: { value: 0.0 },
-                uSphereRadius: { value: SPHERE_BASE_RADIUS },
-                uDisplacementAmount: { value: 0.0 },
-                uShowStrokes: { value: false },
-                uOceanHeightLevel: { value: 0.0 },
-                uPlanetType: { value: planetBasis.planetType || 0 },
-                uLightDirection: { value: new THREE.Vector3(0.8, 0.6, 1.0).normalize() },
-                cameraPosition: { value: camera.position }
-            },
+            uniforms: THREE.UniformsUtils.merge([
+                THREE.UniformsLib.common,
+                THREE.UniformsLib.lights,
+                {
+                    uLandColor: { value: new THREE.Color(planetBasis.waterColor) },
+                    uWaterColor: { value: new THREE.Color(planetBasis.waterColor) },
+                    uOceanHeightLevel: { value: 0.5 },
+                    uContinentSeed: { value: planetBasis.continentSeed },
+                    uRiverBasin: { value: planetBasis.riverBasin },
+                    uForestDensity: { value: planetBasis.forestDensity },
+                    uTime: { value: 0.0 },
+                    uSphereRadius: { value: SPHERE_BASE_RADIUS },
+                    uDisplacementAmount: { value: 0.0 },
+                    uPlanetType: { value: planetBasis.planetType || 0 },
+                    uShowStrokes: { value: false }
+                }
+            ]),
             vertexShader,
             fragmentShader,
+            lights: true
         });
 
+        // Set terrain height uniforms
         const terrainRange = Math.max(0.1, planetBasis.maxTerrainHeight - planetBasis.minTerrainHeight);
         const normalizedOceanLevel = (planetBasis.oceanHeightLevel - planetBasis.minTerrainHeight) / terrainRange;
         baseMaterial.uniforms.uOceanHeightLevel.value = normalizedOceanLevel - 0.5;
         baseMaterial.uniforms.uDisplacementAmount.value = terrainRange * DISPLACEMENT_SCALING_FACTOR;
 
+        // Create the planet with Levels of Detail (LOD)
         lod = new THREE.LOD();
         const detailLevels = [
             { subdivision: 256, distance: 0.0 }, { subdivision: 128, distance: 3.0 },

@@ -115,14 +115,21 @@
                             <input type="color" id="designer-gg-pole-color" class="designer-control" value="#ADD8E6">
                         </div>
                         <div class="designer-range-control">
-                            <label for="designer-gg-bands">Number of Bands</label>
+                            <label for="designer-gg-pole-size">Pole Size</label>
                             <div class="input-row">
-                                <input type="range" id="designer-gg-bands" class="designer-control" min="2" max="30" step="1" value="10" style="width: 100%;">
-                                <span id="designer-gg-bands-value">10</span>
+                                <input type="range" id="designer-gg-pole-size" class="designer-control" min="0.0" max="1.0" step="0.01" value="0.3" style="width: 100%;">
+                                <span id="designer-gg-pole-size-value">0.30</span>
                             </div>
                         </div>
                         <div class="designer-range-control">
-                            <label for="designer-gg-turbulence">Band Turbulence</label>
+                            <label for="designer-gg-atmosphere-style">Atmosphere Style (Banded to Swirly)</label>
+                            <div class="input-row">
+                                <input type="range" id="designer-gg-atmosphere-style" class="designer-control" min="0.0" max="1.0" step="0.01" value="0.1" style="width: 100%;">
+                                <span id="designer-gg-atmosphere-style-value">0.10</span>
+                            </div>
+                        </div>
+                        <div class="designer-range-control">
+                            <label for="designer-gg-turbulence">Atmosphere Flow/Turbulence</label>
                             <div class="input-row">
                                 <input type="range" id="designer-gg-turbulence" class="designer-control" min="0.0" max="1.0" step="0.01" value="0.2" style="width: 100%;">
                                 <span id="designer-gg-turbulence-value">0.20</span>

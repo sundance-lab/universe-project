@@ -157,8 +157,6 @@ export const SolarSystemRenderer = (() => {
         };
         Object.values(iconTextureMap).forEach(tex => createdTextures.push(tex));
 
-        const defaultIconTexture = _createLandingSiteTexture();
-
         planetData.landingLocations.forEach(location => {
             
             let iconTexture = iconTextureMap[location.type] || iconTextureMap['Default'];

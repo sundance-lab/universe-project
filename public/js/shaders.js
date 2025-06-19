@@ -69,7 +69,6 @@ export function getPlanetShaders() {
         uniform float uSphereRadius;
         uniform float uDisplacementAmount;
         uniform float uRiverBasin;
-        uniform int uPlanetType;
 
         varying vec3 vNormal;
         varying float vElevation;
@@ -85,15 +84,6 @@ export function getPlanetShaders() {
             float mountainPersistence = 0.45;
             float mountainLacunarity = 2.2;
             float mountainScale = 8.0;
-            if (uPlanetType == 2) { // Icy Planet
-                mountainPersistence = 0.3;
-                mountainLacunarity = 2.0;
-                mountainScale = 4.0;
-            } else if (uPlanetType == 1) { // Volcanic Planet
-                mountainPersistence = 0.55;
-                mountainLacunarity = 2.5;
-                mountainScale = 12.0;
-            }
 
             float continentShape = (layeredNoise(noiseInputPosition, uContinentSeed, 5, 0.5, 2.0, 1.5) + 1.0) * 0.5;
             float continentMask = smoothstep(0.49, 0.51, continentShape);
@@ -129,7 +119,6 @@ export function getPlanetShaders() {
         uniform float uOceanHeightLevel;
         uniform float uContinentSeed;
         uniform float uForestDensity;
-        uniform int uPlanetType;
         uniform vec3 uLightDirection;
 
         varying vec3 vNormal;
@@ -162,85 +151,36 @@ export function getPlanetShaders() {
             float landMassRange = 1.0 - uOceanHeightLevel;
             float landRatio = max(0.0, (vElevation - uOceanHeightLevel) / landMassRange);
 
-            if (uPlanetType == 1) { // Volcanic
-                vec3 lavaColor = vec3(1.0, 0.3, 0.0);
-                vec3 rockColor = vec3(0.1, 0.1, 0.15);
-                vec3 ashColor = vec3(0.3, 0.3, 0.3);
+            // Terran (Default)
+            vec3 waterColor = uWaterColor;
+            vec3 beachColor = uLandColor * 1.1 + vec3(0.1, 0.1, 0.0);
+            vec3 plainsColor = uLandColor;
+            vec3 forestColor = uLandColor * 0.65;
+            vec3 mountainColor = uLandColor * 0.9 + vec3(0.05);
+            vec3 snowColor = vec3(0.9, 0.9, 1.0);
+
+            if (vElevation < uOceanHeightLevel) {
+                finalColor = waterColor;
+            } else {
+                const float BEACH_END = 0.02;
+                const float PLAINS_END = 0.40;
+                const float MOUNTAIN_START = 0.60;
+                const float SNOW_START = 0.85;
+
+                if (landRatio < BEACH_END) finalColor = mix(plainsColor, beachColor, smoothstep(BEACH_END, 0.0, landRatio));
+                else if (landRatio < PLAINS_END) finalColor = plainsColor;
+                else if (landRatio < MOUNTAIN_START) finalColor = mix(plainsColor, mountainColor, smoothstep(PLAINS_END, MOUNTAIN_START, landRatio));
+                else if (landRatio < SNOW_START) finalColor = mountainColor;
+                else finalColor = mix(mountainColor, snowColor, smoothstep(SNOW_START, 1.0, landRatio));
                 
-                if (vElevation < uOceanHeightLevel) {
-                    finalColor = mix(rockColor * 0.8, lavaColor, smoothstep(uOceanHeightLevel - 0.1, uOceanHeightLevel, vElevation));
-                } else {
-                    if (landRatio < 0.6) {
-                        finalColor = mix(rockColor, ashColor, landRatio / 0.6);
-                    } else {
-                        finalColor = mix(ashColor, rockColor * 1.5, (landRatio - 0.6) / 0.4);
-                    }
+                if (landRatio > BEACH_END && landRatio < SNOW_START) {
+                    float forestNoise = valueNoise(vWorldPosition * 25.0, uContinentSeed * 4.0);
+                    float forestMask = smoothstep(1.0 - uForestDensity, 1.0 - uForestDensity + 0.1, forestNoise);
+                    finalColor = mix(finalColor, forestColor, forestMask);
                 }
+                
                 if (vRiverValue > 0.1) {
-                    finalColor = mix(finalColor, lavaColor, vRiverValue * 2.0);
-                }
-            } else if (uPlanetType == 2) { // Icy
-                vec3 iceColor = vec3(0.9, 0.95, 1.0);
-                vec3 deepIceColor = vec3(0.4, 0.6, 1.0);
-                vec3 snowColor = vec3(1.0, 1.0, 1.0);
-
-                if (vElevation < uOceanHeightLevel) {
-                    finalColor = deepIceColor;
-                } else {
-                    finalColor = mix(iceColor, snowColor, landRatio);
-                }
-                if (vRiverValue > 0.1) {
-                    finalColor = mix(finalColor, deepIceColor * 0.9, vRiverValue);
-                }
-            } else if (uPlanetType == 3) { // Desert
-                vec3 sandColor = vec3(0.85, 0.7, 0.45);
-                vec3 rockColor = vec3(0.5, 0.3, 0.2);
-                vec3 dryPlainsColor = vec3(0.6, 0.5, 0.3);
-
-                if (vElevation < uOceanHeightLevel) { // Oases / Canyons
-                    finalColor = rockColor * 0.8;
-                } else {
-                    if (landRatio < 0.5) {
-                        finalColor = mix(dryPlainsColor, sandColor, landRatio / 0.5);
-                    } else {
-                        finalColor = mix(sandColor, rockColor, (landRatio - 0.5) / 0.5);
-                    }
-                }
-                if (vRiverValue > 0.1) {
-                    vec3 canyonColor = rockColor * 0.5;
-                    finalColor = mix(finalColor, canyonColor, vRiverValue);
-                }
-            } else { // Terran (Default)
-                vec3 waterColor = uWaterColor;
-                vec3 beachColor = uLandColor * 1.1 + vec3(0.1, 0.1, 0.0);
-                vec3 plainsColor = uLandColor;
-                vec3 forestColor = uLandColor * 0.65;
-                vec3 mountainColor = uLandColor * 0.9 + vec3(0.05);
-                vec3 snowColor = vec3(0.9, 0.9, 1.0);
-
-                if (vElevation < uOceanHeightLevel) {
-                    finalColor = waterColor;
-                } else {
-                    const float BEACH_END = 0.02;
-                    const float PLAINS_END = 0.40;
-                    const float MOUNTAIN_START = 0.60;
-                    const float SNOW_START = 0.85;
-
-                    if (landRatio < BEACH_END) finalColor = mix(plainsColor, beachColor, smoothstep(BEACH_END, 0.0, landRatio));
-                    else if (landRatio < PLAINS_END) finalColor = plainsColor;
-                    else if (landRatio < MOUNTAIN_START) finalColor = mix(plainsColor, mountainColor, smoothstep(PLAINS_END, MOUNTAIN_START, landRatio));
-                    else if (landRatio < SNOW_START) finalColor = mountainColor;
-                    else finalColor = mix(mountainColor, snowColor, smoothstep(SNOW_START, 1.0, landRatio));
-                    
-                    if (landRatio > BEACH_END && landRatio < SNOW_START) {
-                        float forestNoise = valueNoise(vWorldPosition * 25.0, uContinentSeed * 4.0);
-                        float forestMask = smoothstep(1.0 - uForestDensity, 1.0 - uForestDensity + 0.1, forestNoise);
-                        finalColor = mix(finalColor, forestColor, forestMask);
-                    }
-                    
-                    if (vRiverValue > 0.1) {
-                        finalColor = mix(finalColor, waterColor * 0.9, vRiverValue);
-                    }
+                    finalColor = mix(finalColor, waterColor * 0.9, vRiverValue);
                 }
             }
             
@@ -266,7 +206,6 @@ export function getHexPlanetShaders() {
     uniform float uRiverBasin;
     uniform float uMountainStrength;
     uniform float uIslandStrength;
-    uniform int uPlanetType;
 
     varying vec3 vBarycentric;
     varying vec3 vNormal;
@@ -284,8 +223,6 @@ export function getHexPlanetShaders() {
         float mountainPersistence = 0.45;
         float mountainLacunarity = 2.2;
         float mountainScale = 14.0;
-        if (uPlanetType == 2) { mountainPersistence = 0.3; mountainLacunarity = 2.0; mountainScale = 4.0; } 
-        else if (uPlanetType == 1) { mountainPersistence = 0.55; mountainLacunarity = 2.5; mountainScale = 12.0; }
 
 		float continentShape = (layeredNoise(noiseInputPosition, uContinentSeed, 6, 0.5, 2.0, 1.5) + 1.0) * 0.5;
 		float mountainNoise_01 = (layeredNoise(noiseInputPosition, uContinentSeed * 2.0, 7, mountainPersistence, mountainLacunarity, mountainScale) + 1.0) * 0.5;
@@ -326,7 +263,6 @@ export function getHexPlanetShaders() {
     uniform float uForestDensity;
     uniform float uSphereRadius;
     uniform bool uShowStrokes; 
-    uniform int uPlanetType;
 
     varying vec3 vNormal;
     varying float vElevation;
@@ -363,60 +299,28 @@ export function getHexPlanetShaders() {
         float landMassRange = 1.0 - uOceanHeightLevel;
         float landRatio = max(0.0, (vElevation - uOceanHeightLevel) / landMassRange);
 
-        if (uPlanetType == 1) { // Volcanic
-            vec3 lavaColor = vec3(1.0, 0.3, 0.0);
-            vec3 rockColor = vec3(0.1, 0.1, 0.15);
-            vec3 ashColor = vec3(0.3, 0.3, 0.3);
-            if (vElevation < uOceanHeightLevel) biomeColor = mix(rockColor*0.8, lavaColor, smoothstep(uOceanHeightLevel-0.1, uOceanHeightLevel, vElevation));
-            else {
-                if (landRatio < 0.6) biomeColor = mix(rockColor, ashColor, landRatio / 0.6);
-                else biomeColor = mix(ashColor, rockColor*1.5, (landRatio - 0.6)/0.4);
-            }
-            if (vRiverValue > 0.1) biomeColor = mix(biomeColor, lavaColor, vRiverValue * 2.0);
-        } else if (uPlanetType == 2) { // Icy
-            vec3 iceColor = vec3(0.9, 0.95, 1.0);
-            vec3 deepIceColor = vec3(0.4, 0.6, 1.0);
-            vec3 snowColor = vec3(1.0, 1.0, 1.0);
-            if (vElevation < uOceanHeightLevel) biomeColor = deepIceColor;
-            else biomeColor = mix(iceColor, snowColor, landRatio);
-            if (vRiverValue > 0.1) biomeColor = mix(biomeColor, deepIceColor * 0.9, vRiverValue);
-        } else if (uPlanetType == 3) { // Desert
-            vec3 sandColor = vec3(0.85, 0.7, 0.45);
-            vec3 rockColor = vec3(0.5, 0.3, 0.2);
-            vec3 dryPlainsColor = vec3(0.6, 0.5, 0.3);
-            if (vElevation < uOceanHeightLevel) biomeColor = rockColor * 0.8;
-            else {
-                if (landRatio < 0.5) biomeColor = mix(dryPlainsColor, sandColor, landRatio / 0.5);
-                else biomeColor = mix(sandColor, rockColor, (landRatio-0.5)/0.5);
-            }
-            if (vRiverValue > 0.1) {
-                vec3 canyonColor = rockColor * 0.5;
-                biomeColor = mix(biomeColor, canyonColor, vRiverValue);
-            }
-        } else { // Terran
-            vec3 waterColor = uWaterColor;
-            vec3 beachColor = uLandColor * 1.1 + vec3(0.1, 0.1, 0.0);
-            vec3 plainsColor = uLandColor;
-            vec3 forestColor = uLandColor * 0.65;
-            vec3 mountainColor = uLandColor * 0.9 + vec3(0.05);
-            vec3 snowColor = vec3(0.9, 0.9, 1.0);
-            if (vElevation < uOceanHeightLevel) biomeColor = waterColor;
-            else {
-                const float BEACH_END = 0.02; const float PLAINS_END = 0.40;
-                const float MOUNTAIN_START = 0.60; const float SNOW_START = 0.85;
-                if (landRatio < BEACH_END) biomeColor = mix(plainsColor, beachColor, smoothstep(BEACH_END, 0.0, landRatio));
-                else if (landRatio < PLAINS_END) biomeColor = plainsColor;
-                else if (landRatio < MOUNTAIN_START) biomeColor = mix(plainsColor, mountainColor, smoothstep(PLAINS_END, MOUNTAIN_START, landRatio));
-                else if (landRatio < SNOW_START) biomeColor = mountainColor;
-                else biomeColor = mix(mountainColor, snowColor, smoothstep(SNOW_START, 1.0, landRatio));
+        vec3 waterColor = uWaterColor;
+        vec3 beachColor = uLandColor * 1.1 + vec3(0.1, 0.1, 0.0);
+        vec3 plainsColor = uLandColor;
+        vec3 forestColor = uLandColor * 0.65;
+        vec3 mountainColor = uLandColor * 0.9 + vec3(0.05);
+        vec3 snowColor = vec3(0.9, 0.9, 1.0);
+        if (vElevation < uOceanHeightLevel) biomeColor = waterColor;
+        else {
+            const float BEACH_END = 0.02; const float PLAINS_END = 0.40;
+            const float MOUNTAIN_START = 0.60; const float SNOW_START = 0.85;
+            if (landRatio < BEACH_END) biomeColor = mix(plainsColor, beachColor, smoothstep(BEACH_END, 0.0, landRatio));
+            else if (landRatio < PLAINS_END) biomeColor = plainsColor;
+            else if (landRatio < MOUNTAIN_START) biomeColor = mix(plainsColor, mountainColor, smoothstep(PLAINS_END, MOUNTAIN_START, landRatio));
+            else if (landRatio < SNOW_START) biomeColor = mountainColor;
+            else biomeColor = mix(mountainColor, snowColor, smoothstep(SNOW_START, 1.0, landRatio));
 
-                if (landRatio > BEACH_END && landRatio < SNOW_START) {
-                    float forestNoise = valueNoise((vWorldPosition / uSphereRadius) * 25.0, uContinentSeed * 4.0);
-                    float forestMask = smoothstep(1.0 - uForestDensity, 1.0 - uForestDensity + 0.1, forestNoise);
-                    biomeColor = mix(biomeColor, forestColor, forestMask);
-                }
-                if (vRiverValue > 0.1) biomeColor = mix(biomeColor, waterColor * 0.9, vRiverValue);
+            if (landRatio > BEACH_END && landRatio < SNOW_START) {
+                float forestNoise = valueNoise((vWorldPosition / uSphereRadius) * 25.0, uContinentSeed * 4.0);
+                float forestMask = smoothstep(1.0 - uForestDensity, 1.0 - uForestDensity + 0.1, forestNoise);
+                biomeColor = mix(biomeColor, forestColor, forestMask);
             }
+            if (vRiverValue > 0.1) biomeColor = mix(biomeColor, waterColor * 0.9, vRiverValue);
         }
 
         vec3 finalColor;

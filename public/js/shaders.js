@@ -161,8 +161,8 @@ export function getPlanetShaders() {
                 float flowSpeed = uTime * 0.05;
                 vec2 flowMap = vec2(layeredNoise(normalizedPos*0.8+flowSpeed, 300.0, 4, 0.5, 2.0, 1.0)-0.5, layeredNoise(normalizedPos*0.8+flowSpeed+10.0, 301.0, 4, 0.5, 2.0, 1.0)-0.5);
                 vec3 flowDistortion = vec3(flowMap*2.0, layeredNoise(normalizedPos*0.5-flowSpeed, 305.0, 4, 0.5, 2.0, 1.0)-0.5);
-                float turbulence = 1.0 + uGgTurbulence * 15.0; // Increased turbulence effect
-                vec3 baseCoords = normalizedPos * vec3(1.0, 8.0, 1.0) + flowDistortion * 0.2 * turbulence;
+                float turbulence = 1.0 + uGgTurbulence * 15.0;
+                vec3 baseCoords = normalizedPos * vec3(1.0, 8.0, 1.0) + flowDistortion * 0.15 * turbulence;
                 float bandPattern = (layeredNoise(baseCoords, 302.0, 5, 0.4, 2.5, 1.0)+1.0)*0.5;
                 float swirlPattern = layeredNoise(normalizedPos*8.0 + flowDistortion*0.5*turbulence, 303.0, 6, 0.4, 2.8, 1.0);
                 float pattern = mix(bandPattern, swirlPattern, uGgAtmosphereStyle*uGgAtmosphereStyle);
@@ -191,7 +191,6 @@ export function getPlanetShaders() {
 }
 
 export function getHexPlanetShaders() {
-    // This shader is now a direct copy of the main planet shader, with the barycentric/wireframe logic added back in.
     const vertexShader = `
         #include <common>
         #include <logdepthbuf_pars_vertex>
@@ -308,7 +307,7 @@ export function getHexPlanetShaders() {
                 float landMassRange = 1.0 - uOceanHeightLevel;
                 float landRatio = max(0.0, (vElevation - uOceanHeightLevel) / landMassRange);
                 if(vElevation < uOceanHeightLevel){float largeSwellNoise=layeredNoise(normalizedPos*1.5+uTime*0.05,98.0,4,0.6,2.0,1.0);float smallWaveNoise=layeredNoise(normalizedPos*12.0-uTime*0.2,99.0,5,0.5,2.5,1.0);vec3 deepWater=uWaterColor*0.6;vec3 shallowWater=uWaterColor;finalColor=mix(deepWater,shallowWater,largeSwellNoise);float foamThreshold=0.65;float foamBlend=smoothstep(foamThreshold,foamThreshold+0.1,smallWaveNoise);finalColor=mix(finalColor,vec3(1.0),foamBlend*0.4);}
-                else {const float BEACH_END=0.02,PLAINS_END=0.40,MOUNTAIN_START=0.60,SNOW_START=0.85;vec3 beachColor=uLandColor*1.1+vec3(0.1,0.1,0.0),plainsColor=uLandColor,forestColor=uLandColor*0.65,deepForestColor=forestColor*0.8,mountainColor=uLandColor*0.9+vec3(0.05),snowColor=vec3(0.9,0.9,1.0);if(landRatio<BEACH_END)finalColor=mix(plainsColor,beachColor,smoothstep(BEACH_END,0.0,landRatio));else if(landRatio<PLAINS_END)finalColor=plainsColor;else if(landRatio<MOUNTAIN_START)finalColor=mix(plainsColor,mountainColor,smoothstep(PLAINS_END,MOUNTAIN_START,landRatio));else if(landRatio<SNOW_START)finalColor=mountainColor;else finalColor=mix(mountainColor,snowColor,smoothstep(SNOW_START,1.0,landRatio));if(landRatio>BEACH_END&&landRatio<SNOW_START){float forestShapeNoise=layeredNoise(normalizedPos*2.0,uContinentSeed*4.0,4,0.5,2.5,1.0);float forestEdgeMask=smoothstep(0.4,0.6,forestShapeNoise);float forestDensityNoise=valueNoise(normalizedPos*25.0,uContinentSeed*5.0);float forestDensityMask=smoothstep(1.0-uForestDensity,1.0,forestDensityNoise);float finalForestMask=forestEdgeMask*forestDensityMask;float forestColorVariation=valueNoise(normalizedPos*50.0,uContinentSeed*6.0);vec3 mixedForestColor=mix(forestColor,deepForestColor,forestColorVariation);finalColor=mix(finalColor,mixedForestColor,finalForestMask);}}
+                else {const float BEACH_END=0.02,PLAINS_END=0.40,MOUNTAIN_START=0.60,SNOW_START=0.85;vec3 beachColor=uLandColor*1.1+vec3(0.1,0.1,0.0),plainsColor=uLandColor,forestColor=uLandColor*0.65,deepForestColor=forestColor*0.8,mountainColor=uLandColor*0.9+vec3(0.05),snowColor=vec3(0.9,0.9,1.0);if(landRatio<BEACH_END)finalColor=mix(plainsColor,beachColor,smoothstep(BEACH_END,0.0,landRatio));else if(landRatio<PLAINS_END)finalColor=plainsColor;else if(landRatio<MOUNTAIN_START)finalColor=mix(plainsColor,mountainColor,smoothstep(PLAINS_END,MOUNTAIN_START,landRatio));else if(landRatio<SNOW_START)finalColor=mountainColor;else finalColor=mix(mountainColor,snowColor,smoothstep(SNOW_START,1.0,landRatio));if(landRatio>BEACH_END&&landRatio<SNOW_START){float forestShapeNoise=layeredNoise(normalizedPos*2.0,uContinentSeed*4.0,4,0.5,2.5,1.0);float forestEdgeMask=smoothstep(0.4,0.6,forestShapeNoise);float forestDensityNoise=valueNoise(normalizedPos*25.0,uContinentSeed*5.0);float forestDensityMask=smoothstep(1.0-uForestDensity,1.0,forestDensityNoise);float finalForestMask=forestEdgeMask*forestDensityMask;float forestColorVariation=valueNoise(normalizedPos*50.0,uContinentSeed*6.0);vec3 mixedForestColor=mix(forestColor,deepForestColor,forestColorVariation);finalColor=mix(finalColor,mixedForestColor,finalForestMask);}if(vElevation < uOceanHeightLevel + 0.01 && vElevation > uOceanHeightLevel - 0.01){finalColor = mix(finalColor, beachColor, 0.5);}}
                 if(uVolcanicActivity>0.0){vec3 rockColor=vec3(0.08,0.05,0.05);vec3 lavaColor=vec3(1.0,0.15,0.0);float lavaThreshold=1.0-uVolcanicActivity;float lavaMix=smoothstep(lavaThreshold-0.1,lavaThreshold,vLavaNoise);float slowGlow=layeredNoise(normalizedPos*20.0+uTime*0.1,102.0,4,0.5,2.0,1.0);vec3 glowingLava=lavaColor*(0.6+0.4*slowGlow);finalColor=mix(finalColor,rockColor,lavaMix);finalColor=mix(finalColor,glowingLava,lavaMix*smoothstep(0.5,0.55,vLavaNoise));}
                 if(uSnowCapLevel>0.0){float latitude=abs(normalizedPos.y);float iceEdgeNoise=layeredNoise(normalizedPos*5.0,103.0,5,0.5,2.5,1.0)*0.25;float snowStart=1.0-pow(uSnowCapLevel,3.0);float snowFactor=smoothstep(snowStart-iceEdgeNoise,snowStart+0.05-iceEdgeNoise,latitude);finalColor=mix(finalColor,vec3(0.9,0.9,1.0),snowFactor);}
             }
@@ -321,5 +320,5 @@ export function getHexPlanetShaders() {
             #include <logdepthbuf_fragment>
         }
     `;
-    return { vertexShader: hexVertexShader, fragmentShader: hexFragmentShader };
+    return { vertexShader: vertexShader, fragmentShader: fragmentShader };
 }

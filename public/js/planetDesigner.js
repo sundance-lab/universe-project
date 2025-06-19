@@ -13,8 +13,9 @@ export const PlanetDesigner = (() => {
         designerVolcanicActivityInput, designerVolcanicActivityValue, designerSnowCapsInput, designerSnowCapsValue;
 
     // --- Gas Giant Controls ---
-    let gasGiantControls, designerGgColor1Input, designerGgColor2Input, designerGgPoleColorInput, designerGgBandsInput, designerGgBandsValue,
-        designerGgTurbulenceInput, designerGgTurbulenceValue, designerGgStormSizeInput, designerGgStormSizeValue, designerGgStormColorInput;
+    let gasGiantControls, designerGgColor1Input, designerGgColor2Input, designerGgPoleColorInput,
+        designerGgTurbulenceInput, designerGgTurbulenceValue, designerGgStormSizeInput, designerGgStormSizeValue, designerGgStormColorInput,
+        designerGgPoleSizeInput, designerGgPoleSizeValue, designerGgAtmosphereStyleInput, designerGgAtmosphereStyleValue;
         
     // --- Common Elements ---
     let savedDesignsUl, designerPlanetCanvas, designerIsGasGiantCheckbox,
@@ -39,7 +40,7 @@ export const PlanetDesigner = (() => {
             volcanicActivity: 0.0, snowCapLevel: 0.0,
             // Gas Giant Defaults
             ggBandColor1: '#D2B48C', ggBandColor2: '#8B4513', ggPoleColor: '#ADD8E6', ggStormColor: '#A52A2A',
-            ggNumBands: 10, ggTurbulence: 0.2, ggStormSize: 0.1,
+            ggPoleSize: 0.3, ggAtmosphereStyle: 0.1, ggTurbulence: 0.2, ggStormSize: 0.1,
         };
     }
 
@@ -98,7 +99,8 @@ export const PlanetDesigner = (() => {
                 uGgBandColor2: { value: new THREE.Color() },
                 uGgPoleColor: { value: new THREE.Color() },
                 uGgStormColor: { value: new THREE.Color() },
-                uGgNumBands: { value: 10.0 },
+                uGgPoleSize: { value: 0.3 },
+                uGgAtmosphereStyle: { value: 0.1 },
                 uGgTurbulence: { value: 0.2 },
                 uGgStormSize: { value: 0.1 },
             }
@@ -177,7 +179,8 @@ export const PlanetDesigner = (() => {
             case 'designer-gg-color2': basis.ggBandColor2 = input.value; break;
             case 'designer-gg-pole-color': basis.ggPoleColor = input.value; break;
             case 'designer-gg-storm-color': basis.ggStormColor = input.value; break;
-            case 'designer-gg-bands': basis.ggNumBands = parseInt(input.value, 10); designerGgBandsValue.textContent = basis.ggNumBands; break;
+            case 'designer-gg-pole-size': basis.ggPoleSize = parseFloat(input.value); designerGgPoleSizeValue.textContent = basis.ggPoleSize.toFixed(2); break;
+            case 'designer-gg-atmosphere-style': basis.ggAtmosphereStyle = parseFloat(input.value); designerGgAtmosphereStyleValue.textContent = basis.ggAtmosphereStyle.toFixed(2); break;
             case 'designer-gg-turbulence': basis.ggTurbulence = parseFloat(input.value); designerGgTurbulenceValue.textContent = basis.ggTurbulence.toFixed(2); break;
             case 'designer-gg-storm-size': basis.ggStormSize = parseFloat(input.value); designerGgStormSizeValue.textContent = basis.ggStormSize.toFixed(2); break;
         }
@@ -200,7 +203,8 @@ export const PlanetDesigner = (() => {
             uniforms.uGgBandColor2.value.set(basis.ggBandColor2);
             uniforms.uGgPoleColor.value.set(basis.ggPoleColor);
             uniforms.uGgStormColor.value.set(basis.ggStormColor);
-            uniforms.uGgNumBands.value = basis.ggNumBands;
+            uniforms.uGgPoleSize.value = basis.ggPoleSize;
+            uniforms.uGgAtmosphereStyle.value = basis.ggAtmosphereStyle;
             uniforms.uGgTurbulence.value = basis.ggTurbulence;
             uniforms.uGgStormSize.value = basis.ggStormSize;
         } else {
@@ -244,8 +248,10 @@ export const PlanetDesigner = (() => {
         designerGgColor2Input.value = basis.ggBandColor2;
         designerGgPoleColorInput.value = basis.ggPoleColor;
         designerGgStormColorInput.value = basis.ggStormColor;
-        designerGgBandsInput.value = basis.ggNumBands;
-        designerGgBandsValue.textContent = basis.ggNumBands;
+        designerGgPoleSizeInput.value = basis.ggPoleSize;
+        designerGgPoleSizeValue.textContent = Number(basis.ggPoleSize).toFixed(2);
+        designerGgAtmosphereStyleInput.value = basis.ggAtmosphereStyle;
+        designerGgAtmosphereStyleValue.textContent = Number(basis.ggAtmosphereStyle).toFixed(2);
         designerGgTurbulenceInput.value = basis.ggTurbulence;
         designerGgTurbulenceValue.textContent = Number(basis.ggTurbulence).toFixed(2);
         designerGgStormSizeInput.value = basis.ggStormSize;
@@ -268,7 +274,8 @@ export const PlanetDesigner = (() => {
             basis.ggBandColor2 = _getRandomHexColor();
             basis.ggPoleColor = _getRandomHexColor();
             basis.ggStormColor = _getRandomHexColor();
-            basis.ggNumBands = _getRandomFloat(4, 25, 0);
+            basis.ggPoleSize = _getRandomFloat(0.0, 0.8, 2);
+            basis.ggAtmosphereStyle = _getRandomFloat(0.0, 1.0, 2);
             basis.ggTurbulence = _getRandomFloat(0.1, 1.0, 2);
             basis.ggStormSize = _getRandomFloat(0.0, 0.4, 2);
         } else {
@@ -404,8 +411,10 @@ export const PlanetDesigner = (() => {
             designerGgColor2Input = document.getElementById('designer-gg-color2');
             designerGgPoleColorInput = document.getElementById('designer-gg-pole-color');
             designerGgStormColorInput = document.getElementById('designer-gg-storm-color');
-            designerGgBandsInput = document.getElementById('designer-gg-bands');
-            designerGgBandsValue = document.getElementById('designer-gg-bands-value');
+            designerGgPoleSizeInput = document.getElementById('designer-gg-pole-size');
+            designerGgPoleSizeValue = document.getElementById('designer-gg-pole-size-value');
+            designerGgAtmosphereStyleInput = document.getElementById('designer-gg-atmosphere-style');
+            designerGgAtmosphereStyleValue = document.getElementById('designer-gg-atmosphere-style-value');
             designerGgTurbulenceInput = document.getElementById('designer-gg-turbulence');
             designerGgTurbulenceValue = document.getElementById('designer-gg-turbulence-value');
             designerGgStormSizeInput = document.getElementById('designer-gg-storm-size');

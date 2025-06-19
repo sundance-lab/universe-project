@@ -91,14 +91,14 @@ class GameStateManager {
             customGalaxyDesigns: []
         };
 
-        this._state = {
-            universe: { diameter: null },
-            galaxies: [],
-            activeGalaxyId: null,
-            activeSolarSystemId: null,
-            isInitialized: false,
-            ...designs
-        };
+        this._state.universe = { diameter: null };
+        this._state.galaxies = [];
+        this._state.activeGalaxyId = null;
+        this._state.activeSolarSystemId = null;
+        this._state.isInitialized = false;
+        this._state.customPlanetDesigns = designs.customPlanetDesigns;
+        this._state.customGalaxyDesigns = designs.customGalaxyDesigns;
+
         console.log("Game state has been reset via GameStateManager.");
     }
 

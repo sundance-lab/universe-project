@@ -34,53 +34,36 @@ function tryAddConnection(fromSystemId, toSystemId, currentConnectionsArray, con
     return true;
 }
 
+
+// --- EXPORTED GENERATION FUNCTIONS ---
+
 export function generatePlanetInstanceFromBasis(basis, isForDesignerPreview = false) {
     const customDesigns = GameStateManager.getCustomPlanetDesigns();
-    const useCustomDesign = !isForDesignerPreview &&
-        customDesigns && customDesigns.length > 0;
+    const useCustomDesign = customDesigns && customDesigns.length > 0;
 
-    if (useCustomDesign) {
-        const randomDesign = customDesigns[Math.floor(Math.random() * customDesigns.length)];
-
-        return {
-            waterColor: randomDesign.waterColor,
-            landColor: randomDesign.landColor,
-            continentSeed: Math.random(),
-            minTerrainHeight: randomDesign.minTerrainHeight,
-            maxTerrainHeight: randomDesign.maxTerrainHeight,
-            oceanHeightLevel: randomDesign.oceanHeightLevel,
-            riverBasin: randomDesign.riverBasin,
-            forestDensity: randomDesign.forestDensity,
-            sourceDesignId: randomDesign.designId,
-            isExplorable: true,
-            planetType: 0, // Always default to 0
+    if (isForDesignerPreview) {
+         return {
+            isGasGiant: basis.isGasGiant,
+            continentSeed: basis.continentSeed || Math.random(),
+            waterColor: basis.waterColor || '#1E90FF', landColor: basis.landColor || '#556B2F', forestDensity: basis.forestDensity || 0.5,
+            minTerrainHeight: basis.minTerrainHeight ?? 0.0, maxTerrainHeight: basis.maxTerrainHeight ?? 10.0, oceanHeightLevel: basis.oceanHeightLevel ?? 1.0,
+            volcanicActivity: basis.volcanicActivity ?? 0.0, snowCapLevel: basis.snowCapLevel ?? 0.0,
+            ggBandColor1: basis.ggBandColor1 || '#D2B48C', ggBandColor2: basis.ggBandColor2 || '#8B4513', ggPoleColor: basis.ggPoleColor || '#ADD8E6',
+            ggPoleSize: basis.ggPoleSize ?? 0.3, ggAtmosphereStyle: basis.ggAtmosphereStyle ?? 0.1, ggTurbulence: basis.ggTurbulence ?? 0.2, ggStormIntensity: basis.ggStormIntensity ?? 0.2,
         };
     }
 
-    // Default generation
-    return {
-        waterColor: basis.waterColor || '#0000FF',
-        landColor: basis.landColor || '#008000',
-        continentSeed: isForDesignerPreview ?
-            (basis.continentSeed !== undefined ? basis.continentSeed : Math.random()) :
-            Math.random(),
-        minTerrainHeight: (typeof basis.minTerrainHeight === 'number') ?
-            basis.minTerrainHeight : (window.DEFAULT_MIN_TERRAIN_HEIGHT ?? 0.0),
-        maxTerrainHeight: (typeof basis.maxTerrainHeight === 'number') ?
-            basis.maxTerrainHeight : (window.DEFAULT_MAX_TERRAIN_HEIGHT ?? 10.0),
-        oceanHeightLevel: (typeof basis.oceanHeightLevel === 'number') ?
-            basis.oceanHeightLevel : (window.DEFAULT_OCEAN_HEIGHT_LEVEL ?? 2.0),
-        riverBasin: basis.riverBasin || 0.05,
-        forestDensity: basis.forestDensity || 0.5,
-        sourceDesignId: null,
-        isExplorable: true,
-        planetType: 0, // Always default to 0
-        explorationData: {
-            surfaceDetail: basis.surfaceDetail || 1.0,
-            atmosphereColor: basis.atmosphereColor || '#87CEEB',
-            rotationSpeed: basis.rotationSpeed || (window.DEFAULT_PLANET_AXIAL_SPEED ?? 0.01)
-        }
-    };
+    if (useCustomDesign) {
+        const randomDesign = customDesigns[Math.floor(Math.random() * customDesigns.length)];
+        return {
+            ...randomDesign, // Return a copy of the saved design
+            continentSeed: Math.random(), // Always randomize the seed for unique continents
+            isExplorable: !randomDesign.isGasGiant,
+        };
+    }
+    
+    // If there are no custom designs, return null to prevent default planets from spawning.
+    return null;
 };
 
 export function generateUniverseLayout(universeCircle, gameState, fixedColors) {

@@ -57,7 +57,8 @@ export const HexPlanetViewController = (() => {
         const terrainRange = Math.max(0.1, planetBasis.maxTerrainHeight - planetBasis.minTerrainHeight);
         const normalizedOceanLevel = (planetBasis.oceanHeightLevel - planetBasis.minTerrainHeight) / terrainRange;
         baseMaterial.uniforms.uOceanHeightLevel.value = normalizedOceanLevel - 0.5;
-        baseMaterial.uniforms.uDisplacementAmount.value = terrainRange * DISPLACEMENT_SCALING_FACTOR;
+        // FIX: Added a * 40 multiplier to match the displacement scale in solarSystemRenderer
+        baseMaterial.uniforms.uDisplacementAmount.value = terrainRange * DISPLACEMENT_SCALING_FACTOR * 40;
 
         // Create the planet with Levels of Detail (LOD)
         lod = new THREE.LOD();

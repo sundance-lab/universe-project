@@ -103,11 +103,11 @@
                     <div id="gas-giant-controls" style="display: none;">
                         <h4>Gas Giant</h4>
                         <div class="color-control">
-                            <label for="designer-gg-color1">Band Color 1:</label>
+                            <label for="designer-gg-color1">Atmosphere Color 1:</label>
                             <input type="color" id="designer-gg-color1" class="designer-control" value="#D2B48C">
                         </div>
                         <div class="color-control">
-                            <label for="designer-gg-color2">Band Color 2:</label>
+                            <label for="designer-gg-color2">Atmosphere Color 2:</label>
                             <input type="color" id="designer-gg-color2" class="designer-control" value="#8B4513">
                         </div>
                         <div class="color-control">
@@ -136,15 +136,18 @@
                             </div>
                         </div>
                         <div class="designer-range-control">
-                            <label for="designer-gg-storm-size">Great Storm Size</label>
+                            <label for="designer-gg-num-storms">Number of Storms</label>
                             <div class="input-row">
-                                <input type="range" id="designer-gg-storm-size" class="designer-control" min="0.0" max="0.5" step="0.01" value="0.1" style="width: 100%;">
-                                <span id="designer-gg-storm-size-value">0.10</span>
+                                <input type="range" id="designer-gg-num-storms" class="designer-control" min="0" max="10" step="1" value="1" style="width: 100%;">
+                                <span id="designer-gg-num-storms-value">1</span>
                             </div>
                         </div>
                          <div class="designer-range-control">
-                            <label for="designer-gg-storm-color">Great Storm Color:</label>
-                            <input type="color" id="designer-gg-storm-color" class="designer-control" value="#A52A2A">
+                            <label for="designer-gg-storm-intensity">Storm Intensity</label>
+                            <div class="input-row">
+                                <input type="range" id="designer-gg-storm-intensity" class="designer-control" min="0.0" max="1.0" step="0.01" value="0.5" style="width: 100%;">
+                                <span id="designer-gg-storm-intensity-value">0.50</span>
+                            </div>
                         </div>
                     </div>
 

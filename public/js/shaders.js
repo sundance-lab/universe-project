@@ -266,8 +266,8 @@ export function getPlanetShaders() {
         ${noiseFunctions}
 
         void main() {
-            vec3 p = position;
-            vec3 noiseInputPosition = (p / uSphereRadius) + (uContinentSeed * 10.0);
+            vec3 p_normalized = normalize(position);
+            vec3 noiseInputPosition = p_normalized + (uContinentSeed * 10.0);
 
             float mountainPersistence = 0.45;
             float mountainLacunarity = 2.2;
@@ -299,8 +299,8 @@ export function getPlanetShaders() {
 
             vElevation = finalElevation;
             float displacement = vElevation * uDisplacementAmount;
-            vec3 displacedPosition = p + normal * displacement;
-            vNormal = normal;
+            vec3 displacedPosition = position + p_normalized * displacement;
+            vNormal = p_normalized;
             vWorldPosition = (modelMatrix * vec4(displacedPosition, 1.0)).xyz;
             gl_Position = projectionMatrix * modelViewMatrix * vec4(displacedPosition, 1.0);
 

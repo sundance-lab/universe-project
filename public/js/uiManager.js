@@ -131,7 +131,7 @@ export const UIManager = (() => {
     }
 
     function setActiveScreen(screenToShow) {
-        const screens = [elements.mainScreen, elements.galaxyDetailScreen, elements.solarSystemScreen, elements.planetDesignerScreen, elements.hexPlanetScreen, galaxyCustomizationModal].filter(s => s);
+        const screens = [elements.mainScreen, elements.galaxyDetailScreen, elements.solarSystemScreen, elements.planetDesignerScreen, elements.hexPlanetScreen, galaxyCustomizationModal, elements.buildContextMenu].filter(s => s);
         screens.forEach(s => s.classList.remove('active', 'panning-active', 'visible'));
         if (screenToShow) screenToShow.classList.add('active');
         if (elements.planetSidebar) elements.planetSidebar.style.display = (screenToShow === elements.solarSystemScreen) ? 'block' : 'none';
@@ -265,11 +265,6 @@ export const UIManager = (() => {
     }
 
     function _onSolarSystemCanvasClick(event) {
-        if(elements.buildContextMenu?.style.display === 'block') {
-            elements.buildContextMenu.style.display = 'none';
-            return;
-        }
-
         const renderer = window.activeSolarSystemRenderer;
         if (!renderer) return;
     

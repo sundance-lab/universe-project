@@ -265,6 +265,11 @@ export const UIManager = (() => {
     }
 
     function _onSolarSystemCanvasClick(event) {
+        if(elements.buildContextMenu?.style.display === 'block') {
+            elements.buildContextMenu.style.display = 'none';
+            return;
+        }
+
         const renderer = window.activeSolarSystemRenderer;
         if (!renderer) return;
     
@@ -272,9 +277,9 @@ export const UIManager = (() => {
         const mouse = renderer.getMouse();
         const camera = renderer.getCamera();
         const planetMeshes = renderer.getPlanetMeshes();
-        const landingSiteIcons = renderer.getLandingSiteIcons();
+        const locationIcons = renderer.getLocationIcons();
         
-        if (!raycaster || !mouse || !camera || !planetMeshes || !landingSiteIcons) return;
+        if (!raycaster || !mouse || !camera || !planetMeshes || !locationIcons) return;
     
         const rect = elements.solarSystemContent.getBoundingClientRect();
         mouse.x = ((event.clientX - rect.left) / rect.width) * 2 - 1;
@@ -282,7 +287,7 @@ export const UIManager = (() => {
     
         raycaster.setFromCamera(mouse, camera);
 
-        const iconIntersects = raycaster.intersectObjects(landingSiteIcons.filter(i => i.visible));
+        const iconIntersects = raycaster.intersectObjects(locationIcons.filter(i => i.visible));
 
         if (iconIntersects.length > 0) {
             const clickedIcon = iconIntersects[0].object;

@@ -14,7 +14,7 @@ export const PlanetDesigner = (() => {
 
     // --- Gas Giant Controls ---
     let gasGiantControls, designerGgColor1Input, designerGgColor2Input, designerGgPoleColorInput,
-        designerGgTurbulenceInput, designerGgTurbulenceValue, designerGgStormSizeInput, designerGgStormSizeValue, designerGgStormColorInput,
+        designerGgTurbulenceInput, designerGgTurbulenceValue, designerGgStormIntensityInput, designerGgStormIntensityValue,
         designerGgPoleSizeInput, designerGgPoleSizeValue, designerGgAtmosphereStyleInput, designerGgAtmosphereStyleValue;
         
     // --- Common Elements ---
@@ -39,8 +39,8 @@ export const PlanetDesigner = (() => {
             minTerrainHeight: 0.0, maxTerrainHeight: 10.0, oceanHeightLevel: 1.0,
             volcanicActivity: 0.0, snowCapLevel: 0.0,
             // Gas Giant Defaults
-            ggBandColor1: '#D2B48C', ggBandColor2: '#8B4513', ggPoleColor: '#ADD8E6', ggStormColor: '#A52A2A',
-            ggPoleSize: 0.3, ggAtmosphereStyle: 0.1, ggTurbulence: 0.2, ggStormSize: 0.1,
+            ggBandColor1: '#D2B48C', ggBandColor2: '#8B4513', ggPoleColor: '#ADD8E6',
+            ggPoleSize: 0.3, ggAtmosphereStyle: 0.1, ggTurbulence: 0.2, ggStormIntensity: 0.2,
         };
     }
 
@@ -98,11 +98,10 @@ export const PlanetDesigner = (() => {
                 uGgBandColor1: { value: new THREE.Color() },
                 uGgBandColor2: { value: new THREE.Color() },
                 uGgPoleColor: { value: new THREE.Color() },
-                uGgStormColor: { value: new THREE.Color() },
                 uGgPoleSize: { value: 0.3 },
                 uGgAtmosphereStyle: { value: 0.1 },
                 uGgTurbulence: { value: 0.2 },
-                uGgStormSize: { value: 0.1 },
+                uGgStormIntensity: { value: 0.2 },
             }
         ]);
 
@@ -178,11 +177,10 @@ export const PlanetDesigner = (() => {
             case 'designer-gg-color1': basis.ggBandColor1 = input.value; break;
             case 'designer-gg-color2': basis.ggBandColor2 = input.value; break;
             case 'designer-gg-pole-color': basis.ggPoleColor = input.value; break;
-            case 'designer-gg-storm-color': basis.ggStormColor = input.value; break;
             case 'designer-gg-pole-size': basis.ggPoleSize = parseFloat(input.value); designerGgPoleSizeValue.textContent = basis.ggPoleSize.toFixed(2); break;
             case 'designer-gg-atmosphere-style': basis.ggAtmosphereStyle = parseFloat(input.value); designerGgAtmosphereStyleValue.textContent = basis.ggAtmosphereStyle.toFixed(2); break;
             case 'designer-gg-turbulence': basis.ggTurbulence = parseFloat(input.value); designerGgTurbulenceValue.textContent = basis.ggTurbulence.toFixed(2); break;
-            case 'designer-gg-storm-size': basis.ggStormSize = parseFloat(input.value); designerGgStormSizeValue.textContent = basis.ggStormSize.toFixed(2); break;
+            case 'designer-gg-storm-intensity': basis.ggStormIntensity = parseFloat(input.value); designerGgStormIntensityValue.textContent = basis.ggStormIntensity.toFixed(2); break;
         }
         
         basis.oceanHeightLevel = Math.max(basis.minTerrainHeight, Math.min(basis.maxTerrainHeight, basis.oceanHeightLevel));
@@ -202,11 +200,10 @@ export const PlanetDesigner = (() => {
             uniforms.uGgBandColor1.value.set(basis.ggBandColor1);
             uniforms.uGgBandColor2.value.set(basis.ggBandColor2);
             uniforms.uGgPoleColor.value.set(basis.ggPoleColor);
-            uniforms.uGgStormColor.value.set(basis.ggStormColor);
             uniforms.uGgPoleSize.value = basis.ggPoleSize;
             uniforms.uGgAtmosphereStyle.value = basis.ggAtmosphereStyle;
             uniforms.uGgTurbulence.value = basis.ggTurbulence;
-            uniforms.uGgStormSize.value = basis.ggStormSize;
+            uniforms.uGgStormIntensity.value = basis.ggStormIntensity;
         } else {
             const terrainRange = Math.max(0.1, basis.maxTerrainHeight - basis.minTerrainHeight);
             const normalizedOceanLevel = (basis.oceanHeightLevel - basis.minTerrainHeight) / terrainRange;
@@ -247,15 +244,14 @@ export const PlanetDesigner = (() => {
         designerGgColor1Input.value = basis.ggBandColor1;
         designerGgColor2Input.value = basis.ggBandColor2;
         designerGgPoleColorInput.value = basis.ggPoleColor;
-        designerGgStormColorInput.value = basis.ggStormColor;
         designerGgPoleSizeInput.value = basis.ggPoleSize;
         designerGgPoleSizeValue.textContent = Number(basis.ggPoleSize).toFixed(2);
         designerGgAtmosphereStyleInput.value = basis.ggAtmosphereStyle;
         designerGgAtmosphereStyleValue.textContent = Number(basis.ggAtmosphereStyle).toFixed(2);
         designerGgTurbulenceInput.value = basis.ggTurbulence;
         designerGgTurbulenceValue.textContent = Number(basis.ggTurbulence).toFixed(2);
-        designerGgStormSizeInput.value = basis.ggStormSize;
-        designerGgStormSizeValue.textContent = Number(basis.ggStormSize).toFixed(2);
+        designerGgStormIntensityInput.value = basis.ggStormIntensity;
+        designerGgStormIntensityValue.textContent = Number(basis.ggStormIntensity).toFixed(2);
 
         _updateControlVisibility();
     }
@@ -273,11 +269,10 @@ export const PlanetDesigner = (() => {
             basis.ggBandColor1 = _getRandomHexColor();
             basis.ggBandColor2 = _getRandomHexColor();
             basis.ggPoleColor = _getRandomHexColor();
-            basis.ggStormColor = _getRandomHexColor();
             basis.ggPoleSize = _getRandomFloat(0.0, 0.8, 2);
             basis.ggAtmosphereStyle = _getRandomFloat(0.0, 1.0, 2);
             basis.ggTurbulence = _getRandomFloat(0.1, 1.0, 2);
-            basis.ggStormSize = _getRandomFloat(0.0, 0.4, 2);
+            basis.ggStormIntensity = _getRandomFloat(0.0, 1.0, 2);
         } else {
             const minH = _getRandomFloat(0.0, 4.0);
             const maxH = _getRandomFloat(minH + 1.0, minH + 10.0);
@@ -410,15 +405,14 @@ export const PlanetDesigner = (() => {
             designerGgColor1Input = document.getElementById('designer-gg-color1');
             designerGgColor2Input = document.getElementById('designer-gg-color2');
             designerGgPoleColorInput = document.getElementById('designer-gg-pole-color');
-            designerGgStormColorInput = document.getElementById('designer-gg-storm-color');
             designerGgPoleSizeInput = document.getElementById('designer-gg-pole-size');
             designerGgPoleSizeValue = document.getElementById('designer-gg-pole-size-value');
             designerGgAtmosphereStyleInput = document.getElementById('designer-gg-atmosphere-style');
             designerGgAtmosphereStyleValue = document.getElementById('designer-gg-atmosphere-style-value');
             designerGgTurbulenceInput = document.getElementById('designer-gg-turbulence');
             designerGgTurbulenceValue = document.getElementById('designer-gg-turbulence-value');
-            designerGgStormSizeInput = document.getElementById('designer-gg-storm-size');
-            designerGgStormSizeValue = document.getElementById('designer-gg-storm-size-value');
+            designerGgStormIntensityInput = document.getElementById('designer-gg-storm-intensity');
+            designerGgStormIntensityValue = document.getElementById('designer-gg-storm-intensity-value');
             
             // Event Listeners
             handleControlChangeRef = (e) => _handleControlChange(e);

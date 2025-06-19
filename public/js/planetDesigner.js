@@ -61,8 +61,10 @@ export const PlanetDesigner = (() => {
             const newWidth = designerPlanetCanvas.offsetWidth;
             const newHeight = designerPlanetCanvas.offsetHeight;
             if (newWidth > 0 && newHeight > 0) {
-                designerThreeCamera.aspect = newWidth / newHeight;
-                designerThreeCamera.updateProjectionMatrix();
+                if(designerThreeCamera) {
+                    designerThreeCamera.aspect = newWidth / newHeight;
+                    designerThreeCamera.updateProjectionMatrix();
+                }
                 designerThreeRenderer.setSize(newWidth, newHeight);
             }
         }
@@ -84,35 +86,24 @@ export const PlanetDesigner = (() => {
         designerThreeRenderer.setSize(designerPlanetCanvas.offsetWidth, designerPlanetCanvas.offsetHeight);
         designerThreeRenderer.setPixelRatio(window.devicePixelRatio);
 
-        // --- Standard Lighting ---
-        const ambientLight = new THREE.AmbientLight(0xffffff, 0.5);
-        designerThreeScene.add(ambientLight);
-        const directionalLight = new THREE.DirectionalLight(0xffffff, 0.8);
-        directionalLight.position.set(5, 5, 5);
-        designerThreeScene.add(directionalLight);
-
-        const geometry = new THREE.IcosahedronGeometry(SPHERE_BASE_RADIUS, 64); // Increased detail for designer
+        const geometry = new THREE.IcosahedronGeometry(SPHERE_BASE_RADIUS, 64);
 
         designerShaderMaterial = new THREE.ShaderMaterial({
-            uniforms: THREE.UniformsUtils.merge([
-                THREE.UniformsLib.common,
-                THREE.UniformsLib.lights,
-                {
-                    uLandColor: { value: new THREE.Color() },
-                    uWaterColor: { value: new THREE.Color() },
-                    uOceanHeightLevel: { value: 0.5 },
-                    uContinentSeed: { value: Math.random() },
-                    uRiverBasin: { value: 0.05 },
-                    uForestDensity: { value: 0.5 },
-                    uTime: { value: 0.0 },
-                    uSphereRadius: { value: SPHERE_BASE_RADIUS },
-                    uDisplacementAmount: { value: 0.0 },
-                    uPlanetType: { value: 0 }
-                }
-            ]),
+            uniforms: {
+                uLandColor: { value: new THREE.Color() },
+                uWaterColor: { value: new THREE.Color() },
+                uOceanHeightLevel: { value: 0.5 },
+                uContinentSeed: { value: Math.random() },
+                uRiverBasin: { value: 0.05 },
+                uForestDensity: { value: 0.5 },
+                uTime: { value: 0.0 },
+                uDisplacementAmount: { value: 0.0 },
+                uPlanetType: { value: 0 },
+                uLightDirection: { value: new THREE.Vector3(0.8, 0.6, 1.0).normalize() },
+                cameraPosition: { value: designerThreeCamera.position }
+            },
             vertexShader,
             fragmentShader,
-            lights: true
         });
 
         designerThreePlanetMesh = new THREE.Mesh(geometry, designerShaderMaterial);
@@ -196,7 +187,7 @@ export const PlanetDesigner = (() => {
         if (!designerShaderMaterial) return;
         const {
             waterColor, landColor, continentSeed, riverBasin, forestDensity,
-            minTerrainHeight, maxTerrainHeight, oceanHeightLevel
+            minTerrainHeight, maxTerrainHeight, oceanHeightLevel, planetType
         } = currentDesignerBasis;
         const terrainRange = Math.max(0.1, maxTerrainHeight - minTerrainHeight);
         const normalizedOceanLevel = (oceanHeightLevel - minTerrainHeight) / terrainRange;
@@ -206,6 +197,7 @@ export const PlanetDesigner = (() => {
         uniforms.uContinentSeed.value = continentSeed;
         uniforms.uRiverBasin.value = riverBasin;
         uniforms.uForestDensity.value = forestDensity;
+        uniforms.uPlanetType.value = planetType;
         uniforms.uOceanHeightLevel.value = normalizedOceanLevel - 0.5;
         const displacementAmount = terrainRange * DISPLACEMENT_SCALING_FACTOR;
         uniforms.uDisplacementAmount.value = displacementAmount;
@@ -250,11 +242,11 @@ export const PlanetDesigner = (() => {
     
     function _handleExploreButtonClick() {
         const planetScreen = document.getElementById('planet-designer-screen');
-        const hexScreen = document.getElementById('hex-planet-screen');
+        
         const onBackFromHex = () => {
-            hexScreen.classList.remove('active');
             planetScreen.classList.add('active');
         };
+        
         planetScreen.classList.remove('active');
         HexPlanetViewController.activate(currentDesignerBasis, onBackFromHex);
     }

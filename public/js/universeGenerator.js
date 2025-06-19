@@ -38,31 +38,32 @@ function tryAddConnection(fromSystemId, toSystemId, currentConnectionsArray, con
 // --- EXPORTED GENERATION FUNCTIONS ---
 
 export function generatePlanetInstanceFromBasis(basis, isForDesignerPreview = false) {
-    const customDesigns = GameStateManager.getCustomPlanetDesigns();
-    const useCustomDesign = customDesigns && customDesigns.length > 0;
+    const defaultBasis = {
+        isGasGiant: false,
+        continentSeed: Math.random(),
+        waterColor: '#1E90FF', landColor: '#556B2F', forestDensity: 0.5,
+        minTerrainHeight: 0.0, maxTerrainHeight: 10.0, oceanHeightLevel: 1.0,
+        volcanicActivity: 0.0, snowCapLevel: 0.0,
+        ggBandColor1: '#D2B48C', ggBandColor2: '#8B4513', ggPoleColor: '#ADD8E6',
+        ggPoleSize: 0.3, ggAtmosphereStyle: 0.1, ggTurbulence: 0.2, ggStormIntensity: 0.2,
+    };
 
     if (isForDesignerPreview) {
-         return {
-            isGasGiant: basis.isGasGiant,
-            continentSeed: basis.continentSeed || Math.random(),
-            waterColor: basis.waterColor || '#1E90FF', landColor: basis.landColor || '#556B2F', forestDensity: basis.forestDensity || 0.5,
-            minTerrainHeight: basis.minTerrainHeight ?? 0.0, maxTerrainHeight: basis.maxTerrainHeight ?? 10.0, oceanHeightLevel: basis.oceanHeightLevel ?? 1.0,
-            volcanicActivity: basis.volcanicActivity ?? 0.0, snowCapLevel: basis.snowCapLevel ?? 0.0,
-            ggBandColor1: basis.ggBandColor1 || '#D2B48C', ggBandColor2: basis.ggBandColor2 || '#8B4513', ggPoleColor: basis.ggPoleColor || '#ADD8E6',
-            ggPoleSize: basis.ggPoleSize ?? 0.3, ggAtmosphereStyle: basis.ggAtmosphereStyle ?? 0.1, ggTurbulence: basis.ggTurbulence ?? 0.2, ggStormIntensity: basis.ggStormIntensity ?? 0.2,
-        };
+         return { ...defaultBasis, ...basis };
     }
 
-    if (useCustomDesign) {
+    const customDesigns = GameStateManager.getCustomPlanetDesigns();
+    if (customDesigns && customDesigns.length > 0) {
         const randomDesign = customDesigns[Math.floor(Math.random() * customDesigns.length)];
         return {
-            ...randomDesign, // Return a copy of the saved design
-            continentSeed: Math.random(), // Always randomize the seed for unique continents
+            ...defaultBasis, // Ensure all properties exist
+            ...randomDesign, // Overwrite with saved design properties
+            continentSeed: Math.random(), // Always randomize the seed
             isExplorable: !randomDesign.isGasGiant,
         };
     }
     
-    // If there are no custom designs, return null to prevent default planets from spawning.
+    // If there are no custom designs, return null.
     return null;
 };
 

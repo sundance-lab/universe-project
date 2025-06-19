@@ -258,6 +258,9 @@ document.addEventListener('DOMContentLoaded', () => {
         for (let i = 0; i < numPlanets; i++) {
             const planetData = generatePlanetInstanceFromBasis({});
             
+            // If generator returns null (because no designs exist), skip planet creation.
+            if (!planetData) continue;
+
             let separation;
             if (i > 0 && Math.random() < 0.20) {
                 separation = 60000 + Math.random() * 80000;
@@ -266,7 +269,7 @@ document.addEventListener('DOMContentLoaded', () => {
             }
             
             const semiMajorAxis = lastOrbitalRadius + separation;
-            const planetName = shuffledNames[i] || `Planet ${i + 1}`;
+            const planetName = shuffledNames[i % shuffledNames.length] || `Planet ${i + 1}`;
             
             let eccentricity = Math.pow(Math.random(), 2) * 0.4;
             if (Math.random() < 0.1) {
@@ -296,7 +299,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 ...planetData,
                 id: `${solarSystemObject.id}-planet-${i}`,
                 name: planetName,
-                size: 50 + Math.random() * 100,
+                size: planetData.isGasGiant ? 250 + Math.random() * 150 : 50 + Math.random() * 100,
                 semiMajorAxis: semiMajorAxis,
                 orbitalEccentricity: eccentricity,
                 orbitalInclination: inclination,
@@ -306,7 +309,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 currentOrbitalAngle: Math.random() * 2 * Math.PI,
                 axialSpeed: (Math.random() - 0.5) * 0.05,
                 currentAxialAngle: Math.random() * 2 * Math.PI,
-                landingLocations: locations,
+                landingLocations: planetData.isGasGiant ? [] : locations,
             });
             lastOrbitalRadius = semiMajorAxis;
         }

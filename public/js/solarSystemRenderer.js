@@ -1076,13 +1076,16 @@ export const SolarSystemRenderer = (() => {
         contextMenu.addEventListener('click', (event) => {
             const action = event.target.dataset.action;
             if (action && lastRightClickIntersection) {
-                const planet = lastRightClickIntersection.object;
-                const planetData = planet.parent.userData;
+                const planetHexMesh = lastRightClickIntersection.object;
+                const planetLOD = planetLODs.find(lod => lod.userData.hexMeshLOD === planetHexMesh.parent);
+                if (!planetLOD) return;
+
+                const planetData = planetLOD.userData;
                 const point = lastRightClickIntersection.point;
 
                 // Convert world-space intersection point to local spherical coordinates
-                const localPoint = planet.worldToLocal(point.clone());
-                const spherical = new THREE.Spherical().setFromCartesian(localPoint);
+                const localPoint = planetLOD.worldToLocal(point.clone());
+                const spherical = new THREE.Spherical().setFromCartesianCoords(localPoint.x, localPoint.y, localPoint.z);
 
                 const locationType = action === 'build-mine' ? 'Mine' : 'City';
                 const newLocationCount = (planetData.landingLocations?.filter(l => l.type === locationType).length || 0) + 1;

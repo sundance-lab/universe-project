@@ -7,32 +7,41 @@ import { HexPlanetViewController } from './hexPlanetViewController.js';
 import GameStateManager from './gameStateManager.js'; // Import the state manager
 
 export const PlanetDesigner = (() => {
-    let savedDesignsUl, designerPlanetCanvas, designerWaterColorInput, designerLandColorInput, designerMinHeightInput, designerMaxHeightInput, designerOceanHeightInput,
-        designerSaveBtn, designerCancelBtn, designerRiverBasinInput, designerRiverBasinValue,
-        designerForestDensityInput, designerForestDensityValue, designerRandomizeBtn, boundResizeHandler, designerExploreBtn,
+    // --- Terrestrial Controls ---
+    let terrestrialControls, designerWaterColorInput, designerLandColorInput, designerMinHeightInput, designerMaxHeightInput, designerOceanHeightInput,
+        designerRiverBasinInput, designerRiverBasinValue, designerForestDensityInput, designerForestDensityValue,
         designerVolcanicActivityInput, designerVolcanicActivityValue, designerSnowCapsInput, designerSnowCapsValue;
 
-    let onBackCallback = null;
+    // --- Gas Giant Controls ---
+    let gasGiantControls, designerGgColor1Input, designerGgColor2Input, designerGgPoleColorInput, designerGgBandsInput, designerGgBandsValue,
+        designerGgTurbulenceInput, designerGgTurbulenceValue, designerGgStormSizeInput, designerGgStormSizeValue, designerGgStormColorInput;
+        
+    // --- Common Elements ---
+    let savedDesignsUl, designerPlanetCanvas, designerIsGasGiantCheckbox,
+        designerSaveBtn, designerCancelBtn, designerRandomizeBtn, boundResizeHandler, designerExploreBtn;
 
+    let onBackCallback = null;
     let handleControlChangeRef, randomizeDesignerPlanetRef, handleExploreButtonClickRef,
-        saveCustomPlanetDesignRef, cancelDesignerRef, savedDesignsClickHandlerRef;
+        saveCustomPlanetDesignRef, cancelDesignerRef, savedDesignsClickHandlerRef, handleCheckboxChangeRef;
 
     const DISPLACEMENT_SCALING_FACTOR = 0.005;
     const SPHERE_BASE_RADIUS = 0.8;
 
-    let currentDesignerBasis = {
-        waterColor: '#1E90FF',
-        landColor: '#556B2F',
-        continentSeed: Math.random(),
-        riverBasin: 0.05,
-        forestDensity: 0.5,
-        minTerrainHeight: 0.0,
-        maxTerrainHeight: 10.0,
-        oceanHeightLevel: 1.0,
-        volcanicActivity: 0.0,
-        snowCapLevel: 0.0,
-        planetType: 0
-    };
+    let currentDesignerBasis = {};
+
+    function setDefaultBasis(isGasGiant) {
+        currentDesignerBasis = {
+            isGasGiant: isGasGiant,
+            continentSeed: Math.random(),
+            // Terrestrial Defaults
+            waterColor: '#1E90FF', landColor: '#556B2F', riverBasin: 0.05, forestDensity: 0.5,
+            minTerrainHeight: 0.0, maxTerrainHeight: 10.0, oceanHeightLevel: 1.0,
+            volcanicActivity: 0.0, snowCapLevel: 0.0,
+            // Gas Giant Defaults
+            ggBandColor1: '#D2B48C', ggBandColor2: '#8B4513', ggPoleColor: '#ADD8E6', ggStormColor: '#A52A2A',
+            ggNumBands: 10, ggTurbulence: 0.2, ggStormSize: 0.1,
+        };
+    }
 
     let designerThreeScene, designerThreeCamera, designerThreeRenderer,
         designerThreePlanetMesh, designerThreeControls, designerThreeAnimationId, designerShaderMaterial;
@@ -68,19 +77,30 @@ export const PlanetDesigner = (() => {
         const uniforms = THREE.UniformsUtils.merge([
             THREE.UniformsLib.common,
             {
+                // Shared
+                uTime: { value: 0.0 },
+                uSphereRadius: { value: SPHERE_BASE_RADIUS },
+                uContinentSeed: { value: Math.random() },
+                uLightDirection: { value: new THREE.Vector3(0.8, 0.6, 1.0) },
+                // Planet Type
+                uIsGasGiant: { value: false },
+                // Terrestrial
                 uLandColor: { value: new THREE.Color() },
                 uWaterColor: { value: new THREE.Color() },
                 uOceanHeightLevel: { value: 0.5 },
-                uContinentSeed: { value: Math.random() },
                 uRiverBasin: { value: 0.05 },
                 uForestDensity: { value: 0.5 },
-                uTime: { value: 0.0 },
-                uSphereRadius: { value: SPHERE_BASE_RADIUS },
                 uDisplacementAmount: { value: 0.0 },
-                uLightDirection: { value: new THREE.Vector3(0.8, 0.6, 1.0) },
                 uVolcanicActivity: { value: 0.0 },
                 uSnowCapLevel: { value: 0.0 },
-                uPlanetType: { value: 0 }
+                // Gas Giant
+                uGgBandColor1: { value: new THREE.Color() },
+                uGgBandColor2: { value: new THREE.Color() },
+                uGgPoleColor: { value: new THREE.Color() },
+                uGgStormColor: { value: new THREE.Color() },
+                uGgNumBands: { value: 10.0 },
+                uGgTurbulence: { value: 0.2 },
+                uGgStormSize: { value: 0.1 },
             }
         ]);
 
@@ -99,10 +119,6 @@ export const PlanetDesigner = (() => {
         designerThreeControls.rotateSpeed = 0.5;
         designerThreeControls.minDistance = 0.9;
         designerThreeControls.maxDistance = 4;
-        designerThreeControls.minAzimuthAngle = -Infinity;
-        designerThreeControls.maxAzimuthAngle = Infinity;
-        designerThreeControls.minPolarAngle = 0;
-        designerThreeControls.maxPolarAngle = Math.PI;
 
         _animateDesignerThreeJSView();
     }
@@ -127,75 +143,88 @@ export const PlanetDesigner = (() => {
         designerThreeAnimationId = null; designerThreeControls = null; designerShaderMaterial = null;
         designerThreePlanetMesh = null; designerThreeRenderer = null; designerThreeScene = null; designerThreeCamera = null;
     }
+    
+    function _updateControlVisibility() {
+        const isGasGiant = designerIsGasGiantCheckbox.checked;
+        terrestrialControls.style.display = isGasGiant ? 'none' : 'block';
+        gasGiantControls.style.display = isGasGiant ? 'block' : 'none';
+    }
+
+    function _handleCheckboxChange() {
+        const isGasGiant = designerIsGasGiantCheckbox.checked;
+        setDefaultBasis(isGasGiant);
+        _populateDesignerInputsFromBasis();
+        _refreshDesignerPreview();
+        _updateControlVisibility();
+    }
 
     function _handleControlChange(event) {
         const input = event.target;
+        const basis = currentDesignerBasis;
         switch (input.id) {
-            case 'designer-water-color':
-                currentDesignerBasis.waterColor = input.value;
-                break;
-            case 'designer-land-color':
-                currentDesignerBasis.landColor = input.value;
-                break;
-            case 'designer-river-basin':
-                const riverBasin = parseFloat(input.value);
-                currentDesignerBasis.riverBasin = riverBasin;
-                designerRiverBasinValue.textContent = riverBasin.toFixed(2);
-                break;
-            case 'designer-forest-density':
-                const forestDensity = parseFloat(input.value);
-                currentDesignerBasis.forestDensity = forestDensity;
-                designerForestDensityValue.textContent = forestDensity.toFixed(2);
-                break;
-            case 'designer-volcanic-activity':
-                const volcanicActivity = parseFloat(input.value);
-                currentDesignerBasis.volcanicActivity = volcanicActivity;
-                designerVolcanicActivityValue.textContent = volcanicActivity.toFixed(2);
-                break;
-            case 'designer-snow-caps':
-                const snowCapLevel = parseFloat(input.value);
-                currentDesignerBasis.snowCapLevel = snowCapLevel;
-                designerSnowCapsValue.textContent = snowCapLevel.toFixed(2);
-                break;
-            case 'designer-min-height':
-                currentDesignerBasis.minTerrainHeight = parseFloat(input.value);
-                break;
-            case 'designer-max-height':
-                currentDesignerBasis.maxTerrainHeight = parseFloat(input.value);
-                break;
-            case 'designer-ocean-height':
-                currentDesignerBasis.oceanHeightLevel = parseFloat(input.value);
-                break;
+            // Terrestrial
+            case 'designer-water-color': basis.waterColor = input.value; break;
+            case 'designer-land-color': basis.landColor = input.value; break;
+            case 'designer-river-basin': basis.riverBasin = parseFloat(input.value); designerRiverBasinValue.textContent = basis.riverBasin.toFixed(2); break;
+            case 'designer-forest-density': basis.forestDensity = parseFloat(input.value); designerForestDensityValue.textContent = basis.forestDensity.toFixed(2); break;
+            case 'designer-volcanic-activity': basis.volcanicActivity = parseFloat(input.value); designerVolcanicActivityValue.textContent = basis.volcanicActivity.toFixed(2); break;
+            case 'designer-snow-caps': basis.snowCapLevel = parseFloat(input.value); designerSnowCapsValue.textContent = basis.snowCapLevel.toFixed(2); break;
+            case 'designer-min-height': basis.minTerrainHeight = parseFloat(input.value); break;
+            case 'designer-max-height': basis.maxTerrainHeight = parseFloat(input.value); break;
+            case 'designer-ocean-height': basis.oceanHeightLevel = parseFloat(input.value); break;
+            // Gas Giant
+            case 'designer-gg-color1': basis.ggBandColor1 = input.value; break;
+            case 'designer-gg-color2': basis.ggBandColor2 = input.value; break;
+            case 'designer-gg-pole-color': basis.ggPoleColor = input.value; break;
+            case 'designer-gg-storm-color': basis.ggStormColor = input.value; break;
+            case 'designer-gg-bands': basis.ggNumBands = parseInt(input.value, 10); designerGgBandsValue.textContent = basis.ggNumBands; break;
+            case 'designer-gg-turbulence': basis.ggTurbulence = parseFloat(input.value); designerGgTurbulenceValue.textContent = basis.ggTurbulence.toFixed(2); break;
+            case 'designer-gg-storm-size': basis.ggStormSize = parseFloat(input.value); designerGgStormSizeValue.textContent = basis.ggStormSize.toFixed(2); break;
         }
-        const { minTerrainHeight, maxTerrainHeight, oceanHeightLevel } = currentDesignerBasis;
-        currentDesignerBasis.oceanHeightLevel = Math.max(minTerrainHeight, Math.min(maxTerrainHeight, oceanHeightLevel));
+        
+        basis.oceanHeightLevel = Math.max(basis.minTerrainHeight, Math.min(basis.maxTerrainHeight, basis.oceanHeightLevel));
         _refreshDesignerPreview();
     }
 
     function _refreshDesignerPreview() {
         if (!designerShaderMaterial) return;
-        const {
-            waterColor, landColor, continentSeed, riverBasin, forestDensity,
-            minTerrainHeight, maxTerrainHeight, oceanHeightLevel, volcanicActivity, snowCapLevel
-        } = currentDesignerBasis;
-        const terrainRange = Math.max(0.1, maxTerrainHeight - minTerrainHeight);
-        const normalizedOceanLevel = (oceanHeightLevel - minTerrainHeight) / terrainRange;
+        
         const uniforms = designerShaderMaterial.uniforms;
-        uniforms.uWaterColor.value.set(waterColor);
-        uniforms.uLandColor.value.set(landColor);
-        uniforms.uContinentSeed.value = continentSeed;
-        uniforms.uRiverBasin.value = riverBasin;
-        uniforms.uForestDensity.value = forestDensity;
-        uniforms.uOceanHeightLevel.value = normalizedOceanLevel - 0.5;
-        uniforms.uVolcanicActivity.value = volcanicActivity;
-        uniforms.uSnowCapLevel.value = snowCapLevel;
-        const displacementAmount = terrainRange * DISPLACEMENT_SCALING_FACTOR;
-        uniforms.uDisplacementAmount.value = displacementAmount;
+        const basis = currentDesignerBasis;
+
+        uniforms.uIsGasGiant.value = basis.isGasGiant;
+        uniforms.uContinentSeed.value = basis.continentSeed;
+
+        if (basis.isGasGiant) {
+            uniforms.uGgBandColor1.value.set(basis.ggBandColor1);
+            uniforms.uGgBandColor2.value.set(basis.ggBandColor2);
+            uniforms.uGgPoleColor.value.set(basis.ggPoleColor);
+            uniforms.uGgStormColor.value.set(basis.ggStormColor);
+            uniforms.uGgNumBands.value = basis.ggNumBands;
+            uniforms.uGgTurbulence.value = basis.ggTurbulence;
+            uniforms.uGgStormSize.value = basis.ggStormSize;
+        } else {
+            const terrainRange = Math.max(0.1, basis.maxTerrainHeight - basis.minTerrainHeight);
+            const normalizedOceanLevel = (basis.oceanHeightLevel - basis.minTerrainHeight) / terrainRange;
+            
+            uniforms.uWaterColor.value.set(basis.waterColor);
+            uniforms.uLandColor.value.set(basis.landColor);
+            uniforms.uRiverBasin.value = basis.riverBasin;
+            uniforms.uForestDensity.value = basis.forestDensity;
+            uniforms.uOceanHeightLevel.value = normalizedOceanLevel - 0.5;
+            uniforms.uDisplacementAmount.value = terrainRange * DISPLACEMENT_SCALING_FACTOR;
+            uniforms.uVolcanicActivity.value = basis.volcanicActivity;
+            uniforms.uSnowCapLevel.value = basis.snowCapLevel;
+        }
     }
 
     function _populateDesignerInputsFromBasis() {
         if (!designerWaterColorInput) return;
+        
         const basis = currentDesignerBasis;
+        designerIsGasGiantCheckbox.checked = basis.isGasGiant;
+
+        // Terrestrial
         designerWaterColorInput.value = basis.waterColor;
         designerLandColorInput.value = basis.landColor;
         designerRiverBasinInput.value = basis.riverBasin;
@@ -209,28 +238,52 @@ export const PlanetDesigner = (() => {
         designerMinHeightInput.value = basis.minTerrainHeight;
         designerMaxHeightInput.value = basis.maxTerrainHeight;
         designerOceanHeightInput.value = basis.oceanHeightLevel;
+
+        // Gas Giant
+        designerGgColor1Input.value = basis.ggBandColor1;
+        designerGgColor2Input.value = basis.ggBandColor2;
+        designerGgPoleColorInput.value = basis.ggPoleColor;
+        designerGgStormColorInput.value = basis.ggStormColor;
+        designerGgBandsInput.value = basis.ggNumBands;
+        designerGgBandsValue.textContent = basis.ggNumBands;
+        designerGgTurbulenceInput.value = basis.ggTurbulence;
+        designerGgTurbulenceValue.textContent = Number(basis.ggTurbulence).toFixed(2);
+        designerGgStormSizeInput.value = basis.ggStormSize;
+        designerGgStormSizeValue.textContent = Number(basis.ggStormSize).toFixed(2);
+
+        _updateControlVisibility();
     }
 
     function _randomizeDesignerPlanet() {
         function _getRandomHexColor() { return '#' + (Math.random() * 0xFFFFFF | 0).toString(16).padStart(6, '0'); }
         function _getRandomFloat(min, max, p = 1) { const f = Math.pow(10, p); return parseFloat((Math.random() * (max - min) + min).toFixed(p)); }
 
-        const minH = _getRandomFloat(0.0, 4.0);
-        const maxH = _getRandomFloat(minH + 1.0, minH + 10.0);
+        const isGasGiant = designerIsGasGiantCheckbox.checked;
+        setDefaultBasis(isGasGiant);
+        const basis = currentDesignerBasis;
+        basis.continentSeed = Math.random();
 
-        currentDesignerBasis = {
-            waterColor: _getRandomHexColor(),
-            landColor: _getRandomHexColor(),
-            continentSeed: Math.random(),
-            riverBasin: _getRandomFloat(0.01, 0.15, 2),
-            forestDensity: _getRandomFloat(0.1, 0.9, 2),
-            minTerrainHeight: minH,
-            maxTerrainHeight: maxH,
-            oceanHeightLevel: _getRandomFloat(minH, maxH),
-            volcanicActivity: _getRandomFloat(0.0, 1.0, 2),
-            snowCapLevel: _getRandomFloat(0.0, 0.4, 2), // Start with smaller snow caps on average
-            planetType: 0
-        };
+        if (isGasGiant) {
+            basis.ggBandColor1 = _getRandomHexColor();
+            basis.ggBandColor2 = _getRandomHexColor();
+            basis.ggPoleColor = _getRandomHexColor();
+            basis.ggStormColor = _getRandomHexColor();
+            basis.ggNumBands = _getRandomFloat(4, 25, 0);
+            basis.ggTurbulence = _getRandomFloat(0.1, 1.0, 2);
+            basis.ggStormSize = _getRandomFloat(0.0, 0.4, 2);
+        } else {
+            const minH = _getRandomFloat(0.0, 4.0);
+            const maxH = _getRandomFloat(minH + 1.0, minH + 10.0);
+            basis.waterColor = _getRandomHexColor();
+            basis.landColor = _getRandomHexColor();
+            basis.riverBasin = _getRandomFloat(0.01, 0.15, 2);
+            basis.forestDensity = _getRandomFloat(0.1, 0.9, 2);
+            basis.minTerrainHeight = minH;
+            basis.maxTerrainHeight = maxH;
+            basis.oceanHeightLevel = _getRandomFloat(minH, maxH);
+            basis.volcanicActivity = _getRandomFloat(0.0, 1.0, 2);
+            basis.snowCapLevel = Math.pow(_getRandomFloat(0.0, 1.0, 2), 2);
+        }
 
         _populateDesignerInputsFromBasis();
         _refreshDesignerPreview();
@@ -245,54 +298,37 @@ export const PlanetDesigner = (() => {
     }
 
     function _saveCustomPlanetDesign() {
-        const designName = `My Planet ${GameStateManager.getCustomPlanetDesigns().length + 1}`;
-
-        const newDesign = {
-            ...currentDesignerBasis,
-            designId: _generateUUID(),
-            designName: designName
-        };
-
+        const designName = `My ${currentDesignerBasis.isGasGiant ? 'Gas Giant' : 'Planet'} ${GameStateManager.getCustomPlanetDesigns().length + 1}`;
+        const newDesign = { ...currentDesignerBasis, designId: _generateUUID(), designName: designName };
         GameStateManager.addCustomPlanetDesign(newDesign);
         console.log(`Planet design '${designName}' saved.`);
-
         _populateSavedDesignsList();
     }
 
     function _loadAndPreviewDesign(designId) {
         const designToLoad = GameStateManager.getCustomPlanetDesigns().find(d => d.designId === designId);
         if (designToLoad) {
-            currentDesignerBasis = {
-                ...currentDesignerBasis,
-                ...designToLoad
-            };
+            setDefaultBasis(designToLoad.isGasGiant || false);
+            currentDesignerBasis = { ...currentDesignerBasis, ...designToLoad };
             delete currentDesignerBasis.designId;
             delete currentDesignerBasis.designName;
-
             _populateDesignerInputsFromBasis();
             _refreshDesignerPreview();
         }
     }
 
     function _handleExploreButtonClick(fromSolarSystem = false) {
+        if (currentDesignerBasis.isGasGiant) {
+            alert("Exploration view is not available for Gas Giants yet.");
+            return;
+        }
         const planetScreen = document.getElementById('planet-designer-screen');
         const hexScreen = document.getElementById('hex-planet-screen');
-
         HexPlanetViewController.activate(currentDesignerBasis, () => {
-            if (fromSolarSystem) {
-                // This case is for future expansion if you can explore from the solar system view
-                if (window.switchToSolarSystemView) {
-                    window.switchToSolarSystemView();
-                }
-            } else {
-                planetScreen.classList.add('active');
-                hexScreen.classList.remove('active');
-            }
+            planetScreen.classList.add('active');
+            hexScreen.classList.remove('active');
         });
-
-        if (!fromSolarSystem) {
-            planetScreen.classList.remove('active');
-        }
+        planetScreen.classList.remove('active');
         hexScreen.classList.add('active');
     }
 
@@ -305,36 +341,26 @@ export const PlanetDesigner = (() => {
     function _populateSavedDesignsList() {
         if (!savedDesignsUl) return;
         savedDesignsUl.innerHTML = '';
-
         const designs = GameStateManager.getCustomPlanetDesigns();
-
         if (designs.length === 0) {
-            const li = document.createElement('li');
-            li.textContent = "No saved designs yet.";
-            li.style.fontStyle = "italic";
-            li.style.color = "#95a5a6";
-            savedDesignsUl.appendChild(li);
+            savedDesignsUl.innerHTML = '<li>No saved designs yet.</li>';
             return;
         }
-
         designs.forEach(design => {
             const li = document.createElement('li');
             const nameSpan = document.createElement('span');
             nameSpan.className = 'design-item-name';
-            nameSpan.textContent = design.designName;
-
+            nameSpan.textContent = `${design.designName} (${design.isGasGiant ? 'Gas Giant' : 'Terrestrial'})`;
             const buttonsDiv = document.createElement('div');
             const loadBtn = document.createElement('button');
             loadBtn.textContent = 'Load';
             loadBtn.className = 'design-item-load modal-button-apply';
             loadBtn.dataset.id = design.designId;
-
             const deleteBtn = document.createElement('button');
             deleteBtn.innerHTML = '×';
             deleteBtn.className = 'design-item-delete';
             deleteBtn.dataset.id = design.designId;
             deleteBtn.title = `Delete ${design.designName}`;
-
             buttonsDiv.appendChild(loadBtn);
             buttonsDiv.appendChild(deleteBtn);
             li.appendChild(nameSpan);
@@ -345,7 +371,20 @@ export const PlanetDesigner = (() => {
 
     return {
         init: () => {
+            // Common
             designerPlanetCanvas = document.getElementById('designer-planet-canvas');
+            designerIsGasGiantCheckbox = document.getElementById('designer-is-gas-giant');
+            savedDesignsUl = document.getElementById('saved-designs-ul');
+            designerRandomizeBtn = document.getElementById('designer-randomize-btn');
+            designerExploreBtn = document.getElementById('designer-explore-btn');
+            designerSaveBtn = document.getElementById('designer-save-btn');
+            designerCancelBtn = document.getElementById('designer-cancel-btn');
+
+            // Control Containers
+            terrestrialControls = document.getElementById('terrestrial-controls');
+            gasGiantControls = document.getElementById('gas-giant-controls');
+
+            // Terrestrial
             designerWaterColorInput = document.getElementById('designer-water-color');
             designerLandColorInput = document.getElementById('designer-land-color');
             designerRiverBasinInput = document.getElementById('designer-river-basin');
@@ -355,18 +394,26 @@ export const PlanetDesigner = (() => {
             designerMinHeightInput = document.getElementById('designer-min-height');
             designerMaxHeightInput = document.getElementById('designer-max-height');
             designerOceanHeightInput = document.getElementById('designer-ocean-height');
-            savedDesignsUl = document.getElementById('saved-designs-ul');
-            designerRandomizeBtn = document.getElementById('designer-randomize-btn');
-            designerExploreBtn = document.getElementById('designer-explore-btn');
-            designerSaveBtn = document.getElementById('designer-save-btn');
-            designerCancelBtn = document.getElementById('designer-cancel-btn');
-
             designerVolcanicActivityInput = document.getElementById('designer-volcanic-activity');
             designerVolcanicActivityValue = document.getElementById('designer-volcanic-activity-value');
             designerSnowCapsInput = document.getElementById('designer-snow-caps');
             designerSnowCapsValue = document.getElementById('designer-snow-caps-value');
 
+            // Gas Giant
+            designerGgColor1Input = document.getElementById('designer-gg-color1');
+            designerGgColor2Input = document.getElementById('designer-gg-color2');
+            designerGgPoleColorInput = document.getElementById('designer-gg-pole-color');
+            designerGgStormColorInput = document.getElementById('designer-gg-storm-color');
+            designerGgBandsInput = document.getElementById('designer-gg-bands');
+            designerGgBandsValue = document.getElementById('designer-gg-bands-value');
+            designerGgTurbulenceInput = document.getElementById('designer-gg-turbulence');
+            designerGgTurbulenceValue = document.getElementById('designer-gg-turbulence-value');
+            designerGgStormSizeInput = document.getElementById('designer-gg-storm-size');
+            designerGgStormSizeValue = document.getElementById('designer-gg-storm-size-value');
+            
+            // Event Listeners
             handleControlChangeRef = (e) => _handleControlChange(e);
+            handleCheckboxChangeRef = () => _handleCheckboxChange();
             randomizeDesignerPlanetRef = () => _randomizeDesignerPlanet();
             handleExploreButtonClickRef = () => _handleExploreButtonClick(false);
             saveCustomPlanetDesignRef = () => _saveCustomPlanetDesign();
@@ -376,19 +423,13 @@ export const PlanetDesigner = (() => {
                 if (!targetButton) return;
                 const id = targetButton.dataset.id;
                 if (!id) return;
-
-                if (targetButton.classList.contains('design-item-load')) {
-                    _loadAndPreviewDesign(id);
-                } else if (targetButton.classList.contains('design-item-delete')) {
-                    _deleteCustomPlanetDesign(id);
-                }
+                if (targetButton.classList.contains('design-item-load')) _loadAndPreviewDesign(id);
+                else if (targetButton.classList.contains('design-item-delete')) _deleteCustomPlanetDesign(id);
             };
             boundResizeHandler = _onDesignerResize.bind(this);
-
-            document.querySelectorAll('.designer-controls input').forEach(input => {
-                input.addEventListener('input', handleControlChangeRef);
-            });
-
+            
+            document.querySelectorAll('.designer-controls input').forEach(input => input.addEventListener('input', handleControlChangeRef));
+            designerIsGasGiantCheckbox.addEventListener('change', handleCheckboxChangeRef);
             designerRandomizeBtn?.addEventListener('click', randomizeDesignerPlanetRef);
             designerExploreBtn?.addEventListener('click', handleExploreButtonClickRef);
             designerSaveBtn?.addEventListener('click', saveCustomPlanetDesignRef);
@@ -398,11 +439,10 @@ export const PlanetDesigner = (() => {
         },
 
         activate: (onBack) => {
-            console.log("PlanetDesigner.activate called.");
             onBackCallback = onBack;
+            setDefaultBasis(false); // Default to terrestrial
             _populateDesignerInputsFromBasis();
             _populateSavedDesignsList();
-
             requestAnimationFrame(() => {
                 _stopAndCleanupDesignerThreeJSView();
                 _initDesignerThreeJSView();
@@ -411,27 +451,8 @@ export const PlanetDesigner = (() => {
         },
 
         deactivate: () => {
-            console.log("PlanetDesigner.deactivate called.");
             _stopAndCleanupDesignerThreeJSView();
-
-            if (typeof onBackCallback === 'function') {
-                onBackCallback();
-            } else {
-                console.error("No onBack callback provided to PlanetDesigner.");
-            }
+            if (typeof onBackCallback === 'function') onBackCallback();
         },
-
-        destroy: () => {
-            console.log("PlanetDesigner: Removing event listeners.");
-            document.querySelectorAll('.designer-controls input').forEach(input => {
-                input.removeEventListener('input', handleControlChangeRef);
-            });
-            designerRandomizeBtn?.removeEventListener('click', randomizeDesignerPlanetRef);
-            designerExploreBtn?.removeEventListener('click', handleExploreButtonClickRef);
-            designerSaveBtn?.removeEventListener('click', saveCustomPlanetDesignRef);
-            designerCancelBtn?.removeEventListener('click', cancelDesignerRef);
-            savedDesignsUl?.removeEventListener('click', savedDesignsClickHandlerRef);
-            window.removeEventListener('resize', boundResizeHandler);
-        }
     };
 })();

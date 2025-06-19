@@ -218,7 +218,8 @@ export const PlanetDesigner = (() => {
             uniforms.uLandColor.value.set(basis.landColor);
             uniforms.uForestDensity.value = basis.forestDensity;
             uniforms.uOceanHeightLevel.value = normalizedOceanLevel - 0.5;
-            uniforms.uDisplacementAmount.value = terrainRange * DISPLACEMENT_SCALING_FACTOR;
+            // FIX: Ensure displacement calculation matches solarSystemRenderer
+            uniforms.uDisplacementAmount.value = terrainRange * DISPLACEMENT_SCALING_FACTOR * 40;
             uniforms.uVolcanicActivity.value = basis.volcanicActivity;
             uniforms.uSnowCapLevel.value = basis.snowCapLevel;
         }

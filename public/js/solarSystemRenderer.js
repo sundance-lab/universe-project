@@ -8,6 +8,7 @@ import { getPlanetShaders, getHexPlanetShaders } from './shaders.js';
 import { Line2 } from 'three/examples/jsm/lines/Line2.js';
 import { LineMaterial } from 'three/examples/jsm/lines/LineMaterial.js';
 import { LineGeometry } from 'three/examples/jsm/lines/LineGeometry.js';
+import GameStateManager from './gameStateManager.js';
 
 // --- Sun Creation Logic ---
 const LOD_LEVELS = {
@@ -103,7 +104,8 @@ export const SolarSystemRenderer = (() => {
     let planetLODs = [], planetLabels = [];
     let orbitLines = [];
     let orbitLineMaterials = [];
-    let landingSiteIcons = [];
+    let locationIcons = [];
+    let cityTexture, mineTexture;
     let currentSystemData = null;
     let animationFrameId = null;
     let simulationStartTime = 0, lastUpdateTime = 0;
@@ -129,6 +131,7 @@ export const SolarSystemRenderer = (() => {
         }
     };
     let isSpawningMode = false;
+    let contextMenu, lastRightClickIntersection = null;
 
     const moduleState = {
         orbitSpeedMultiplier: 1.0,
@@ -139,65 +142,48 @@ export const SolarSystemRenderer = (() => {
     const DISPLACEMENT_SCALING_FACTOR = 0.005;
     const DEFAULT_MIN_DISTANCE = 50;
 
-    function _createLandingSiteTexture() {
-        return _createAndCacheTexture(() => {
-            const size = 64;
-            const canvas = document.createElement('canvas');
-            canvas.width = size;
-            canvas.height = size;
-            const context = canvas.getContext('2d');
-            const center = size / 2;
-    
-            context.beginPath();
-            context.arc(center, center, center - 2, 0, 2 * Math.PI, false);
-            context.strokeStyle = 'rgba(0, 255, 128, 1)';
-            context.lineWidth = 4;
-            context.stroke();
-    
-            context.beginPath();
-            context.arc(center, center, center / 2.5, 0, 2 * Math.PI, false);
-            context.fillStyle = 'rgba(0, 255, 128, 0.5)';
-            context.fill();
-    
-            return new THREE.CanvasTexture(canvas);
-        });
-    }
-
-    function _createLandingSiteIcons(planetLOD) {
+    function _createLocationIconsForPlanet(planetLOD) {
         const planetData = planetLOD.userData;
         if (!planetData.landingLocations) return;
     
-        const iconTexture = _createLandingSiteTexture();
-    
         planetData.landingLocations.forEach(location => {
-            const material = new THREE.SpriteMaterial({
-                map: iconTexture,
-                color: 0x00ff80,
-                transparent: true,
-                opacity: 0,
-                depthTest: true,
-                sizeAttenuation: true 
-            });
-    
-            const sprite = new THREE.Sprite(material);
-            sprite.renderOrder = 1; // Draw after planets
-            sprite.userData = { ...location, planetId: planetData.id };
-            sprite.visible = false; 
-            landingSiteIcons.push(sprite);
-            scene.add(sprite);
+            _createIconSprite(location, planetData.id);
         });
     }
 
-    function _updateLandingSiteIcons(deltaTime) {
+    function _createIconSprite(locationData, planetId) {
+        const texture = locationData.type.toLowerCase() === 'mine' ? mineTexture : cityTexture;
+        if (!texture) {
+            console.warn(`Texture for type "${locationData.type}" not loaded.`);
+            return;
+        }
+
+        const material = new THREE.SpriteMaterial({
+            map: texture,
+            transparent: true,
+            opacity: 0,
+            depthTest: true,
+            sizeAttenuation: true
+        });
+
+        const sprite = new THREE.Sprite(material);
+        sprite.renderOrder = 1;
+        sprite.userData = { ...locationData, planetId: planetId };
+        sprite.visible = false;
+        locationIcons.push(sprite);
+        scene.add(sprite);
+    }
+
+    function _updateLocationIcons(deltaTime) {
         if (!followedPlanetLOD) {
-            landingSiteIcons.forEach(icon => { icon.visible = false; });
+            locationIcons.forEach(icon => { icon.visible = false; });
             return;
         }
     
         const planetPos = followedPlanetLOD.getWorldPosition(new THREE.Vector3());
         const planetRadius = followedPlanetLOD.userData.size;
     
-        landingSiteIcons.forEach(icon => {
+        locationIcons.forEach(icon => {
             if (icon.userData.planetId === followedPlanetLOD.userData.id) {
                 const positionOnSphere = new THREE.Vector3().setFromSphericalCoords(
                     planetRadius * 1.01, 
@@ -564,12 +550,12 @@ export const SolarSystemRenderer = (() => {
             if (line.material) line.material.dispose();
             scene.remove(line);
         });
-        landingSiteIcons.forEach(icon => {
+        locationIcons.forEach(icon => {
             if (icon.material.map) icon.material.map.dispose();
             if (icon.material) icon.material.dispose();
             scene.remove(icon);
         });
-        landingSiteIcons = [];
+        locationIcons = [];
         if (playerShip) {
             if(playerShip.geometry) playerShip.geometry.dispose();
             if(playerShip.material) playerShip.material.dispose();
@@ -598,40 +584,56 @@ export const SolarSystemRenderer = (() => {
     }
 
     function _onSpawnClick(event) {
-        if (!isSpawningMode) return;
-
-        const rect = renderer.domElement.getBoundingClientRect();
-        mouse.x = ((event.clientX - rect.left) / rect.width) * 2 - 1;
-        mouse.y = -((event.clientY - rect.top) / rect.height) * 2 + 1;
-        raycaster.setFromCamera(mouse, camera);
-
-        const plane = new THREE.Plane(new THREE.Vector3(0, 1, 0), 0);
-        const intersectionPoint = new THREE.Vector3();
-        raycaster.ray.intersectPlane(plane, intersectionPoint);
-
-        if (intersectionPoint) {
-            if (!playerShip) {
-                playerShip = _createPlayerShip();
-                scene.add(playerShip);
-            }
-            playerShip.position.copy(intersectionPoint);
-            shipState.target = null;
-            shipState.velocity.set(0, 0, 0);
-        }
-
-        isSpawningMode = false;
-        renderer.domElement.style.cursor = 'default';
-    }
-
-    function _onMovementRightClick(event) {
-        event.preventDefault();
-        
-        if (playerShip) {
+        if (isSpawningMode) {
             const rect = renderer.domElement.getBoundingClientRect();
             mouse.x = ((event.clientX - rect.left) / rect.width) * 2 - 1;
             mouse.y = -((event.clientY - rect.top) / rect.height) * 2 + 1;
             raycaster.setFromCamera(mouse, camera);
 
+            const plane = new THREE.Plane(new THREE.Vector3(0, 1, 0), 0);
+            const intersectionPoint = new THREE.Vector3();
+            raycaster.ray.intersectPlane(plane, intersectionPoint);
+
+            if (intersectionPoint) {
+                if (!playerShip) {
+                    playerShip = _createPlayerShip();
+                    scene.add(playerShip);
+                }
+                playerShip.position.copy(intersectionPoint);
+                shipState.target = null;
+                shipState.velocity.set(0, 0, 0);
+            }
+
+            isSpawningMode = false;
+            renderer.domElement.style.cursor = 'default';
+        } else {
+            contextMenu.style.display = 'none';
+        }
+    }
+
+    function _onMovementRightClick(event) {
+        event.preventDefault();
+        contextMenu.style.display = 'none';
+
+        const rect = renderer.domElement.getBoundingClientRect();
+        mouse.x = ((event.clientX - rect.left) / rect.width) * 2 - 1;
+        mouse.y = -((event.clientY - rect.top) / rect.height) * 2 + 1;
+        raycaster.setFromCamera(mouse, camera);
+        
+        if (followedPlanetLOD) {
+            const hexMesh = followedPlanetLOD.userData.hexMeshLOD;
+            const intersects = raycaster.intersectObject(hexMesh, true);
+
+            if (intersects.length > 0) {
+                lastRightClickIntersection = intersects[0];
+                contextMenu.style.left = `${event.clientX}px`;
+                contextMenu.style.top = `${event.clientY}px`;
+                contextMenu.style.display = 'block';
+                return;
+            }
+        }
+        
+        if (playerShip) {
             const plane = new THREE.Plane(new THREE.Vector3(0, 1, 0), 0);
             const targetPosition = new THREE.Vector3();
             raycaster.ray.intersectPlane(plane, targetPosition);
@@ -711,7 +713,6 @@ export const SolarSystemRenderer = (() => {
         renderer.domElement.addEventListener('click', boundSpawnClickHandler);
         boundRightClickHandler = _onMovementRightClick;
         renderer.domElement.addEventListener('contextmenu', boundRightClickHandler);
-
 
         raycaster = new THREE.Raycaster();
         mouse = new THREE.Vector2();
@@ -957,7 +958,7 @@ export const SolarSystemRenderer = (() => {
             material.opacity = orbitOpacity;
         });
 
-        _updateLandingSiteIcons(deltaTime);
+        _updateLocationIcons(deltaTime);
         _updatePlayerShip(deltaTime);
 
         if (backgroundStars) backgroundStars.position.copy(camera.position);
@@ -1067,13 +1068,54 @@ export const SolarSystemRenderer = (() => {
     function getFollowedPlanetId() {
         return followedPlanetLOD ? followedPlanetLOD.userData.id : null;
     }
+    
+    function _initContextMenu() {
+        contextMenu = document.getElementById('build-context-menu');
+        if (!contextMenu) return;
+
+        contextMenu.addEventListener('click', (event) => {
+            const action = event.target.dataset.action;
+            if (action && lastRightClickIntersection) {
+                const planet = lastRightClickIntersection.object;
+                const planetData = planet.parent.userData;
+                const point = lastRightClickIntersection.point;
+
+                // Convert world-space intersection point to local spherical coordinates
+                const localPoint = planet.worldToLocal(point.clone());
+                const spherical = new THREE.Spherical().setFromCartesian(localPoint);
+
+                const locationType = action === 'build-mine' ? 'Mine' : 'City';
+                const newLocationCount = (planetData.landingLocations?.filter(l => l.type === locationType).length || 0) + 1;
+                
+                const newLocation = {
+                    id: `${planetData.id}-loc-${Date.now()}`,
+                    type: locationType,
+                    name: `${locationType} #${newLocationCount}`,
+                    phi: spherical.phi,
+                    theta: spherical.theta,
+                };
+
+                GameStateManager.addLandingLocation(planetData.id, newLocation);
+                _createIconSprite(newLocation, planetData.id);
+            }
+            contextMenu.style.display = 'none';
+        });
+    }
 
     return {
         init: (solarSystemData, initialDevSettings) => {
             const container = document.getElementById('solar-system-content');
             if (!container) return console.error("SolarSystemRenderer: Container #solar-system-content not found.");
             container.innerHTML = '';
+
+            const textureLoader = new THREE.TextureLoader();
+            mineTexture = textureLoader.load('assets/icons/mine.png');
+            cityTexture = textureLoader.load('assets/icons/city.png');
+            createdTextures.push(mineTexture, cityTexture);
+
             _setupScene(container, solarSystemData);
+            _initContextMenu();
+
             currentSystemData = solarSystemData;
 
             simulationStartTime = performance.now();
@@ -1100,7 +1142,7 @@ export const SolarSystemRenderer = (() => {
                 orbitLines.push(orbitLine);
                 scene.add(orbitLine);
 
-                _createLandingSiteIcons(planetLOD);
+                _createLocationIconsForPlanet(planetLOD);
             });
 
             if(initialDevSettings) {
@@ -1129,6 +1171,6 @@ export const SolarSystemRenderer = (() => {
         getRaycaster: () => raycaster,
         getMouse: () => mouse,
         getCamera: () => camera,
-        getLandingSiteIcons: () => landingSiteIcons,
+        getLocationIcons: () => locationIcons,
     };
 })();

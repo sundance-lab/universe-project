@@ -136,7 +136,7 @@ export function getPlanetShaders() {
         uniform bool uIsGasGiant;
         uniform vec3 uLandColor, uWaterColor, uGgBandColor1, uGgBandColor2, uGgPoleColor, uGgStormColor;
         uniform float uOceanHeightLevel, uContinentSeed, uForestDensity, uRiverBasin, uTime, uSnowCapLevel, uVolcanicActivity;
-        uniform float uGgNumBands, uGgTurbulence, uGgStormSize;
+        uniform float uGgPoleSize, uGgAtmosphereStyle, uGgTurbulence, uGgStormSize;
 
         // Varyings
         varying vec3 vNormal, vWorldPosition, vPosition;
@@ -166,29 +166,43 @@ export function getPlanetShaders() {
             vec3 normalizedPos = normalize(vPosition);
 
             if (uIsGasGiant) {
-                // Gas Giant Rendering
-                float latitude = normalizedPos.y;
-                float poleFactor = abs(latitude);
+                // --- Gas Giant Rendering ---
+                
+                // 1. Create a "flow map" using scrolling noise to distort coordinates
+                vec2 flowMap = vec2(
+                    layeredNoise(normalizedPos * 0.5 + uTime * 0.02, 300.0, 3, 0.5, 2.0, 1.0) - 0.5,
+                    layeredNoise(normalizedPos * 0.5 + uTime * 0.02 + 10.0, 301.0, 3, 0.5, 2.0, 1.0) - 0.5
+                );
+                
+                // 2. Define two main atmospheric patterns: Banded and Swirly
+                vec3 band_coords = normalizedPos + vec3(flowMap, 0.0) * uGgTurbulence * 2.0;
+                float bandPattern = (layeredNoise(band_coords * vec3(1.0, 8.0, 1.0), 302.0, 4, 0.4, 2.0, 1.0) + 1.0) * 0.5;
+                
+                vec3 swirl_coords = normalizedPos + vec3(flowMap, 0.0) * (1.0 + uGgTurbulence * 4.0);
+                float swirlPattern = layeredNoise(swirl_coords * 2.5 - uTime * 0.05, 303.0, 5, 0.5, 2.2, 1.0);
+                
+                // 3. Mix between the two patterns based on the "Atmosphere Style" slider
+                float pattern = mix(bandPattern, swirlPattern, uGgAtmosphereStyle);
+                
+                // 4. Color the atmosphere
+                vec3 atmosphereColor = mix(uGgBandColor1, uGgBandColor2, pattern);
+                
+                // 5. Add polar coloring
+                float poleFactor = 1.0 - (1.0 - abs(normalizedPos.y)) * (1.0 - uGgPoleSize);
+                finalColor = mix(atmosphereColor, uGgPoleColor, smoothstep(0.5, 1.0, poleFactor));
 
-                // Turbulent bands
-                vec3 turbulentPos = normalizedPos + (layeredNoise(normalizedPos * 3.0 + uTime * 0.1, 200.0, 4, 0.5, 2.0, 1.0) * 0.1 * uGgTurbulence);
-                float bandNoise = (sin(turbulentPos.y * uGgNumBands + uTime * 0.2) + 1.0) * 0.5;
-                
-                vec3 bandColor = mix(uGgBandColor1, uGgBandColor2, bandNoise);
-                
-                // Polar caps
-                finalColor = mix(bandColor, uGgPoleColor, smoothstep(0.7, 1.0, poleFactor));
-                
-                // Great storm
+                // 6. Add a great storm
                 if (uGgStormSize > 0.0) {
-                    vec2 stormCoords = vec2(normalizedPos.x, normalizedPos.y) / (uGgStormSize * 2.0);
-                    float stormShape = 1.0 - smoothstep(0.4, 0.5, length(stormCoords));
-                    float stormSwirl = layeredNoise(vec3(stormCoords * 5.0, uTime * 0.5), 201.0, 3, 0.5, 2.0, 1.0);
-                    vec3 stormColor = mix(uGgStormColor, bandColor, stormSwirl);
+                    vec2 storm_uv = vec2(normalizedPos.x, normalizedPos.y) / (uGgStormSize * 2.0);
+                    storm_uv += flowMap * uGgTurbulence * 0.5; // Let the storm drift
+                    float stormShape = 1.0 - smoothstep(0.4, 0.5, length(storm_uv));
+                    float stormSwirl = layeredNoise(vec3(storm_uv * 8.0, uTime * 0.4), 304.0, 4, 0.5, 2.0, 1.0);
+                    vec3 stormColor = mix(uGgStormColor, atmosphereColor, stormSwirl * 0.5);
                     finalColor = mix(finalColor, stormColor, stormShape);
                 }
+
             } else {
-                // Terrestrial Planet Rendering
+                // --- Terrestrial Planet Rendering ---
                 float landMassRange = 1.0 - uOceanHeightLevel;
                 float landRatio = max(0.0, (vElevation - uOceanHeightLevel) / landMassRange);
 

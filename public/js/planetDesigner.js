@@ -70,61 +70,68 @@ export const PlanetDesigner = (() => {
         }
     }
 
-    function _initDesignerThreeJSView() {
-        if (!designerPlanetCanvas) return;
+function _initDesignerThreeJSView() {
+    if (!designerPlanetCanvas) return;
 
-        const { vertexShader, fragmentShader } = getPlanetShaders();
+    const { vertexShader, fragmentShader } = getPlanetShaders();
 
-        designerThreeScene = new THREE.Scene();
-        designerThreeScene.background = new THREE.Color(0x0d0d0d);
-        designerThreeCamera = new THREE.PerspectiveCamera(60, designerPlanetCanvas.offsetWidth / designerPlanetCanvas.offsetHeight, 0.001, 100);
-        designerThreeCamera.position.z = 2.5;
+    designerThreeScene = new THREE.Scene();
+    designerThreeScene.background = new THREE.Color(0x0d0d0d);
+    designerThreeCamera = new THREE.PerspectiveCamera(60, designerPlanetCanvas.offsetWidth / designerPlanetCanvas.offsetHeight, 0.001, 100);
+    designerThreeCamera.position.z = 2.5;
 
-        designerThreeRenderer = new THREE.WebGLRenderer({ canvas: designerPlanetCanvas, antialias: true });
-        designerThreeRenderer.setSize(designerPlanetCanvas.offsetWidth, designerPlanetCanvas.offsetHeight);
-        designerThreeRenderer.setPixelRatio(window.devicePixelRatio);
+    designerThreeRenderer = new THREE.WebGLRenderer({ canvas: designerPlanetCanvas, antialias: true });
+    designerThreeRenderer.setSize(designerPlanetCanvas.offsetWidth, designerPlanetCanvas.offsetHeight);
+    designerThreeRenderer.setPixelRatio(window.devicePixelRatio);
 
-        const geometry = new THREE.IcosahedronGeometry(SPHERE_BASE_RADIUS, 32);
+    const ambientLight = new THREE.AmbientLight(0xffffff, 0.7);
+    designerThreeScene.add(ambientLight);
+    const directionalLight = new THREE.DirectionalLight(0xffffff, 0.5);
+    directionalLight.position.set(5, 5, 5);
+    designerThreeScene.add(directionalLight);
 
-        const uniforms = THREE.UniformsUtils.merge([
-            THREE.UniformsLib.common,
-            {
-                uLandColor: { value: new THREE.Color() },
-                uWaterColor: { value: new THREE.Color() },
-                uOceanHeightLevel: { value: 0.5 },
-                uContinentSeed: { value: Math.random() },
-                uRiverBasin: { value: 0.05 },
-                uForestDensity: { value: 0.5 },
-                uTime: { value: 0.0 },
-                uSphereRadius: { value: SPHERE_BASE_RADIUS },
-                uDisplacementAmount: { value: 0.0 },
-                uLightDirection: { value: new THREE.Vector3(0.8, 0.6, 1.0) },
-                uPlanetType: { value: 0 }
-            }
-        ]);
+    const geometry = new THREE.IcosahedronGeometry(SPHERE_BASE_RADIUS, 32);
 
-        designerShaderMaterial = new THREE.ShaderMaterial({
-            uniforms: uniforms,
-            vertexShader: vertexShader,
-            fragmentShader: fragmentShader,
-        });
+    const uniforms = THREE.UniformsUtils.merge([
+        THREE.UniformsLib.common,
+        THREE.UniformsLib.lights, 
+        {
+            uLandColor: { value: new THREE.Color() },
+            uWaterColor: { value: new THREE.Color() },
+            uOceanHeightLevel: { value: 0.5 },
+            uContinentSeed: { value: Math.random() },
+            uRiverBasin: { value: 0.05 },
+            uForestDensity: { value: 0.5 },
+            uTime: { value: 0.0 },
+            uSphereRadius: { value: SPHERE_BASE_RADIUS },
+            uDisplacementAmount: { value: 0.0 },
+            uPlanetType: { value: 0 }
+        }
+    ]);
 
-        designerThreePlanetMesh = new THREE.Mesh(geometry, designerShaderMaterial);
-        designerThreeScene.add(designerThreePlanetMesh);
+    designerShaderMaterial = new THREE.ShaderMaterial({
+        uniforms: uniforms,
+        vertexShader: vertexShader,
+        fragmentShader: fragmentShader,
+        lights: true 
+    });
 
-        designerThreeControls = new OrbitControls(designerThreeCamera, designerThreeRenderer.domElement);
-        designerThreeControls.enableDamping = true;
-        designerThreeControls.dampingFactor = 0.1;
-        designerThreeControls.rotateSpeed = 0.5;
-        designerThreeControls.minDistance = 0.9;
-        designerThreeControls.maxDistance = 4;
-        designerThreeControls.minAzimuthAngle = -Infinity;
-        designerThreeControls.maxAzimuthAngle = Infinity;
-        designerThreeControls.minPolarAngle = 0;
-        designerThreeControls.maxPolarAngle = Math.PI;
+    designerThreePlanetMesh = new THREE.Mesh(geometry, designerShaderMaterial);
+    designerThreeScene.add(designerThreePlanetMesh);
 
-        _animateDesignerThreeJSView();
-    }
+    designerThreeControls = new OrbitControls(designerThreeCamera, designerThreeRenderer.domElement);
+    designerThreeControls.enableDamping = true;
+    designerThreeControls.dampingFactor = 0.1;
+    designerThreeControls.rotateSpeed = 0.5;
+    designerThreeControls.minDistance = 0.9;
+    designerThreeControls.maxDistance = 4;
+    designerThreeControls.minAzimuthAngle = -Infinity;
+    designerThreeControls.maxAzimuthAngle = Infinity;
+    designerThreeControls.minPolarAngle = 0;
+    designerThreeControls.maxPolarAngle = Math.PI;
+
+    _animateDesignerThreeJSView();
+}
 
     function _animateDesignerThreeJSView() {
         if (!designerThreeRenderer) return;

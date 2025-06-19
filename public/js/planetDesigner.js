@@ -1,9 +1,10 @@
 // public/js/planetDesigner.js
+
 import * as THREE from 'three';
 import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls';
 import { getPlanetShaders } from './shaders.js';
 import { HexPlanetViewController } from './hexPlanetViewController.js';
-import GameStateManager from './gameStateManager.js';
+import GameStateManager from './gameStateManager.js'; // Import the state manager
 
 export const PlanetDesigner = (() => {
     let savedDesignsUl, designerPlanetCanvas, designerWaterColorInput, designerLandColorInput, designerMinHeightInput, designerMaxHeightInput, designerOceanHeightInput,
@@ -33,64 +34,37 @@ export const PlanetDesigner = (() => {
     let designerThreeScene, designerThreeCamera, designerThreeRenderer,
         designerThreePlanetMesh, designerThreeControls, designerThreeAnimationId, designerShaderMaterial;
 
-    function _addEventListeners() {
-        document.querySelectorAll('.designer-controls input').forEach(input => {
-            input.addEventListener('input', handleControlChangeRef);
-        });
-        designerRandomizeBtn?.addEventListener('click', randomizeDesignerPlanetRef);
-        designerExploreBtn?.addEventListener('click', handleExploreButtonClickRef);
-        designerSaveBtn?.addEventListener('click', saveCustomPlanetDesignRef);
-        designerCancelBtn?.addEventListener('click', cancelDesignerRef);
-        savedDesignsUl?.addEventListener('click', savedDesignsClickHandlerRef);
-        window.addEventListener('resize', boundResizeHandler);
-    }
-
-    function _removeEventListeners() {
-        document.querySelectorAll('.designer-controls input').forEach(input => {
-            input.removeEventListener('input', handleControlChangeRef);
-        });
-        designerRandomizeBtn?.removeEventListener('click', randomizeDesignerPlanetRef);
-        designerExploreBtn?.removeEventListener('click', handleExploreButtonClickRef);
-        designerSaveBtn?.removeEventListener('click', saveCustomPlanetDesignRef);
-        designerCancelBtn?.removeEventListener('click', cancelDesignerRef);
-        savedDesignsUl?.removeEventListener('click', savedDesignsClickHandlerRef);
-        window.removeEventListener('resize', boundResizeHandler);
-    }
-
     function _onDesignerResize() {
         if (designerThreeRenderer && document.getElementById('planet-designer-screen')?.classList.contains('active')) {
             const newWidth = designerPlanetCanvas.offsetWidth;
             const newHeight = designerPlanetCanvas.offsetHeight;
             if (newWidth > 0 && newHeight > 0) {
-                if(designerThreeCamera) {
-                    designerThreeCamera.aspect = newWidth / newHeight;
-                    designerThreeCamera.updateProjectionMatrix();
-                }
+                designerThreeCamera.aspect = newWidth / newHeight;
+                designerThreeCamera.updateProjectionMatrix();
                 designerThreeRenderer.setSize(newWidth, newHeight);
             }
         }
     }
-    
+
     function _initDesignerThreeJSView() {
-        _stopAndCleanupDesignerThreeJSView();
         if (!designerPlanetCanvas) return;
 
         const { vertexShader, fragmentShader } = getPlanetShaders();
 
         designerThreeScene = new THREE.Scene();
         designerThreeScene.background = new THREE.Color(0x0d0d0d);
-
-        designerThreeCamera = new THREE.PerspectiveCamera(60, designerPlanetCanvas.offsetWidth / designerPlanetCanvas.offsetHeight, 0.1, 100);
+        designerThreeCamera = new THREE.PerspectiveCamera(60, designerPlanetCanvas.offsetWidth / designerPlanetCanvas.offsetHeight, 0.001, 100);
         designerThreeCamera.position.z = 2.5;
 
         designerThreeRenderer = new THREE.WebGLRenderer({ canvas: designerPlanetCanvas, antialias: true });
         designerThreeRenderer.setSize(designerPlanetCanvas.offsetWidth, designerPlanetCanvas.offsetHeight);
         designerThreeRenderer.setPixelRatio(window.devicePixelRatio);
 
-        const geometry = new THREE.IcosahedronGeometry(SPHERE_BASE_RADIUS, 64);
+        const geometry = new THREE.IcosahedronGeometry(SPHERE_BASE_RADIUS, 32);
 
-        designerShaderMaterial = new THREE.ShaderMaterial({
-            uniforms: {
+        const uniforms = THREE.UniformsUtils.merge([
+            THREE.UniformsLib.common,
+            {
                 uLandColor: { value: new THREE.Color() },
                 uWaterColor: { value: new THREE.Color() },
                 uOceanHeightLevel: { value: 0.5 },
@@ -98,13 +72,17 @@ export const PlanetDesigner = (() => {
                 uRiverBasin: { value: 0.05 },
                 uForestDensity: { value: 0.5 },
                 uTime: { value: 0.0 },
+                uSphereRadius: { value: SPHERE_BASE_RADIUS },
                 uDisplacementAmount: { value: 0.0 },
-                uPlanetType: { value: 0 },
-                uLightDirection: { value: new THREE.Vector3(0.8, 0.6, 1.0).normalize() },
-                cameraPosition: { value: designerThreeCamera.position }
-            },
-            vertexShader,
-            fragmentShader,
+                uLightDirection: { value: new THREE.Vector3(0.8, 0.6, 1.0) },
+                uPlanetType: { value: 0 }
+            }
+        ]);
+
+        designerShaderMaterial = new THREE.ShaderMaterial({
+            uniforms: uniforms,
+            vertexShader: vertexShader,
+            fragmentShader: fragmentShader,
         });
 
         designerThreePlanetMesh = new THREE.Mesh(geometry, designerShaderMaterial);
@@ -116,6 +94,10 @@ export const PlanetDesigner = (() => {
         designerThreeControls.rotateSpeed = 0.5;
         designerThreeControls.minDistance = 0.9;
         designerThreeControls.maxDistance = 4;
+        designerThreeControls.minAzimuthAngle = -Infinity;
+        designerThreeControls.maxAzimuthAngle = Infinity;
+        designerThreeControls.minPolarAngle = 0;
+        designerThreeControls.maxPolarAngle = Math.PI;
 
         _animateDesignerThreeJSView();
     }
@@ -123,31 +105,22 @@ export const PlanetDesigner = (() => {
     function _animateDesignerThreeJSView() {
         if (!designerThreeRenderer) return;
         designerThreeAnimationId = requestAnimationFrame(_animateDesignerThreeJSView);
-        if (designerShaderMaterial?.uniforms.uTime) {
-            designerShaderMaterial.uniforms.uTime.value += 0.015;
-        }
+        if (designerShaderMaterial?.uniforms.uTime) designerShaderMaterial.uniforms.uTime.value += 0.015;
         if (designerThreeControls) designerThreeControls.update();
-        if (designerThreeScene && designerThreeCamera) {
-            designerThreeRenderer.render(designerThreeScene, designerThreeCamera);
-        }
+        if (designerThreeScene && designerThreeCamera) designerThreeRenderer.render(designerThreeScene, designerThreeCamera);
     }
-    
+
     function _stopAndCleanupDesignerThreeJSView() {
         if (designerThreeAnimationId) cancelAnimationFrame(designerThreeAnimationId);
         if (designerThreeControls) designerThreeControls.dispose();
+        if (designerShaderMaterial) designerShaderMaterial.dispose();
         if (designerThreePlanetMesh) {
-            designerThreePlanetMesh.geometry?.dispose();
-            designerThreePlanetMesh.material?.dispose();
+            if (designerThreePlanetMesh.geometry) designerThreePlanetMesh.geometry.dispose();
+            if (designerThreeScene) designerThreeScene.remove(designerThreePlanetMesh);
         }
         if (designerThreeRenderer) designerThreeRenderer.dispose();
-        
-        designerThreeAnimationId = null;
-        designerThreeControls = null;
-        designerShaderMaterial = null;
-        designerThreePlanetMesh = null;
-        designerThreeRenderer = null;
-        designerThreeScene = null;
-        designerThreeCamera = null;
+        designerThreeAnimationId = null; designerThreeControls = null; designerShaderMaterial = null;
+        designerThreePlanetMesh = null; designerThreeRenderer = null; designerThreeScene = null; designerThreeCamera = null;
     }
 
     function _handleControlChange(event) {
@@ -188,7 +161,7 @@ export const PlanetDesigner = (() => {
         if (!designerShaderMaterial) return;
         const {
             waterColor, landColor, continentSeed, riverBasin, forestDensity,
-            minTerrainHeight, maxTerrainHeight, oceanHeightLevel, planetType
+            minTerrainHeight, maxTerrainHeight, oceanHeightLevel
         } = currentDesignerBasis;
         const terrainRange = Math.max(0.1, maxTerrainHeight - minTerrainHeight);
         const normalizedOceanLevel = (oceanHeightLevel - minTerrainHeight) / terrainRange;
@@ -198,14 +171,8 @@ export const PlanetDesigner = (() => {
         uniforms.uContinentSeed.value = continentSeed;
         uniforms.uRiverBasin.value = riverBasin;
         uniforms.uForestDensity.value = forestDensity;
-        uniforms.uPlanetType.value = planetType;
         uniforms.uOceanHeightLevel.value = normalizedOceanLevel - 0.5;
-        
-        // *** FIX STARTS HERE ***
-        // Added '* 40' to match the displacement in other renderers for visual consistency.
-        const displacementAmount = terrainRange * DISPLACEMENT_SCALING_FACTOR * 40;
-        // *** FIX ENDS HERE ***
-
+        const displacementAmount = terrainRange * DISPLACEMENT_SCALING_FACTOR;
         uniforms.uDisplacementAmount.value = displacementAmount;
     }
 
@@ -239,22 +206,11 @@ export const PlanetDesigner = (() => {
             minTerrainHeight: minH,
             maxTerrainHeight: maxH,
             oceanHeightLevel: _getRandomFloat(minH, maxH),
-            planetType: Math.floor(Math.random() * 4)
+            planetType: Math.floor(Math.random() * 4) // Also randomize planet type
         };
 
         _populateDesignerInputsFromBasis();
         _refreshDesignerPreview();
-    }
-    
-    function _handleExploreButtonClick() {
-        const planetScreen = document.getElementById('planet-designer-screen');
-        
-        const onBackFromHex = () => {
-            planetScreen.classList.add('active');
-        };
-        
-        planetScreen.classList.remove('active');
-        HexPlanetViewController.activate(currentDesignerBasis, onBackFromHex);
     }
 
     function _generateUUID() {
@@ -267,31 +223,68 @@ export const PlanetDesigner = (() => {
 
     function _saveCustomPlanetDesign() {
         const designName = `My Planet ${GameStateManager.getCustomPlanetDesigns().length + 1}`;
-        const newDesign = { ...currentDesignerBasis, designId: _generateUUID(), designName: designName };
+
+        const newDesign = {
+            ...currentDesignerBasis,
+            designId: _generateUUID(),
+            designName: designName
+        };
+
         GameStateManager.addCustomPlanetDesign(newDesign);
+        console.log(`Planet design '${designName}' saved.`);
+
         _populateSavedDesignsList();
     }
 
     function _loadAndPreviewDesign(designId) {
         const designToLoad = GameStateManager.getCustomPlanetDesigns().find(d => d.designId === designId);
         if (designToLoad) {
-            currentDesignerBasis = { ...currentDesignerBasis, ...designToLoad };
+            currentDesignerBasis = {
+                ...currentDesignerBasis,
+                ...designToLoad
+            };
             delete currentDesignerBasis.designId;
             delete currentDesignerBasis.designName;
+
             _populateDesignerInputsFromBasis();
             _refreshDesignerPreview();
         }
     }
 
+    function _handleExploreButtonClick(fromSolarSystem = false) {
+        const planetScreen = document.getElementById('planet-designer-screen');
+        const hexScreen = document.getElementById('hex-planet-screen');
+
+        HexPlanetViewController.activate(currentDesignerBasis, () => {
+            if (fromSolarSystem) {
+                // This case is for future expansion if you can explore from the solar system view
+                if (window.switchToSolarSystemView) {
+                    window.switchToSolarSystemView();
+                }
+            } else {
+                planetScreen.classList.add('active');
+                hexScreen.classList.remove('active');
+            }
+        });
+
+        if (!fromSolarSystem) {
+            planetScreen.classList.remove('active');
+        }
+        hexScreen.classList.add('active');
+    }
+
     function _deleteCustomPlanetDesign(designId) {
         GameStateManager.deleteCustomPlanetDesign(designId);
+        console.log(`Planet design with ID '${designId}' deleted.`);
         _populateSavedDesignsList();
     }
 
     function _populateSavedDesignsList() {
         if (!savedDesignsUl) return;
         savedDesignsUl.innerHTML = '';
+
         const designs = GameStateManager.getCustomPlanetDesigns();
+
         if (designs.length === 0) {
             const li = document.createElement('li');
             li.textContent = "No saved designs yet.";
@@ -300,21 +293,25 @@ export const PlanetDesigner = (() => {
             savedDesignsUl.appendChild(li);
             return;
         }
+
         designs.forEach(design => {
             const li = document.createElement('li');
             const nameSpan = document.createElement('span');
             nameSpan.className = 'design-item-name';
             nameSpan.textContent = design.designName;
+
             const buttonsDiv = document.createElement('div');
             const loadBtn = document.createElement('button');
             loadBtn.textContent = 'Load';
             loadBtn.className = 'design-item-load modal-button-apply';
             loadBtn.dataset.id = design.designId;
+
             const deleteBtn = document.createElement('button');
             deleteBtn.innerHTML = '×';
             deleteBtn.className = 'design-item-delete';
             deleteBtn.dataset.id = design.designId;
             deleteBtn.title = `Delete ${design.designName}`;
+
             buttonsDiv.appendChild(loadBtn);
             buttonsDiv.appendChild(deleteBtn);
             li.appendChild(nameSpan);
@@ -343,7 +340,7 @@ export const PlanetDesigner = (() => {
 
             handleControlChangeRef = (e) => _handleControlChange(e);
             randomizeDesignerPlanetRef = () => _randomizeDesignerPlanet();
-            handleExploreButtonClickRef = () => _handleExploreButtonClick();
+            handleExploreButtonClickRef = () => _handleExploreButtonClick(false);
             saveCustomPlanetDesignRef = () => _saveCustomPlanetDesign();
             cancelDesignerRef = () => PlanetDesigner.deactivate();
             savedDesignsClickHandlerRef = (e) => {
@@ -351,6 +348,7 @@ export const PlanetDesigner = (() => {
                 if (!targetButton) return;
                 const id = targetButton.dataset.id;
                 if (!id) return;
+
                 if (targetButton.classList.contains('design-item-load')) {
                     _loadAndPreviewDesign(id);
                 } else if (targetButton.classList.contains('design-item-delete')) {
@@ -358,29 +356,54 @@ export const PlanetDesigner = (() => {
                 }
             };
             boundResizeHandler = _onDesignerResize.bind(this);
+
+            document.querySelectorAll('.designer-controls input').forEach(input => {
+                input.addEventListener('input', handleControlChangeRef);
+            });
+
+            designerRandomizeBtn?.addEventListener('click', randomizeDesignerPlanetRef);
+            designerExploreBtn?.addEventListener('click', handleExploreButtonClickRef);
+            designerSaveBtn?.addEventListener('click', saveCustomPlanetDesignRef);
+            designerCancelBtn?.addEventListener('click', cancelDesignerRef);
+            savedDesignsUl?.addEventListener('click', savedDesignsClickHandlerRef);
+            window.addEventListener('resize', boundResizeHandler);
         },
 
         activate: (onBack) => {
+            console.log("PlanetDesigner.activate called.");
             onBackCallback = onBack;
-            _addEventListeners();
             _populateDesignerInputsFromBasis();
             _populateSavedDesignsList();
+
             requestAnimationFrame(() => {
+                _stopAndCleanupDesignerThreeJSView();
                 _initDesignerThreeJSView();
                 _refreshDesignerPreview();
             });
         },
 
         deactivate: () => {
-            _removeEventListeners(); 
+            console.log("PlanetDesigner.deactivate called.");
+            _stopAndCleanupDesignerThreeJSView();
+
             if (typeof onBackCallback === 'function') {
                 onBackCallback();
+            } else {
+                console.error("No onBack callback provided to PlanetDesigner.");
             }
-            requestAnimationFrame(_stopAndCleanupDesignerThreeJSView);
         },
 
         destroy: () => {
-            _removeEventListeners();
+            console.log("PlanetDesigner: Removing event listeners.");
+            document.querySelectorAll('.designer-controls input').forEach(input => {
+                input.removeEventListener('input', handleControlChangeRef);
+            });
+            designerRandomizeBtn?.removeEventListener('click', randomizeDesignerPlanetRef);
+            designerExploreBtn?.removeEventListener('click', handleExploreButtonClickRef);
+            designerSaveBtn?.removeEventListener('click', saveCustomPlanetDesignRef);
+            designerCancelBtn?.removeEventListener('click', cancelDesignerRef);
+            savedDesignsUl?.removeEventListener('click', savedDesignsClickHandlerRef);
+            window.removeEventListener('resize', boundResizeHandler);
         }
     };
 })();

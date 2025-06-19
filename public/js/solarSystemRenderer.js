@@ -385,7 +385,8 @@ export const SolarSystemRenderer = (() => {
             const geometry = new THREE.IcosahedronGeometry(planetData.size, subdivision);
             addBarycentricCoordinates(geometry);
             
-            const mesh = new THREE.Mesh(geometry, hexPlanetMaterial.clone());
+            // PERFORMANCE FIX: Use the same material instance for all LOD levels.
+            const mesh = new THREE.Mesh(geometry, hexPlanetMaterial);
             lod.addLevel(mesh, distance);
         }
         

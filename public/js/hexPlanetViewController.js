@@ -76,7 +76,7 @@ export const HexPlanetViewController = (() => {
                 uGgTurbulence: { value: planetBasis.ggTurbulence },
                 uGgStormIntensity: { value: planetBasis.ggStormIntensity },
                 // Hex specific
-                uShowStrokes: { value: true },
+                uShowStrokes: { value: false }, // Lines are now off by default
             }
         ]);
 

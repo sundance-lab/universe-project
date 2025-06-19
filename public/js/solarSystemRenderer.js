@@ -1081,10 +1081,11 @@ export const SolarSystemRenderer = (() => {
                 if (!planetLOD) return;
 
                 const planetData = planetLOD.userData;
-                const point = lastRightClickIntersection.point;
+                const point = lastRightClickIntersection.point; // World-space intersection
 
                 // Convert world-space intersection point to local spherical coordinates
-                const localPoint = planetLOD.worldToLocal(point.clone());
+                const planetWorldPosition = planetLOD.getWorldPosition(new THREE.Vector3());
+                const localPoint = point.clone().sub(planetWorldPosition);
                 const spherical = new THREE.Spherical().setFromCartesianCoords(localPoint.x, localPoint.y, localPoint.z);
 
                 const locationType = action === 'build-mine' ? 'Mine' : 'City';

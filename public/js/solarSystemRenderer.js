@@ -1,3 +1,4 @@
+// public/js/solarSystemRenderer.js
 import * as THREE from 'three';
 import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls.js';
 import { getPlanetShaders, getHexPlanetShaders } from './shaders.js';
@@ -309,7 +310,11 @@ export const SolarSystemRenderer = (() => {
                     uDisplacementAmount: { value: displacementAmount },
                     uTime: { value: 0.0 },
                     uPlanetType: { value: planetData.planetType || 0 },
-                    uLightDirection: { value: new THREE.Vector3(0.8, 0.6, 1.0) }
+                    uLightDirection: { value: new THREE.Vector3(0.8, 0.6, 1.0) },
+                    // *** FIX STARTS HERE ***
+                    // Added the missing cameraPosition uniform required by the fragment shader.
+                    cameraPosition: { value: camera.position }
+                    // *** FIX ENDS HERE ***
                 }
             ]),
             vertexShader,
@@ -363,7 +368,8 @@ export const SolarSystemRenderer = (() => {
                     uMountainStrength: { value: 1.0 },
                     uIslandStrength: { value: 1.0 },
                     uPlanetType: { value: planetData.planetType || 0 },
-                    uLightDirection: { value: new THREE.Vector3(0.8, 0.6, 1.0) }
+                    uLightDirection: { value: new THREE.Vector3(0.8, 0.6, 1.0) },
+                    cameraPosition: { value: camera.position }
                 }
             ]),
             vertexShader,
@@ -373,7 +379,7 @@ export const SolarSystemRenderer = (() => {
         const terrainRange = Math.max(0.1, planetData.maxTerrainHeight - planetData.minTerrainHeight);
         const normalizedOceanLevel = (planetData.oceanHeightLevel - planetData.minTerrainHeight) / terrainRange;
         hexPlanetMaterial.uniforms.uOceanHeightLevel.value = normalizedOceanLevel - 0.5;
-        hexPlanetMaterial.uniforms.uDisplacementAmount.value = terrainRange * DISPLACEMENT_SCALING_FACTOR;
+        hexPlanetMaterial.uniforms.uDisplacementAmount.value = terrainRange * DISPLACEMENT_SCALING_FACTOR * 40;
         
         const numLevels = 16;
         const maxSubdivision = 512;

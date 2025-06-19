@@ -62,9 +62,9 @@ export const HexPlanetViewController = (() => {
                 // Terrestrial
                 uLandColor: { value: new THREE.Color(planetBasis.landColor) },
                 uWaterColor: { value: new THREE.Color(planetBasis.waterColor) },
-                uOceanHeightLevel: { value: 0.0 }, // Calculated below
+                uOceanHeightLevel: { value: 0.0 },
                 uForestDensity: { value: planetBasis.forestDensity },
-                uDisplacementAmount: { value: 0.0 }, // Calculated below
+                uDisplacementAmount: { value: 0.0 },
                 uVolcanicActivity: { value: planetBasis.volcanicActivity },
                 uSnowCapLevel: { value: planetBasis.snowCapLevel },
                 // Gas Giant

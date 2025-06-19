@@ -134,9 +134,9 @@ export function getPlanetShaders() {
         
         // Uniforms
         uniform bool uIsGasGiant;
-        uniform vec3 uLandColor, uWaterColor, uGgBandColor1, uGgBandColor2, uGgPoleColor, uGgStormColor;
+        uniform vec3 uLandColor, uWaterColor, uGgBandColor1, uGgBandColor2, uGgPoleColor;
         uniform float uOceanHeightLevel, uContinentSeed, uForestDensity, uRiverBasin, uTime, uSnowCapLevel, uVolcanicActivity;
-        uniform float uGgPoleSize, uGgAtmosphereStyle, uGgTurbulence, uGgStormSize;
+        uniform float uGgPoleSize, uGgAtmosphereStyle, uGgTurbulence, uGgStormIntensity;
 
         // Varyings
         varying vec3 vNormal, vWorldPosition, vPosition;
@@ -167,39 +167,35 @@ export function getPlanetShaders() {
 
             if (uIsGasGiant) {
                 // --- Gas Giant Rendering ---
-                
-                // 1. Create a "flow map" using scrolling noise to distort coordinates
+                float flowSpeed = uTime * 0.05;
                 vec2 flowMap = vec2(
-                    layeredNoise(normalizedPos * 0.5 + uTime * 0.02, 300.0, 3, 0.5, 2.0, 1.0) - 0.5,
-                    layeredNoise(normalizedPos * 0.5 + uTime * 0.02 + 10.0, 301.0, 3, 0.5, 2.0, 1.0) - 0.5
+                    layeredNoise(normalizedPos * 0.8 + flowSpeed, 300.0, 4, 0.5, 2.0, 1.0) - 0.5,
+                    layeredNoise(normalizedPos * 0.8 + flowSpeed + 10.0, 301.0, 4, 0.5, 2.0, 1.0) - 0.5
                 );
                 
-                // 2. Define two main atmospheric patterns: Banded and Swirly
-                vec3 band_coords = normalizedPos + vec3(flowMap, 0.0) * uGgTurbulence * 2.0;
-                float bandPattern = (layeredNoise(band_coords * vec3(1.0, 8.0, 1.0), 302.0, 4, 0.4, 2.0, 1.0) + 1.0) * 0.5;
+                vec3 flowDistortion = vec3(flowMap * 2.0, layeredNoise(normalizedPos * 0.5 - flowSpeed, 305.0, 4, 0.5, 2.0, 1.0) - 0.5);
                 
-                vec3 swirl_coords = normalizedPos + vec3(flowMap, 0.0) * (1.0 + uGgTurbulence * 4.0);
-                float swirlPattern = layeredNoise(swirl_coords * 2.5 - uTime * 0.05, 303.0, 5, 0.5, 2.2, 1.0);
+                float turbulence = 1.0 + uGgTurbulence * 8.0;
+                vec3 baseCoords = normalizedPos * vec3(1.0, 3.0, 1.0) + flowDistortion * 0.1 * turbulence;
                 
-                // 3. Mix between the two patterns based on the "Atmosphere Style" slider
+                // Base patterns
+                float bandPattern = (layeredNoise(baseCoords, 302.0, 5, 0.4, 2.5, 1.0) + 1.0) * 0.5;
+                float swirlPattern = layeredNoise(normalizedPos * 4.0 + flowDistortion * 0.2 * turbulence, 303.0, 6, 0.5, 2.2, 1.0);
+                
                 float pattern = mix(bandPattern, swirlPattern, uGgAtmosphereStyle);
-                
-                // 4. Color the atmosphere
                 vec3 atmosphereColor = mix(uGgBandColor1, uGgBandColor2, pattern);
                 
-                // 5. Add polar coloring
-                float poleFactor = 1.0 - (1.0 - abs(normalizedPos.y)) * (1.0 - uGgPoleSize);
-                finalColor = mix(atmosphereColor, uGgPoleColor, smoothstep(0.5, 1.0, poleFactor));
-
-                // 6. Add a great storm
-                if (uGgStormSize > 0.0) {
-                    vec2 storm_uv = vec2(normalizedPos.x, normalizedPos.y) / (uGgStormSize * 2.0);
-                    storm_uv += flowMap * uGgTurbulence * 0.5; // Let the storm drift
-                    float stormShape = 1.0 - smoothstep(0.4, 0.5, length(storm_uv));
-                    float stormSwirl = layeredNoise(vec3(storm_uv * 8.0, uTime * 0.4), 304.0, 4, 0.5, 2.0, 1.0);
-                    vec3 stormColor = mix(uGgStormColor, atmosphereColor, stormSwirl * 0.5);
-                    finalColor = mix(finalColor, stormColor, stormShape);
+                // Add storms
+                if (uGgStormIntensity > 0.0) {
+                    float stormNoise = ridgedRiverNoise(normalizedPos * 8.0 + flowDistortion * 0.5 * turbulence, 304.0);
+                    float stormMask = smoothstep(0.6, 1.0, stormNoise);
+                    vec3 stormColor = mix(uGgBandColor1, uGgBandColor2, 1.0 - pattern) * 1.2; // Inverted color for contrast
+                    atmosphereColor = mix(atmosphereColor, stormColor, stormMask * uGgStormIntensity);
                 }
+                
+                // Polar coloring
+                float poleFactor = 1.0 - pow(1.0 - abs(normalizedPos.y), 1.5 - pow(uGgPoleSize, 2.0) * 1.4);
+                finalColor = mix(atmosphereColor, uGgPoleColor, smoothstep(0.2, 0.9, poleFactor));
 
             } else {
                 // --- Terrestrial Planet Rendering ---

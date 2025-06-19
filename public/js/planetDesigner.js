@@ -1,3 +1,4 @@
+// public/js/planetDesigner.js
 import * as THREE from 'three';
 import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls';
 import { getPlanetShaders } from './shaders.js';
@@ -199,7 +200,12 @@ export const PlanetDesigner = (() => {
         uniforms.uForestDensity.value = forestDensity;
         uniforms.uPlanetType.value = planetType;
         uniforms.uOceanHeightLevel.value = normalizedOceanLevel - 0.5;
-        const displacementAmount = terrainRange * DISPLACEMENT_SCALING_FACTOR;
+        
+        // *** FIX STARTS HERE ***
+        // Added '* 40' to match the displacement in other renderers for visual consistency.
+        const displacementAmount = terrainRange * DISPLACEMENT_SCALING_FACTOR * 40;
+        // *** FIX ENDS HERE ***
+
         uniforms.uDisplacementAmount.value = displacementAmount;
     }
 

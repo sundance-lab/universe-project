@@ -75,7 +75,7 @@ export function getPlanetShaders() {
         varying float vElevation;
         varying vec3 vWorldPosition;
         varying float vRiverValue;
-        varying float vVolcanoValue;
+        varying float vLavaNoise;
 
         ${noiseFunctions}
 
@@ -104,19 +104,12 @@ export function getPlanetShaders() {
             vRiverValue = riverBed * riverMask;
             finalElevation -= vRiverValue * 0.08;
 
-            // Volcano generation
-            float volcanoShape = 0.0;
+            // Widespread lava fields based on volcanic activity
+            vLavaNoise = 0.0;
             if (uVolcanicActivity > 0.0) {
-                float volcanoNoise = layeredNoise(noiseInputPosition, uContinentSeed * 10.0, 3, 0.5, 2.0, 5.0);
-                float volcanoDistribution = smoothstep(0.8, 0.82, volcanoNoise) * continentMask;
-                
-                float volcanoPointNoise = layeredNoise(noiseInputPosition * 30.0, uContinentSeed * 11.0, 1, 1.0, 1.0, 1.0);
-                float volcanoPoint = smoothstep(0.9, 0.91, volcanoPointNoise);
-                
-                float volcanoProfile = 1.0 - smoothstep(0.0, 0.08, volcanoPointNoise);
-                volcanoShape = volcanoDistribution * volcanoProfile * uVolcanicActivity;
-                finalElevation += volcanoShape * 0.8;
-                vVolcanoValue = smoothstep(0.95, 1.0, volcanoProfile) * volcanoDistribution;
+                vLavaNoise = layeredNoise(noiseInputPosition * 2.0, uContinentSeed * 7.0, 5, 0.5, 2.0, 1.0);
+                float lavaHeight = smoothstep(1.0 - uVolcanicActivity, 1.0, vLavaNoise);
+                finalElevation += lavaHeight * uVolcanicActivity * 0.1; // Add height for lava fields
             }
 
             finalElevation = finalElevation - 0.5;
@@ -130,7 +123,7 @@ export function getPlanetShaders() {
             vec3 bitangent = normalize(cross(p_normalized, tangent));
             vec3 neighbor1 = p + tangent * 0.01;
             vec3 neighbor2 = p + bitangent * 0.01;
-            // Simplified normal calculation; for better results, this would need more complex logic
+            // Simplified normal calculation
             vNormal = normalize(cross(neighbor1 - displacedPosition, neighbor2 - displacedPosition));
 
             vWorldPosition = (modelMatrix * vec4(displacedPosition, 1.0)).xyz;
@@ -157,7 +150,7 @@ export function getPlanetShaders() {
         varying float vElevation;
         varying vec3 vWorldPosition;
         varying float vRiverValue;
-        varying float vVolcanoValue;
+        varying float vLavaNoise;
 
         ${noiseFunctions}
 
@@ -187,13 +180,18 @@ export function getPlanetShaders() {
             vec3 normalizedPos = normalize(vWorldPosition);
             
             if (vElevation < uOceanHeightLevel) {
-                // Animated oceans
-                float flowingNoise = layeredNoise(normalizedPos * 5.0 + uTime * 0.1, 99.0, 3, 0.5, 2.0, 1.0);
-                float foamNoise = layeredNoise(normalizedPos * 10.0 - uTime * 0.2, 100.0, 4, 0.5, 2.5, 1.0);
-                vec3 deepWater = uWaterColor * 0.7;
+                // Large-scale ocean currents and smaller waves
+                float largeSwellNoise = layeredNoise(normalizedPos * 1.5 + uTime * 0.05, 98.0, 4, 0.6, 2.0, 1.0);
+                float smallWaveNoise = layeredNoise(normalizedPos * 12.0 - uTime * 0.2, 99.0, 5, 0.5, 2.5, 1.0);
+                
+                vec3 deepWater = uWaterColor * 0.6;
                 vec3 shallowWater = uWaterColor;
-                finalColor = mix(deepWater, shallowWater, flowingNoise);
-                finalColor = mix(finalColor, vec3(1.0), smoothstep(0.7, 0.75, foamNoise) * 0.3); // Foam
+                
+                finalColor = mix(deepWater, shallowWater, largeSwellNoise);
+                
+                float foamThreshold = 0.65;
+                float foamBlend = smoothstep(foamThreshold, foamThreshold + 0.1, smallWaveNoise);
+                finalColor = mix(finalColor, vec3(1.0), foamBlend * 0.4); // Foam
             } else {
                 // Land with improved forests
                 const float BEACH_END = 0.02;
@@ -231,22 +229,27 @@ export function getPlanetShaders() {
                 }
             }
 
-            // Apply volcanic features
+            // Apply global volcanic activity
             if (uVolcanicActivity > 0.0) {
-                vec3 rockColor = vec3(0.1);
-                vec3 lavaColor = vec3(1.0, 0.2, 0.0);
-                float lavaFlowNoise = layeredNoise(normalizedPos * 15.0 + uTime * 0.05, 101.0, 4, 0.5, 2.0, 1.0);
-                float lavaGlow = smoothstep(0.6, 0.65, lavaFlowNoise) * (0.5 + 0.5 * sin(uTime * 5.0));
+                vec3 rockColor = vec3(0.08, 0.05, 0.05);
+                vec3 lavaColor = vec3(1.0, 0.15, 0.0);
                 
-                finalColor = mix(finalColor, rockColor, vVolcanoValue * uVolcanicActivity);
-                finalColor = mix(finalColor, lavaColor, vVolcanoValue * uVolcanicActivity * lavaGlow);
+                float lavaThreshold = 1.0 - uVolcanicActivity;
+                float lavaMix = smoothstep(lavaThreshold - 0.1, lavaThreshold, vLavaNoise);
+                
+                float lavaGlow = 0.5 + 0.5 * sin(vLavaNoise * 10.0 + uTime * 3.0);
+                vec3 glowingLava = lavaColor * lavaGlow;
+
+                finalColor = mix(finalColor, rockColor, lavaMix);
+                finalColor = mix(finalColor, glowingLava, lavaMix * smoothstep(0.5, 0.55, vLavaNoise));
             }
 
-            // Apply snow caps
+            // Apply natural snow caps
             if (uSnowCapLevel > 0.0) {
                 float latitude = abs(normalizedPos.y);
+                float iceEdgeNoise = layeredNoise(normalizedPos * 10.0, 100.0, 3, 0.5, 2.0, 1.0) * 0.1;
                 float snowStart = 1.0 - uSnowCapLevel;
-                float snowFactor = smoothstep(snowStart, 1.0, latitude);
+                float snowFactor = smoothstep(snowStart - iceEdgeNoise, snowStart + 0.1 - iceEdgeNoise, latitude);
                 finalColor = mix(finalColor, vec3(1.0), snowFactor);
             }
             
@@ -261,9 +264,7 @@ export function getPlanetShaders() {
 }
 
 export function getHexPlanetShaders() {
-    // For simplicity, I'm keeping the hex planet shaders as they were. 
-    // Applying these complex new features to the hex view would require a significant rewrite of that specific shader.
-    // The core request was about the main designer view, so I've focused efforts there.
+    // These shaders remain unchanged as the focus was on the main designer view.
     const hexVertexShader = `
         #include <common>
         #include <logdepthbuf_pars_vertex>
